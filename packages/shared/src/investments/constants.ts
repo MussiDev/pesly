@@ -32,3 +32,6 @@ export const INSTRUMENT_NAME_MAX_LENGTH = 100;
 export const QUANTITY_MAX = 10n ** 18n;
 export const TOTAL_COST_MAX = 10n ** 15n;
 export const UNIT_PRICE_MAX = 10n ** 12n;
+
+/** A market price is "recent" while it is at most 24 hours old; only the web wording depends on it. */
+export const MARKET_PRICE_RECENT_WITHIN_MS = 24 * 3_600_000;

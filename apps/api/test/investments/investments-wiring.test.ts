@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app';
@@ -7,7 +9,7 @@ import { createLogger } from '../../src/shared/logging/logger';
 import { MutableClock } from '../fakes/mutable-clock';
 import { cookieHeader, seedUser, sessionFrom, signIn } from '../helpers/session-client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { testEnv } from '../helpers/test-env';
+import { testEnv, trustedHeaders } from '../helpers/test-env';
 
 let connection: DatabaseConnection;
 
@@ -69,6 +71,30 @@ describe('investments module wiring', () => {
       expect(response.status).toBe(200);
       expect(response.body).toEqual({ portfolios: [] });
     }
+  });
+
+  it('wires the market price reader and the automatic price route, not the worker repository (regression)', async () => {
+    const source = readFileSync(
+      fileURLToPath(new URL('../../src/investments/index.ts', import.meta.url)),
+      'utf8',
+    );
+    expect(source).toContain('drizzle-market-price-reader');
+    expect(source).toContain('UseAutomaticPrice');
+    expect(source).not.toContain('drizzle-crypto-price-repository');
+
+    await seedUser(connection, { email: 'auto@wiring.test', password: 'a long enough passphrase' });
+    const app = buildApp(true);
+    const cookies = sessionFrom(await signIn(app, 'auto@wiring.test', 'a long enough passphrase'));
+    const anonymous = await request(app)
+      .post('/investments/holdings/3f1c9a52-8a0e-4c7e-9f0d-5b6f1b0c2a11/automatic-price')
+      .set(trustedHeaders);
+    const unknown = await request(app)
+      .post('/investments/holdings/3f1c9a52-8a0e-4c7e-9f0d-5b6f1b0c2a11/automatic-price')
+      .set(trustedHeaders)
+      .set('Cookie', cookieHeader(cookies));
+
+    expect(anonymous.status).toBe(401);
+    expect(unknown.status).toBe(404);
   });
 
   it('refuses a module router factory without the identity module', () => {

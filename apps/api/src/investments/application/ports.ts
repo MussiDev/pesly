@@ -26,6 +26,13 @@ export interface HoldingUpdate {
   price: HoldingPrice | null;
 }
 
+/** What a conditional price write expects the holding to still be. */
+export interface PriceWriteGuard {
+  instrumentType: InstrumentType;
+  /** Lowercase; compared with the lowercased stored ticker. */
+  ticker: string;
+}
+
 /** Every method answers null or false for rows that do not exist or are outside the scope. */
 export interface PortfolioRepository {
   create(scope: AccessScope<'write'>, name: string): Promise<Portfolio>;
@@ -57,12 +64,17 @@ export interface HoldingRepository {
   ): Promise<Holding | null>;
   /** Writes the resolved state as given, including a null price; it applies no rules of its own. */
   update(scope: AccessScope<'write'>, id: string, fields: HoldingUpdate): Promise<Holding | null>;
+  /**
+   * With a `guard`, the write applies only while the row still has that instrument type and
+   * lowercase ticker; otherwise nothing is written and the answer is null, like a missing row.
+   */
   setPrice(
     scope: AccessScope<'write'>,
     id: string,
     unitPrice: bigint,
     source: PriceSource,
     pricedAt: Date,
+    guard?: PriceWriteGuard,
   ): Promise<Holding | null>;
   delete(scope: AccessScope<'write'>, id: string): Promise<boolean>;
 }
@@ -83,4 +95,16 @@ export interface InvestmentsUnitOfWork {
 
 export interface Clock {
   now(): Date;
+}
+
+/** The latest stored market price of one symbol, in US cents. */
+export interface MarketPrice {
+  unitPrice: bigint;
+  pricedAt: Date;
+}
+
+/** Read-only view of the prices the worker stores; the API never writes them. */
+export interface MarketPriceReader {
+  /** Stored prices by lowercase symbol; symbols without a price are absent. */
+  findMany(symbols: readonly string[]): Promise<ReadonlyMap<string, MarketPrice>>;
 }

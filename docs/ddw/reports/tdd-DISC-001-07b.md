@@ -216,3 +216,56 @@ Three corrections, tests written first and run red (`snapshot-job.test.ts`, `inv
 | `investments-jobs`: `stop() stops both jobs even when one stop rejects, then rethrows the first reason` | `AssertionError: expected false to be true` (with `Promise.all` the rejection surfaced before the slower stop settled) | pass |
 
 Fixes: the summary is `info` only when `saved`, `skippedOutOfRange` or `skippedZones` is above zero, `debug` otherwise; invalid zones use a repeat-suppression set replaced by each pass's invalid zones; `createInvestmentsJobs.stop()` uses `Promise.allSettled` and rethrows the first rejection after both settled. Re-run (serial): `price-sync-job`, `snapshot-job`, `investments-jobs`, `request-path` (43 tests) pass.
+
+## Block 6 — Market price in the holding response and the switch to automatic
+
+Tests written first, then run red with `TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test pnpm --filter @pesly/api exec vitest run test/investments/valuation.test.ts test/investments/portfolio-view.test.ts test/investments/contracts.test.ts test/investments/holding-use-cases.test.ts test/investments/portfolio-use-cases.test.ts test/investments/holding-routes.test.ts test/investments/portfolio-routes.test.ts test/investments/add-holding-concurrency.test.ts test/investments/investments-wiring.test.ts` (9 files, 168 tests: 86 failed and 82 passed before the implementation; the 82 are the 07a tests that the block does not change). Most red results are not assertion failures but the consequence of the missing code (a missing export, a changed constructor); they are labelled as such.
+
+| Test file | Red result (before the implementation) | Green result |
+|---|---|---|
+| `valuation.test.ts` (6 new) | `TypeError: marketPriceDiffers is not a function` (6 failed; not an assertion, the helper did not exist) | 18/18 pass |
+| `portfolio-view.test.ts` (13 new tests, 13 failed) | the new tests failed on the view's missing `market`, `marketPriceDiffers` and `marketPriceRecent` (the exact assertion text was not kept; the 07a tests, which ignore the new third argument, passed) | 25/25 pass |
+| `contracts.test.ts` (11 new) | `AssertionError: expected true to be false`: the four fields are not required and `marketUnitPrice` `"1.5"`, `"-1"`, `"01"`, `""`, `"abc"` and a float were accepted (11 failed) | 31/31 pass |
+| `holding-use-cases.test.ts` (29 tests, all on the new setup) | `TypeError: UseAutomaticPrice is not a constructor` in `setup()` (29 failed; import-level cause, so the old tests fail with it) | 29/29 pass |
+| `portfolio-use-cases.test.ts` (14) | `TypeError: this.clock.now is not a function` in `CreatePortfolio.execute` (the reader was passed where the clock was expected; 13 failed) | 14/14 pass |
+| `holding-routes.test.ts` (10 new, 10 failed) | `AssertionError: expected 404 to be 200` (route absent), `expected [] to have a length of 1` (no mutation line), `expected 404 to be 400`, `expected 404 to be 500` in the storage-failure list, `expected { …(14) } to match object { …(17) }` (response without the four fields) | 32/32 pass |
+| `portfolio-routes.test.ts` (1 new) | the new test failed (1 failed): the responses had no market fields (exact assertion text not kept) | 11/11 pass |
+| `add-holding-concurrency.test.ts` | `TypeError: this.clock.now is not a function` (the reader was passed in the clock's place; 2 failed) | 4/4 pass |
+| `investments-wiring.test.ts` (1 new) | the new test failed (1 failed): `index.ts` did not wire the reader nor the route (exact assertion text not kept) | 4/4 pass |
+
+Green: the 9 files pass (168 tests), then the whole `test/investments` directory (31 files, 469 tests), including `request-path.test.ts` and `no-float-money.test.ts`; `pnpm --filter @pesly/api exec vitest run --config vitest.perf.config.ts test/perf/portfolio-latency.perf.test.ts` passes; `pnpm typecheck` passes (shared, api and web); the web files `api-client-investments.test.ts`, `holding-row.test.tsx` and `investments-container.test.tsx` pass (69 tests); ESLint and Prettier are clean on the touched files; the no-float token scan finds nothing in `apps/api/src/investments` or `packages/shared/src/investments`. One test of mine was wrong, not the code: `expected 64000000n to be 6400000n` (10 units at 6,400,000 is 64,000,000); the expectation was fixed.
+
+### Block 6 mutation checks
+
+Each mutation was applied temporarily, the files named in the table were run, and the source was restored from the saved original (the restore is verified by the green re-run and `git diff`). The first batch run was stopped by the harness time limit while mutation 12 was applied; `index.ts` was restored by hand (the injected import line deleted) and the batch re-run with smaller file sets.
+
+| Mutation | Failing tests |
+|---|---|
+| age hides the warning (`marketPriceDiffers` also requires a recent market price) | `portfolio-view`: `an old market price (2 days) ...`, `an old market price (30 days) ...`, `is recent at exactly 24 hours and not recent 24 hours and one second ago, still warning (AC-11)` |
+| 5% boundary exclusive (`>` becomes `>=`) | `valuation`: `is false at exactly 5% above or below`, `does not overflow at the 10^12 limit`; `portfolio-view`: `does not warn at exactly 5% above or below ... (AC-09)` |
+| manual check removed (automatic and imported prices warn) | `portfolio-view`: `does not warn for a automatic price ...`, `... import price ... (AC-10)` |
+| recent boundary exclusive (`<=` becomes `<`) | `portfolio-view`: `is recent at exactly 24 hours and not recent 24 hours and one second ago` |
+| a non-crypto holding also gets a market price | `portfolio-view`: `gives a holding that is not crypto no market price, even when a symbol matches` |
+| market read per symbol instead of one call | `portfolio-use-cases`: `lists portfolios with crypto holdings with one lookup ...`, `reads one portfolio with one lookup` |
+| reader called even without crypto | `holding-use-cases`: `makes no reader call when the holding is not crypto`; `portfolio-use-cases`: `makes no lookup for a list or a read without crypto ...`, `creates a portfolio without a lookup ...` |
+| tickers not lowercased in the lookup | 5 tests: `UseAutomaticPrice > sets the market price ... (AC-12)`, the get/edit/price and add/merge tests of `holding-use-cases`, and both lookup tests of `portfolio-use-cases` |
+| `UseAutomaticPrice` not-found guard removed (foreign or unknown id reaches the rest) | `holding-use-cases`: `answers not found for another owner or an unknown id and changes nothing (AC-14)`, `does not look up the market for a holding it cannot switch` |
+| `UseAutomaticPrice` writes source `manual` | `holding-use-cases`: `sets the market price, source automatic and the market time ... (AC-12)` |
+| `UseAutomaticPrice` stamps the clock time instead of the market time | same AC-12 test |
+| API `index.ts` imports the worker repository | `request-path`: `the API closure contains no provider, job, use case of the jobs or worker repository` |
+| route mutation log action renamed | `holding-routes`: `POST automatic-price writes one mutation line with ids only and no amount` |
+| serializer drops `marketPriceRecent` | `holding-routes`: `shows the stored market price and the warning ...`; `portfolio-routes`: `carries the market price fields on the list and the read ... (AC-07)` |
+| `UseAutomaticPrice` accepts a non-crypto holding (type guard removed) | none fail: an equivalent mutant, because the market lookup only asks for crypto tickers, so a stock holding still ends in the same `marketPrice` rejection through the second guard; the guard stays as explicit intent and the AC-13 stock tests cover the outcome |
+| route drops the response schema | survives: `apps/api/src/shared/http/validate.ts` parses the response with the schema at runtime, but the serializer output already satisfies the schema, so no test can tell the two apart; it is an equivalent mutant, not something `pnpm typecheck` catches |
+
+### Block 6 correction round
+
+Tests written first, run red against `TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test`, then the fix.
+
+| Test | Red result (before the fix) | Green result |
+|---|---|---|
+| `drizzle-repositories.test.ts`: `applies a guarded price write only when the instrument type and lowercase ticker match` | `AssertionError: expected { …(9) } to be null` (the guard was ignored, the mismatched write updated the row) | 24/24 pass |
+| `holding-use-cases.test.ts`: `writes nothing and rejects on marketPrice when the ticker changes between the read and the write` | `AssertionError: promise resolved "{ …(15) }" instead of rejecting` | 55/55 pass with the next one |
+| `holding-use-cases.test.ts`: `... when the instrument type changes between the read and the write` | `AssertionError: promise resolved "{ …(15) }" instead of rejecting` | pass |
+
+Changes: `setPrice` takes an optional `PriceWriteGuard` (instrument type and lowercase ticker) added to the UPDATE's WHERE; `UseAutomaticPrice` passes it and raises `InvestmentRuleViolation('marketPrice')` when no row is updated. `DrizzleMarketPriceReader` uses the port's `MarketPrice` and `ReadonlyMap` (the duplicate `StoredMarketPrice` is gone). The perf test now seeds crypto holdings (every fifth, USD) and the matching `crypto_market_prices` rows; the 500 ms threshold is unchanged and p95 was 50 ms. The twelve block files (215 tests), the perf test, `pnpm typecheck` and ESLint pass; the no-float token scan finds nothing.

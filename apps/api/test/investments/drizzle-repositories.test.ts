@@ -508,6 +508,37 @@ describe('DrizzleHoldingRepository', () => {
     expect(await holdingRepository.findById(scope, created.id)).toBeNull();
   });
 
+  it('applies a guarded price write only when the instrument type and lowercase ticker match', async () => {
+    const portfolio = await portfolioOf(ana);
+    const created = await holdingOf(ana, portfolio.id, {
+      ticker: 'BTC',
+      instrumentType: 'crypto',
+      valuationCurrency: 'USD',
+    });
+    const scope = await scopeFor(ana, 'write');
+    const at = new Date('2026-10-01T12:00:00.000Z');
+
+    const mismatched = await holdingRepository.setPrice(scope, created.id, 5n, 'automatic', at, {
+      instrumentType: 'stock',
+      ticker: 'btc',
+    });
+    const otherTicker = await holdingRepository.setPrice(scope, created.id, 5n, 'automatic', at, {
+      instrumentType: 'crypto',
+      ticker: 'eth',
+    });
+
+    expect(mismatched).toBeNull();
+    expect(otherTicker).toBeNull();
+    expect((await holdingRepository.findById(scope, created.id))?.price).toBeNull();
+
+    const matched = await holdingRepository.setPrice(scope, created.id, 6n, 'automatic', at, {
+      instrumentType: 'crypto',
+      ticker: 'btc',
+    });
+
+    expect(matched?.price).toEqual({ unitPrice: 6n, source: 'automatic', pricedAt: at });
+  });
+
   it('rejects a price outside the stored limits with a check violation', async () => {
     const portfolio = await portfolioOf(ana);
     const created = await holdingOf(ana, portfolio.id);

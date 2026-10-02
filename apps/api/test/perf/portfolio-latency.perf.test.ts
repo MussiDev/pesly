@@ -2,7 +2,11 @@ import { createServer, type Server } from 'node:http';
 import autocannon from 'autocannon';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createInvestmentsRoutes } from '../../src/investments';
-import { holdings, portfolios } from '../../src/investments/infrastructure/db/schema';
+import {
+  cryptoMarketPrices,
+  holdings,
+  portfolios,
+} from '../../src/investments/infrastructure/db/schema';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
 import { createIdentityHarness } from '../helpers/identity-harness';
@@ -24,6 +28,8 @@ const CONNECTIONS = 8;
 const MAX_P95_MS = 500;
 const PORTFOLIOS = 10;
 const HOLDINGS_PER_PORTFOLIO = 50;
+/** Every fifth holding is crypto (priced in USD), so the one-query market lookup has work to do. */
+const CRYPTO_EVERY = 5;
 const PASSWORD = 'a long enough passphrase';
 const EMAIL = 'investor@perf.test';
 
@@ -57,9 +63,19 @@ function percentile(values: number[], p: number): number {
   return sorted[Math.max(0, index)] ?? Number.POSITIVE_INFINITY;
 }
 
-/** Half of the holdings carry a price, so the list exercises both valuation paths. */
+/**
+ * Half of the holdings carry a price, so the list exercises both valuation paths; crypto holdings
+ * have a stored market price under their lowercase ticker.
+ */
 async function seedHoldings(ownerId: string): Promise<void> {
   const pricedAt = new Date();
+  const cryptoSymbols = Array.from(
+    { length: HOLDINGS_PER_PORTFOLIO / CRYPTO_EVERY },
+    (_, i) => `c${i * CRYPTO_EVERY}`,
+  );
+  await connection.db
+    .insert(cryptoMarketPrices)
+    .values(cryptoSymbols.map((symbol) => ({ symbol, unitPrice: 6_400_000n, pricedAt })));
   for (let p = 0; p < PORTFOLIOS; p += 1) {
     const [portfolio] = await connection.db
       .insert(portfolios)
@@ -69,14 +85,15 @@ async function seedHoldings(ownerId: string): Promise<void> {
     await connection.db.insert(holdings).values(
       Array.from({ length: HOLDINGS_PER_PORTFOLIO }, (_, h) => {
         const priced = h % 2 === 0;
+        const crypto = h % CRYPTO_EVERY === 0;
         return {
           portfolioId: portfolio.id,
           ownerId,
-          ticker: `T${h}`,
+          ticker: crypto ? `C${h}` : `T${h}`,
           instrumentName: `Instrument ${p}-${h}`,
-          instrumentType: 'stock' as const,
+          instrumentType: crypto ? ('crypto' as const) : ('stock' as const),
           quantity: BigInt(h + 1) * 100_000_000n,
-          valuationCurrency: h % 4 === 0 ? ('USD' as const) : ('ARS' as const),
+          valuationCurrency: crypto || h % 4 === 0 ? ('USD' as const) : ('ARS' as const),
           totalCost: 1_000_000n,
           ...(priced ? { unitPrice: 150_000n, priceSource: 'manual' as const, pricedAt } : {}),
         };

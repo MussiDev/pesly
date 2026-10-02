@@ -1,8 +1,9 @@
 import type { AddHoldingResponse, HoldingResponse, PortfolioResponse } from '@pesly/shared';
 import type { Express } from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createInvestmentsRoutes } from '../../src/investments';
+import { DrizzleMarketPriceReader } from '../../src/investments/infrastructure/db/drizzle-market-price-reader';
 import type { InvestmentsDb } from '../../src/investments/infrastructure/db/schema';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -102,6 +103,38 @@ function price(app: Express, cookie: string, id: string, body: unknown) {
     .send(body as object);
 }
 
+function automatic(app: Express, cookie: string, id: string) {
+  return request(app)
+    .post(`/investments/holdings/${id}/automatic-price`)
+    .set(trustedHeaders)
+    .set('Cookie', cookie)
+    .send();
+}
+
+const BTC = {
+  ticker: 'BTC',
+  instrumentName: 'Bitcoin',
+  instrumentType: 'crypto',
+  quantity: '100000000',
+  valuationCurrency: 'USD',
+};
+
+async function storeMarketPrice(symbol: string, unitPrice: string, pricedAt: Date): Promise<void> {
+  await connection.pool.query(
+    'insert into crypto_market_prices (symbol, unit_price, priced_at) values ($1, $2, $3)',
+    [symbol, unitPrice, pricedAt.toISOString()],
+  );
+}
+
+/** A manual BTC holding at 60,000.00 USD; the market price stored for it is 64,000.00 USD, 3 hours old. */
+async function manualCrypto(ctx: Setup): Promise<{ id: string; marketAt: Date }> {
+  const id = await addedId(ctx.app, ctx.ana, await portfolioOf(ctx.app, ctx.ana), BTC);
+  await price(ctx.app, ctx.ana, id, { unitPrice: '6000000' });
+  const marketAt = new Date(ctx.clock.now().getTime() - 3 * 3_600_000);
+  await storeMarketPrice('btc', '6400000', marketAt);
+  return { id, marketAt };
+}
+
 function remove(app: Express, cookie: string, id: string) {
   return request(app)
     .delete(`/investments/holdings/${id}`)
@@ -149,6 +182,10 @@ describe('holding routes', () => {
       priceStale: false,
       value: null,
       gain: null,
+      marketUnitPrice: null,
+      marketPricedAt: null,
+      marketPriceDiffers: false,
+      marketPriceRecent: false,
     });
     const fetched = await read(app, ana, body.holding.id);
     expect(fetched.status).toBe(200);
@@ -307,6 +344,8 @@ describe('holding routes', () => {
       await read(app, bob, id),
       await edit(app, bob, id, { quantity: '5' }),
       await price(app, bob, id, { unitPrice: '100' }),
+      await automatic(app, bob, id),
+      await automatic(app, bob, MISSING_ID),
       await remove(app, bob, id),
       await add(app, bob, portfolioId, { ...AAPL, ticker: 'MELI' }),
       await read(app, bob, MISSING_ID),
@@ -507,6 +546,7 @@ describe('holding routes', () => {
       read(app, cookie, MISSING_ID),
       edit(app, cookie, MISSING_ID, { quantity: '1' }),
       price(app, cookie, MISSING_ID, { unitPrice: '1' }),
+      automatic(app, cookie, MISSING_ID),
       remove(app, cookie, MISSING_ID),
     ];
 
@@ -536,6 +576,7 @@ describe('holding routes', () => {
       await read(app, ana, MISSING_ID),
       await edit(app, ana, MISSING_ID, { quantity: '1' }),
       await price(app, ana, MISSING_ID, { unitPrice: '1' }),
+      await automatic(app, ana, MISSING_ID),
       await remove(app, ana, MISSING_ID),
     ];
 
@@ -544,5 +585,161 @@ describe('holding routes', () => {
       expect(response.body).toEqual({ code: 'INTERNAL' });
       expect(response.text).not.toMatch(/select|holdings|quantity|at /i);
     }
+  });
+});
+
+describe('automatic price route and the market fields', () => {
+  it('shows the stored market price and the warning on the holding of a manual price (AC-07)', async () => {
+    const ctx = await setup();
+    const { id, marketAt } = await manualCrypto(ctx);
+
+    const response = await read(ctx.app, ctx.ana, id);
+
+    expect(response.body).toMatchObject({
+      priceSource: 'manual',
+      unitPrice: '6000000',
+      marketUnitPrice: '6400000',
+      marketPricedAt: marketAt.toISOString(),
+      marketPriceDiffers: true,
+      marketPriceRecent: true,
+    });
+  });
+
+  it('keeps the warning for a market price a month old, not recent (AC-11, AC-16)', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    ctx.clock.advance(30 * DAY_MS);
+
+    const response = await read(ctx.app, ctx.ana, id);
+
+    expect(response.body).toMatchObject({ marketPriceDiffers: true, marketPriceRecent: false });
+  });
+
+  it('POST automatic-price answers 200 with the switched holding and no warning (AC-12)', async () => {
+    const ctx = await setup();
+    const { id, marketAt } = await manualCrypto(ctx);
+
+    const response = await automatic(ctx.app, ctx.ana, id);
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      id,
+      priceSource: 'automatic',
+      unitPrice: '6400000',
+      pricedAt: marketAt.toISOString(),
+      value: '6400000',
+      marketUnitPrice: '6400000',
+      marketPriceDiffers: false,
+    });
+    expect((await read(ctx.app, ctx.ana, id)).body).toEqual(response.body);
+  });
+
+  it('POST automatic-price writes one mutation line with ids only and no amount', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    ctx.lines.length = 0;
+
+    const response = await automatic(ctx.app, ctx.ana, id);
+
+    const entries = ctx.lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((entry) => entry.msg === 'investments.mutation');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      userId: ctx.anaId,
+      action: 'holding.automatic-price',
+      holdingId: id,
+      requestId: response.headers['x-request-id'],
+    });
+    for (const leaked of ['6400000', '6000000', '100000000']) {
+      expect(ctx.lines.join('\n')).not.toContain(leaked);
+    }
+  });
+
+  it('answers 404 for the holding of user B and for an unknown id, and changes nothing (AC-14)', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    const before = (await read(ctx.app, ctx.ana, id)).body as HoldingResponse;
+
+    const foreign = await automatic(ctx.app, ctx.bob, id);
+    const missing = await automatic(ctx.app, ctx.ana, MISSING_ID);
+
+    for (const response of [foreign, missing]) {
+      expect(response.status).toBe(404);
+      expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    }
+    expect((await read(ctx.app, ctx.ana, id)).body).toEqual(before);
+  });
+
+  it('answers 400 on body.marketPrice for a stock holding and changes nothing (invalid, AC-13)', async () => {
+    const ctx = await setup();
+    const id = await addedId(ctx.app, ctx.ana, await portfolioOf(ctx.app, ctx.ana), {
+      ...AAPL,
+      ticker: 'BTC',
+    });
+    await price(ctx.app, ctx.ana, id, { unitPrice: '1850000' });
+    await storeMarketPrice('btc', '6400000', ctx.clock.now());
+    const before = (await read(ctx.app, ctx.ana, id)).body as HoldingResponse;
+
+    const response = await automatic(ctx.app, ctx.ana, id);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'VALIDATION_FAILED', fields: ['body.marketPrice'] });
+    expect((await read(ctx.app, ctx.ana, id)).body).toEqual(before);
+  });
+
+  it('answers 400 on body.marketPrice for a crypto holding with no stored market price (invalid, AC-13)', async () => {
+    const ctx = await setup();
+    const id = await addedId(ctx.app, ctx.ana, await portfolioOf(ctx.app, ctx.ana), BTC);
+    await price(ctx.app, ctx.ana, id, { unitPrice: '6000000' });
+    const before = (await read(ctx.app, ctx.ana, id)).body as HoldingResponse;
+
+    const response = await automatic(ctx.app, ctx.ana, id);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'VALIDATION_FAILED', fields: ['body.marketPrice'] });
+    expect((await read(ctx.app, ctx.ana, id)).body).toEqual(before);
+  });
+
+  it('answers 400 on params.holdingId for a malformed id', async () => {
+    const ctx = await setup();
+
+    const response = await automatic(ctx.app, ctx.ana, 'not-a-uuid');
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'VALIDATION_FAILED', fields: ['params.holdingId'] });
+  });
+
+  it('answers 401 without a session', async () => {
+    const ctx = await setup();
+
+    const response = await automatic(ctx.app, '', MISSING_ID);
+
+    expect(response.status).toBe(401);
+    expect(response.body).toEqual({ code: 'UNAUTHENTICATED' });
+  });
+
+  it('answers the shared 500 without an amount in the log when the market reader fails', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    const failing = vi
+      .spyOn(DrizzleMarketPriceReader.prototype, 'findMany')
+      .mockRejectedValue(new Error('select "unit_price" from "crypto_market_prices" failed'));
+    ctx.lines.length = 0;
+
+    const switched = await automatic(ctx.app, ctx.ana, id);
+    const fetched = await read(ctx.app, ctx.ana, id);
+    failing.mockRestore();
+
+    for (const response of [switched, fetched]) {
+      expect(response.status).toBe(500);
+      expect(response.body).toEqual({ code: 'INTERNAL' });
+      expect(response.text).not.toMatch(/select|crypto_market_prices|unit_price|at /i);
+    }
+    for (const leaked of ['6400000', '6000000']) {
+      expect(ctx.lines.join('\n')).not.toContain(leaked);
+    }
+    const stored = (await read(ctx.app, ctx.ana, id)).body as HoldingResponse;
+    expect(stored.priceSource).toBe('manual');
   });
 });

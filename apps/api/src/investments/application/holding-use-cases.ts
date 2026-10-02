@@ -6,8 +6,9 @@ import {
   mergeHoldings,
   type HoldingEditPatch,
 } from '../domain/holding';
-import type { Clock, HoldingRepository, InvestmentsUnitOfWork } from './ports';
-import { buildHoldingView, type HoldingView } from './portfolio-view';
+import { InvestmentRuleViolation } from '../domain/errors';
+import type { Clock, HoldingRepository, InvestmentsUnitOfWork, MarketPriceReader } from './ports';
+import { buildHoldingView, lookupMarketPrices, type HoldingView } from './portfolio-view';
 
 export interface AddHoldingInput {
   portfolioId: string;
@@ -27,6 +28,7 @@ export interface AddHoldingResult {
 export class AddHolding {
   constructor(
     private readonly unitOfWork: InvestmentsUnitOfWork,
+    private readonly marketPrices: MarketPriceReader,
     private readonly clock: Clock,
   ) {}
 
@@ -67,25 +69,29 @@ export class AddHolding {
       );
       return { holding: updated, merged: true };
     });
-    return { holding: buildHoldingView(holding, this.clock.now()), merged };
+    const market = await lookupMarketPrices(this.marketPrices, [holding]);
+    return { holding: buildHoldingView(holding, this.clock.now(), market), merged };
   }
 }
 
 export class GetHolding {
   constructor(
     private readonly holdings: HoldingRepository,
+    private readonly marketPrices: MarketPriceReader,
     private readonly clock: Clock,
   ) {}
 
   async execute(scope: AccessScope, holdingId: string): Promise<HoldingView> {
     const holding = notFoundUnlessAllowed(await this.holdings.findById(scope, holdingId));
-    return buildHoldingView(holding, this.clock.now());
+    const market = await lookupMarketPrices(this.marketPrices, [holding]);
+    return buildHoldingView(holding, this.clock.now(), market);
   }
 }
 
 export class UpdateHolding {
   constructor(
     private readonly unitOfWork: InvestmentsUnitOfWork,
+    private readonly marketPrices: MarketPriceReader,
     private readonly clock: Clock,
   ) {}
 
@@ -106,13 +112,15 @@ export class UpdateHolding {
         }),
       );
     });
-    return buildHoldingView(updated, this.clock.now());
+    const market = await lookupMarketPrices(this.marketPrices, [updated]);
+    return buildHoldingView(updated, this.clock.now(), market);
   }
 }
 
 export class SetManualPrice {
   constructor(
     private readonly holdings: HoldingRepository,
+    private readonly marketPrices: MarketPriceReader,
     private readonly clock: Clock,
   ) {}
 
@@ -125,7 +133,37 @@ export class SetManualPrice {
     const holding = notFoundUnlessAllowed(
       await this.holdings.setPrice(scope, holdingId, unitPrice, 'manual', now),
     );
-    return buildHoldingView(holding, now);
+    const market = await lookupMarketPrices(this.marketPrices, [holding]);
+    return buildHoldingView(holding, now, market);
+  }
+}
+
+/** FR-06: takes the stored market price as the holding's own price, tagged automatic. */
+export class UseAutomaticPrice {
+  constructor(
+    private readonly holdings: HoldingRepository,
+    private readonly marketPrices: MarketPriceReader,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(scope: AccessScope<'write'>, holdingId: string): Promise<HoldingView> {
+    const holding = notFoundUnlessAllowed(await this.holdings.findById(scope, holdingId));
+    if (holding.instrumentType !== 'crypto') throw new InvestmentRuleViolation('marketPrice');
+    const market = await lookupMarketPrices(this.marketPrices, [holding]);
+    const stored = market.get(holding.ticker.toLowerCase());
+    if (stored === undefined) throw new InvestmentRuleViolation('marketPrice');
+    // The holding may have changed since the read; the guard makes the write fail instead of
+    // landing the price on another ticker or on a non-crypto holding.
+    const switched = await this.holdings.setPrice(
+      scope,
+      holdingId,
+      stored.unitPrice,
+      'automatic',
+      stored.pricedAt,
+      { instrumentType: 'crypto', ticker: holding.ticker.toLowerCase() },
+    );
+    if (switched === null) throw new InvestmentRuleViolation('marketPrice');
+    return buildHoldingView(switched, this.clock.now(), market);
   }
 }
 

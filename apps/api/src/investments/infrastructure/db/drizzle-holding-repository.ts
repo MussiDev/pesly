@@ -1,7 +1,12 @@
 import type { PriceSource } from '@pesly/shared';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import type { Holding } from '../../domain/holding';
-import type { HoldingDraft, HoldingRepository, HoldingUpdate } from '../../application/ports';
+import type {
+  HoldingDraft,
+  HoldingRepository,
+  HoldingUpdate,
+  PriceWriteGuard,
+} from '../../application/ports';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import { holdings, portfolios, type InvestmentsDb } from './schema';
@@ -177,11 +182,20 @@ export class DrizzleHoldingRepository implements HoldingRepository {
     unitPrice: bigint,
     source: PriceSource,
     pricedAt: Date,
+    guard?: PriceWriteGuard,
   ): Promise<Holding | null> {
     const [row] = await this.db
       .update(holdings)
       .set({ unitPrice, priceSource: source, pricedAt, updatedAt: sql`now()` })
-      .where(scopedRow(scope, id))
+      .where(
+        guard === undefined
+          ? scopedRow(scope, id)
+          : and(
+              scopedRow(scope, id),
+              eq(holdings.instrumentType, guard.instrumentType),
+              sql`lower(${holdings.ticker}) = ${guard.ticker}`,
+            ),
+      )
       .returning(columns);
     return row === undefined ? null : toHolding(row);
   }

@@ -107,6 +107,10 @@ export const holdingResponseSchema = z.object({
   priceSource: priceSourceSchema.nullable(),
   pricedAt: z.iso.datetime().nullable(),
   priceStale: z.boolean(),
+  marketUnitPrice: unsignedIntegerString.nullable(),
+  marketPricedAt: z.iso.datetime().nullable(),
+  marketPriceDiffers: z.boolean(),
+  marketPriceRecent: z.boolean(),
   value: signedIntegerString.nullable(),
   gain: z.object({ amount: signedIntegerString, basisPoints: signedIntegerString }).nullable(),
 });

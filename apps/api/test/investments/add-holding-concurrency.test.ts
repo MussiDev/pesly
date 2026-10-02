@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AddHolding } from '../../src/investments/application/holding-use-cases';
 import type { InvestmentsRepositories } from '../../src/investments/application/ports';
+import { DrizzleMarketPriceReader } from '../../src/investments/infrastructure/db/drizzle-market-price-reader';
 import { DrizzleHoldingRepository } from '../../src/investments/infrastructure/db/drizzle-holding-repository';
 import { DrizzleInvestmentsUnitOfWork } from '../../src/investments/infrastructure/db/drizzle-unit-of-work';
 import { DrizzlePortfolioRepository } from '../../src/investments/infrastructure/db/drizzle-portfolio-repository';
@@ -12,11 +13,13 @@ import { scopeFor } from './fakes/in-memory-investments';
 
 let connection: DatabaseConnection;
 let unitOfWork: DrizzleInvestmentsUnitOfWork;
+let marketPrices: DrizzleMarketPriceReader;
 let ana: string;
 
 beforeAll(() => {
   connection = createDatabase(testDatabaseUrl);
   unitOfWork = new DrizzleInvestmentsUnitOfWork(connection.db);
+  marketPrices = new DrizzleMarketPriceReader(connection.db);
 });
 
 beforeEach(async () => {
@@ -31,7 +34,11 @@ describe('AddHolding through the Drizzle unit of work', () => {
   it('merges two concurrent adds of the same ticker into one holding with the summed quantity (AC-23)', async () => {
     const write = await scopeFor(ana, 'write');
     const portfolio = await new DrizzlePortfolioRepository(connection.db).create(write, 'Balanz');
-    const add = new AddHolding(unitOfWork, new MutableClock(new Date('2026-10-01T12:00:00.000Z')));
+    const add = new AddHolding(
+      unitOfWork,
+      marketPrices,
+      new MutableClock(new Date('2026-10-01T12:00:00.000Z')),
+    );
     const input = (ticker: string, quantity: bigint, totalCost: bigint) => ({
       portfolioId: portfolio.id,
       ticker,
@@ -58,7 +65,7 @@ describe('AddHolding through the Drizzle unit of work', () => {
   it('merges many concurrent adds without a unique violation', async () => {
     const write = await scopeFor(ana, 'write');
     const portfolio = await new DrizzlePortfolioRepository(connection.db).create(write, 'Balanz');
-    const add = new AddHolding(unitOfWork, new MutableClock());
+    const add = new AddHolding(unitOfWork, marketPrices, new MutableClock());
 
     await Promise.all(
       Array.from({ length: 6 }, () =>

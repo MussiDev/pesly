@@ -15,6 +15,10 @@ export const HOLDING: HoldingResponse = {
   priceSource: 'manual',
   pricedAt: PRICED_AT,
   priceStale: false,
+  marketUnitPrice: null,
+  marketPricedAt: null,
+  marketPriceDiffers: false,
+  marketPriceRecent: false,
   value: '18500000',
   gain: { amount: '3500000', basisPoints: '2333' },
 };

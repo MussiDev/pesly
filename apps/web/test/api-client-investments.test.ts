@@ -18,6 +18,10 @@ const holding = {
   priceSource: null,
   pricedAt: null,
   priceStale: false,
+  marketUnitPrice: null,
+  marketPricedAt: null,
+  marketPriceDiffers: false,
+  marketPriceRecent: false,
   value: null,
   gain: null,
 };

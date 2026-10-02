@@ -47,3 +47,13 @@ export function totalsByCurrency(
   }
   return totals;
 }
+
+/**
+ * True when the market price is more than 5% away from the manual one, measured against the
+ * manual price; exactly 5% is false. Integers only, so there is no rounding to argue about.
+ */
+export function marketPriceDiffers(manualUnitPrice: bigint, marketUnitPrice: bigint): boolean {
+  const difference = marketUnitPrice - manualUnitPrice;
+  const distance = difference < 0n ? -difference : difference;
+  return distance * 100n > manualUnitPrice * 5n;
+}

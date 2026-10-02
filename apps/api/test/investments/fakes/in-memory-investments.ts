@@ -7,6 +7,8 @@ import type {
   HoldingUpdate,
   InvestmentsRepositories,
   InvestmentsUnitOfWork,
+  MarketPrice,
+  MarketPriceReader,
   Portfolio,
   PortfolioRepository,
 } from '../../../src/investments/application/ports';
@@ -36,6 +38,29 @@ export function scopeFor<A extends AccessAction>(
 ): Promise<AccessScope<A>> {
   const auth: AuthContext = { userId, sessionId: 'session', emailVerified: true };
   return policy.scopeFor(auth, action);
+}
+
+/** Stored market prices by lowercase symbol; records every lookup so tests can count them. */
+export class InMemoryMarketPriceReader implements MarketPriceReader {
+  readonly prices = new Map<string, MarketPrice>();
+  /** One entry per `findMany` call, with the symbols asked. */
+  readonly calls: string[][] = [];
+  failure: Error | null = null;
+
+  set(symbol: string, unitPrice: bigint, pricedAt: Date): void {
+    this.prices.set(symbol.toLowerCase(), { unitPrice, pricedAt });
+  }
+
+  findMany(symbols: readonly string[]): Promise<ReadonlyMap<string, MarketPrice>> {
+    this.calls.push([...symbols]);
+    if (this.failure !== null) return Promise.reject(this.failure);
+    const found = new Map<string, MarketPrice>();
+    for (const symbol of symbols) {
+      const price = this.prices.get(symbol);
+      if (price !== undefined) found.set(symbol, price);
+    }
+    return Promise.resolve(found);
+  }
 }
 
 /** Shared state of the fakes; a row owned by another user is invisible, as with the scoped SQL. */
@@ -120,9 +145,16 @@ export class InMemoryInvestments implements InvestmentsUnitOfWork {
       row.holding = { ...row.holding, ...fields };
       return Promise.resolve(row.holding);
     },
-    setPrice: (scope, id, unitPrice, source, pricedAt) => {
+    setPrice: (scope, id, unitPrice, source, pricedAt, guard) => {
       const row = this.visibleRow(scope.userId, id);
       if (row === null) return Promise.resolve(null);
+      if (
+        guard !== undefined &&
+        (row.holding.instrumentType !== guard.instrumentType ||
+          row.holding.ticker.toLowerCase() !== guard.ticker)
+      ) {
+        return Promise.resolve(null);
+      }
       row.holding = { ...row.holding, price: { unitPrice, source, pricedAt } };
       return Promise.resolve(row.holding);
     },
