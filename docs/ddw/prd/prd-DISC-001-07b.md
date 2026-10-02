@@ -5,7 +5,7 @@
 | Ticket | DISC-001-07b |
 | Tracker | none |
 | Date | 2026-10-02 |
-| PRD loops | 1 |
+| PRD loops | 2 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -35,10 +35,13 @@ parent index maps every original ID to its new one.
   holdings that carry a manual price.
 - FR-04: The system must never replace a manual unit price with an automatic one.
 - FR-05: The system must show a warning on a crypto holding with a manual unit price when its
-  stored market price is not older than 7 days and differs from the manual unit price by more than
-  5% in either direction, measured relative to the manual unit price. The warning states that the
-  price is manual, that the market price has changed and what the market price is, in the user's
-  language (PRD 01, FR-26).
+  stored market price differs from the manual unit price by more than 5% in either direction,
+  measured relative to the manual unit price, whatever the age of the market price. The warning
+  states that the price is manual, that the market price has changed and what the market price is,
+  in the user's language (PRD 01, FR-26): when the market price is at most 24 hours old it says
+  that the holding is worth that price today, and when it is older it says that on the market
+  price's date the holding was worth that price, with the date in the user's locale and time
+  zone (PRD 01, FR-24).
 - FR-06: The system must let a user switch a crypto holding from its manual price back to the
   automatic price, which sets its unit price to the stored market price with source "automatic".
 
@@ -64,15 +67,19 @@ parent index maps every original ID to its new one.
 - AC-06 (FR-04): IF a refresh and a manual price change run at the same time on one holding, THEN
   THE system SHALL keep the manual price.
 - AC-07 (FR-05): WHILE a crypto holding has a manual unit price of 60,000.00 USD and a market
-  price of 64,000.00 USD (6.67% above), THE system SHALL show the warning with the market price.
+  price of 64,000.00 USD from 3 hours ago (6.67% above), THE system SHALL show the warning saying
+  that the holding is worth 64,000.00 USD today.
 - AC-08 (FR-05): WHILE a crypto holding has a manual unit price of 60,000.00 USD and a market
-  price of 56,000.00 USD (6.67% below), THE system SHALL show the warning with the market price.
+  price of 56,000.00 USD from 3 hours ago (6.67% below), THE system SHALL show the warning saying
+  that the holding is worth 56,000.00 USD today.
 - AC-09 (FR-05): WHILE a crypto holding has a manual unit price of 60,000.00 USD and a market
   price of 63,000.00 USD or 57,000.00 USD (exactly 5% away), THE system SHALL show no warning.
 - AC-10 (FR-05): WHILE a crypto holding has an automatic or imported unit price, THE system SHALL
   show no warning.
-- AC-11 (FR-05): WHILE the stored market price of a manually priced crypto holding is older than
-  7 days, THE system SHALL show no warning.
+- AC-11 (FR-05): WHILE a crypto holding has a manual unit price of 60,000.00 USD and a market
+  price of 64,000.00 USD set 2 days ago, THE system SHALL show the warning saying that on that
+  date, in the user's locale and time zone, the holding was worth 64,000.00 USD, and SHALL NOT say
+  "today".
 - AC-12 (FR-06): WHEN a user switches a warned crypto holding back to the automatic price, THE
   system SHALL set its unit price to the stored market price with source "automatic" and the
   date of that market price, and the warning SHALL disappear.
@@ -82,6 +89,8 @@ parent index maps every original ID to its new one.
   not exist, THEN THE system SHALL answer not found.
 - AC-15 (NFR-02): WHEN the worker starts without the provider API key, THE system SHALL start the
   worker and run the refresh without the key.
+- AC-16 (FR-05): WHILE the stored market price of a manually priced crypto holding is 30 days old
+  and differs from the manual unit price by more than 5%, THE system SHALL show the warning.
 
 ## Out of Scope
 - Automatic prices for stocks, CEDEARs, bonds and mutual funds (no free, reliable, documented
@@ -124,8 +133,15 @@ parent index maps every original ID to its new one.
   manual one. The refresh still stores the market price separately for manually priced holdings.
   The web warns when it differs from the manual price by more than 5% in either direction and
   offers to switch back to the automatic price. Interpretation recorded here: the 5% is measured
-  relative to the manual price, exactly 5% gives no warning, and a market price older than 7 days
-  (the same age as 07a's stale price, FR-11) gives no warning.
+  relative to the manual price and exactly 5% gives no warning (the age rule first recorded here
+  was replaced the same day, see the next entries).
 - 2026-10-02: Owner decision: a portfolio total above the 64-bit limit skips that day's snapshot
   of that portfolio, the failure is logged and the app keeps working.
 - 2026-10-02: Owner decision: the provider API key is optional; the worker must boot without it.
+- 2026-10-02: Owner decision (replaces the 7-day cutoff first proposed): the divergence warning is
+  never hidden because of the age of the market price. Its wording depends on that age: within the
+  last 24 hours it says the holding is worth the market price today, older it says that on the
+  market price's date it was worth that price, with the date in the user's locale and time zone.
+- 2026-10-02: Owner accepted: a rejected switch reuses the existing validation error, and the
+  provider's per-request symbol limit is verified against the live documentation during
+  implementation.
