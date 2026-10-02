@@ -15,14 +15,14 @@ export type PriceFailureCode = (typeof PRICE_FAILURE_CODES)[number];
  */
 export class PriceProviderFailure extends Error {
   readonly code: PriceFailureCode;
-  readonly status?: number;
+  readonly statusCode?: number;
   readonly detail?: string;
 
-  constructor(code: PriceFailureCode, options: { status?: number; detail?: string } = {}) {
+  constructor(code: PriceFailureCode, options: { statusCode?: number; detail?: string } = {}) {
     super(code);
     this.name = 'PriceProviderFailure';
     this.code = code;
-    if (options.status !== undefined) this.status = options.status;
+    if (options.statusCode !== undefined) this.statusCode = options.statusCode;
     if (options.detail !== undefined) this.detail = options.detail;
   }
 }
