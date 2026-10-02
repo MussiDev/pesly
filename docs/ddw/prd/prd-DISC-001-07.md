@@ -17,6 +17,13 @@
 ## Suggested implementation order
 a → b → c (c can start only once the sample file exists)
 
+## Follow-ups (not yet PRDs)
+
+- Finer price scale for sub-cent crypto (recorded 2026-10-02, owner decision in DISC-001-07b):
+  unit prices are stored in cents, so coins priced below 1 cent cannot be priced automatically
+  and keep their previous price. Needs a finer price scale, which changes DISC-001-07a's
+  contracts and storage. Depends on b.
+
 ## Original context
 PRD 07 of discovery DISC-001 defined investments for the finance PWA: portfolios (one per broker
 or wallet), manually entered holdings, automatic crypto prices through CoinGecko, import of the
