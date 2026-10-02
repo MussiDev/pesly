@@ -171,3 +171,48 @@ Tests first, run red, then the fix (`TEST_DATABASE_URL=postgres://argent:argent@
 | `coingecko-payload.test.ts`: `leaves a nested current_price alone: not converted, not priced, no failure without source text` | `expected { current_price: NumberSource { text: null }, times: 2 } to deeply equal { current_price: 99.99, times: 2 }` (the nested price was converted) | pass |
 
 Fixes: `env.ts` trims the key before the visible-token check and the comment no longer claims a key can never block startup; `coingecko-payload.ts` records the source text of `current_price` by holder object and only the top-level array entries read it, so a nested value keeps its parsed value. Re-run: the four investments files, `worker-env`, `env` (6 files, 117 tests) and `railway-iac` (23 tests) pass; typecheck and ESLint clean; no forbidden tokens in `apps/api/src/investments`. `.gitignore` gained `.vitest/` (the Vitest JSON output directory was untracked).
+
+## Block 5 — Jobs and worker wiring
+
+Tests written first (`TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test pnpm --filter @pesly/api exec vitest run <files>`), run red, then the jobs, the composition and the worker wiring.
+
+| Test file | Red result (before the implementation) | Green result |
+|---|---|---|
+| `price-sync-job.test.ts` (8 tests) | suite fails to load: `Error: Cannot find module '../../src/investments/infrastructure/jobs/price-sync-job'` (an import failure, not an assertion: 0 tests ran) | 8/8 pass |
+| `snapshot-job.test.ts` (7 tests) | suite fails to load: `Error: Cannot find module '../../src/investments/infrastructure/jobs/snapshot-job'` (import failure, 0 tests ran) | 7/7 pass |
+| `investments-jobs.test.ts` (8 tests) | suite fails to load: `Error: Cannot find module '../../src/investments/jobs'` (import failure, 0 tests ran) | 8/8 pass |
+| `request-path.test.ts` (16 tests) | 15 pass and 1 fails: `the worker side is a separate graph that does reach them`: `AssertionError: expected [ '/investments/jobs.ts' ] to include '/investments/infrastructure/jobs/pric...'` (jobs.ts did not exist yet). The "API closure contains nothing forbidden" test passes before the implementation, as it must: the forbidden modules did not exist yet, so it only starts to guard something once Block 5 creates them. Its detection power is proven by the probes and the mutations below. | 16/16 pass |
+
+The first green run of `investments-jobs.test.ts` after the worker wiring had three failures that were test mistakes, fixed in the test: a stop requested before the price pass reaches the provider skips that call by design (as in `RatesSyncJob`), so the tests now wait for the provider call first (`expected +0 to be 1`, `expected [] to have a length of 1`); and the "never logs the key" regex matched across lines.
+
+Green: the 4 new files plus `test/foundation` pass; `pnpm typecheck` passes; `pnpm --filter @pesly/api build` bundles the entries; ESLint is clean on the touched files; no forbidden no-float token in `apps/api/src/investments`.
+
+### Block 5 mutation checks
+
+Each mutation was applied temporarily, the relevant files were run, and the file was restored byte for byte.
+
+| Mutation | Failing tests |
+|---|---|
+| price job without error isolation (the pass error is rethrown instead of logged) | `price-sync-job`: `a failing storage layer is logged with the error and the next pass still runs` |
+| `PriceSyncJob.stop()` does not await the pass in progress | `price-sync-job`: `stop() waits for the pass in progress ...`; `investments-jobs`: `stop() does not resolve before a price pass still waiting on the provider`, `the composition built with no API key starts and completes a pass (AC-15)` |
+| `SnapshotJob.stop()` does not await the pass in progress | `snapshot-job`: `stop() waits for the pass in progress` |
+| out-of-range skip logged on every pass (repeat suppression removed) | `snapshot-job`: `an out-of-range total is logged once per zone and date and the pass continues (AC-04)` |
+| failure purge on every pass (`PURGE_INTERVAL_MS = 0`) | `price-sync-job`: `the failure purge removes records older than 30 days and runs at most hourly` |
+| a failing purge rethrown (stops the refresh) | `price-sync-job`: `a failing purge is logged and does not stop the refresh` |
+| API barrel imports `./jobs` | `request-path`: `the API closure contains no provider, job, use case of the jobs or worker repository` |
+| API barrel imports `drizzle-price-schedule` | `request-path`: same test |
+| `email worker started` text changed in the worker | `investments-jobs`: `keeps the email worker started line the e2e server waits on, unchanged` |
+| worker does not stop the investments jobs on shutdown (the first run survived: no test covered it, so `starts the investments jobs and stops them on shutdown` was added) | `investments-jobs`: `starts the investments jobs and stops them on shutdown` |
+
+### Block 5 correction round
+
+Three corrections, tests written first and run red (`snapshot-job.test.ts`, `investments-jobs.test.ts`):
+
+| New test | Red result | Green |
+|---|---|---|
+| `snapshot-job`: `the summary is info only when the pass did something, debug otherwise` | `AssertionError: expected [ 30, 30 ] to deeply equal [ 30, 20 ]` (an idle pass logged at info) | pass |
+| `snapshot-job`: `an out-of-range-only pass logs the summary at info` | passes before and after: it guards that a skip-only pass is not demoted to debug | pass |
+| `snapshot-job`: `an invalid time zone is logged once until it disappears and returns` | `AssertionError: expected [ { level: 40, ...(5) }, ...(2) ] to have a length of 1 but got 3` | pass |
+| `investments-jobs`: `stop() stops both jobs even when one stop rejects, then rethrows the first reason` | `AssertionError: expected false to be true` (with `Promise.all` the rejection surfaced before the slower stop settled) | pass |
+
+Fixes: the summary is `info` only when `saved`, `skippedOutOfRange` or `skippedZones` is above zero, `debug` otherwise; invalid zones use a repeat-suppression set replaced by each pass's invalid zones; `createInvestmentsJobs.stop()` uses `Promise.allSettled` and rethrows the first rejection after both settled. Re-run (serial): `price-sync-job`, `snapshot-job`, `investments-jobs`, `request-path` (43 tests) pass.
