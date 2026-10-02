@@ -157,3 +157,38 @@ describe('PortfolioCard', () => {
     expect(screen.queryByRole('button', { name: 'Delete portfolio Balanz' })).toBeNull();
   });
 });
+
+describe('PortfolioCard automatic price callback (DISC-001-07b)', () => {
+  it('passes the callback to the warned holding only', async () => {
+    const warned: HoldingResponse = {
+      ...HOLDING,
+      marketUnitPrice: '2050000',
+      marketPricedAt: '2026-09-30T23:30:00.000Z',
+      marketPriceDiffers: true,
+      marketPriceRecent: true,
+    };
+    const calm: HoldingResponse = {
+      ...HOLDING,
+      id: '33333333-3333-4333-8333-333333333333',
+      ticker: 'MSFT',
+    };
+    const onUseAutomaticPrice = vi.fn();
+    renderApp(
+      <PortfolioCard
+        portfolio={{ ...PORTFOLIO, holdings: [calm, warned] }}
+        language="en"
+        timeZone="UTC"
+        onUseAutomaticPrice={onUseAutomaticPrice}
+      />,
+      { locale: 'en' },
+    );
+
+    expect(screen.queryByRole('button', { name: 'Use automatic price for MSFT' })).toBeNull();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: 'Use automatic price for AAPL' }));
+
+    expect(onUseAutomaticPrice).toHaveBeenCalledWith(HOLDING.id);
+    expect(screen.getAllByRole('button', { name: /Use automatic price/ })).toHaveLength(1);
+  });
+});

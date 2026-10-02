@@ -269,3 +269,48 @@ Tests written first, run red against `TEST_DATABASE_URL=postgres://argent:argent
 | `holding-use-cases.test.ts`: `... when the instrument type changes between the read and the write` | `AssertionError: promise resolved "{ …(15) }" instead of rejecting` | pass |
 
 Changes: `setPrice` takes an optional `PriceWriteGuard` (instrument type and lowercase ticker) added to the UPDATE's WHERE; `UseAutomaticPrice` passes it and raises `InvestmentRuleViolation('marketPrice')` when no row is updated. `DrizzleMarketPriceReader` uses the port's `MarketPrice` and `ReadonlyMap` (the duplicate `StoredMarketPrice` is gone). The perf test now seeds crypto holdings (every fifth, USD) and the matching `crypto_market_prices` rows; the 500 ms threshold is unchanged and p95 was 50 ms. The twelve block files (215 tests), the perf test, `pnpm typecheck` and ESLint pass; the no-float token scan finds nothing.
+
+## Block 7 — Web: manual price warning and switch to automatic
+
+Tests written first, then run red against the unmodified code (no `setHoldingAutomaticPrice`, no catalog keys, no `onUseAutomaticPrice` prop), then implemented.
+
+Red command: `pnpm --filter @pesly/web exec vitest run test/holding-row.test.tsx test/api-client-investments.test.ts test/investments-container.test.tsx test/portfolio-card.test.tsx test/i18n-catalogs.test.ts`
+Green command: the same plus `test/no-float-money.test.ts test/holding-form-accessibility.test.tsx`.
+
+| Test file | Red result | Green result |
+|---|---|---|
+| `holding-row.test.tsx` (12 new) | 9 failed, e.g. `TestingLibraryElementError: Unable to find an element with the text: This price is manual, but the market price changed: today it's worth 20,500.00 ARS` and `Unable to find an accessible element with the role "button" and name "Use automatic price for AAPL"` (the 3 negative cases AC-09, AC-10 and missing price passed by construction, as they assert absence) | all pass |
+| `api-client-investments.test.ts` (4 new) | 4 failed: `TypeError: client.setHoldingAutomaticPrice is not a function` | all pass |
+| `investments-container.test.tsx` (3 new) | suite failed to load: `TypeError: Cannot read properties of undefined (reading 'replace')` (the catalog key `useAutomaticPriceFor` did not exist) | all pass |
+| `portfolio-card.test.tsx` (1 new) | 1 failed: `Unable to find an accessible element with the role "button" and name "Use automatic price for AAPL"` | all pass |
+| `i18n-catalogs.test.ts` (2 new) | 2 failed: `AssertionError: es investments.holding.manualPriceDiffersToday: expected undefined to be truthy` (and the same for en) | all pass |
+| `no-float-money.test.ts`, `holding-form-accessibility.test.tsx` (existing) | not run red (regression checks) | pass (7 files, 155 tests together) |
+
+### Block 7 mutation checks
+
+Each mutation applied to one source file, the three component and container test files run, source restored afterwards (the diff was identical after the run).
+
+| Mutation | Failing tests |
+|---|---|
+| warning shown without `marketPriceDiffers` | `AC-09: shows no warning and no button when the market price does not differ`; container `AC-12` (the warning stays after the switch) |
+| `marketPriceRecent` ignored (always "today") | the two `AC-11` older-wording tests (en, es) and `AC-16` 30 day old price |
+| date formatted in UTC instead of the user's time zone | both `AC-11` older-wording tests (Buenos Aires zone) |
+| button without the callback guard | `shows the warning but no button without the callback` |
+| button passes the ticker instead of the holding id | row `AC-12`, card `passes the callback to the warned holding only`, container `AC-12` and `AC-13` 404 |
+| hardcoded button label | `the button name is in Spanish in Spanish` |
+| `PortfolioCard` does not pass the callback | card test, container `AC-12`, `AC-13` 404 and 400 |
+| container failure not routed to `portfolioFailure` | container `AC-13` 404 and 400 |
+
+### Block 7 correction round
+
+Accessibility audit: the switch unmounted the focused button with no announcement (FAIL), and nothing disabled the button while the request ran (WARN). New `automaticPrice` notice (`{ticker} ya usa el precio automático` / `{ticker} now uses the automatic price`) in the existing status region, shown after the reload; focus moves to the holding's details toggle (`data-details-toggle`), or the screen heading if it is gone. `pending` goes container, screen, `PortfolioCard`, `HoldingRow` and disables the button. The row's new-test count above is corrected to 12.
+
+| New test | Red result |
+|---|---|
+| container: `announces the switch in the status region and moves focus to the holding details toggle` | `AssertionError: expected '' to be 'AAPL ya usa el precio automático'` (the suite first failed to load: `Cannot read properties of undefined (reading 'replace')`, key `notices.automaticPrice` missing; catalogs were added to reach the behavioural red) |
+| container: `disables the button while the switch is in flight and sends one POST on a double click` | `AssertionError: expected 2 to be 1` (two POSTs held) |
+| container: `shows the portfolio failure and no notice when the switch fails` | passes red by construction (asserts absence of a notice that did not exist); guards against the notice appearing on failure |
+| row: `disables the button while a change is pending` | `AssertionError: expected false to be true` |
+| row: `keeps the button enabled when nothing is pending` | passes red by construction (regression guard) |
+
+Green: 11 web files (229 tests) plus `holding-form-schema-delegation` and `price-form` (16), `pnpm typecheck` and ESLint pass; the no-float token scan of `features/investments` finds nothing.

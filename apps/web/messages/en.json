@@ -713,7 +713,11 @@
       "noPrice": "No price yet",
       "edit": "Edit",
       "setPrice": "Set price",
-      "delete": "Delete"
+      "delete": "Delete",
+      "manualPriceDiffersToday": "This price is manual, but the market price changed: today it's worth {price}",
+      "manualPriceDiffersOn": "This price is manual, but the market price changed: on {date} it was worth {price}",
+      "useAutomaticPrice": "Use automatic price",
+      "useAutomaticPriceFor": "Use automatic price for {ticker}"
     },
     "instrumentTypes": {
       "stock": "Stock",
@@ -731,7 +735,8 @@
     },
     "notices": {
       "merged": "{ticker} already existed, so the quantities were added together. New quantity: {quantity}.",
-      "deleted": "Deleted. Your account balances did not change."
+      "deleted": "Deleted. Your account balances did not change.",
+      "automaticPrice": "{ticker} now uses the automatic price"
     },
     "forms": {
       "createPortfolio": {

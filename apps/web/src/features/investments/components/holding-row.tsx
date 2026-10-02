@@ -1,7 +1,7 @@
 'use client';
 
 import type { HoldingResponse } from '@pesly/shared';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -14,9 +14,12 @@ export interface HoldingRowProps {
   holding: HoldingResponse;
   language: Locale;
   timeZone: string;
+  /** A change is on its way to the API; the switch to automatic waits for it. */
+  pending?: boolean;
   onEdit?: (holdingId: string) => void;
   onSetPrice?: (holdingId: string) => void;
   onDelete?: (holdingId: string) => void;
+  onUseAutomaticPrice?: (holdingId: string) => void;
 }
 
 // The tone only reinforces the label and sign already in the text ("Gain +…", "Loss -…").
@@ -30,9 +33,11 @@ export function HoldingRow({
   holding,
   language,
   timeZone,
+  pending = false,
   onEdit,
   onSetPrice,
   onDelete,
+  onUseAutomaticPrice,
 }: HoldingRowProps) {
   const t = useTranslations('investments');
   const [open, setOpen] = useState(false);
@@ -55,6 +60,16 @@ export function HoldingRow({
   const pricedAt =
     holding.pricedAt === null ? null : formatDateTime(holding.pricedAt, timeZone, language);
   const currency = holding.valuationCurrency;
+  const marketWarning =
+    holding.marketPriceDiffers && holding.marketUnitPrice !== null
+      ? {
+          price: formatMoney(BigInt(holding.marketUnitPrice), currency, language),
+          date:
+            holding.marketPricedAt === null
+              ? null
+              : formatDateTime(holding.marketPricedAt, timeZone, language),
+        }
+      : null;
 
   return (
     <li className="flex flex-col gap-1 py-1">
@@ -100,12 +115,42 @@ export function HoldingRow({
           </div>
         }
       />
+      {marketWarning !== null && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="flex items-start gap-2 text-small text-foreground">
+            <TriangleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+            <span>
+              {holding.marketPriceRecent || marketWarning.date === null
+                ? t('holding.manualPriceDiffersToday', { price: marketWarning.price })
+                : t('holding.manualPriceDiffersOn', {
+                    price: marketWarning.price,
+                    date: marketWarning.date,
+                  })}
+            </span>
+          </p>
+          {onUseAutomaticPrice !== undefined && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t('holding.useAutomaticPriceFor', { ticker: holding.ticker })}
+              disabled={pending}
+              onClick={() => {
+                onUseAutomaticPrice(holding.id);
+              }}
+            >
+              {t('holding.useAutomaticPrice')}
+            </Button>
+          )}
+        </div>
+      )}
       <Button
         type="button"
         variant="ghost"
         size="sm"
         className="self-start"
         aria-expanded={open}
+        data-details-toggle={holding.id}
         aria-controls={open ? detailsId : undefined}
         onClick={() => {
           setOpen((current) => !current);

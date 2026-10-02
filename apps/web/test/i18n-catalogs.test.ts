@@ -602,3 +602,25 @@ describe('movements catalog (DISC-001-03b)', () => {
     }
   });
 });
+
+describe('investments manual price warning keys (DISC-001-07b)', () => {
+  const KEYS: Record<string, string[]> = {
+    'investments.holding.manualPriceDiffersToday': ['price'],
+    'investments.holding.manualPriceDiffersOn': ['date', 'price'],
+    'investments.holding.useAutomaticPrice': [],
+    'investments.holding.useAutomaticPriceFor': ['ticker'],
+  };
+
+  function placeholders(text: string): string[] {
+    return [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1] ?? '').sort();
+  }
+
+  it.each(LOCALES)('has the keys in %s with the expected placeholders', (locale) => {
+    const catalog = loadCatalog(locale);
+    for (const [key, expected] of Object.entries(KEYS)) {
+      const text = readString(catalog, key);
+      expect(text, `${locale} ${key}`).toBeTruthy();
+      expect(placeholders(text ?? '')).toEqual(expected);
+    }
+  });
+});
