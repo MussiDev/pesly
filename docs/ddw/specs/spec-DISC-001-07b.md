@@ -6,7 +6,7 @@
 | PRD | docs/ddw/prd/prd-DISC-001-07b.md |
 | Tier | FEATURE |
 | Date | 2026-10-02 |
-| Spec loops | 1 |
+| Spec loops | 2 |
 | Loops since last human decision | 0 |
 
 ## Summary
@@ -21,8 +21,9 @@ row (one per symbol, not user data) and, in the same transaction, copied onto ev
 that symbol that does not carry a manual price, with source `automatic` and the price's time. A manual
 price is never replaced (owner decision, FR-04): the market price of that symbol is still stored, and the
 holding response carries it with a server-computed flag that is true when the price is manual, the
-market price is at most 7 days old and the two differ by more than 5% of the manual price. The web
-shows a warning with the market price and a button that calls a new endpoint to switch the holding back
+market price exists and the two differ by more than 5% of the manual price, whatever the age of the market price
+(a second server flag says whether it is at most 24 hours old). The web
+shows a warning with the market price, worded "today" for a recent price and "on <date>" for an older one, and a button that calls a new endpoint to switch the holding back
 to the automatic price. A symbol the provider does not return, or whose price rounds to less than one
 cent, keeps its previous prices. The jobs follow the exchange-rates job of DISC-001-03a: a single
 schedule row claimed with an atomic upsert that doubles as a lease, an outcome type with no thrown
@@ -43,8 +44,7 @@ Design choices the PRD leaves to the spec (technical, all decided in the PRD dec
 here): the ticker is the CoinGecko symbol (owner decision, risk accepted); unit prices keep the existing
 minor-unit scale of 07a, so a price is rounded half up to the cent and a coin worth less than one cent
 cannot be auto-priced (owner decision; a finer scale is a follow-up in the parent index); the 5% is
-measured against the manual price and exactly 5% gives no warning; a market price older than 7 days
-gives no warning; the switch endpoint is a `POST` without a body that rejects a holding that is not crypto
+measured against the manual price and exactly 5% gives no warning; the warning is never hidden because of the age of the market price (owner decision), and the 24-hour wording rule is a server flag, like 07a's stale price flag; the switch endpoint is a `POST` without a body that rejects a holding that is not crypto
 or has no stored market price; a rejection reuses the existing 400 validation error naming the field
 `body.marketPrice` (no new error code); only the latest local day is snapshotted after downtime
 (history cannot be reconstructed); a portfolio with no priced holding gets no snapshot row, like it shows
@@ -270,21 +270,23 @@ and the endpoint). Block 8 depends on Blocks 3, 4, 5, 6 and 7. Execution order: 
 ## Block 6 — Market price in the holding response and the switch to automatic
 
 **Files**
+- `packages/shared/src/investments/constants.ts` (modified) — `MARKET_PRICE_RECENT_WITHIN_MS`, 24 hours.
 - `packages/shared/src/investments/valuation.ts` (modified) — `marketPriceDiffers(manualUnitPrice, marketUnitPrice)`, pure `bigint` arithmetic with no `Math` call.
-- `packages/shared/src/investments/contracts.ts` (modified) — the holding response gains `marketUnitPrice` (unsigned integer string or null), `marketPricedAt` (ISO date-time or null) and `marketPriceDiffers` (boolean); the portfolio, portfolio list and add-holding responses embed it, so they change with it.
+- `packages/shared/src/investments/contracts.ts` (modified) — the holding response gains `marketUnitPrice` (unsigned integer string or null), `marketPricedAt` (ISO date-time or null), `marketPriceDiffers` (boolean) and `marketPriceRecent` (boolean); the portfolio, portfolio list and add-holding responses embed it, so they change with it.
 - `apps/api/src/investments/application/ports.ts` (modified) — the `MarketPriceReader` port (`findMany(symbols)` returning a map by lowercase symbol of `{ unitPrice, pricedAt }`).
-- `apps/api/src/investments/application/portfolio-view.ts` (modified) — `HoldingView` gains `market` and `marketPriceDiffers`; `buildHoldingView(holding, now, market)` and the portfolio builders take the market prices of the holdings' tickers.
+- `apps/api/src/investments/application/portfolio-view.ts` (modified) — `HoldingView` gains `market`, `marketPriceDiffers` and `marketPriceRecent`; `buildHoldingView(holding, now, market)` and the portfolio builders take the market prices of the holdings' tickers.
 - `apps/api/src/investments/application/holding-use-cases.ts` (modified) — `AddHolding`, `GetHolding`, `UpdateHolding` and `SetManualPrice` take the reader and return the view with the market fields; new `UseAutomaticPrice`.
 - `apps/api/src/investments/application/portfolio-use-cases.ts` (modified) — `CreatePortfolio`, `ListPortfolios` and `GetPortfolio` take the reader; one lookup per call, skipped when no holding is crypto.
-- `apps/api/src/investments/infrastructure/http/serializers.ts` (modified) — `serializeHolding` writes the three fields.
+- `apps/api/src/investments/infrastructure/http/serializers.ts` (modified) — `serializeHolding` writes the four fields.
 - `apps/api/src/investments/infrastructure/http/holding-routes.ts` (modified) — the new route and its dependency.
 - `apps/api/src/investments/index.ts` (modified) — builds the reader and the use case; it imports the reader only, never the worker repository.
 - `apps/api/test/investments/fakes/in-memory-investments.ts` (modified) — an in-memory `MarketPriceReader` that records its calls.
-- `apps/api/test/investments/valuation.test.ts`, `contracts.test.ts`, `portfolio-view.test.ts`, `holding-use-cases.test.ts`, `portfolio-use-cases.test.ts`, `holding-routes.test.ts`, `portfolio-routes.test.ts`, `add-holding-concurrency.test.ts` and `investments-wiring.test.ts` (modified) — the new constructor arguments, the three response fields and the new route (see the tests below).
+- `apps/api/test/investments/valuation.test.ts`, `contracts.test.ts`, `portfolio-view.test.ts`, `holding-use-cases.test.ts`, `portfolio-use-cases.test.ts`, `holding-routes.test.ts`, `portfolio-routes.test.ts`, `add-holding-concurrency.test.ts` and `investments-wiring.test.ts` (modified) — the new constructor arguments, the four response fields and the new route (see the tests below).
 
 **Logic**
 - `marketPriceDiffers(manual, market)` returns true when the absolute difference of the two prices times 100 is greater than the manual price times 5 (the 5% is measured against the manual price, exactly 5% is false); the absolute value is taken with a comparison, never `Math.abs`.
-- The view fills `market` for a crypto holding that has a stored market price and sets `marketPriceDiffers` only when the holding's price source is `manual`, a market price exists, the market price is not older than the 7-day stale limit of 07a (`STALE_PRICE_AFTER_MS`) and `marketPriceDiffers` of the shared helper is true; for an automatic or imported price, a holding without a price, or a stale market price it is false (FR-05).
+- The view fills `market` for a crypto holding that has a stored market price and sets `marketPriceDiffers` when the holding's price source is `manual`, a market price exists and the shared helper says the two prices differ by more than 5%; the age of the market price never changes it (owner decision, FR-05), so an old market price still warns. For an automatic or imported price, a holding without a price, or a holding without a stored market price it is false.
+- `marketPriceRecent` is true when the market price time is at most 24 hours before the injected `Clock`'s now (`MARKET_PRICE_RECENT_WITHIN_MS`) and false otherwise or when there is no market price. It is a server flag, not a web computation, for the same reason as 07a's `priceStale`: the clock is injected, so tests are deterministic with a mutable clock; the browser's clock may be wrong or in another zone; and the presentational row stays free of time logic. The flag is fixed when the response is built, so a screen left open keeps its wording until the next load.
 - Every holding view that is returned (list, get, add, edit and manual price) goes through the same builder, so the response is the same whichever call produced it; the use cases collect the lowercase tickers of the crypto holdings in the result and make one reader call, none when there is no crypto holding.
 - `UseAutomaticPrice.execute(scope, holdingId)` reads the holding under the owner scope (an unknown or foreign id is not found), requires an instrument type crypto and a stored market price (otherwise it raises the module's `InvestmentRuleViolation` for the field `marketPrice`), then writes the price through the existing `setPrice` of the holding repository with the market unit price, source `automatic` and the market price time, and returns the refreshed view (FR-06).
 - The route is `POST /investments/holdings/:holdingId/automatic-price`, the sibling of `PUT /investments/holdings/:holdingId/price`: the same session and write-scope checks, the same request id and mutation log line (action `holding.automatic-price`, ids only, no amount), and its response is validated with the holding response contract.
@@ -308,15 +310,15 @@ and the endpoint). Block 8 depends on Blocks 3, 4, 5, 6 and 7. Execution order: 
 
 **Required tests**
 - [ ] `apps/api/test/investments/valuation.test.ts` — `marketPriceDiffers(6000000n, 6400000n)` and `(6000000n, 5600000n)` are true (6.67% above and below), `(6000000n, 6300000n)` and `(6000000n, 5700000n)` are false (exactly 5%), and a pair at the 10^12 limit does not overflow — validates AC-07, AC-08 and AC-09.
-- [ ] `apps/api/test/investments/portfolio-view.test.ts` — a manual crypto holding with a fresh market price 6.67% away has `marketPriceDiffers` true and carries the market price and its date (AC-07, AC-08); at exactly 5% it is false (AC-09); an automatic or imported price is false (AC-10); a market price older than 7 days is false (AC-11); a non-crypto holding has no market price.
-- [ ] `apps/api/test/investments/contracts.test.ts` — the holding response requires the three new fields and accepts null market values; a `marketUnitPrice` that is not an unsigned integer string (invalid, for example `"1.5"`) is rejected.
+- [ ] `apps/api/test/investments/portfolio-view.test.ts` — a manual crypto holding with a market price from 3 hours ago, 6.67% away, has `marketPriceDiffers` true, `marketPriceRecent` true and carries the market price and its date (AC-07, AC-08); at exactly 5% it is false (AC-09); an automatic or imported price is false (AC-10); a market price from 2 days ago (`marketPriceRecent` false, the 24-hour boundary tested at 24 hours and 24 hours plus one second) and one from 30 days ago both keep `marketPriceDiffers` true (AC-11, AC-16); a non-crypto holding has no market price.
+- [ ] `apps/api/test/investments/contracts.test.ts` — the holding response requires the four new fields and accepts null market values; a `marketUnitPrice` that is not an unsigned integer string (invalid, for example `"1.5"`) is rejected.
 - [ ] `apps/api/test/investments/holding-use-cases.test.ts` — `UseAutomaticPrice` sets price, source `automatic` and the market time and the warning disappears (AC-12); it rejects a stock holding and a crypto holding without a stored market price and changes nothing (AC-13); another owner's or an unknown id is not found (AC-14); each use case makes at most one reader call and none for a holding that is not crypto.
 - [ ] `apps/api/test/investments/portfolio-use-cases.test.ts` — listing portfolios with crypto holdings makes one market lookup, a list without crypto makes none, and the response fields are filled per holding.
 - [ ] `apps/api/test/investments/holding-routes.test.ts` — `POST .../automatic-price` answers 200 with the switched holding, source `automatic` and no warning (AC-12).
 - [ ] `apps/api/test/investments/holding-routes.test.ts` — the route answers 404 for user B's holding and for an unknown id, and changes nothing (AC-14).
 - [ ] `apps/api/test/investments/holding-routes.test.ts` — the route answers 400 with `body.marketPrice` for a stock holding and for a crypto holding with no stored market price, and changes nothing (invalid, AC-13).
 - [ ] `apps/api/test/investments/holding-routes.test.ts` — the route answers 401 without a session, and a storage failure in the reader answers the shared 500 error without an amount in the log; the route is added to the existing 401/403, cross-user 404 and storage-failure 500 lists.
-- [ ] `apps/api/test/investments/portfolio-routes.test.ts` — the list and read responses carry `marketUnitPrice`, `marketPricedAt` and `marketPriceDiffers` for a manually priced crypto holding with a market price 6.67% away (AC-07).
+- [ ] `apps/api/test/investments/portfolio-routes.test.ts` — the list and read responses carry `marketUnitPrice`, `marketPricedAt`, `marketPriceDiffers` and `marketPriceRecent` for a manually priced crypto holding with a market price 6.67% away (AC-07).
 - [ ] `apps/api/test/investments/add-holding-concurrency.test.ts` and `apps/api/test/investments/investments-wiring.test.ts` — still pass with the new constructor arguments, and the wiring imports the reader and not the worker repository (regression).
 
 **Completion criterion**
@@ -326,15 +328,15 @@ and the endpoint). Block 8 depends on Blocks 3, 4, 5, 6 and 7. Execution order: 
 
 **Files**
 - `apps/web/src/lib/api-client.ts` (modified) — `setHoldingAutomaticPrice(holdingId)`: a `POST` to the new route, response validated with the holding response contract, same refresh-on-unauthenticated behavior as `setHoldingPrice`.
-- `apps/web/src/features/investments/components/holding-row.tsx` (modified) — a warning shown when `marketPriceDiffers`, with the market price formatted by `formatMoney`, and a button that calls the new optional prop `onUseAutomaticPrice`.
+- `apps/web/src/features/investments/components/holding-row.tsx` (modified) — a warning shown when `marketPriceDiffers`, with the market price formatted by `formatMoney` and, when `marketPriceRecent` is false, the market price date formatted by `formatDateTime` in the user's locale and time zone, and a button that calls the new optional prop `onUseAutomaticPrice`.
 - `apps/web/src/features/investments/components/portfolio-card.tsx` and `investments-screen.tsx` (modified) — pass the new optional callback down to each row.
 - `apps/web/src/features/investments/containers/investments-container.tsx` (modified) — the action: calls the client, replaces the portfolio in state like the other holding mutations, and on failure shows the portfolio-level message through the existing `portfolioFailure` path.
-- `apps/web/messages/en.json` and `apps/web/messages/es.json` (modified) — the new keys under `investments.holding`: `manualPriceDiffers` (with a `{price}` placeholder), `useAutomaticPrice` and `useAutomaticPriceFor` (with a `{ticker}` placeholder).
-- `apps/web/test/support/holding-fixture.ts`, `api-client-investments.test.ts`, `holding-row.test.tsx`, `portfolio-card.test.tsx`, `investments-container.test.tsx` and `i18n-catalogs.test.ts` (modified) — see the tests below; the fixture gains the three response fields (null, null, false) so every test that parses or renders a holding keeps compiling.
+- `apps/web/messages/en.json` and `apps/web/messages/es.json` (modified) — the new keys under `investments.holding`: `manualPriceDiffersToday` (with a `{price}` placeholder), `manualPriceDiffersOn` (with `{price}` and `{date}` placeholders), `useAutomaticPrice` and `useAutomaticPriceFor` (with a `{ticker}` placeholder).
+- `apps/web/test/support/holding-fixture.ts`, `api-client-investments.test.ts`, `holding-row.test.tsx`, `portfolio-card.test.tsx`, `investments-container.test.tsx` and `i18n-catalogs.test.ts` (modified) — see the tests below; the fixture gains the four response fields (null, null, false, false) so every test that parses or renders a holding keeps compiling.
 
 **Logic**
 - The warning is plain text with an icon, visible without opening the details of the row, placed with the other price notes (like the stale price text); its colors, radius and spacing come from theme tokens only.
-- The Spanish text is "Este precio es manual, pero el de mercado cambió: hoy vale {price}" and the English text is "This price is manual, but the market price changed: it is now worth {price}"; the button reads "Usar precio automático" and "Use automatic price", with an accessible name that includes the ticker; no string is hardcoded in a component (AGENTS.md).
+- The warning has two texts, chosen by the server flag `marketPriceRecent`. Recent: "Este precio es manual, pero el de mercado cambió: hoy vale {price}" and "This price is manual, but the market price changed: today it's worth {price}". Older: "Este precio es manual, pero el de mercado cambió: al {date} valía {price}" and "This price is manual, but the market price changed: on {date} it was worth {price}", with the date in the user's locale and time zone. The button reads "Usar precio automático" and "Use automatic price", with an accessible name that includes the ticker; no string is hardcoded in a component (AGENTS.md).
 - The button appears only when the warning shows and the callback is provided; pressing it calls `onUseAutomaticPrice(holdingId)`. The container applies the returned holding, so the warning disappears and the source reads "Automatic" (FR-06, AC-12).
 - A rejected switch (404 or 400) shows the existing generic failure of the portfolio through `portfolioFailure`; no new error code is mapped.
 - The component stays presentational: no data fetching in `holding-row.tsx`; the money formatting goes through `formatMoney` only, which the web no-float scan enforces.
@@ -347,11 +349,11 @@ and the endpoint). Block 8 depends on Blocks 3, 4, 5, 6 and 7. Execution order: 
 - A response that fails the contract is treated like any other invalid API response by the client.
 
 **Required tests**
-- [ ] `apps/web/test/holding-row.test.tsx` — with `marketPriceDiffers` true the warning shows the market price formatted for the locale in Spanish and in English (AC-07, AC-08); with it false, or for an automatic price, there is no warning and no button (AC-09, AC-10); the button calls `onUseAutomaticPrice` with the holding id and is absent without the callback.
+- [ ] `apps/web/test/holding-row.test.tsx` — with `marketPriceDiffers` and `marketPriceRecent` true the warning says "today" with the market price formatted for the locale in Spanish and in English (AC-07, AC-08); with `marketPriceRecent` false it says "on <date>" with the date in the user's time zone and never "today" (AC-11), also for a price 30 days old (AC-16); with `marketPriceDiffers` false, or for an automatic price, there is no warning and no button (AC-09, AC-10); the button calls `onUseAutomaticPrice` with the holding id and is absent without the callback.
 - [ ] `apps/web/test/api-client-investments.test.ts` — `setHoldingAutomaticPrice` sends a `POST` to `/investments/holdings/{id}/automatic-price` and returns the parsed holding (AC-12); a 404 raises the client's not-found error and a payload with an invalid `marketUnitPrice` (error) is rejected.
 - [ ] `apps/web/test/investments-container.test.tsx` — pressing the button calls `POST .../automatic-price`, shows the switched holding with the source "Automatic" and no warning (AC-12); a 404 and a 400 response leave the holding and show the portfolio failure message (error cases, AC-13).
 - [ ] `apps/web/test/portfolio-card.test.tsx` — the callback reaches the row of the warned holding only.
-- [ ] `apps/web/test/i18n-catalogs.test.ts` — the three new keys exist in both catalogs with the same placeholders (parity, regression).
+- [ ] `apps/web/test/i18n-catalogs.test.ts` — the three new warning and button keys, with the two warning variants, exist in both catalogs with the same placeholders (parity, regression).
 - [ ] `apps/web/test/no-float-money.test.ts` — still passes: the market price is shown through `formatMoney` (regression of the existing scan).
 
 **Completion criterion**
@@ -378,7 +380,7 @@ and the endpoint). Block 8 depends on Blocks 3, 4, 5, 6 and 7. Execution order: 
 
 **Required tests**
 - [ ] `apps/api/test/investments/price-sync-integration.test.ts` — a full cycle with the fake provider updates every crypto holding without a manual price to `automatic` (AC-01), an outage keeps the previous prices and increments the counter once per attempt (AC-02), and the next local midnight stores one snapshot per portfolio and currency with the same totals the screen computes (AC-03), all on the real database.
-- [ ] `apps/api/test/investments/price-sync-integration.test.ts` — the manual holding keeps its price while the stored market price changes, and the portfolio read model flags it when the market price is more than 5% away and not when it is exactly 5% away (AC-05, AC-07, AC-09).
+- [ ] `apps/api/test/investments/price-sync-integration.test.ts` — the manual holding keeps its price while the stored market price changes, and the portfolio read model flags it when the market price is more than 5% away and not when it is exactly 5% away, and a 30-day-old market price still flags it with `marketPriceRecent` false (AC-05, AC-07, AC-09, AC-16).
 - [ ] `apps/api/test/investments/price-sync-integration.test.ts` — the counter never exceeds 1,000 across the simulated month, the failure log never contains provider text or the key, and an out-of-range portfolio total is skipped while the others are snapshotted (error path, NFR-01, AC-04).
 - [ ] `apps/web/e2e/investments.spec.ts` — a crypto holding gets its automatic price from the worker and the screen shows the source and the value (AC-01); after a manual price of 1.00 USD the warning and the button appear, and pressing the button restores the automatic price and hides the warning (AC-07, AC-12).
 - [ ] `apps/api/test/investments/no-float-money.test.ts` — the scan fails for a probe file with `parseFloat` in a new job directory (invalid source).
