@@ -285,3 +285,88 @@ describe('exchange rate provider settings', () => {
     expect(env.DOLARAPI_BASE_URL).toBe(DEFAULT_BASE_URL);
   });
 });
+
+describe('crypto price provider settings', () => {
+  const DEFAULT_BASE_URL = 'https://api.coingecko.com/api/v3';
+
+  it('defaults PRICE_PROVIDER to coingecko, the base URL to the public API and no key', () => {
+    const source = testEnvSource();
+    delete source.PRICE_PROVIDER;
+
+    const env = parseEnv(source);
+
+    expect(env.PRICE_PROVIDER).toBe('coingecko');
+    expect(env.COINGECKO_BASE_URL).toBe(DEFAULT_BASE_URL);
+    expect(env.COINGECKO_API_KEY).toBeUndefined();
+  });
+
+  it('accepts fake and a different base URL outside production', () => {
+    const env = parseEnv(
+      testEnvSource({ PRICE_PROVIDER: 'fake', COINGECKO_BASE_URL: 'http://127.0.0.1:4300' }),
+    );
+
+    expect(env.PRICE_PROVIDER).toBe('fake');
+    expect(env.COINGECKO_BASE_URL).toBe('http://127.0.0.1:4300');
+  });
+
+  it.each([
+    ['PRICE_PROVIDER', 'unknown-provider-value'],
+    ['COINGECKO_BASE_URL', 'not-a-url-value'],
+    ['COINGECKO_API_KEY', 'key with spaces'],
+  ])('rejects an invalid %s by name, without printing the value', (name, value) => {
+    let message = '';
+    try {
+      parseEnv(testEnvSource({ [name]: value }));
+    } catch (error) {
+      message = (error as Error).message;
+    }
+
+    expect(message).toContain(name);
+    expect(message).not.toContain(value);
+  });
+
+  it('trims whitespace around a pasted key and rejects interior whitespace or non-ASCII', () => {
+    for (const padded of ['demo-key-123\n', ' demo-key-123 ', '\tdemo-key-123\r\n']) {
+      const env = parseEnv(testEnvSource({ ...productionOverrides, COINGECKO_API_KEY: padded }));
+      expect(env.COINGECKO_API_KEY).toBe('demo-key-123');
+    }
+    for (const bad of ['abc def-secret', 'clave-\u00f1andu-secret']) {
+      let message = '';
+      try {
+        parseEnv(testEnvSource({ COINGECKO_API_KEY: ` ${bad}\n` }));
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain('COINGECKO_API_KEY');
+      expect(message).not.toContain(bad);
+    }
+  });
+
+  it('rejects fake in production', () => {
+    expect(() =>
+      parseEnv(testEnvSource({ ...productionOverrides, PRICE_PROVIDER: 'fake' })),
+    ).toThrow('PRICE_PROVIDER: must be coingecko in production');
+  });
+
+  it('rejects a changed base URL in production without printing it', () => {
+    const attempt = () =>
+      parseEnv(
+        testEnvSource({ ...productionOverrides, COINGECKO_BASE_URL: 'https://evil.example.com' }),
+      );
+
+    expect(attempt).toThrow(
+      'COINGECKO_BASE_URL: must be the default CoinGecko endpoint in production',
+    );
+    expect(attempt).not.toThrow(/evil\.example/);
+  });
+
+  it('accepts production with a missing or empty key and with only the defaults', () => {
+    const missing = parseEnv(testEnvSource(productionOverrides));
+    expect(missing.PRICE_PROVIDER).toBe('coingecko');
+    expect(missing.COINGECKO_BASE_URL).toBe(DEFAULT_BASE_URL);
+    expect(missing.COINGECKO_API_KEY).toBeUndefined();
+
+    const empty = parseEnv(testEnvSource({ ...productionOverrides, COINGECKO_API_KEY: '' }));
+    expect(empty.COINGECKO_API_KEY).toBeUndefined();
+  });
+});

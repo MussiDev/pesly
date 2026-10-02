@@ -125,3 +125,49 @@ Each mutation was applied temporarily to the file shown, the relevant test file 
 | (h) remove the already-snapshotted exclusion from `portfoliosToSnapshot` | `snapshot-repository`: `skips portfolios that already have a row for the date ...` | `expected [ …(3) ] to deeply equal [ …(2) ]` |
 | (i) remove `onConflictDoNothing` from `save` | `snapshot-repository`: `writes one set of rows when saving twice ...`; `returns only the rows actually written when some already exist` | `Failed query: insert into "portfolio_value_snapshots" ...` (duplicate key) |
 | (j) remove `holdings_crypto_ticker_idx` from the migration SQL | `price-migration`: `creates the indexes, including the partial expression index on holdings`; `is reverted by its rollback script ... and re-applies` | `expected undefined to be defined` |
+
+## Block 4 — Provider adapters and worker environment
+
+Tests were written first and run red before any source file existed or changed (`TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test pnpm --filter @pesly/api exec vitest run <files>`).
+
+| Test file | Red result (before implementation) | Green result |
+|---|---|---|
+| `test/investments/coingecko-price-provider.test.ts` (19 tests) | File failed to load: `Error: Cannot find module '../../src/investments/infrastructure/provider/coingecko-price-provider'` (import failure, no test body ran) | 19/19 |
+| `test/investments/coingecko-payload.test.ts` (17 tests) | File failed to load: `Cannot find module '../../src/investments/infrastructure/provider/coingecko-payload'` (import failure) | 17/17 |
+| `test/investments/fake-price-provider.test.ts` (4 tests) | File failed to load: `Cannot find module '.../provider/fake-price-provider'` (import failure) | 4/4 |
+| `test/foundation/worker-env.test.ts` (+5 tests) | 4 failed: `expected undefined to be 'coingecko'`; `expected undefined to be 'CG-worker-secret-key-0123456789'`; `expected [Function] to throw an error` (fake / changed base URL in production); `expected '' to contain 'PRICE_PROVIDER'`. The accept-missing/blank-key test passes before (asserts a key is undefined, true while the setting is unknown); it is a regression guard, not a red test | all pass |
+| `test/foundation/env.test.ts` (+8 tests) | 8 failed: `expected undefined to be 'coingecko'`; `expected undefined to be 'fake'`; `expected '' to contain 'PRICE_PROVIDER'` (and `COINGECKO_BASE_URL`, `COINGECKO_API_KEY`); `expected [Function] to throw an error` (production fake and base URL); `expected undefined to be 'coingecko'` | all pass |
+| `test/deploy/railway-iac.test.ts` (1 new, 2 extended) | 3 failed: `argent-worker: expected [ 'DATABASE_URL', 'EMAIL_FROM', …(5) ] to deeply equal [ 'COINGECKO_API_KEY', …(7) ]`; `argent-worker.COINGECKO_API_KEY: expected undefined to deeply equal { type: 'preserve' }`; `expected undefined to deeply equal { type: 'preserve' }` | all pass |
+
+Total red run: `Test Files 6 failed (6) | Tests 15 failed | 76 passed (91)` (3 files failed at import). Green: the six files plus `no-float-money.test.ts`: 7 files, 137 tests pass; `test/foundation test/deploy test/investments test/exchange-rates` serial: 52 files, 802 tests pass. `pnpm typecheck` and ESLint on touched files clean; Prettier clean with `--end-of-line auto`.
+
+### Block 4 mutation checks
+
+Each mutation was applied temporarily, the five relevant test files were run, and the file was restored byte for byte (full suite green afterwards).
+
+| Mutation | Failing tests |
+|---|---|
+| float fallback: `context?.source ?? String(value)` instead of marking the source missing | `coingecko-payload`: `is provider_invalid_payload, never a float fallback, when the number source is missing` |
+| key also put in the URL (`x_cg_demo_api_key=` query) | `coingecko-price-provider`: `returns cents from the digits ... with the key header` (`request.url` must not contain the key) |
+| redirect followed (`redirect: 'follow'`) | `coingecko-price-provider`: `does not follow a redirect and reports it as a bad status` |
+| stale `last_updated` accepted (age check removed) | `coingecko-payload`: `ignores an entry whose last_updated is missing, unreadable or older than 24 hours`, `accepts last_updated exactly 24 hours old and rejects a millisecond older`, `lets a stale clone not block the fresh entry` |
+| first entry wins (rank comparison disabled) | `coingecko-payload`: `keeps the entry with the lowest market cap rank ... null last`, `prefers a ranked entry over an unranked one whatever the order` |
+| key header sent even with no key | `coingecko-price-provider`: `sends no key header when no key is configured`, `treats an empty key as no key` |
+| unrequested symbols returned | `coingecko-payload`: `drops symbols that were not asked for ...`; `coingecko-price-provider`: `accepts a body just under the cap` |
+| injection-shaped symbols not dropped | `coingecko-payload`: `sanitizeSymbols drops injection-shaped symbols ...`; `coingecko-price-provider`: `drops injection-shaped symbols from the request ...`, `makes no request when no symbol is left after sanitizing` |
+| production allows `PRICE_PROVIDER=fake` | `env.test`: `rejects fake in production`; `worker-env.test`: `refuses fake and a changed base URL in production, naming the variable only` |
+| production allows a changed `COINGECKO_BASE_URL` | `env.test`: `rejects a changed base URL in production without printing it`; `worker-env.test`: same worker test |
+| worker key declared as a literal in `.railway/railway.ts` | `railway-iac`: `every secret is preserved ...`, `gives the CoinGecko key to the worker only ...`, `gives the services one production configuration ...` |
+| API service also declares the key | `railway-iac`: `declares each service non-secret variables ...`, `gives the CoinGecko key to the worker only ...` |
+
+### Block 4 correction round
+
+Tests first, run red, then the fix (`TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test`).
+
+| New test | Red result | Green result |
+|---|---|---|
+| `worker-env.test.ts`: `trims whitespace around a pasted key and still rejects interior whitespace or non-ASCII` | `Error: Invalid environment: COINGECKO_API_KEY: must be a single token without spaces` (a key with a trailing newline stopped the worker) | pass |
+| `env.test.ts`: `trims whitespace around a pasted key and rejects interior whitespace or non-ASCII` | same error for the API environment | pass |
+| `coingecko-payload.test.ts`: `leaves a nested current_price alone: not converted, not priced, no failure without source text` | `expected { current_price: NumberSource { text: null }, times: 2 } to deeply equal { current_price: 99.99, times: 2 }` (the nested price was converted) | pass |
+
+Fixes: `env.ts` trims the key before the visible-token check and the comment no longer claims a key can never block startup; `coingecko-payload.ts` records the source text of `current_price` by holder object and only the top-level array entries read it, so a nested value keeps its parsed value. Re-run: the four investments files, `worker-env`, `env` (6 files, 117 tests) and `railway-iac` (23 tests) pass; typecheck and ESLint clean; no forbidden tokens in `apps/api/src/investments`. `.gitignore` gained `.vitest/` (the Vitest JSON output directory was untracked).

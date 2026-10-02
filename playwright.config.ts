@@ -26,6 +26,8 @@ const WORKER_ENV = {
   EMAIL_PROVIDER: 'mailpit',
   // Never reach dolarapi.com from e2e.
   RATE_PROVIDER: 'fake',
+  // Never reach CoinGecko from e2e.
+  PRICE_PROVIDER: 'fake',
 };
 
 /** The e2e API's environment: the worker's database and email settings plus its own. */

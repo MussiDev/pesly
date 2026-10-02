@@ -31,6 +31,7 @@ export const productionOverrides: Record<string, string> = {
   TOTP_ENCRYPTION_KEY: TEST_TOTP_ENCRYPTION_KEY,
   // The test source defaults to the fake provider, which production refuses.
   RATE_PROVIDER: 'dolarapi',
+  PRICE_PROVIDER: 'coingecko',
 };
 
 export function testEnvSource(
@@ -48,6 +49,7 @@ export function testEnvSource(
     TRUST_PROXY: '0',
     LOG_LEVEL: 'silent',
     RATE_PROVIDER: 'fake',
+    PRICE_PROVIDER: 'fake',
     TOTP_ENCRYPTION_KEY: TEST_TOTP_ENCRYPTION_KEY,
     ...overrides,
   };

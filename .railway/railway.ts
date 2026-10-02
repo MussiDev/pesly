@@ -78,6 +78,8 @@ export default defineRailway((_ctx, project) => {
       EMAIL_FROM: api.env.EMAIL_FROM,
       DATABASE_URL: db.env.DATABASE_URL,
       RESEND_API_KEY: preserve(),
+      // Optional: without it the price job runs on CoinGecko's public limits (DISC-001-07b).
+      COINGECKO_API_KEY: preserve(),
     },
   });
 
