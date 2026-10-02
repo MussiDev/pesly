@@ -6,7 +6,17 @@ import { describe, expect, it } from 'vitest';
 const root = resolve(fileURLToPath(new URL('.', import.meta.url)), '../../../..');
 const sharedRoot = 'packages/shared/src/investments';
 const apiRoot = 'apps/api/src/investments';
-const forbidden = ['parseFloat', 'parseInt', 'Number(', 'toFixed', 'Math.round', 'Math.floor'];
+const forbidden = [
+  'parseFloat',
+  'parseInt',
+  'Number(',
+  'Number.',
+  'toFixed',
+  'Math.round',
+  'Math.floor',
+  'Math.ceil',
+  'Math.trunc',
+];
 
 function sources(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -41,4 +51,14 @@ describe('no floating-point money arithmetic (NFR-01, NFR-02)', () => {
     expect(sources(join(root, apiRoot)).length).toBeGreaterThan(0);
     expect(offendersIn(apiRoot)).toEqual([]);
   });
+
+  // The 07b domain files must be part of the scanned set, so a rename or move cannot hide them.
+  it.each(['crypto-price.ts', 'snapshot-date.ts', 'price-failure.ts'])(
+    `${apiRoot}/domain/%s is scanned and has no float conversions`,
+    (name) => {
+      const file = join(root, apiRoot, 'domain', name);
+      expect(sources(join(root, apiRoot))).toContain(file);
+      expect(offendersIn(apiRoot).filter((line) => line.startsWith(file))).toEqual([]);
+    },
+  );
 });
