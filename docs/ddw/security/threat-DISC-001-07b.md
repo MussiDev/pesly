@@ -12,11 +12,14 @@
 |---|---|
 | `apps/api/src/investments/domain/crypto-price.ts` (`usdPriceToMinorUnits`) + `snapshot-date.ts` + `price-failure.ts` | Block 1 |
 | `apps/api/src/investments/application/refresh-crypto-prices.ts` + `take-daily-snapshots.ts` + `price-ports.ts` | Block 2 |
-| `apps/api/src/investments/infrastructure/db/schema.ts` (`crypto_price_sync`, `crypto_price_usage`, `crypto_price_refresh_failures`, `portfolio_value_snapshots`) + `apps/api/drizzle/0015_price_snapshots.sql` | Block 3 |
+| `apps/api/src/investments/infrastructure/db/schema.ts` (`crypto_price_sync`, `crypto_price_usage`, `crypto_price_refresh_failures`, `crypto_market_prices`, `portfolio_value_snapshots`) + `apps/api/drizzle/0015_price_snapshots.sql` | Block 3 |
 | `apps/api/src/investments/infrastructure/db/drizzle-crypto-price-repository.ts` + `drizzle-price-schedule.ts` + `drizzle-price-failure-log.ts` + `drizzle-snapshot-repository.ts` | Block 3 |
 | `apps/api/src/investments/infrastructure/provider/coingecko-price-provider.ts` + `coingecko-payload.ts` (request to `{base}/coins/markets`) | Block 4 |
 | `apps/api/src/shared/config/env.ts` (`PRICE_PROVIDER`, `COINGECKO_BASE_URL`, `COINGECKO_API_KEY`) + `.railway/railway.ts` | Block 4 |
 | `apps/api/src/investments/infrastructure/jobs/price-sync-job.ts` + `snapshot-job.ts` + `apps/api/src/investments/jobs.ts` + `apps/api/src/worker.ts` | Block 5 |
+| `apps/api/src/investments/infrastructure/http/holding-routes.ts` (`POST /investments/holdings/:holdingId/automatic-price`) + `apps/api/src/investments/application/holding-use-cases.ts` (`UseAutomaticPrice`) + `apps/api/src/investments/application/portfolio-view.ts` | Block 6 |
+| `apps/api/src/investments/infrastructure/db/drizzle-market-price-reader.ts` | Block 3, Block 6 |
+| `apps/web/src/features/investments/components/holding-row.tsx` + `apps/web/src/features/investments/containers/investments-container.tsx` | Block 7 |
 
 ## Trust boundaries
 - Worker → CoinGecko API: public internet; the symbols of users' crypto tickers leave the system and a JSON body comes back, over TLS, to the one configured host.
@@ -25,6 +28,8 @@
 - Railway secrets → worker environment: `COINGECKO_API_KEY` crosses into the process; it never crosses into the API process.
 - API process ↔ worker process: no direct channel; both talk only through the database, so the API request path never reaches the provider.
 - Users' stored data (tickers, time zones) → provider request and job logic: user-controlled text influencing an outbound request and a time computation.
+- Browser → API: `POST /investments/holdings/:holdingId/automatic-price` carries a session and a holding id chosen by the caller, over TLS.
+- Worker → API process through `crypto_market_prices`: public market data written by the worker and read by the API, never user data and never a write from the API.
 
 ## STRIDE analysis
 ### `apps/api/src/investments/domain/crypto-price.ts` (`usdPriceToMinorUnits`) + `snapshot-date.ts` + `price-failure.ts`
@@ -37,13 +42,13 @@
 
 ### `apps/api/src/investments/application/refresh-crypto-prices.ts` + `take-daily-snapshots.ts` + `price-ports.ts`
 - **Spoofing:** only the worker composes these use cases; no route calls them (R-15).
-- **Tampering:** the schedule claim and the monthly reservation are atomic statements, so two workers cannot both call the provider or exceed the budget (R-04, R-05); a provider answer is applied only for requested symbols (R-03).
+- **Tampering:** the schedule claim and the monthly reservation are atomic statements, so two workers cannot both call the provider or exceed the budget (R-04, R-05); a provider answer is applied only for requested symbols (R-03), and an automatic price is never applied to a holding that carries a manual price, including one set while the request was in flight (R-17).
 - **Repudiation:** every refresh outcome and every provider fault code is logged and the fault is stored in the failure log with its time.
 - **Information Disclosure:** outcomes are counts and codes; no holding, quantity or user id is logged by the use cases.
 - **Denial of Service:** at most 100 symbols and one request per cycle, a retry backoff (15, 30, 60 minutes) and a hard monthly cap of 1,000 reservations bound both the provider load and the cost of an outage (R-04); an invalid time zone skips only that zone (R-09).
 - **Elevation of Privilege:** snapshot rows are written under the owner of each portfolio, taken from the portfolio row, never from input (R-08).
 
-### `apps/api/src/investments/infrastructure/db/schema.ts` (`crypto_price_sync`, `crypto_price_usage`, `crypto_price_refresh_failures`, `portfolio_value_snapshots`) + `apps/api/drizzle/0015_price_snapshots.sql`
+### `apps/api/src/investments/infrastructure/db/schema.ts` (`crypto_price_sync`, `crypto_price_usage`, `crypto_price_refresh_failures`, `crypto_market_prices`, `portfolio_value_snapshots`) + `apps/api/drizzle/0015_price_snapshots.sql`
 - **Spoofing:** not applicable to storage.
 - **Tampering:** check constraints bound the counter (0 to 1,000), the single schedule row, the failure code, and the snapshot value and currency; the composite foreign key `(portfolio_id, owner_id)` makes a snapshot under another owner impossible and the primary key `(portfolio_id, snapshot_date, currency)` makes a duplicate day impossible (R-08).
 - **Repudiation:** `taken_at` and `failed_at` timestamps record when a snapshot or a fault happened.
@@ -53,10 +58,10 @@
 
 ### `apps/api/src/investments/infrastructure/db/drizzle-crypto-price-repository.ts` + `drizzle-price-schedule.ts` + `drizzle-price-failure-log.ts` + `drizzle-snapshot-repository.ts`
 - **Spoofing:** not applicable; the repositories run in the worker with no user scope because they act on every user's holdings by design.
-- **Tampering:** the bulk price update binds every symbol and price as parameters and is restricted to crypto holdings in USD (`UPDATE ... FROM (VALUES ...)`), so a ticker such as `'; drop table` is data and cannot change another instrument type (R-06); the check constraints of 07a still apply to the written price.
-- **Repudiation:** updated holdings carry `price_source = 'automatic'` and `priced_at`, so an automatic price is distinguishable from a manual one.
+- **Tampering:** the two statements of `storeAndApply` run in one transaction, bind every symbol and price as parameters and the holdings update is restricted to crypto holdings in USD without a manual price, so a ticker such as `'; drop table` is data and cannot change another instrument type (R-06) and a manual price is never replaced (R-17); the check constraints of 07a and of the market price entity still apply to the written price.
+- **Repudiation:** updated holdings carry `price_source = 'automatic'` and `priced_at`, so an automatic price is distinguishable from a manual one, and the market price keeps its own time.
 - **Information Disclosure:** repositories return symbols and counts, never user ids to the provider layer.
-- **Denial of Service:** the symbol read is limited to 100 and ordered by oldest price; the snapshot query pages by portfolio id (200 per page).
+- **Denial of Service:** the symbol read is limited to 100 and ordered by the oldest stored market price, so manually priced holdings cannot starve other symbols; the snapshot query pages by portfolio id (200 per page).
 - **Elevation of Privilege:** a worker-only repository set is not exported through the API barrel (R-15).
 
 ### `apps/api/src/investments/infrastructure/provider/coingecko-price-provider.ts` + `coingecko-payload.ts`
@@ -83,12 +88,36 @@
 - **Denial of Service:** a pass that errors is logged and the next one runs; `stop()` waits for the pass in progress, so shutdown cannot leave a half-applied update because each write is one statement or one transaction.
 - **Elevation of Privilege:** the worker holds database credentials already used by the email worker; no new privilege is added.
 
+### `apps/api/src/investments/infrastructure/http/holding-routes.ts` (`POST /investments/holdings/:holdingId/automatic-price`) + `apps/api/src/investments/application/holding-use-cases.ts` (`UseAutomaticPrice`) + `apps/api/src/investments/application/portfolio-view.ts`
+- **Spoofing:** the route requires the same session as the other holding routes, and the owner always comes from the session, never from the request (R-19).
+- **Tampering:** the only value written is the stored public market price, taken server-side; the caller supplies no price and no body, so a crafted amount cannot reach the holding (R-19).
+- **Repudiation:** the mutation is logged with the request id, the user id and the holding id under the action `holding.automatic-price`, never an amount.
+- **Information Disclosure:** another user's holding answers 404, the same as an unknown id, so ids cannot be probed; the response carries only the caller's own holding and public market data (R-19, R-18).
+- **Denial of Service:** one holding read, one market lookup and one update per call, behind the same rate limits as the other holding routes; the list and read paths make at most one market query per call and none without a crypto holding.
+- **Elevation of Privilege:** the owner-scoped repository and the write scope are the only way to reach a holding, so the route cannot switch another user's price (R-19).
+
+### `apps/api/src/investments/infrastructure/db/drizzle-market-price-reader.ts`
+- **Spoofing:** not applicable; it is read-only code inside the API process with no identity of its own.
+- **Tampering:** it issues only a `SELECT` with bound symbols; it has no write path, and the worker repository that writes market prices is never imported by the API (R-14).
+- **Repudiation:** a read changes nothing; the stored price carries its own `priced_at`.
+- **Information Disclosure:** the entity holds public market prices only, with no owner column, so a read cannot reveal any user's holdings.
+- **Denial of Service:** one query per request by primary key, skipped when the list of symbols is empty (R-14).
+- **Elevation of Privilege:** it has no foreign key to user data and returns no user ids.
+
+### `apps/web/src/features/investments/components/holding-row.tsx` + `apps/web/src/features/investments/containers/investments-container.tsx`
+- **Spoofing:** the container calls the API through the shared client with the session cookie; the row has no network code.
+- **Tampering:** the row renders values the response contract already validated and sends only the holding id; the market price shown is read-only text (R-18).
+- **Repudiation:** the switch is a user action recorded by the API log line of the route; the row keeps no hidden state.
+- **Information Disclosure:** the warning text is built from the catalogs and a price formatted with the locale formatter; it prints no ticker or amount outside the user's own screen, and nothing is logged in the browser.
+- **Denial of Service:** one POST per click; the button is rendered only when the server flag is true and an unavailable state is shown as a portfolio failure message.
+- **Elevation of Privilege:** the button is a convenience; the API decides access again with the session and the owner scope (R-19).
+
 ## Data classification
 | Data | Class | At rest | In transit |
 |---|---|---|---|
 | `COINGECKO_API_KEY` | credentials | Railway secret on the worker service only; never in the database, logs or the failure log | TLS 1.2+ in a request header to the pinned host |
 | crypto symbols sent to the provider | public | derived from tickers; not stored by the provider path | TLS 1.2+ |
-| provider prices (USD) | public | `holdings.unit_price` in minor units; database volume encrypted with AES-256 | TLS 1.2+ |
+| provider prices (USD) | public | `holdings.unit_price` and `crypto_market_prices.unit_price` in minor units; database volume encrypted with AES-256 | TLS 1.2+ |
 | `portfolio_value_snapshots` (owner id, date, currency, total value) | financial | `bigint` columns in PostgreSQL; database volume encrypted with AES-256; never logged | TLS 1.2+ between the worker and the database |
 | owner user id on snapshots | PII | foreign key to `users.id`; database volume encrypted with AES-256; opaque id only | TLS 1.2+ |
 | failure log (code, status, short detail) | public | `crypto_price_refresh_failures`; no provider text, purged after 30 days | TLS 1.2+ |
@@ -110,23 +139,20 @@
 | R-12 | Snapshots survive account deletion | I | L | M | `ON DELETE CASCADE` through the portfolios and registration of `portfolio_value_snapshots` in the user-erasure guard, whose test fails until it is registered |
 | R-13 | A stale price is shown as current | I | M | M | `priced_at` is written only for holdings that received a price in that cycle, so a symbol without an answer keeps its old date and the 7-day stale flag of 07a applies |
 | R-14 | The API process calls the provider in a user request, or ships provider code | E | L | H | provider, jobs and factories are exported only from `apps/api/src/investments/jobs.ts`, a request-path test fails when the API entry reaches them |
-| R-15 | A snapshot total above the storable range corrupts or aborts the pass | D | L | L | totals above 2^63 - 1 skip that portfolio and are counted, no row is written, other portfolios continue |
+| R-15 | A snapshot total above the storable range corrupts or aborts the pass | D | L | L | totals above 2^63 - 1 skip that portfolio's snapshot for the day, are logged once per zone and date, and the pass continues with the other portfolios (owner decision of 2026-10-02) |
 | R-16 | A ticker shared by several coins resolves to an unintended coin and prices a holding wrongly | T | M | M | accepted, see below |
-| R-17 | An automatic price silently replaces a manual price of the same holding | T | M | L | the update only touches holdings priced before the request started, so a manual price set while a refresh is in flight is never overwritten with an older one; a manual price set earlier is replaced at the next refresh (accepted, see below) |
+| R-17 | An automatic price silently replaces a manual price of the same holding | T | M | M | the holdings update excludes every holding whose source is `manual`, evaluated against the row at update time, so even a manual price committed while a refresh is in flight is kept; tests with two connections and a full cycle cover it (owner decision of 2026-10-02) |
+| R-18 | A stale or wrong market price shows a misleading warning, or hides a real divergence | I | M | L | the flag is computed on the server only for a manual price and a market price not older than 7 days, uses exact `bigint` arithmetic with exactly 5% giving no warning, the warning is informational and never changes a price, and the stored market time and source remain visible |
+| R-19 | A user switches another user's holding to the automatic price, or injects a price through the switch | E | L | H | owner-scoped lookup answering 404 for foreign or unknown ids, session and write scope on the route, no request body so the only value written is the stored public market price, the route is in the cross-user 404 and 401 test lists |
 
 ## Accepted risks
 ### R-16
-- **Accepted by:** project owner (user) — confirmation requested in the DISC-001-07b PLAN report of 2026-10-02 and not yet given.
+- **Accepted by:** project owner (user) — decision of 2026-10-02, relayed by the coordinator and recorded in the PRD decision log.
 - **Justification:** CoinGecko resolves a symbol to the top-ranked coin by market cap, which is correct for the major coins users hold; the PRD defines the crypto ticker as the lookup key and adds no coin identifier; the price source and date stay visible on every holding so a wrong price can be spotted and corrected; the alternative of storing a CoinGecko id per holding changes the 07a contracts and PRD.
-- **Review conditions:** when the owner decides the question in the PLAN report, or the first time a user reports a wrong automatic price, whichever comes first.
-
-### R-17
-- **Accepted by:** project owner (user) — confirmation requested in the DISC-001-07b PLAN report of 2026-10-02 and not yet given.
-- **Justification:** the PRD says the refresh updates the unit price of every crypto holding; a manual price on a crypto holding is therefore replaced at the next hourly refresh, and the holding shows source `automatic` with its time.
-- **Review conditions:** if users ask to pin a manual price on a crypto holding, or when 07c imports prices.
+- **Review conditions:** the first time a user reports a wrong automatic price, or when a holding carries a coin identifier in a later ticket, whichever comes first.
 
 ## Supply chain
 No new runtime dependency: the adapter uses the platform `fetch`, `AbortSignal.timeout` and `JSON.parse`, validation uses `zod` (already in the lockfile) and the arithmetic uses `BigInt`. One new external service, CoinGecko, reached only from the worker through the single `PriceProvider` adapter; tests use the fake and a local test server, never CoinGecko.
 
 ## Availability
-If CoinGecko is down, slow or rate limiting, the refresh fails with a code, prices keep their last value and date (the stale flag appears after 7 days), retries back off from 15 to 60 minutes within the monthly cap of 1,000 calls, and nothing else in the product is affected because the API never calls the provider. If the budget is used up, refreshes pause until the next UTC month. Snapshots do not depend on the provider: they use whatever prices exist at the end of the local day. A restarted or duplicated worker is safe because every write is an atomic claim, a single statement or an idempotent insert.
+If CoinGecko is down, slow or rate limiting, the refresh fails with a code, prices keep their last value and date (the stale flag appears after 7 days), retries back off from 15 to 60 minutes within the monthly cap of 1,000 calls, and nothing else in the product is affected because the API never calls the provider. If the budget is used up, refreshes pause until the next UTC month. The stored market price keeps its last value and date, and the divergence warning disappears once it is older than 7 days, so an outage never shows an old price as current. Snapshots do not depend on the provider: they use whatever prices exist at the end of the local day. A restarted or duplicated worker is safe because every write is an atomic claim, a single statement or an idempotent insert.
