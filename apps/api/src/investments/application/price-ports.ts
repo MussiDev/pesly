@@ -28,7 +28,7 @@ export interface PriceSchedule {
 }
 
 export interface CryptoPriceRepository {
-  /** Distinct lowercase crypto tickers of every holding, least recently priced first. */
+  /** Distinct lowercase crypto tickers of every holding: up to half of `limit` the least recently priced first, the rest never priced ones in random order (so junk tickers cannot starve real ones). */
   symbolsToPrice(limit: number): Promise<string[]>;
   /**
    * Stores each market price that is newer than the stored one and applies it to the holdings of

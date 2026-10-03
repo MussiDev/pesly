@@ -367,7 +367,30 @@ describe('storeAndApply racing a manual price (AC-06)', () => {
 });
 
 describe('DrizzleCryptoPriceRepository.symbolsToPrice', () => {
-  it('returns distinct lowercase symbols of crypto holdings only, never priced first then the least recently priced', async () => {
+  /** Bulk seed: `count` crypto holdings named `<prefix>000...`, and optionally a market price each. */
+  async function seedSymbols(prefix: string, count: number, priced = false): Promise<string[]> {
+    const symbols = Array.from(
+      { length: count },
+      (_, index) => `${prefix}${String(index).padStart(3, '0')}`,
+    );
+    await connection.pool.query(
+      `insert into holdings (portfolio_id, owner_id, ticker, instrument_name, instrument_type, quantity, valuation_currency)
+       select $1, $2, s, s, 'crypto', 100000000, 'USD' from unnest($3::text[]) as s`,
+      [portfolio, owner, symbols],
+    );
+    if (priced) {
+      // Distinct times: symbol index i was priced i minutes after T0, so index 0 is the oldest.
+      await connection.pool.query(
+        `insert into crypto_market_prices (symbol, unit_price, priced_at)
+         select s, 100, $2::timestamptz + (ord - 1) * interval '1 minute'
+         from unnest($1::text[]) with ordinality as t(s, ord)`,
+        [symbols, T0.toISOString()],
+      );
+    }
+    return symbols;
+  }
+
+  it('returns distinct lowercase symbols of crypto holdings only, the least recently priced before the never priced', async () => {
     const second = await insertPortfolio(connection.pool, owner, { name: 'Binance' });
     await crypto('BTC');
     await insertHolding(connection.pool, {
@@ -391,8 +414,10 @@ describe('DrizzleCryptoPriceRepository.symbolsToPrice', () => {
       [T2.toISOString(), T0.toISOString(), T0.toISOString()],
     );
 
-    // ada and sol have no stored price (alphabetical among themselves); eth is older than btc.
-    expect(await repository.symbolsToPrice(100)).toEqual(['ada', 'sol', 'eth', 'btc']);
+    // Priced group first, oldest first (eth is older than btc); then the never priced, any order.
+    const result = await repository.symbolsToPrice(100);
+    expect(result.slice(0, 2)).toEqual(['eth', 'btc']);
+    expect(result.slice(2).sort()).toEqual(['ada', 'sol']);
   });
 
   it('includes manually priced symbols and orders by the market time, not by the holding price', async () => {
@@ -406,20 +431,74 @@ describe('DrizzleCryptoPriceRepository.symbolsToPrice', () => {
     expect(await repository.symbolsToPrice(100)).toEqual(['btc', 'eth']);
   });
 
-  it('returns at most the limit and eventually covers every symbol across calls', async () => {
-    const symbols = Array.from({ length: 105 }, (_, index) => `c${String(index).padStart(3, '0')}`);
-    for (const symbol of symbols) await crypto(symbol);
+  it('150 never priced junk symbols cannot starve 10 priced ones: 100 symbols, all 10 priced and 90 never priced', async () => {
+    const priced = await seedSymbols('p', 10, true);
+    const junk = await seedSymbols('j', 150);
 
-    const first = await repository.symbolsToPrice(100);
-    expect(first).toHaveLength(100);
-    expect(first).toEqual(symbols.slice(0, 100));
+    const result = await repository.symbolsToPrice(100);
 
-    await repository.storeAndApply(
-      first.map((symbol) => ({ symbol, unitPrice: 100n })),
-      T1,
-    );
-    // The five never priced symbols come first; the priced ones follow.
-    expect((await repository.symbolsToPrice(100)).slice(0, 5)).toEqual(symbols.slice(100));
+    expect(result).toHaveLength(100);
+    expect(new Set(result).size).toBe(100);
+    expect(result.filter((symbol) => priced.includes(symbol))).toHaveLength(10);
+    expect(result.filter((symbol) => junk.includes(symbol))).toHaveLength(90);
+  });
+
+  it('with 70 priced and 150 never priced symbols takes the 50 oldest priced and 50 never priced', async () => {
+    const priced = await seedSymbols('p', 70, true);
+    const junk = await seedSymbols('j', 150);
+
+    const result = await repository.symbolsToPrice(100);
+
+    expect(result).toHaveLength(100);
+    expect(result.slice(0, 50)).toEqual(priced.slice(0, 50));
+    const rest = result.slice(50);
+    expect(rest).toHaveLength(50);
+    expect(new Set(rest).size).toBe(50);
+    expect(rest.every((symbol) => junk.includes(symbol))).toBe(true);
+  });
+
+  it('fills the whole limit when every symbol is never priced, without repeats', async () => {
+    const junk = await seedSymbols('j', 150);
+
+    const result = await repository.symbolsToPrice(100);
+
+    expect(result).toHaveLength(100);
+    expect(new Set(result).size).toBe(100);
+    expect(result.every((symbol) => junk.includes(symbol))).toBe(true);
+  });
+
+  it('fills the unused priced slots with never priced symbols and the reverse', async () => {
+    const priced = await seedSymbols('p', 80, true);
+    const junk = await seedSymbols('j', 5);
+
+    const result = await repository.symbolsToPrice(100);
+
+    expect(result).toHaveLength(85);
+    expect(result.filter((symbol) => priced.includes(symbol))).toHaveLength(80);
+    expect([...result].sort().filter((symbol) => junk.includes(symbol))).toEqual(junk);
+  });
+
+  it('returns every symbol when there are fewer than the limit', async () => {
+    const priced = await seedSymbols('p', 3, true);
+    const junk = await seedSymbols('j', 4);
+
+    const result = await repository.symbolsToPrice(100);
+
+    expect([...result].sort()).toEqual([...priced, ...junk].sort());
+  });
+
+  it('eventually draws every never priced symbol across calls', async () => {
+    // 8 never priced symbols, limit 4 and no priced ones: 4 slots per call. A given symbol is
+    // missed by one call with probability 1/2, so by 40 calls with 2^-40 (about 1e-12): the test
+    // is probabilistic with a negligible failure chance.
+    const junk = await seedSymbols('j', 8);
+    const seen = new Set<string>();
+
+    for (let call = 0; call < 40; call += 1) {
+      for (const symbol of await repository.symbolsToPrice(4)) seen.add(symbol);
+    }
+
+    expect([...seen].sort()).toEqual(junk);
   });
 
   it('returns an empty list when nobody holds crypto', async () => {

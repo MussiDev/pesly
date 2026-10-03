@@ -351,3 +351,20 @@ E2E command: `E2E_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b
 
 - The worker finds no crypto holding at start-up and defers one hour (`no_crypto_holdings`), so a flow that adds the first crypto holding would wait up to an hour. The e2e uses a support function (`makeCryptoPriceRefreshDue`, a direct upsert of the schedule row in the `_e2e` database, like `withAgedRates` for the rates) to make the refresh due, then waits for the visible price by reloading inside `toPass` (the worker polls every 30 s); there are no fixed sleeps.
 - `pnpm typecheck` and ESLint on the touched files pass; the no-float token scan of `apps/api/src/investments`, `packages/shared/src/investments` and `apps/web/src/features/investments` finds nothing.
+
+### Security fix: fair symbol selection
+
+SAST finding: `symbolsToPrice` ordered never priced symbols first, so 100 junk tickers (never answered by the provider) typed by any users would fill every request and starve all real symbols. Fix: up to ceil(limit/2) oldest priced symbols plus never priced ones in random order; an unused share goes to the other group. No schema change.
+
+Red run (before the fix, `price-repositories.test.ts -t symbolsToPrice`, 4 failed, 6 passed):
+
+| Test | Red result |
+|---|---|
+| priced before never priced (existing test, updated) | `AssertionError: expected [ 'ada', 'sol' ] to deeply equal [ 'eth', 'btc' ]` |
+| 150 junk and 10 priced: 100 symbols, 10 priced, 90 never priced | `AssertionError: expected [] to have a length of 10 but got +0` |
+| 70 priced and 150 junk: 50 oldest priced and 50 never priced | `AssertionError: expected [ 'j000', 'j001', 'j002', …(47) ] to deeply equal [ 'p000', 'p001', 'p002', …(47) ]` |
+| eventually draws every never priced symbol (8 symbols, limit 4, 40 calls) | `AssertionError: expected [ 'j000', 'j001', 'j002', 'j003' ] to deeply equal [ Array(8) ]` |
+
+Already true before the fix, so not red by construction (they pin the contract): all-never-priced fills the limit, fewer symbols than the limit returns all, unused slots go to the other group, manual price ordering. The coverage test is probabilistic: failure chance per symbol per 40 calls is 2^-40 (about 1e-12).
+
+Green: price-repositories, refresh-crypto-prices, price-sync-job, price-sync-integration and request-path, 75/75 (serial).

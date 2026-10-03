@@ -14,17 +14,42 @@ export class DrizzleCryptoPriceRepository implements CryptoPriceRepository {
   constructor(private readonly db: InvestmentsDb) {}
 
   async symbolsToPrice(limit: number): Promise<string[]> {
-    // Raw SQL: a GROUP BY over an expression with a LEFT JOIN and NULLS FIRST ordering. Ordering by
-    // the stored market time (not by the holdings' prices) keeps manual prices from starving others.
+    // Raw SQL: a GROUP BY over an expression with a LEFT JOIN, window functions and random order.
+    // Ordering by the stored market time (not by the holdings' prices) keeps manual prices from
+    // starving others. A ticker the provider never answers (junk typed by any user) never gets a
+    // stored price, so "never priced first" would let such tickers fill every request and starve
+    // the real ones. Half of the slots go to the oldest priced symbols; the never priced ones are
+    // drawn at random for the rest, so each is tried eventually and junk takes at most half. A
+    // group that cannot fill its share leaves the slots to the other one.
     const result = await this.db.execute<{ symbol: string }>(sql`
-      SELECT lower(h.ticker) AS symbol
-      FROM holdings h
-      LEFT JOIN crypto_market_prices m ON m.symbol = lower(h.ticker)
-      WHERE h.instrument_type = 'crypto'
-        AND lower(h.ticker) ~ ${MARKET_SYMBOL_PATTERN}
-      GROUP BY lower(h.ticker), m.priced_at
-      ORDER BY m.priced_at NULLS FIRST, symbol
-      LIMIT ${limit}
+      WITH candidates AS (
+        SELECT lower(h.ticker) AS symbol, m.priced_at
+        FROM holdings h
+        LEFT JOIN crypto_market_prices m ON m.symbol = lower(h.ticker)
+        WHERE h.instrument_type = 'crypto'
+          AND lower(h.ticker) ~ ${MARKET_SYMBOL_PATTERN}
+        GROUP BY lower(h.ticker), m.priced_at
+      ),
+      priced AS (
+        SELECT symbol, row_number() OVER (ORDER BY priced_at, symbol) AS rn
+        FROM candidates WHERE priced_at IS NOT NULL
+      ),
+      fresh AS (
+        SELECT symbol, row_number() OVER (ORDER BY random()) AS rn
+        FROM candidates WHERE priced_at IS NULL
+      ),
+      quota AS (
+        SELECT least(
+          (SELECT count(*) FROM priced),
+          greatest((${limit}::int + 1) / 2, ${limit}::int - (SELECT count(*) FROM fresh))
+        ) AS priced_slots
+      )
+      SELECT symbol FROM (
+        SELECT symbol, 0 AS grp, rn FROM priced WHERE rn <= (SELECT priced_slots FROM quota)
+        UNION ALL
+        SELECT symbol, 1 AS grp, rn FROM fresh WHERE rn <= ${limit}::int - (SELECT priced_slots FROM quota)
+      ) picked
+      ORDER BY grp, rn
     `);
     return result.rows.map((row) => row.symbol);
   }
