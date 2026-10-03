@@ -58,6 +58,18 @@ function buildApp(env: Env, lines: string[] = []) {
   router.get('/category-archived', () => {
     throw new AppError('CATEGORY_ARCHIVED');
   });
+  router.get('/movement-same-account', () => {
+    throw new AppError('MOVEMENT_SAME_ACCOUNT');
+  });
+  router.get('/movement-currency-mismatch', () => {
+    throw new AppError('MOVEMENT_CURRENCY_MISMATCH');
+  });
+  router.get('/exchange-same-currency', () => {
+    throw new AppError('EXCHANGE_SAME_CURRENCY');
+  });
+  router.get('/implied-rate-out-of-range', () => {
+    throw new AppError('IMPLIED_RATE_OUT_OF_RANGE');
+  });
   router.get('/retryable', () => {
     throw new RetryableError('RATE_LIMITED', 42);
   });
@@ -155,6 +167,10 @@ describe('error handler', () => {
     ['/rate-required', 400, 'RATE_REQUIRED'],
     ['/movement-kind', 400, 'MOVEMENT_CATEGORY_KIND_MISMATCH'],
     ['/category-archived', 409, 'CATEGORY_ARCHIVED'],
+    ['/movement-same-account', 400, 'MOVEMENT_SAME_ACCOUNT'],
+    ['/movement-currency-mismatch', 400, 'MOVEMENT_CURRENCY_MISMATCH'],
+    ['/exchange-same-currency', 400, 'EXCHANGE_SAME_CURRENCY'],
+    ['/implied-rate-out-of-range', 400, 'IMPLIED_RATE_OUT_OF_RANGE'],
   ] as const)('maps %s to %i with only its code and no Retry-After', async (path, status, code) => {
     const response = await request(buildApp(testEnv())).get(path);
 

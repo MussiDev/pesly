@@ -2,7 +2,7 @@ import { accountResponseSchema } from '@pesly/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { newCategory } from './db-fixtures';
+import { newCategory, newTransfer } from './db-fixtures';
 import {
   get,
   movementBody,
@@ -32,9 +32,10 @@ async function createAccount(
   s: ObligationsSetup,
   openingBalance: string,
   owner: 'ana' | 'bob' = 'ana',
+  name = 'Caja',
 ): Promise<string> {
   const response = await send(s.app, 'post', '/accounts', owner === 'ana' ? s.ana : s.bob, {
-    name: 'Caja',
+    name,
     type: 'cash',
     currency: 'ARS',
     openingBalance,
@@ -78,6 +79,25 @@ describe('account obligations with real movements', () => {
     expect(response.body).toEqual({ code: 'ACCOUNT_HAS_MOVEMENTS' });
     expect(await countRows('accounts', s.anaId)).toBe(1);
     expect(await countRows('movements', s.anaId)).toBe(1);
+  });
+
+  // hasMovements already covers destination_account_id, so this documents behavior owned by the adapter.
+  it('an account that is only the destination of a transfer cannot be deleted and is kept', async () => {
+    const s = await obligationsSetup(connection);
+    const source = await createAccount(s, '1000');
+    const destination = await createAccount(s, '0', 'ana', 'Destino');
+    await newTransfer(connection.pool, {
+      ownerId: s.anaId,
+      accountId: source,
+      destinationAccountId: destination,
+      amount: 200n,
+    });
+
+    const response = await send(s.app, 'delete', `/accounts/${destination}`, s.ana);
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'ACCOUNT_HAS_MOVEMENTS' });
+    expect(await countRows('accounts', s.anaId)).toBe(2);
+    expect((await balances(s)).get(destination)).toBe('200');
   });
 
   it('archiving keeps the movements in the list and unarchiving restores the account (FR-12)', async () => {

@@ -6,6 +6,7 @@ import {
   movementResponseSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
+import type { z } from 'zod';
 import type { RouterFactory } from '../../../app';
 import {
   OwnerOrGroupMemberAccessPolicy,
@@ -20,7 +21,13 @@ import { HttpError } from '../../../shared/http/error-handler';
 import { requireVerifiedEmail } from '../../../shared/http/require-verified-email';
 import { validate } from '../../../shared/http/validate';
 import type { Logger } from '../../../shared/logging/logger';
-import { CreateMovement } from '../../application/create-movement';
+import {
+  CreateMovement,
+  type CategorizedMovementInput,
+  type CreateMovementInput,
+  type ExchangeInput,
+  type TransferInput,
+} from '../../application/create-movement';
 import { GetMovement } from '../../application/get-movement';
 import { ListMovements } from '../../application/list-movements';
 import type { Clock } from '../../application/ports/clock';
@@ -42,6 +49,61 @@ export interface MovementRoutesOptions {
   writeLimit?: number;
   /** Defaults to the system clock; tests inject one to cross the limiter windows. */
   clock?: Clock;
+}
+
+type CreateBody = z.infer<typeof createMovementRequestSchema>;
+type ExpenseOrIncomeBody = Extract<CreateBody, { type: 'expense' | 'income' }>;
+type TransferBody = Extract<CreateBody, { type: 'transfer' }>;
+type ExchangeBody = Extract<CreateBody, { type: 'exchange' }>;
+
+function categorizedInput(body: ExpenseOrIncomeBody): CategorizedMovementInput {
+  return {
+    type: body.type,
+    accountId: body.accountId,
+    categoryId: body.categoryId,
+    amount: BigInt(body.amount),
+    occurredAt: new Date(body.occurredAt),
+    ...(body.note === undefined ? {} : { note: body.note }),
+    rate:
+      body.rate.source === 'automatic'
+        ? { source: 'automatic' }
+        : { source: 'manual', value: BigInt(body.rate.value) },
+  };
+}
+
+function transferInput(body: TransferBody): TransferInput {
+  return {
+    type: 'transfer',
+    accountId: body.accountId,
+    destinationAccountId: body.destinationAccountId,
+    amount: BigInt(body.amount),
+    occurredAt: new Date(body.occurredAt),
+    ...(body.note === undefined ? {} : { note: body.note }),
+  };
+}
+
+function exchangeInput(body: ExchangeBody): ExchangeInput {
+  return {
+    type: 'exchange',
+    accountId: body.accountId,
+    destinationAccountId: body.destinationAccountId,
+    amount: BigInt(body.amount),
+    destinationAmount: BigInt(body.destinationAmount),
+    occurredAt: new Date(body.occurredAt),
+    ...(body.note === undefined ? {} : { note: body.note }),
+  };
+}
+
+function toCreateInput(body: CreateBody): CreateMovementInput {
+  switch (body.type) {
+    case 'expense':
+    case 'income':
+      return categorizedInput(body);
+    case 'transfer':
+      return transferInput(body);
+    case 'exchange':
+      return exchangeInput(body);
+  }
 }
 
 function scopeOf<A extends AccessAction>(
@@ -96,18 +158,7 @@ export function createMovementRoutes({
         { body: createMovementRequestSchema, response: movementResponseSchema },
         async ({ body }, { res, auth, requestId }) => {
           const scope = await scopeOf(policy, auth, 'write');
-          const created = await recordManualMovement.execute(scope, {
-            type: body.type,
-            accountId: body.accountId,
-            categoryId: body.categoryId,
-            amount: BigInt(body.amount),
-            occurredAt: new Date(body.occurredAt),
-            ...(body.note === undefined ? {} : { note: body.note }),
-            rate:
-              body.rate.source === 'automatic'
-                ? { source: 'automatic' }
-                : { source: 'manual', value: BigInt(body.rate.value) },
-          });
+          const created = await recordManualMovement.execute(scope, toCreateInput(body));
           // Ids only: never the amount, the note or the rate.
           logger.info(
             { requestId, userId: auth?.userId, movementId: created.id },

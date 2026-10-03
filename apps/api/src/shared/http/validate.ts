@@ -4,11 +4,13 @@ import type { AuthContext } from './auth-context';
 import { HttpError } from './error-handler';
 
 type ObjectSchema = z.ZodObject;
+/** A body may also be a union of objects discriminated on one key (e.g. `type`). */
+type BodySchema = ObjectSchema | z.ZodDiscriminatedUnion;
 
 export interface InputSchemas {
   params?: ObjectSchema;
   query?: ObjectSchema;
-  body?: ObjectSchema;
+  body?: BodySchema;
 }
 
 /** Input schemas plus, optionally, the schema of the success body the handler sends. */
@@ -21,14 +23,25 @@ export interface RouteSchemas extends InputSchemas {
  * a loose schema's output admits any string key, a stripping (or strict) one does not (R-10).
  * The response schema is exempt: it describes what the API sends, not what it accepts.
  */
+type StrippingMember<M> =
+  M extends z.ZodObject<z.ZodRawShape, infer Config>
+    ? string extends keyof Config['out']
+      ? never
+      : M
+    : never;
+
 type StrippingOnly<S extends RouteSchemas> = {
   [K in keyof S]: K extends 'response'
     ? S[K]
-    : S[K] extends z.ZodObject<z.ZodRawShape, infer Config>
-      ? string extends keyof Config['out']
-        ? never
-        : S[K]
-      : never;
+    : S[K] extends z.ZodDiscriminatedUnion<infer Options>
+      ? Options[number] extends StrippingMember<Options[number]>
+        ? S[K]
+        : never
+      : S[K] extends z.ZodObject<z.ZodRawShape, infer Config>
+        ? string extends keyof Config['out']
+          ? never
+          : S[K]
+        : never;
 };
 
 /** What `res.json` accepts: the response schema's input type, or anything without a schema. */
@@ -36,7 +49,7 @@ type ResponseBody<S extends RouteSchemas> = S['response'] extends z.ZodType
   ? z.input<S['response']>
   : unknown;
 
-type Infer<T> = T extends ObjectSchema ? z.infer<T> : undefined;
+type Infer<T> = T extends BodySchema ? z.infer<T> : undefined;
 
 export interface ValidatedInput<S extends RouteSchemas> {
   params: Infer<S['params']>;
