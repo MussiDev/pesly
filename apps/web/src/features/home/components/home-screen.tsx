@@ -6,7 +6,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { CurrencyTotals } from '@/features/accounts/totals';
 import type { Locale } from '@/i18n/routing';
 import { BalanceSummary } from './balance-summary';
-import { QuickActions } from './quick-actions';
 import { RecentMovements, type RecentMovementItem } from './recent-movements';
 
 /** The header and spacing every home state shares, so no state moves the page around. */
@@ -41,15 +40,12 @@ export function HomeScreen({
   return (
     <HomeFrame>
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="grid gap-6">
-          <BalanceSummary
-            locale={locale}
-            currencies={currencies}
-            availableTotals={availableTotals}
-            netWorthTotals={netWorthTotals}
-          />
-          <QuickActions />
-        </div>
+        <BalanceSummary
+          locale={locale}
+          currencies={currencies}
+          availableTotals={availableTotals}
+          netWorthTotals={netWorthTotals}
+        />
         <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
       </div>
     </HomeFrame>
@@ -69,10 +65,6 @@ export function HomeSkeleton() {
             <Skeleton className="h-32" />
             <Skeleton className="h-32" />
           </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-11" />
-          <Skeleton className="h-11" />
         </div>
         <div className="grid gap-2">
           <Skeleton className="h-6 w-40" />

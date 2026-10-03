@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { AccountResponse, CategoryResponse } from '@pesly/shared';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateMovementContainer } from '../src/features/movements/containers/create-movement-container';
@@ -331,14 +331,17 @@ describe('CreateMovementContainer: rate (AC-06 to AC-11, AC-20, AC-21)', () => {
 
     const status = await screen.findByRole('status');
     expect(status.textContent).toContain('1250,50');
-    expect(screen.getByRole('link', { name: es.movements.saved.back }).getAttribute('href')).toBe(
-      '/es/movements',
-    );
+    expect(
+      within(status).getByRole('link', { name: es.movements.saved.back }).getAttribute('href'),
+    ).toBe('/es/movements');
+    // The entry form is back, empty, ready for the next movement.
+    expect((field(es.movements.fields.amount)).value).toBe('');
   });
 });
 
 describe('CreateMovementContainer: amount, account, category and note (AC-02, AC-03, AC-05)', () => {
-  it.each(['0', '0,00', '-5'])(
+  // A minus sign cannot be typed here: the field drops it, so "-5" reads as 5.
+  it.each(['0', '0,00'])(
     'shows "Amount must be greater than 0" for %j and sends nothing (invalid input) (AC-02)',
     async (typed) => {
       const { calls } = await open();
@@ -363,7 +366,8 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
     expect(await screen.findByText('Amount must be greater than 0')).toBeDefined();
   });
 
-  it.each(['abc', '1,234', '', '10000000000000,01'])(
+  // Letters and a third decimal are dropped while typing, so what reaches the container is empty or too large.
+  it.each(['abc', '', '10000000000000,01'])(
     'rejects the amount %j with its own message and sends nothing (invalid input)',
     async (typed) => {
       const { calls } = await open();

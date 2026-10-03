@@ -1,16 +1,27 @@
 'use client';
 
-import { ACCOUNT_NAME_MAX_LENGTH, type AccountResponse } from '@pesly/shared';
-import { CircleAlert } from 'lucide-react';
+import { ACCOUNT_NAME_MAX_LENGTH, type AccountResponse, type AccountType } from '@pesly/shared';
+import {
+  Archive,
+  ArchiveRestore,
+  Banknote,
+  CircleAlert,
+  CreditCard,
+  Landmark,
+  Pencil,
+  PiggyBank,
+  Smartphone,
+  Trash2,
+  type LucideIcon,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useId, useRef, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, type ReactNode, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ListRow } from '@/components/ui/list-row';
 import { readField } from '@/features/auth/read-field';
 import type { Locale } from '@/i18n/routing';
 import type { AccountFieldMessage } from '../account-form-errors';
@@ -35,6 +46,14 @@ export interface AccountRowProps {
   onCancelDelete: () => void;
   onConfirmDelete: (id: string) => void;
 }
+
+const TYPE_ICONS: Record<AccountType, LucideIcon> = {
+  cash: Banknote,
+  bank_account: Landmark,
+  digital_wallet: Smartphone,
+  credit_card: CreditCard,
+  savings: PiggyBank,
+};
 
 interface RenameFormProps {
   account: AccountResponse;
@@ -88,7 +107,35 @@ function RenameForm({ account, pending, error, onSubmit, onCancel }: RenameFormP
   );
 }
 
-/** One account: name, type, balance, the include-in-available setting and the row actions. */
+/** An icon-only action: the visible part is the icon, the accessible name is "<action> <account>". */
+function IconAction({
+  label,
+  accountName,
+  icon,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  accountName: string;
+  icon: ReactNode;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Button size="icon" variant="ghost" title={label} disabled={disabled} onClick={onClick}>
+      {icon}
+      <span className="sr-only">
+        {label} {accountName}
+      </span>
+    </Button>
+  );
+}
+
+/**
+ * One account as a card: its type icon, name and currency on top, the balance on its own line so a
+ * large figure has the full width and wraps instead of running into the badge, then the
+ * include-in-available setting and the row actions.
+ */
 export function AccountRow(props: AccountRowProps) {
   const { account, pending, editing, confirmingDelete, blockedDelete, renameError } = props;
   const t = useTranslations('accounts');
@@ -96,25 +143,37 @@ export function AccountRow(props: AccountRowProps) {
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const settingId = useId();
   const nameId = useId();
+  const TypeIcon = TYPE_ICONS[account.type];
   // The setting exists only for active accounts that hold money (cards are debt, FR-04/FR-06).
   const hasSetting = !account.archived && account.type !== 'credit_card';
 
   return (
-    <li aria-label={account.name} className="grid gap-2 py-2 text-card-foreground">
-      <ListRow
-        title={<span id={nameId}>{account.name}</span>}
-        description={t(`types.${account.type}`)}
-        trailing={
-          <div className="flex flex-col items-end gap-1">
-            <MinorAmount
-              value={account.balance}
-              currency={account.currency}
-              locale={locale}
-              className="text-body font-semibold"
-            />
-            <Badge variant="outline">{account.currency}</Badge>
-          </div>
-        }
+    <li
+      aria-label={account.name}
+      className="grid min-w-0 content-start gap-3 rounded-2xl border border-border/70 bg-card p-4 text-card-foreground shadow-xs"
+    >
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground [&_svg]:size-5"
+        >
+          <TypeIcon />
+        </span>
+        <div className="grid min-w-0 flex-1 gap-0.5">
+          <span id={nameId} className="truncate text-body font-medium">
+            {account.name}
+          </span>
+          <span className="truncate text-small text-muted-foreground">
+            {t(`types.${account.type}`)}
+          </span>
+        </div>
+        <Badge variant="outline">{account.currency}</Badge>
+      </div>
+      <MinorAmount
+        value={account.balance}
+        currency={account.currency}
+        locale={locale}
+        className="text-heading break-words whitespace-normal"
       />
       {hasSetting ? (
         <div className="flex min-h-11 items-center gap-2">
@@ -193,54 +252,46 @@ export function AccountRow(props: AccountRowProps) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
+          <div className="flex items-center justify-end gap-1 border-t border-border/70 pt-2">
+            <IconAction
+              label={t('actions.rename')}
+              accountName={account.name}
+              icon={<Pencil aria-hidden />}
               disabled={pending}
               onClick={() => {
                 props.onStartRename(account.id);
               }}
-            >
-              {t('actions.rename')}
-              <span className="sr-only"> {account.name}</span>
-            </Button>
+            />
             {account.archived ? (
-              <Button
-                size="sm"
-                variant="outline"
+              <IconAction
+                label={t('actions.unarchive')}
+                accountName={account.name}
+                icon={<ArchiveRestore aria-hidden />}
                 disabled={pending}
                 onClick={() => {
                   props.onUnarchive(account.id);
                 }}
-              >
-                {t('actions.unarchive')}
-                <span className="sr-only"> {account.name}</span>
-              </Button>
+              />
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
+              <IconAction
+                label={t('actions.archive')}
+                accountName={account.name}
+                icon={<Archive aria-hidden />}
                 disabled={pending}
                 onClick={() => {
                   props.onArchive(account.id);
                 }}
-              >
-                {t('actions.archive')}
-                <span className="sr-only"> {account.name}</span>
-              </Button>
+              />
             )}
-            <Button
-              size="sm"
-              variant="outline"
+            <IconAction
+              label={t('actions.delete')}
+              accountName={account.name}
+              icon={<Trash2 aria-hidden />}
               disabled={pending}
               onClick={() => {
                 props.onAskDelete(account.id);
               }}
-            >
-              {t('actions.delete')}
-              <span className="sr-only"> {account.name}</span>
-            </Button>
+            />
           </div>
         </>
       )}

@@ -28,11 +28,6 @@
         "action": "Add a movement"
       }
     },
-    "quickActions": {
-      "title": "Quick actions",
-      "addMovement": "Add movement",
-      "addAccount": "Add account"
-    },
     "empty": {
       "title": "Create your first account",
       "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
@@ -475,6 +470,10 @@
       "kindInvalid": "Choose a category type.",
       "parentInvalid": "Choose a parent category from the list."
     },
+    "iconGroups": {
+      "symbols": "Icons",
+      "emojis": "Emojis"
+    },
     "icons": {
       "utensils": "Cutlery",
       "car": "Car",
@@ -499,6 +498,42 @@
       "dumbbell": "Dumbbell",
       "paw-print": "Paw print",
       "baby": "Baby",
+      "pizza": "Pizza",
+      "beer": "Beer",
+      "wine": "Wine",
+      "sandwich": "Sandwich",
+      "apple": "Apple",
+      "shopping-cart": "Shopping cart",
+      "bus": "Bus",
+      "bike": "Bicycle",
+      "fuel": "Fuel pump",
+      "train-front": "Train",
+      "smartphone": "Smartphone",
+      "wifi": "Internet",
+      "zap": "Electricity",
+      "droplets": "Water",
+      "flame": "Gas",
+      "tv": "Television",
+      "music": "Music",
+      "gamepad-2": "Video games",
+      "camera": "Camera",
+      "palette": "Art",
+      "pill": "Pill",
+      "stethoscope": "Stethoscope",
+      "scissors": "Scissors",
+      "sparkles": "Sparkles",
+      "umbrella": "Umbrella",
+      "ticket": "Ticket",
+      "landmark": "Bank",
+      "credit-card": "Credit card",
+      "hand-coins": "Coins in hand",
+      "calculator": "Calculator",
+      "hammer": "Hammer",
+      "sofa": "Sofa",
+      "shield": "Shield",
+      "heart": "Heart",
+      "star": "Star",
+      "globe": "Globe",
       "wrench": "Wrench"
     },
     "colors": {

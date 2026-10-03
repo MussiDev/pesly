@@ -46,9 +46,7 @@ export interface AccountListProps {
 }
 
 function RowList({ children }: { children: ReactNode }) {
-  return (
-    <ul className="divide-y divide-border rounded-xl border bg-card px-4 shadow-xs">{children}</ul>
-  );
+  return <ul className="grid gap-3 md:grid-cols-2">{children}</ul>;
 }
 
 interface DebtSectionProps {

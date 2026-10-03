@@ -461,13 +461,40 @@ describe('MovementSaved (FEAT-004 AC-17)', () => {
   it('announces the saved movement in a calm success alert with the frozen rate and a way back', () => {
     const { container } = renderIntl(<MovementSaved rate="1250,50" />);
 
-    expect(screen.getByRole('heading', { level: 1, name: es.movements.saved.title })).toBeDefined();
+    // A notice above the entry form, not a page of its own: it brings no heading.
+    expect(screen.queryByRole('heading')).toBeNull();
     const notice = container.querySelector('[data-slot="alert"]');
     expect(notice?.getAttribute('role')).toBe('status');
-    expect(notice?.textContent).toBe(es.movements.saved.rate.replace('{rate}', '1250,50'));
+    expect(notice?.textContent).toContain(es.movements.saved.title);
+    expect(notice?.textContent).toContain(es.movements.saved.rate.replace('{rate}', '1250,50'));
     expect(screen.getByRole('link', { name: es.movements.saved.back }).getAttribute('href')).toBe(
       '/es/movements',
     );
+  });
+});
+
+describe('MovementList category icons', () => {
+  it('shows each movement with the icon and color of its own category', () => {
+    const { container } = list([
+      listItem('m1', 'expense', '2026-09-30T15:00:00.000Z', {
+        categoryIcon: 'utensils',
+        categoryColor: 'orange',
+      }),
+      listItem('m2', 'income', '2026-09-30T14:00:00.000Z', {
+        categoryIcon: 'emoji:💰',
+        categoryColor: 'green',
+      }),
+    ]);
+
+    const marks = [...container.querySelectorAll('[data-icon]')];
+    expect(marks.map((mark) => mark.getAttribute('data-icon'))).toEqual(['utensils', 'emoji:💰']);
+    expect(marks.map((mark) => mark.getAttribute('data-color'))).toEqual(['orange', 'green']);
+  });
+
+  it('falls back to the neutral icon when the category is not among the loaded ones', () => {
+    const { container } = list([listItem('m1', 'expense', '2026-09-30T15:00:00.000Z')]);
+
+    expect(container.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe('unknown');
   });
 });
 

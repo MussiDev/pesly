@@ -658,7 +658,9 @@ describe('CreateAccountContainer', () => {
     await choose(user);
     const amount = screen.getByLabelText(es.accounts.fields.openingBalance);
     await user.clear(amount);
-    await user.type(amount, '12,345');
+    // The field only keeps digits, one decimal mark and a leading minus, so a lone minus is the
+    // malformed text that can still reach the container.
+    await user.type(amount, '-');
     await submit(user);
 
     expect(await screen.findByText(es.accounts.errors.amountInvalid)).toBeDefined();

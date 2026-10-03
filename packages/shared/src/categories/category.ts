@@ -31,8 +31,137 @@ export const CATEGORY_ICONS = [
   'paw-print',
   'baby',
   'wrench',
+  'pizza',
+  'beer',
+  'wine',
+  'sandwich',
+  'apple',
+  'shopping-cart',
+  'bus',
+  'bike',
+  'fuel',
+  'train-front',
+  'smartphone',
+  'wifi',
+  'zap',
+  'droplets',
+  'flame',
+  'tv',
+  'music',
+  'gamepad-2',
+  'camera',
+  'palette',
+  'pill',
+  'stethoscope',
+  'scissors',
+  'sparkles',
+  'umbrella',
+  'ticket',
+  'landmark',
+  'credit-card',
+  'hand-coins',
+  'calculator',
+  'hammer',
+  'sofa',
+  'shield',
+  'heart',
+  'star',
+  'globe',
 ] as const;
-export const categoryIconSchema = z.enum(CATEGORY_ICONS);
+export const categoryLucideIconSchema = z.enum(CATEGORY_ICONS);
+export type CategoryLucideIcon = z.infer<typeof categoryLucideIconSchema>;
+
+/**
+ * Emojis a category can use instead of a Lucide icon. A curated list rather than any emoji: the
+ * stored value is `emoji:<character>`, and nothing outside this list reaches the page.
+ */
+export const CATEGORY_EMOJIS = [
+  '🍕',
+  '🍔',
+  '🍟',
+  '🌮',
+  '🍣',
+  '🍜',
+  '🥗',
+  '🍎',
+  '🍺',
+  '🍷',
+  '☕',
+  '🍰',
+  '🛒',
+  '👗',
+  '👕',
+  '👟',
+  '💄',
+  '🚗',
+  '🚌',
+  '🚲',
+  '🚆',
+  '⛽',
+  '🛵',
+  '🚕',
+  '🏠',
+  '💡',
+  '🔧',
+  '🧹',
+  '🪴',
+  '🚿',
+  '📱',
+  '💻',
+  '🎮',
+  '🎬',
+  '🎵',
+  '📚',
+  '🎓',
+  '📷',
+  '🎨',
+  '⚽',
+  '🎫',
+  '💊',
+  '🩺',
+  '🏥',
+  '💈',
+  '🐶',
+  '🐱',
+  '👶',
+  '🎁',
+  '🎂',
+  '💰',
+  '💵',
+  '💳',
+  '🏦',
+  '📈',
+  '🧾',
+  '💸',
+  '🪙',
+  '📦',
+  '🔒',
+  '⭐',
+  '💖',
+] as const;
+export const EMOJI_ICON_PREFIX = 'emoji:';
+export type CategoryEmojiIcon = `${typeof EMOJI_ICON_PREFIX}${(typeof CATEGORY_EMOJIS)[number]}`;
+
+const EMOJI_ICONS: ReadonlySet<string> = new Set(
+  CATEGORY_EMOJIS.map((emoji) => `${EMOJI_ICON_PREFIX}${emoji}`),
+);
+
+export function isCategoryEmojiIcon(value: string): value is CategoryEmojiIcon {
+  return EMOJI_ICONS.has(value);
+}
+
+/** The emoji character of an `emoji:` icon value, or `undefined` for anything else. */
+export function emojiOfIcon(value: string): string | undefined {
+  return isCategoryEmojiIcon(value) ? value.slice(EMOJI_ICON_PREFIX.length) : undefined;
+}
+
+export const categoryEmojiIconSchema = z.custom<CategoryEmojiIcon>(
+  (value) => typeof value === 'string' && isCategoryEmojiIcon(value),
+  { message: 'Invalid emoji icon' },
+);
+
+/** A category icon is either a Lucide key or one of the curated emojis. */
+export const categoryIconSchema = z.union([categoryLucideIconSchema, categoryEmojiIconSchema]);
 export type CategoryIcon = z.infer<typeof categoryIconSchema>;
 
 /** Palette keys; the web maps each key to a theme token. */

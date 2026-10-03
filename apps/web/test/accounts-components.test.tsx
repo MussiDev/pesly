@@ -988,15 +988,17 @@ describe('accounts screens built on the design system (FEAT-004 AC-17, AC-22)', 
     expect(within(empty).queryByRole('link')).toBeNull();
   });
 
-  it('renders each account as a list row with its currency badge and an Amount balance', () => {
+  it('renders each account as a card with its currency badge and an Amount balance on its own line', () => {
     renderIntl(<AccountList {...listProps()} />);
 
     const row = screen.getByRole('listitem', { name: 'Caja' });
-    expect(row.querySelector('[data-slot="list-row"]')).not.toBeNull();
-    expect(row.querySelector('[data-slot="badge"]')?.textContent).toBe('ARS');
-    expect(row.querySelector('[data-slot="amount"]')?.textContent).toBe(
-      formatMoney(150000n, 'ARS', 'es'),
-    );
+    const badge = row.querySelector('[data-slot="badge"]');
+    const amount = row.querySelector('[data-slot="amount"]');
+    expect(badge?.textContent).toBe('ARS');
+    expect(amount?.textContent).toBe(formatMoney(150000n, 'ARS', 'es'));
+    // A large balance never shares a row with the badge, so the two cannot overlap.
+    expect(amount?.parentElement).toBe(row);
+    expect(badge?.parentElement).not.toBe(row);
   });
 
   it('puts the totals in tabular Amount figures inside the headline card', () => {
@@ -1008,7 +1010,7 @@ describe('accounts screens built on the design system (FEAT-004 AC-17, AC-22)', 
     );
 
     expect(container.querySelectorAll('[data-slot="amount"]')).toHaveLength(4);
-    expect(container.querySelectorAll('[data-slot="card"]').length).toBe(2);
+    expect(container.querySelectorAll('[data-slot="balance-card"]').length).toBe(2);
   });
 
   it('shows the field errors of an invalid submission and focuses the first invalid field', () => {

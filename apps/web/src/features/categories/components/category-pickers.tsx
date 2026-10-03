@@ -1,6 +1,6 @@
 'use client';
 
-import { CATEGORY_COLORS, CATEGORY_ICONS } from '@pesly/shared';
+import { CATEGORY_COLORS, CATEGORY_EMOJIS, CATEGORY_ICONS, EMOJI_ICON_PREFIX } from '@pesly/shared';
 import { Check } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { CategoryFieldControlProps } from './category-field';
@@ -15,7 +15,10 @@ const OPTION_LABEL =
 const OPTION_STATE =
   'peer-checked:ring-2 peer-checked:ring-ring peer-checked:ring-offset-2 peer-checked:ring-offset-background peer-focus-visible:outline-2 peer-focus-visible:outline-offset-4 peer-focus-visible:outline-foreground peer-disabled:opacity-50';
 
-/** The 24 icons as native radios; the radio is visually hidden and its label is the icon. */
+/**
+ * The icons and the emojis as one group of native radios: the radio is visually hidden and its
+ * label is the icon. Each part scrolls on its own so the form does not grow by screens.
+ */
 export function IconPicker({
   control,
   defaultValue,
@@ -24,6 +27,8 @@ export function IconPicker({
   defaultValue?: string;
 }) {
   const t = useTranslations('categories.icons');
+  const tGroups = useTranslations('categories.iconGroups');
+  const optionClass = `rounded-md border bg-card text-card-foreground peer-checked:border-ring peer-checked:bg-secondary ${OPTION_STATE}`;
   return (
     <div
       role="radiogroup"
@@ -31,25 +36,52 @@ export function IconPicker({
       aria-labelledby={control['aria-labelledby']}
       aria-invalid={control['aria-invalid']}
       aria-describedby={control['aria-describedby']}
-      className="flex flex-wrap gap-1 outline-none"
+      className="grid gap-3 outline-none"
     >
-      {CATEGORY_ICONS.map((icon) => (
-        <label key={icon} className={OPTION_LABEL}>
-          <input
-            type="radio"
-            name="icon"
-            value={icon}
-            defaultChecked={icon === defaultValue}
-            className="peer sr-only"
-          />
-          <CategoryVisual
-            icon={icon}
-            color="slate"
-            className={`rounded-md border bg-card text-card-foreground peer-checked:border-ring peer-checked:bg-secondary ${OPTION_STATE}`}
-          />
-          <span className="sr-only">{t(icon)}</span>
-        </label>
-      ))}
+      <div className="grid gap-1">
+        <p aria-hidden="true" className="text-caption font-medium text-muted-foreground">
+          {tGroups('symbols')}
+        </p>
+        <div className="flex max-h-48 flex-wrap gap-1 overflow-y-auto rounded-lg border p-1">
+          {CATEGORY_ICONS.map((icon) => (
+            <label key={icon} className={OPTION_LABEL}>
+              <input
+                type="radio"
+                name="icon"
+                value={icon}
+                defaultChecked={icon === defaultValue}
+                className="peer sr-only"
+              />
+              <CategoryVisual icon={icon} color="slate" className={optionClass} />
+              <span className="sr-only">{t(icon)}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-1">
+        <p aria-hidden="true" className="text-caption font-medium text-muted-foreground">
+          {tGroups('emojis')}
+        </p>
+        <div className="flex max-h-48 flex-wrap gap-1 overflow-y-auto rounded-lg border p-1">
+          {CATEGORY_EMOJIS.map((emoji) => {
+            const value = `${EMOJI_ICON_PREFIX}${emoji}`;
+            return (
+              <label key={value} className={OPTION_LABEL}>
+                <input
+                  type="radio"
+                  name="icon"
+                  value={value}
+                  defaultChecked={value === defaultValue}
+                  className="peer sr-only"
+                />
+                <CategoryVisual icon={value} color="slate" className={optionClass} />
+                {/* Screen readers announce the emoji by its own name. */}
+                <span className="sr-only">{emoji}</span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

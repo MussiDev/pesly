@@ -91,6 +91,8 @@ export function CreateMovementContainer() {
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<MovementFormErrors>({});
   const [savedRate, setSavedRate] = useState<string | undefined>();
+  // Bumped on every save: remounts the form so the next movement starts from a clean one.
+  const [formKey, setFormKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -255,6 +257,10 @@ export function CreateMovementContainer() {
     const result = await api.createMovement(request);
     if (result.ok) {
       setSavedRate(formatRate(BigInt(result.data.rate), locale));
+      setFormKey((current) => current + 1);
+      setPending(false);
+      // The notice sits above the form, which may have been scrolled well past it.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
     setPending(false);
@@ -262,8 +268,6 @@ export function CreateMovementContainer() {
     // Every other failure keeps the form mounted, so what the user typed stays for a retry.
     else setErrors(movementFailureErrors(result));
   }
-
-  if (savedRate !== undefined) return <MovementSaved rate={savedRate} />;
 
   if (state.kind !== 'ready') {
     return (
@@ -279,20 +283,24 @@ export function CreateMovementContainer() {
 
   const { data } = state;
   return (
-    <MovementForm
-      accounts={data.accounts.filter((item) => !item.archived)}
-      categories={data.categories
-        .filter((item) => !item.archived)
-        .map((item) => ({ id: item.id, kind: item.kind, label: categoryLabel(item, language) }))}
-      defaultOccurredAt={data.defaultOccurredAt}
-      defaultRate={data.defaultRate}
-      rateType={data.defaultRate === '' ? undefined : data.rateType}
-      rateAgeHours={data.rateAgeHours}
-      pending={pending}
-      errors={errors}
-      onSubmit={(values) => {
-        void create(values, data);
-      }}
-    />
+    <div className="grid gap-4">
+      {savedRate === undefined ? null : <MovementSaved rate={savedRate} />}
+      <MovementForm
+        key={formKey}
+        accounts={data.accounts.filter((item) => !item.archived)}
+        categories={data.categories
+          .filter((item) => !item.archived)
+          .map((item) => ({ id: item.id, kind: item.kind, label: categoryLabel(item, language) }))}
+        defaultOccurredAt={data.defaultOccurredAt}
+        defaultRate={data.defaultRate}
+        rateType={data.defaultRate === '' ? undefined : data.rateType}
+        rateAgeHours={data.rateAgeHours}
+        pending={pending}
+        errors={errors}
+        onSubmit={(values) => {
+          void create(values, data);
+        }}
+      />
+    </div>
   );
 }

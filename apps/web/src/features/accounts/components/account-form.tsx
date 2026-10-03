@@ -12,6 +12,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { FormAlert } from '@/features/auth/components/form-alert';
@@ -114,13 +115,7 @@ export function AccountForm({ pending, errors, onSubmit }: AccountFormProps) {
             max={errors.openingBalanceLimit}
           >
             {(control) => (
-              <Input
-                name="openingBalance"
-                type="text"
-                autoComplete="off"
-                defaultValue="0"
-                {...control}
-              />
+              <MoneyInput name="openingBalance" allowNegative defaultValue="0" {...control} />
             )}
           </AccountField>
           {hasSetting ? (

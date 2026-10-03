@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { MoneyInput } from '@/components/ui/money-input';
 import { Select } from '@/components/ui/select';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
@@ -149,16 +150,7 @@ export function MovementForm({
             )}
           </MovementField>
           <MovementField label={t('fields.amount')} error={errors.fields?.amount}>
-            {(control) => (
-              <Input
-                name="amount"
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                required
-                {...control}
-              />
-            )}
+            {(control) => <MoneyInput name="amount" required {...control} />}
           </MovementField>
           <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
             {(control) => (

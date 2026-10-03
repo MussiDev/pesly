@@ -1,4 +1,4 @@
-import { CATEGORY_COLORS, type CategoryColor } from '@pesly/shared';
+import { CATEGORY_COLORS, emojiOfIcon, type CategoryColor } from '@pesly/shared';
 import { cn } from '@/lib/utils';
 import {
   CATEGORY_ICON_COMPONENTS,
@@ -54,11 +54,12 @@ export function CategoryVisual({
   color: string;
   className?: string;
 }) {
+  const emoji = emojiOfIcon(icon);
   const Icon = isCategoryIcon(icon) ? CATEGORY_ICON_COMPONENTS[icon] : FALLBACK_CATEGORY_ICON;
   return (
     <span
       aria-hidden="true"
-      data-icon={isCategoryIcon(icon) ? icon : 'unknown'}
+      data-icon={emoji !== undefined || isCategoryIcon(icon) ? icon : 'unknown'}
       data-color={isCategoryColor(color) ? color : 'unknown'}
       className={cn(
         'inline-flex size-9 shrink-0 items-center justify-center rounded-md [&>svg]:size-5',
@@ -66,7 +67,7 @@ export function CategoryVisual({
         className,
       )}
     >
-      <Icon />
+      {emoji === undefined ? <Icon /> : <span className="text-heading leading-none">{emoji}</span>}
     </span>
   );
 }

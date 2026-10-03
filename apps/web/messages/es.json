@@ -28,11 +28,6 @@
         "action": "Agregar un movimiento"
       }
     },
-    "quickActions": {
-      "title": "Acciones rápidas",
-      "addMovement": "Agregar movimiento",
-      "addAccount": "Agregar cuenta"
-    },
     "empty": {
       "title": "Crea tu primera cuenta",
       "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
@@ -475,6 +470,10 @@
       "kindInvalid": "Elige un tipo de categoría.",
       "parentInvalid": "Elige una categoría principal de la lista."
     },
+    "iconGroups": {
+      "symbols": "Íconos",
+      "emojis": "Emojis"
+    },
     "icons": {
       "utensils": "Cubiertos",
       "car": "Auto",
@@ -499,6 +498,42 @@
       "dumbbell": "Pesa",
       "paw-print": "Huella",
       "baby": "Bebé",
+      "pizza": "Pizza",
+      "beer": "Cerveza",
+      "wine": "Copa de vino",
+      "sandwich": "Sándwich",
+      "apple": "Manzana",
+      "shopping-cart": "Carrito de compras",
+      "bus": "Colectivo",
+      "bike": "Bicicleta",
+      "fuel": "Combustible",
+      "train-front": "Tren",
+      "smartphone": "Celular",
+      "wifi": "Internet",
+      "zap": "Electricidad",
+      "droplets": "Agua",
+      "flame": "Gas",
+      "tv": "Televisión",
+      "music": "Música",
+      "gamepad-2": "Videojuegos",
+      "camera": "Cámara",
+      "palette": "Arte",
+      "pill": "Medicamento",
+      "stethoscope": "Estetoscopio",
+      "scissors": "Tijera",
+      "sparkles": "Destellos",
+      "umbrella": "Paraguas",
+      "ticket": "Entrada",
+      "landmark": "Banco",
+      "credit-card": "Tarjeta de crédito",
+      "hand-coins": "Monedas en mano",
+      "calculator": "Calculadora",
+      "hammer": "Martillo",
+      "sofa": "Sillón",
+      "shield": "Escudo",
+      "heart": "Corazón",
+      "star": "Estrella",
+      "globe": "Globo terráqueo",
       "wrench": "Llave inglesa"
     },
     "colors": {
