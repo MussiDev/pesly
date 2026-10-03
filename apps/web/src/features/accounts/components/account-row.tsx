@@ -15,11 +15,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useId, useRef, type ReactNode, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { IconAction } from '@/components/ui/icon-action';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { readField } from '@/features/auth/read-field';
@@ -104,30 +105,6 @@ function RenameForm({ account, pending, error, onSubmit, onCancel }: RenameFormP
         </Button>
       </div>
     </form>
-  );
-}
-
-/** An icon-only action: the visible part is the icon, the accessible name is "<action> <account>". */
-function IconAction({
-  label,
-  accountName,
-  icon,
-  disabled,
-  onClick,
-}: {
-  label: string;
-  accountName: string;
-  icon: ReactNode;
-  disabled: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <Button size="icon" variant="ghost" title={label} disabled={disabled} onClick={onClick}>
-      {icon}
-      <span className="sr-only">
-        {label} {accountName}
-      </span>
-    </Button>
   );
 }
 
@@ -255,7 +232,7 @@ export function AccountRow(props: AccountRowProps) {
           <div className="flex items-center justify-end gap-1 border-t border-border/70 pt-2">
             <IconAction
               label={t('actions.rename')}
-              accountName={account.name}
+              subject={account.name}
               icon={<Pencil aria-hidden />}
               disabled={pending}
               onClick={() => {
@@ -265,7 +242,7 @@ export function AccountRow(props: AccountRowProps) {
             {account.archived ? (
               <IconAction
                 label={t('actions.unarchive')}
-                accountName={account.name}
+                subject={account.name}
                 icon={<ArchiveRestore aria-hidden />}
                 disabled={pending}
                 onClick={() => {
@@ -275,7 +252,7 @@ export function AccountRow(props: AccountRowProps) {
             ) : (
               <IconAction
                 label={t('actions.archive')}
-                accountName={account.name}
+                subject={account.name}
                 icon={<Archive aria-hidden />}
                 disabled={pending}
                 onClick={() => {
@@ -285,7 +262,7 @@ export function AccountRow(props: AccountRowProps) {
             )}
             <IconAction
               label={t('actions.delete')}
-              accountName={account.name}
+              subject={account.name}
               icon={<Trash2 aria-hidden />}
               disabled={pending}
               onClick={() => {

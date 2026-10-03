@@ -7,13 +7,14 @@ import {
   type CategoryLanguage,
   type CategoryResponse,
 } from '@pesly/shared';
-import { CircleAlert, Tags } from 'lucide-react';
+import { Archive, ArchiveRestore, CircleAlert, Pencil, Tags, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EmptyState } from '@/components/ui/empty-state';
+import { IconAction } from '@/components/ui/icon-action';
 import { Input } from '@/components/ui/input';
 import { ListRow } from '@/components/ui/list-row';
 import { FormAlert } from '@/features/auth/components/form-alert';
@@ -163,11 +164,58 @@ export function CategoryList(props: CategoryListProps) {
   function renderRow(item: CategoryResponse, isChild: boolean) {
     const label = categoryLabel(item, language);
     const children = (childrenOf.get(item.id) ?? []).sort(compareCategories);
+    // The row actions sit on the row itself, except while it is being edited or confirmed.
+    const idle = editingId !== item.id && confirmingDeleteId !== item.id;
     return (
       <li key={item.id} aria-label={label} className={isChild ? 'grid' : 'grid py-1'}>
         <ListRow
           leading={<CategoryVisual icon={item.icon} color={item.color} />}
           title={<span className="break-words whitespace-normal">{label}</span>}
+          trailing={
+            idle ? (
+              <div className="flex items-center">
+                <IconAction
+                  label={t('actions.edit')}
+                  subject={label}
+                  icon={<Pencil aria-hidden />}
+                  disabled={pending}
+                  onClick={() => {
+                    props.onStartEdit(item.id);
+                  }}
+                />
+                {item.archived ? (
+                  <IconAction
+                    label={t('actions.unarchive')}
+                    subject={label}
+                    icon={<ArchiveRestore aria-hidden />}
+                    disabled={pending}
+                    onClick={() => {
+                      props.onUnarchive(item.id);
+                    }}
+                  />
+                ) : (
+                  <IconAction
+                    label={t('actions.archive')}
+                    subject={label}
+                    icon={<Archive aria-hidden />}
+                    disabled={pending}
+                    onClick={() => {
+                      props.onArchive(item.id);
+                    }}
+                  />
+                )}
+                <IconAction
+                  label={t('actions.delete')}
+                  subject={label}
+                  icon={<Trash2 aria-hidden />}
+                  disabled={pending}
+                  onClick={() => {
+                    props.onAskDelete(item.id);
+                  }}
+                />
+              </div>
+            ) : undefined
+          }
         />
         {editingId === item.id ? (
           <EditForm
@@ -199,53 +247,12 @@ export function CategoryList(props: CategoryListProps) {
               </Button>
             </div>
           </div>
-        ) : (
-          <>
-            {props.blockedDeleteId === item.id ? (
-              <Alert variant="destructive">
-                <CircleAlert aria-hidden />
-                <AlertDescription>
-                  {tErrors('categoryInUse')}
-                  {item.archived ? null : (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={pending}
-                      onClick={() => {
-                        props.onArchive(item.id);
-                      }}
-                    >
-                      {t('actions.archiveInstead')}
-                    </Button>
-                  )}
-                </AlertDescription>
-              </Alert>
-            ) : null}
-            <div className="flex flex-wrap gap-2 pb-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() => {
-                  props.onStartEdit(item.id);
-                }}
-              >
-                {t('actions.edit')}
-                <span className="sr-only"> {label}</span>
-              </Button>
-              {item.archived ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => {
-                    props.onUnarchive(item.id);
-                  }}
-                >
-                  {t('actions.unarchive')}
-                  <span className="sr-only"> {label}</span>
-                </Button>
-              ) : (
+        ) : props.blockedDeleteId === item.id ? (
+          <Alert variant="destructive">
+            <CircleAlert aria-hidden />
+            <AlertDescription>
+              {tErrors('categoryInUse')}
+              {item.archived ? null : (
                 <Button
                   size="sm"
                   variant="outline"
@@ -254,24 +261,12 @@ export function CategoryList(props: CategoryListProps) {
                     props.onArchive(item.id);
                   }}
                 >
-                  {t('actions.archive')}
-                  <span className="sr-only"> {label}</span>
+                  {t('actions.archiveInstead')}
                 </Button>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                onClick={() => {
-                  props.onAskDelete(item.id);
-                }}
-              >
-                {t('actions.delete')}
-                <span className="sr-only"> {label}</span>
-              </Button>
-            </div>
-          </>
-        )}
+            </AlertDescription>
+          </Alert>
+        ) : null}
         {children.length > 0 ? (
           <ul
             aria-label={t('list.subcategories', { name: label })}
@@ -324,7 +319,7 @@ export function CategoryList(props: CategoryListProps) {
               {rows.length === 0 ? (
                 <p className="text-small text-muted-foreground">{t('list.emptySection')}</p>
               ) : (
-                <ul className="grid divide-y rounded-xl border bg-card px-3">
+                <ul className="grid divide-y divide-border/70 rounded-2xl border border-border/70 bg-card px-4 shadow-xs">
                   {rows.map((item) => renderRow(item, false))}
                 </ul>
               )}

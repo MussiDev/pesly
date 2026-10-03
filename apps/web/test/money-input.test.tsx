@@ -88,7 +88,7 @@ describe('MoneyInput', () => {
         <MoneyInput aria-label="amount" name="amount" {...props} />
       </NextIntlClientProvider>,
     );
-    return screen.getByLabelText('amount');
+    return screen.getByLabelText<HTMLInputElement>('amount');
   }
 
   it('formats the value on change and keeps it as plain text', () => {
