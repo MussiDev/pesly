@@ -1814,9 +1814,7 @@ describe('0014_movements migration', () => {
     await client.query(await rollback('0015_price_snapshots'));
     await client.query(await rollback('0014_movements'));
     expect(await publicTables()).toEqual(
-      ALL_TABLES.filter(
-        (name) => !MOVEMENT_TABLES.includes(name) && !PRICE_TABLES.includes(name),
-      ),
+      ALL_TABLES.filter((name) => !MOVEMENT_TABLES.includes(name) && !PRICE_TABLES.includes(name)),
     );
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 2);
     expect(await accountsOwnerUniqueCount()).toBe(0);
@@ -1884,9 +1882,7 @@ describe('0014_movements migration', () => {
     await client.query(await rollback('0014_movements'));
 
     expect(await publicTables()).toEqual(
-      ALL_TABLES.filter(
-        (name) => !MOVEMENT_TABLES.includes(name) && !PRICE_TABLES.includes(name),
-      ),
+      ALL_TABLES.filter((name) => !MOVEMENT_TABLES.includes(name) && !PRICE_TABLES.includes(name)),
     );
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 2);
     expect(await accountsOwnerUniqueCount()).toBe(0);
