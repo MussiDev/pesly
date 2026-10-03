@@ -240,12 +240,12 @@ function inspectFocusedStop(): StopReport | 'overlay' | null {
 test('keyboard tabbing across the sign-in page shows a focus indicator on every stop (AC-23)', async ({
   page,
 }) => {
+  // Transitions would leave the computed ring mid-fade right after focus. The app's own
+  // reduced-motion rule ends them, and unlike an injected <style> it is not blocked by the
+  // production CSP (`style-src` allows only the nonce outside `next dev`).
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/es/sign-in');
   await expect(page.getByLabel(es.auth.fields.email)).toBeVisible();
-  // Transitions would leave the computed ring mid-fade right after focus.
-  await page.addStyleTag({
-    content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
-  });
 
   // Stops are identified by position and tag, so two stops with one name cannot end the loop.
   const stops: string[] = [];
