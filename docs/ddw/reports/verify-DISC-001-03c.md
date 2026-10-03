@@ -3,11 +3,13 @@
 | Field | Value |
 |---|---|
 | Module | apps/api/src/movements, packages/shared/src/movements, apps/web/src/features/movements |
-| Line coverage | 97.34% |
-| Branch coverage | 93.05% |
-| Function coverage | 95.15% |
+| Line coverage | 97.46% |
+| Branch coverage | 93.09% |
+| Function coverage | 95.32% |
 | Coverage floor | 80% lines, branches and functions (AGENTS.md, "Testing") |
 | Lint | `pnpm exec eslint .` — clean, 0 findings; `pnpm typecheck` — clean; `prettier --check --end-of-line auto .` — clean; `drizzle-kit check` — clean |
+
+The branch was rebased onto `origin/main` 40c8b09 (FEAT-004 design system) after this verification; the web files of the entry screen, the row and the saved notice were reconciled with the redesign, the closeout suite was re-run (4157 of 4157 tests, e2e 94 of 94, perf, lint, typecheck, audit) and the figures below are from that re-run.
 
 Whole-module cross-check by an independent verifier that did not write the code (agent `ddw-module-verifier`), against the PRD, the spec, the TDD report, the test report and the SAST report, plus a whole-branch architecture audit (0 FAIL, 3 WARN). The coverage numbers are those of the closeout run in `docs/ddw/reports/tests-DISC-001-03c.md` (full suite, measured over `apps/api/src`, `apps/web/src` and `packages/shared/src` together); the verifier re-ran 17 test files one at a time, eslint on every changed file, `pnpm typecheck` and `drizzle-kit check`, and did not re-run the full suite. By directory over the code of this ticket the lowest function coverage is 80% (`apps/api/src/movements/infrastructure/db`, whose `schema.ts` column builders only run under drizzle-kit), the lowest line coverage 91.54% and the lowest branch coverage 89.47% (`apps/api/src/movements/infrastructure/http`). DDW does not run the suite: these numbers are the report of what was run.
 
@@ -43,7 +45,7 @@ Decision note: the human decisions of 2026-10-02 (Q1 half-up rounding of the imp
 ## Tests
 - ✅ Sad-path tests: every input has an invalid-input test: the create body (amount 0, negative, over 10^15, missing destination fields, note over 500 or with a control character, non-UUID destination), the use case (same account, currency mismatch, same currency, rate out of range, future date, foreign and unknown accounts, archived accounts, the 61st creation), the database (check violations, foreign owner key, vanished destination), the web request builder (same account, wrong currency pair, amounts, note, date) and the error mapping of each new code
 - ✅ NFR strategy evidence: NFR-01 and NFR-02 by the introspection and no-float scans, NFR-03 by the performance test (transfer p95 44.9 ms, exchange p95 49.0 ms against 300 ms), NFR-04 by the owner-scoped queries and the AC-09 tests at use case, repository, route and e2e level
-- ✅ Coverage: 97.34% lines, 93.05% branches, 95.15% functions, all above the 80% floor
+- ✅ Coverage: 97.46% lines, 93.09% branches, 95.32% functions, all above the 80% floor
 
 ## Warnings (do not block)
 - ⚠️ W1: two route tests check status only (the 401/403 test and the 201 after unarchiving in AC-10); every other route assertion checks the body and the stored data.
