@@ -12,7 +12,7 @@ afterAll(async () => {
   await connection.pool.end();
 });
 
-const TABLES = ['movement_rate_limits', 'movements'];
+const TABLES = ['movement_rate_limits', 'movement_tags', 'movements', 'tags'];
 
 interface ForeignKey {
   conname: string;
@@ -44,15 +44,15 @@ async function foreignKeys(table: string): Promise<ForeignKey[]> {
 }
 
 describe('movements schema introspection', () => {
-  it('has both tables', async () => {
+  it('has the four tables', async () => {
     const result = await connection.pool.query<{ tablename: string }>(
       'select tablename from pg_tables where schemaname = $1 and tablename = any($2) order by tablename',
       ['public', TABLES],
     );
-    expect(result.rows.map((row) => row.tablename)).toEqual(TABLES);
+    expect(result.rows.map((row) => row.tablename).sort()).toEqual([...TABLES].sort());
   });
 
-  it('has no float, real, double or numeric column in either relation', async () => {
+  it('has no float, real, double or numeric column in any of the relations', async () => {
     const result = await connection.pool.query<{ table_name: string; column_name: string }>(
       `select table_name, column_name from information_schema.columns
         where table_schema = 'public' and table_name = any($1)
@@ -142,6 +142,8 @@ describe('movements schema introspection', () => {
         'movements_account_idx',
         'movements_category_idx',
         'movements_destination_idx',
+        'movements_owner_account_date_idx',
+        'movements_owner_category_date_idx',
         'movements_owner_date_idx',
       ]),
     );
@@ -164,5 +166,92 @@ describe('movements schema introspection', () => {
       `select conname from pg_constraint where contype = 'u' and conname = 'accounts_id_owner_unique'`,
     );
     expect(result.rows).toHaveLength(1);
+  });
+
+  it('adds the unique constraint on movements (id, owner_id) that the link key targets', async () => {
+    const result = await connection.pool.query<{ conname: string }>(
+      `select conname from pg_constraint where contype = 'u' and conname = 'movements_id_owner_unique'`,
+    );
+    expect(result.rows).toHaveLength(1);
+  });
+
+  it('has the composite indexes ordered by date', async () => {
+    const result = await connection.pool.query<{ indexname: string; indexdef: string }>(
+      `select indexname, indexdef from pg_indexes where schemaname = 'public'
+        and indexname in ('movements_owner_account_date_idx', 'movements_owner_category_date_idx')
+        order by indexname`,
+    );
+    expect(result.rows.map((row) => row.indexname)).toEqual([
+      'movements_owner_account_date_idx',
+      'movements_owner_category_date_idx',
+    ]);
+    expect(result.rows[0]?.indexdef).toMatch(
+      /\(owner_id, account_id, occurred_at DESC NULLS LAST, id DESC NULLS LAST\)/,
+    );
+    expect(result.rows[1]?.indexdef).toMatch(
+      /\(owner_id, category_id, occurred_at DESC NULLS LAST, id DESC NULLS LAST\)/,
+    );
+  });
+
+  it('has the two composite keys of movement_tags, both cascading, and the key of tags to users', async () => {
+    const keys = await foreignKeys('movement_tags');
+    expect(
+      keys.map((key) => [key.conname, key.target, key.columns, key.foreign_columns, key.on_delete]),
+    ).toEqual([
+      [
+        'movement_tags_movement_owner_fk',
+        'movements',
+        ['movement_id', 'owner_id'],
+        ['id', 'owner_id'],
+        'c',
+      ],
+      ['movement_tags_tag_owner_fk', 'tags', ['tag_id', 'owner_id'], ['id', 'owner_id'], 'c'],
+    ]);
+    const tagKeys = await foreignKeys('tags');
+    expect(tagKeys.map((key) => [key.target, key.columns, key.on_delete])).toEqual([
+      ['users', ['owner_id'], 'c'],
+    ]);
+  });
+
+  it('has the keys, uniques and checks of tags and movement_tags', async () => {
+    const result = await connection.pool.query<{ conname: string; contype: string }>(
+      `select conname, contype::text from pg_constraint
+        where conrelid in ('public.tags'::regclass, 'public.movement_tags'::regclass)
+          and contype in ('p', 'u', 'c')`,
+    );
+    const actual = result.rows.map((row) => `${row.conname}:${row.contype}`).sort();
+    expect(actual).toEqual(
+      [
+        'movement_tags_movement_id_position_unique:u',
+        'movement_tags_movement_id_tag_id_pk:p',
+        'movement_tags_position_check:c',
+        'tags_id_owner_unique:u',
+        'tags_name_length_check:c',
+        'tags_pkey:p',
+      ].sort(),
+    );
+  });
+
+  it('has the case-insensitive unique name index, the prefix index and the tag index', async () => {
+    const result = await connection.pool.query<{ indexname: string; indexdef: string }>(
+      `select indexname, indexdef from pg_indexes where schemaname = 'public'
+        and tablename in ('tags', 'movement_tags')`,
+    );
+    const defs = Object.fromEntries(result.rows.map((row) => [row.indexname, row.indexdef]));
+    expect(defs['tags_owner_name_unique']).toMatch(/UNIQUE INDEX .*\(owner_id, lower\(name\)\)/);
+    expect(defs['tags_owner_name_prefix_idx']).toMatch(
+      /\(owner_id, lower\(name\) text_pattern_ops\)/,
+    );
+    expect(defs['movement_tags_tag_idx']).toMatch(/\(tag_id, movement_id\)/);
+  });
+
+  it('stores position as smallint and the name as text', async () => {
+    const result = await connection.pool.query<{ column_name: string; data_type: string }>(
+      `select column_name, data_type from information_schema.columns
+        where table_schema = 'public' and
+          ((table_name = 'movement_tags' and column_name = 'position') or (table_name = 'tags' and column_name = 'name'))`,
+    );
+    const types = Object.fromEntries(result.rows.map((row) => [row.column_name, row.data_type]));
+    expect(types).toEqual({ position: 'smallint', name: 'text' });
   });
 });

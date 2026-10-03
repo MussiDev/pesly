@@ -5,6 +5,7 @@ import { DrizzleUserRepository } from '../../src/identity/infrastructure/db/driz
 import {
   DrizzleMovementRepository,
   listMovementsQuery,
+  loadTagsOf,
 } from '../../src/movements/infrastructure/db/drizzle-movement-repository';
 import type { NewMovement } from '../../src/movements/application/ports/movement-repository';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
@@ -13,6 +14,7 @@ import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastruc
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { violatedConstraint } from '../../src/shared/db/pg-errors';
 import { testDatabaseUrl } from '../helpers/test-database';
+import { newTag } from './db-fixtures';
 
 let connection: DatabaseConnection;
 let repository: DrizzleMovementRepository;
@@ -102,6 +104,7 @@ function data(f: Fixture, overrides: Record<string, unknown> = {}): NewMovement 
     rate: 16_233_000n,
     rateSource: 'manual',
     rateType: null,
+    tags: [],
     ...overrides,
   };
 }
@@ -183,7 +186,11 @@ describe('DrizzleMovementRepository', () => {
     expect(typeof expense.amount).toBe('bigint');
     expect(expense.createdAt).toBeInstanceOf(Date);
 
-    const listed = await repository.list(await readScope(f.ownerId), { limit: 50, offset: 0 });
+    const listed = await repository.list(await readScope(f.ownerId), {
+      limit: 50,
+      offset: 0,
+      filters: {},
+    });
     expect(listed.total).toBe(2);
     expect(listed.items).toEqual([expense, income]);
     expect(income).toMatchObject({ type: 'income', rateSource: 'automatic', rateType: 'blue' });
@@ -225,6 +232,7 @@ describe('DrizzleMovementRepository', () => {
     const built = listMovementsQuery(connection.db, await readScope(f.ownerId), {
       limit: 10,
       offset: 0,
+      filters: {},
     }).toSQL();
     const client = await connection.pool.connect();
     try {
@@ -265,7 +273,7 @@ describe('DrizzleMovementRepository', () => {
     const tieB = await repository.insert(scope, data(f, { occurredAt: tieInstant }));
 
     const read = await readScope(f.ownerId);
-    const first = await repository.list(read, { limit: 100, offset: 0 });
+    const first = await repository.list(read, { limit: 100, offset: 0, filters: {} });
     expect(first.total).toBe(103);
     expect(first.items).toHaveLength(100);
     const expectedTies = [tieA.id, tieB.id].sort().reverse();
@@ -273,7 +281,7 @@ describe('DrizzleMovementRepository', () => {
     const times = first.items.map((m) => m.occurredAt.getTime());
     expect(times).toEqual([...times].sort((a, b) => b - a));
 
-    const second = await repository.list(read, { limit: 100, offset: 100 });
+    const second = await repository.list(read, { limit: 100, offset: 100, filters: {} });
     expect(second.total).toBe(103);
     expect(second.items).toHaveLength(3);
     expect(second.items.at(-1)?.occurredAt.getTime()).toBe(base);
@@ -285,7 +293,11 @@ describe('DrizzleMovementRepository', () => {
     const own = await repository.insert(await writeScope(mine.ownerId), data(mine));
     const other = await repository.insert(await writeScope(theirs.ownerId), data(theirs));
 
-    const listed = await repository.list(await readScope(mine.ownerId), { limit: 50, offset: 0 });
+    const listed = await repository.list(await readScope(mine.ownerId), {
+      limit: 50,
+      offset: 0,
+      filters: {},
+    });
     expect(listed.total).toBe(1);
     expect(listed.items.map((m) => m.id)).toEqual([own.id]);
     expect(await repository.findById(await readScope(mine.ownerId), other.id)).toBeNull();
@@ -318,7 +330,11 @@ describe('DrizzleMovementRepository', () => {
         rate: RATE_MAX_SCALED.toString(),
         note: 'x'.repeat(500),
       });
-      const listed = await repository.list(await readScope(f.ownerId), { limit: 50, offset: 0 });
+      const listed = await repository.list(await readScope(f.ownerId), {
+        limit: 50,
+        offset: 0,
+        filters: {},
+      });
       expect(listed.total).toBe(2);
     });
   });
@@ -411,6 +427,162 @@ describe('DrizzleMovementRepository', () => {
       ]);
       expect(categories.rowCount).toBe(1);
       expect(await repository.findById(await readScope(f.ownerId), movement.id)).not.toBeNull();
+    });
+  });
+
+  describe('tags', () => {
+    const names = (count: number) => Array.from({ length: count }, (_, i) => `tag-${i}`);
+
+    async function tagRows(ownerId: string): Promise<string[]> {
+      const result = await connection.pool.query<{ name: string }>(
+        'select name from tags where owner_id = $1 order by name',
+        [ownerId],
+      );
+      return result.rows.map((row) => row.name);
+    }
+
+    it('saves 1 and 10 tags and returns them in the given order from insert, list and get, with each tag stored once per user', async () => {
+      const f = await fixture();
+      const scope = await writeScope(f.ownerId);
+      const one = await repository.insert(scope, data(f, { tags: ['Trip'] }));
+      const ten = await repository.insert(scope, data(f, { tags: names(10).reverse() }));
+
+      expect(one.tags).toEqual(['Trip']);
+      expect(ten.tags).toEqual(names(10).reverse());
+      const read = await readScope(f.ownerId);
+      const listed = await repository.list(read, { limit: 50, offset: 0, filters: {} });
+      expect(listed.items.find((m) => m.id === ten.id)?.tags).toEqual(names(10).reverse());
+      expect((await repository.findById(read, one.id))?.tags).toEqual(['Trip']);
+      expect(await tagRows(f.ownerId)).toHaveLength(11);
+    });
+
+    it('reuses the stored tag for another case on a second movement and displays the first spelling', async () => {
+      const f = await fixture();
+      const scope = await writeScope(f.ownerId);
+      await repository.insert(scope, data(f, { tags: ['Trip'] }));
+      const second = await repository.insert(scope, data(f, { tags: ['TRIP', 'other'] }));
+
+      expect(second.tags).toEqual(['Trip', 'other']);
+      expect(await tagRows(f.ownerId)).toEqual(['Trip', 'other']);
+      const read = await readScope(f.ownerId);
+      expect((await repository.findById(read, second.id))?.tags).toEqual(['Trip', 'other']);
+    });
+
+    it('collapses two spellings that PostgreSQL folds together into one link', async () => {
+      const f = await fixture();
+      const created = await repository.insert(
+        await writeScope(f.ownerId),
+        data(f, { tags: ['Trip', 'trip', 'TRIP'] }),
+      );
+      expect(created.tags).toEqual(['Trip']);
+      const links = await connection.pool.query(
+        'select 1 from movement_tags where movement_id = $1',
+        [created.id],
+      );
+      expect(links.rowCount).toBe(1);
+    });
+
+    it('keeps one tag row per owner and name: another owner gets its own spelling', async () => {
+      const mine = await fixture('ana@example.com');
+      const theirs = await fixture('beto@example.com');
+      await repository.insert(await writeScope(mine.ownerId), data(mine, { tags: ['Trip'] }));
+      const other = await repository.insert(
+        await writeScope(theirs.ownerId),
+        data(theirs, { tags: ['TRIP'] }),
+      );
+      expect(other.tags).toEqual(['TRIP']);
+      expect(await tagRows(mine.ownerId)).toEqual(['Trip']);
+    });
+
+    it('returns an empty array for a movement with no tags, from insert, list and get', async () => {
+      const f = await fixture();
+      const created = await repository.insert(await writeScope(f.ownerId), data(f));
+      const read = await readScope(f.ownerId);
+      expect(created.tags).toEqual([]);
+      expect((await repository.findById(read, created.id))?.tags).toEqual([]);
+      const listed = await repository.list(read, { limit: 50, offset: 0, filters: {} });
+      expect(listed.items[0]?.tags).toEqual([]);
+    });
+
+    it('rolls back the movement when a tag insert fails (forced error)', async () => {
+      const f = await fixture();
+      // 31 characters violates tags_name_length_check after the movement row was inserted.
+      await expect(
+        repository.insert(await writeScope(f.ownerId), data(f, { tags: ['ok', 'x'.repeat(31)] })),
+      ).rejects.toBeDefined();
+      const movements = await connection.pool.query('select 1 from movements where owner_id = $1', [
+        f.ownerId,
+      ]);
+      expect(movements.rowCount).toBe(0);
+      expect(await tagRows(f.ownerId)).toEqual([]);
+    });
+
+    it('rolls back the movement and its tags when the account vanished, and answers not found', async () => {
+      const f = await fixture();
+      await connection.pool.query('delete from accounts where id = $1', [f.accountId]);
+      await expect(
+        repository.insert(await writeScope(f.ownerId), data(f, { tags: ['Trip'] })),
+      ).rejects.toBeInstanceOf(ResourceNotFound);
+      expect(await tagRows(f.ownerId)).toEqual([]);
+    });
+
+    it('refuses an 11th link, and a link whose tag or movement belongs to another owner (constraint probes)', async () => {
+      const mine = await fixture('ana@example.com');
+      const theirs = await fixture('beto@example.com');
+      const own = await repository.insert(
+        await writeScope(mine.ownerId),
+        data(mine, { tags: names(10) }),
+      );
+      const foreign = await repository.insert(await writeScope(theirs.ownerId), data(theirs));
+      const lone = await repository.insert(await writeScope(mine.ownerId), data(mine));
+      const eleventh = await newTag(connection.pool, mine.ownerId, 'eleventh');
+      const foreignTag = await newTag(connection.pool, theirs.ownerId, 'theirs');
+      const probe = (movementId: string, tagId: string, ownerId: string, position: number) =>
+        sqlState(() =>
+          connection.pool.query(
+            'insert into movement_tags (movement_id, tag_id, owner_id, position) values ($1, $2, $3, $4)',
+            [movementId, tagId, ownerId, position],
+          ),
+        );
+
+      expect(await probe(own.id, eleventh, mine.ownerId, 10)).toBe('23514');
+      expect(await probe(own.id, eleventh, mine.ownerId, 9)).toBe('23505');
+      expect(await probe(lone.id, foreignTag, mine.ownerId, 0)).toBe('23503');
+      expect(await probe(foreign.id, eleventh, mine.ownerId, 0)).toBe('23503');
+      expect(await probe(foreign.id, eleventh, theirs.ownerId, 0)).toBe('23503');
+    });
+
+    it('refuses a tag name of 0 and of 31 characters and a second tag equal under lower() for the same owner', async () => {
+      const f = await fixture();
+      const insertTag = (name: string) =>
+        sqlState(() =>
+          connection.pool.query('insert into tags (owner_id, name) values ($1, $2)', [
+            f.ownerId,
+            name,
+          ]),
+        );
+      expect(await insertTag('')).toBe('23514');
+      expect(await insertTag('x'.repeat(31))).toBe('23514');
+      expect(await insertTag('x'.repeat(30))).toBeUndefined();
+      expect(await insertTag('Trip')).toBeUndefined();
+      expect(await insertTag('tRIP')).toBe('23505');
+    });
+
+    it('loads no tags of a movement of another owner, and findById of a foreign movement stays null', async () => {
+      const mine = await fixture('ana@example.com');
+      const theirs = await fixture('beto@example.com');
+      const foreign = await repository.insert(
+        await writeScope(theirs.ownerId),
+        data(theirs, { tags: ['secret'] }),
+      );
+      const read = await readScope(mine.ownerId);
+      expect(await repository.findById(read, foreign.id)).toBeNull();
+      const listed = await repository.list(read, { limit: 50, offset: 0, filters: {} });
+      expect(listed).toEqual({ items: [], total: 0 });
+      // The ids of a page are never trusted as proof of ownership: the loader scopes by itself.
+      expect((await loadTagsOf(connection.db, read, [foreign.id])).size).toBe(0);
+      const owned = await loadTagsOf(connection.db, await readScope(theirs.ownerId), [foreign.id]);
+      expect(owned.get(foreign.id)).toEqual(['secret']);
     });
   });
 });
