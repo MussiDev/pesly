@@ -367,7 +367,24 @@
       "unknownAccount": "Cuenta desconocida",
       "transferTitle": "Transferencia",
       "exchangeTitle": "Cambio de moneda",
-      "unknownCategory": "Categoría desconocida"
+      "unknownCategory": "Categoría desconocida",
+      "tags": "Etiquetas"
+    },
+    "filters": {
+      "title": "Filtros",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "type": "Tipo",
+      "from": "Desde",
+      "to": "Hasta",
+      "allAccounts": "Todas las cuentas",
+      "allCategories": "Todas las categorías",
+      "allTypes": "Todos los tipos",
+      "archived": "{name} (archivada)",
+      "clear": "Limpiar filtros",
+      "showAll": "Ver todos los movimientos",
+      "noMatch": "Ningún movimiento coincide con estos filtros.",
+      "invalidRange": "La fecha «Desde» no puede ser posterior a «Hasta»."
     },
     "new": {
       "title": "Nuevo movimiento",

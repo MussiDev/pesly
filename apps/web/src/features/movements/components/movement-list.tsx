@@ -3,12 +3,14 @@
 import type { MovementResponse } from '@pesly/shared';
 import { Plus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link } from '@/i18n/navigation';
 import { dayKey, formatDay, MovementRow } from './movement-row';
+import { MovementsLoadStateView, type MovementsLoadState } from './movements-load-state';
 
 /** One movement with the names of the account and category already resolved. */
 export interface MovementListItem {
@@ -30,6 +32,15 @@ export interface MovementListProps {
   /** Why the last "show more" failed; the rows already shown stay. */
   moreError: ErrorMessageKey | undefined;
   onShowMore: () => void;
+  /** The filter bar; it stays mounted while the rows below reload. */
+  filterBar?: ReactNode;
+  /** Whether any filter is on: an empty list then means "no matches", not "no history". */
+  filtersActive?: boolean;
+  /** Clears every filter; offered with the no-matches message. */
+  onClearFilters?: (() => void) | undefined;
+  /** While the rows (re)load or fail to load, this replaces them and the bar stays. */
+  loadState?: MovementsLoadState | undefined;
+  onRetry?: (() => void) | undefined;
 }
 
 interface DayGroup {
@@ -57,24 +68,44 @@ export function MovementList({
   loadingMore,
   moreError,
   onShowMore,
+  filterBar,
+  filtersActive = false,
+  onClearFilters,
+  loadState,
+  onRetry,
 }: MovementListProps) {
   const t = useTranslations('movements.list');
+  const tFilters = useTranslations('movements.filters');
   const locale = useLocale();
 
   return (
     <section className="grid gap-4">
-      {items.length === 0 ? (
-        <EmptyState
-          headingAs="h2"
-          title={t('emptyTitle')}
-          description={t('empty')}
-          action={
-            <Link href="/movements/new" className={buttonVariants()}>
-              <Plus aria-hidden />
-              {t('newMovement')}
-            </Link>
-          }
-        />
+      {filterBar}
+      {loadState !== undefined ? (
+        <MovementsLoadStateView state={loadState} onRetry={onRetry ?? (() => undefined)} />
+      ) : items.length === 0 ? (
+        filtersActive ? (
+          <div className="grid gap-3">
+            <p className="text-body text-muted-foreground">{tFilters('noMatch')}</p>
+            {onClearFilters === undefined ? null : (
+              <Button variant="outline" onClick={onClearFilters}>
+                {tFilters('showAll')}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <EmptyState
+            headingAs="h2"
+            title={t('emptyTitle')}
+            description={t('empty')}
+            action={
+              <Link href="/movements/new" className={buttonVariants()}>
+                <Plus aria-hidden />
+                {t('newMovement')}
+              </Link>
+            }
+          />
+        )
       ) : (
         <>
           <div className="flex justify-end">
@@ -113,7 +144,7 @@ export function MovementList({
         </>
       )}
       <FormAlert error={moreError} />
-      {hasMore ? (
+      {hasMore && loadState === undefined ? (
         <Button
           variant="outline"
           disabled={loadingMore}

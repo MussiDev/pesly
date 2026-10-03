@@ -168,6 +168,15 @@ describe('TagInput', () => {
   });
 });
 
+/** Static imports, side-effect imports and dynamic import() calls of a source text. */
+function importedModules(text: string): string[] {
+  return [
+    ...text.matchAll(/\bfrom\s*['"]([^'"]+)['"]/g),
+    ...text.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g),
+    ...text.matchAll(/^\s*import\s+['"]([^'"]+)['"]/gm),
+  ].map((match) => match[1] ?? '');
+}
+
 describe('source check: presentational files import no container and no api client (AC-05)', () => {
   const FILES = [
     '../src/features/movements/components/tag-input.tsx',
@@ -175,13 +184,25 @@ describe('source check: presentational files import no container and no api clie
     '../src/features/movements/components/movement-filters.tsx',
   ];
 
+  it('the scanner sees static, side-effect and dynamic imports', () => {
+    const text = [
+      "import { a } from '@/lib/api-client';",
+      "import '../containers/x';",
+      "const lazy = () => import('../containers/y');",
+    ].join('\n');
+
+    expect(importedModules(text)).toEqual([
+      '@/lib/api-client',
+      '../containers/y',
+      '../containers/x',
+    ]);
+  });
+
   it.each(FILES)('%s', (relative) => {
     const path = fileURLToPath(new URL(relative, import.meta.url));
-    // movement-filters.tsx arrives in Block 6; a missing file has nothing to check yet.
-    if (!existsSync(path)) return;
-    const imports = [...readFileSync(path, 'utf8').matchAll(/from\s+'([^']+)'/g)].map(
-      (match) => match[1] ?? '',
-    );
+    // A missing file is a failure: the check has to read every presentational file.
+    expect(existsSync(path)).toBe(true);
+    const imports = importedModules(readFileSync(path, 'utf8'));
 
     expect(imports.filter((source) => source.includes('containers/'))).toEqual([]);
     expect(imports.filter((source) => source.includes('api-client'))).toEqual([]);

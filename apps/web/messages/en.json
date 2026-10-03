@@ -367,7 +367,24 @@
       "unknownAccount": "Unknown account",
       "transferTitle": "Transfer",
       "exchangeTitle": "Exchange",
-      "unknownCategory": "Unknown category"
+      "unknownCategory": "Unknown category",
+      "tags": "Tags"
+    },
+    "filters": {
+      "title": "Filters",
+      "account": "Account",
+      "category": "Category",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "allAccounts": "All accounts",
+      "allCategories": "All categories",
+      "allTypes": "All types",
+      "archived": "{name} (archived)",
+      "clear": "Clear filters",
+      "showAll": "Show all movements",
+      "noMatch": "No movements match these filters.",
+      "invalidRange": "The From date cannot be after the To date."
     },
     "new": {
       "title": "New movement",
