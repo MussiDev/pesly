@@ -61,7 +61,7 @@
 - **Tampering:** the two statements of `storeAndApply` run in one transaction, bind every symbol and price as parameters and the holdings update is restricted to crypto holdings in USD without a manual price, so a ticker such as `'; drop table` is data and cannot change another instrument type (R-06) and a manual price is never replaced (R-17); the check constraints of 07a and of the market price entity still apply to the written price.
 - **Repudiation:** updated holdings carry `price_source = 'automatic'` and `priced_at`, so an automatic price is distinguishable from a manual one, and the market price keeps its own time.
 - **Information Disclosure:** repositories return symbols and counts, never user ids to the provider layer.
-- **Denial of Service:** the symbol read is limited to 100 and ordered by the oldest stored market price, so manually priced holdings cannot starve other symbols; the snapshot query pages by portfolio id (200 per page).
+- **Denial of Service:** the symbol read is limited to 100, gives half of the slots to the oldest priced symbols and draws the rest at random among never-priced ones, so neither manually priced holdings nor junk tickers can starve other symbols (R-20); the snapshot query pages by portfolio id (200 per page).
 - **Elevation of Privilege:** a worker-only repository set is not exported through the API barrel (R-15).
 
 ### `apps/api/src/investments/infrastructure/provider/coingecko-price-provider.ts` + `coingecko-payload.ts`
@@ -144,8 +144,14 @@
 | R-17 | An automatic price silently replaces a manual price of the same holding | T | M | M | the holdings update excludes every holding whose source is `manual`, evaluated against the row at update time, so even a manual price committed while a refresh is in flight is kept; tests with two connections and a full cycle cover it (owner decision of 2026-10-02) |
 | R-18 | A stale or wrong market price shows a misleading warning, or an old price is presented as today's | I | M | L | the flag is computed on the server for a manual price only, with exact `bigint` arithmetic and exactly 5% giving no warning; the warning is never hidden because of age (owner decision of 2026-10-02) but its wording is chosen by a server flag from the injected clock, so a price older than 24 hours is shown with its own date and never as "today"; the warning is informational and never changes a price, and a wrong coin for a shared ticker is the accepted R-16 |
 | R-19 | A user switches another user's holding to the automatic price, or injects a price through the switch | E | L | H | owner-scoped lookup answering 404 for foreign or unknown ids, session and write scope on the route, no request body so the only value written is the stored public market price, the route is in the cross-user 404 and 401 test lists |
+| R-20 | Junk crypto tickers that the provider never answers fill the price requests and delay or stop the pricing of real tickers | D | M | L | the symbol selection reserves half of every request for the oldest priced symbols and draws never-priced ones at random, so existing prices keep refreshing and every new ticker is eventually tried; at most 100 symbols per request and 1,000 calls a month; the residual delay for a new real ticker is accepted, see below |
 
 ## Accepted risks
+### R-20
+- **Accepted by:** project owner (user) — M-1 of the SAST report, confirmed on 2026-10-03 and relayed by the coordinator, as a consequence of accepted risk R-12 of DISC-001-07a (no caps on portfolios and holdings).
+- **Justification:** any signed-in user can add many crypto holdings with tickers the provider never answers, so a newly added real ticker can wait about N/50 hours for its first price (N is the number of never-priced symbols); nothing is lost or exposed and existing prices keep refreshing.
+- **Review conditions:** 2026-12-03, or earlier if a user reports a real ticker that stays unpriced; a follow-up should add a per-user holdings cap or a symbol attempts table ordered by last attempt.
+
 ### R-16
 - **Accepted by:** project owner (user) — decision of 2026-10-02, relayed by the coordinator and recorded in the PRD decision log.
 - **Justification:** CoinGecko resolves a symbol to the top-ranked coin by market cap, which is correct for the major coins users hold; the PRD defines the crypto ticker as the lookup key and adds no coin identifier; the price source and date stay visible on every holding so a wrong price can be spotted and corrected; the alternative of storing a CoinGecko id per holding changes the 07a contracts and PRD.
