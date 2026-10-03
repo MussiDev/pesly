@@ -25,11 +25,14 @@ function sources(path: string): string[] {
   });
 }
 
+function forbiddenTokensIn(text: string): string[] {
+  return forbidden.filter((token) => text.includes(token));
+}
+
 function offendersIn(path: string): string[] {
-  return sources(path).flatMap((file) => {
-    const text = readFileSync(file, 'utf8');
-    return forbidden.filter((token) => text.includes(token)).map((t) => `${file}: ${t}`);
-  });
+  return sources(path).flatMap((file) =>
+    forbiddenTokensIn(readFileSync(file, 'utf8')).map((t) => `${file}: ${t}`),
+  );
 }
 
 describe('no floating-point money arithmetic in the web app (NFR-01, NFR-02) (AC-10, AC-11)', () => {
@@ -59,5 +62,31 @@ describe('no floating-point money arithmetic in the web app (NFR-01, NFR-02) (AC
 
   it('implied-rate-preview.ts contains no float conversions or rounding (DISC-001-03c)', () => {
     expect(offendersIn(impliedRatePreview)).toEqual([]);
+  });
+
+  it.each([
+    ['const r = parseFloat(x);', 'parseFloat'],
+    ['const n = parseInt(x, 10);', 'parseInt'],
+    ['const a = Number(x);', 'Number('],
+    ['const s = v.toFixed(2);', 'toFixed'],
+    ['const r = Math.round(x);', 'Math.round'],
+    ['const r = Math.floor(x);', 'Math.floor'],
+    ["const f = new Intl.NumberFormat('es');", 'Intl.NumberFormat'],
+    ['const s = v.toLocaleString();', 'toLocaleString'],
+  ])('the scanner flags the probe %s (DISC-001-03c)', (probe, token) => {
+    expect(forbiddenTokensIn(probe)).toEqual([token]);
+  });
+
+  it('the scanner passes clean bigint code', () => {
+    expect(forbiddenTokensIn('const rate = (out * 10_000n) / into;')).toEqual([]);
+  });
+
+  it('a probe in either new movement file would be reported with the file and the token', () => {
+    for (const path of [movementRequest, impliedRatePreview]) {
+      const text = `${readFileSync(path, 'utf8')}
+const probe = Number(1);
+`;
+      expect(forbiddenTokensIn(text)).toEqual(['Number(']);
+    }
   });
 });
