@@ -2,8 +2,6 @@
 import { formatMoney, type AccountResponse, type CategoryResponse } from '@pesly/shared';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SearchParamsContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
-import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { MovementsContainer } from '../src/features/movements/containers/movements-container';
 import { formatRate } from '../src/features/movements/format-rate';
@@ -628,15 +626,6 @@ function listPath(query = '') {
 const listCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((call) => call.path.startsWith('/movements')).map((call) => call.path);
 
-/** Mounts the list as Next.js would with `?search` in the address bar. */
-function withUrl(search: string, ui: ReactElement) {
-  return (
-    <SearchParamsContext.Provider value={new URLSearchParams(search)}>
-      {ui}
-    </SearchParamsContext.Provider>
-  );
-}
-
 const filterField = (name: string) => screen.getByLabelText<HTMLSelectElement>(name);
 
 describe('MovementsContainer filters (DISC-001-03d)', () => {
@@ -862,12 +851,9 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
         ]),
       }),
     );
-    renderApp(
-      withUrl(
-        `accountId=${CAJA_ID}&categoryId=nope&from=2026-10-01&to=2026-02-30&type=transfer`,
-        <MovementsContainer />,
-      ),
-    );
+    renderApp(<MovementsContainer />, {
+      search: `accountId=${CAJA_ID}&categoryId=nope&from=2026-10-01&to=2026-02-30&type=transfer`,
+    });
 
     expect(await screen.findByText('Filtrada')).toBeDefined();
     expect(listCalls(calls)).toEqual([listPath(`accountId=${CAJA_ID}&from=2026-10-01`)]);
@@ -911,6 +897,56 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const reference = calls.filter((call) => !call.path.startsWith('/movements'));
     expect(reference).toHaveLength(5);
     expect(calls.filter((call) => call.path === '/profile')).toHaveLength(1);
+  });
+
+  it('moves focus to the account select after "Clear filters" unmounts the button', async () => {
+    stubApi(filteredRoutes());
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText(es.movements.list.empty);
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(await screen.findByRole('button', { name: es.movements.filters.clear }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: es.movements.filters.clear })).toBeNull();
+    });
+    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+  });
+
+  it('moves focus to the account select after "Show all movements" unmounts the action', async () => {
+    stubApi(
+      filteredRoutes({
+        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [listPath('type=income')]: movementPage([]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Todo');
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(await screen.findByRole('button', { name: es.movements.filters.showAll }));
+
+    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(screen.queryByRole('button', { name: es.movements.filters.showAll })).toBeNull();
+    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+  });
+
+  it('does not take focus on first load or on an ordinary filter change (guard)', async () => {
+    stubApi(
+      filteredRoutes({
+        [listPath('type=income')]: movementPage([movement({ note: 'Nota recibida' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+
+    await screen.findByText(es.movements.list.empty);
+    expect(document.activeElement).toBe(document.body);
+
+    await userEvent.setup().selectOptions(filterField(es.movements.filters.type), 'income');
+    await screen.findByText('Nota recibida');
+    expect(document.activeElement).toBe(filterField(es.movements.filters.type));
   });
 
   it('each row shows its tags as chips (AC-03)', async () => {

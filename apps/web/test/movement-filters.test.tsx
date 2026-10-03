@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
+import { createRef } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../messages/en.json';
 import es from '../messages/es.json';
@@ -234,6 +235,13 @@ describe('MovementFilters', () => {
     fireEvent.click(screen.getByText('drop'));
 
     expect(onChange).toHaveBeenLastCalledWith({});
+  });
+
+  it('hands the container a ref to the first filter control, the account select', () => {
+    const firstControlRef = createRef<HTMLSelectElement>();
+    renderBar({ firstControlRef });
+
+    expect(firstControlRef.current).toBe(screen.getByLabelText(es.movements.filters.account));
   });
 
   it('shows the English wording', () => {

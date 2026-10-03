@@ -1,6 +1,9 @@
 import { cleanup, render, type RenderResult } from '@testing-library/react';
 import { AppRouterContext } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { PathnameContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
+import {
+  PathnameContext,
+  SearchParamsContext,
+} from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, vi, type Mock } from 'vitest';
@@ -87,6 +90,7 @@ export interface RenderedApp extends RenderResult {
  * shell renders the theme toggle. `strict` renders under a root StrictMode, which (unlike a nested
  * `<StrictMode>`) makes React mount, unmount and remount effects as in development. `pathname` is
  * what Next.js' `usePathname()` reports (with the locale prefix), `null` as outside Next.js.
+ * `search` is the query string `useSearchParams()` reports, empty by default.
  */
 export function renderApp(
   ui: ReactElement,
@@ -94,7 +98,8 @@ export function renderApp(
     locale = 'es',
     strict = false,
     pathname = null,
-  }: { locale?: TestLocale; strict?: boolean; pathname?: string | null } = {},
+    search = '',
+  }: { locale?: TestLocale; strict?: boolean; pathname?: string | null; search?: string } = {},
 ): RenderedApp {
   const router: FakeRouter = {
     push: vi.fn(),
@@ -105,16 +110,19 @@ export function renderApp(
     prefetch: vi.fn(),
     bfcacheId: 'test',
   };
+  const searchParams = new URLSearchParams(search);
   // A wrapper (not a wrapped `ui`) so `rerender` keeps the providers.
   function Providers({ children }: { children: ReactNode }) {
     return (
       <AppRouterContext.Provider value={router}>
         <PathnameContext.Provider value={pathname}>
-          <NextIntlClientProvider locale={locale} timeZone="UTC" messages={CATALOGS[locale]}>
-            <ThemeProvider>
-              <ApiClientProvider apiOrigin={API_ORIGIN}>{children}</ApiClientProvider>
-            </ThemeProvider>
-          </NextIntlClientProvider>
+          <SearchParamsContext.Provider value={searchParams}>
+            <NextIntlClientProvider locale={locale} timeZone="UTC" messages={CATALOGS[locale]}>
+              <ThemeProvider>
+                <ApiClientProvider apiOrigin={API_ORIGIN}>{children}</ApiClientProvider>
+              </ThemeProvider>
+            </NextIntlClientProvider>
+          </SearchParamsContext.Provider>
         </PathnameContext.Provider>
       </AppRouterContext.Provider>
     );

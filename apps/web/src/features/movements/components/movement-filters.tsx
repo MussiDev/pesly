@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useId, type ReactNode } from 'react';
+import { useId, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,6 +35,8 @@ export interface MovementFiltersProps {
   /** Receives the whole next filter set. */
   onChange: (next: MovementFilterValues) => void;
   onClear: () => void;
+  /** Lets the container move focus here once a clear action removes the control that had it. */
+  firstControlRef?: Ref<HTMLSelectElement> | undefined;
   /** Renders the tag box; the container supplies it so the bar stays presentational. */
   renderTagField?: ((control: FilterTagFieldControl) => ReactNode) | undefined;
 }
@@ -59,6 +61,7 @@ export function MovementFilters({
   rangeInvalid,
   onChange,
   onClear,
+  firstControlRef,
   renderTagField,
 }: MovementFiltersProps) {
   const t = useTranslations('movements');
@@ -77,6 +80,7 @@ export function MovementFilters({
       <div className="grid gap-2">
         <Label htmlFor={`${id}-account`}>{t('filters.account')}</Label>
         <Select
+          ref={firstControlRef}
           id={`${id}-account`}
           value={filters.accountId ?? ''}
           onChange={(event) => {

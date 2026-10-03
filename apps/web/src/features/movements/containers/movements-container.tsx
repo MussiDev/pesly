@@ -121,9 +121,7 @@ export function MovementsContainer() {
   const tFilters = useTranslations('movements.filters');
   const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
   const searchParams = useSearchParams();
-  // Typed as always present, but it is null outside the Next.js router (unit tests mount it bare).
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-  const urlKey = searchParams?.toString() ?? '';
+  const urlKey = searchParams.toString();
 
   const [reference, setReference] = useState<ReferenceState>({ kind: 'loading' });
   const [referenceAttempt, setReferenceAttempt] = useState(0);
@@ -137,6 +135,9 @@ export function MovementsContainer() {
   const [moreError, setMoreError] = useState<ErrorMessageKey | undefined>();
   // Bumped on every (re)load, so a "show more" answer from before it is discarded.
   const generation = useRef(0);
+  // Both clear actions unmount the control that had focus; this moves it to the bar's first control.
+  const firstFilterRef = useRef<HTMLSelectElement>(null);
+  const [focusRequest, setFocusRequest] = useState(0);
   // URLs this screen wrote that the router has not reported back yet.
   const pendingWrites = useRef<string[]>([]);
 
@@ -152,6 +153,15 @@ export function MovementsContainer() {
     pendingWrites.current = [];
     setFilters((current) => (serializeFilters(current).toString() === key ? current : fromUrl));
   }, [urlKey]);
+
+  useEffect(() => {
+    if (focusRequest > 0) firstFilterRef.current?.focus();
+  }, [focusRequest]);
+
+  function clearFilters() {
+    applyFilters({});
+    setFocusRequest((value) => value + 1);
+  }
 
   function applyFilters(next: MovementFilterValues) {
     const query = serializeFilters(next).toString();
@@ -391,18 +401,15 @@ export function MovementsContainer() {
           categories={categoryChoices}
           rangeInvalid={rangeInvalid}
           onChange={applyFilters}
-          onClear={() => {
-            applyFilters({});
-          }}
+          onClear={clearFilters}
+          firstControlRef={firstFilterRef}
           renderTagField={({ value, onChange }) => (
             <TagInputContainer value={value} onChange={onChange} />
           )}
         />
       }
       filtersActive={hasActiveFilters(filters)}
-      onClearFilters={() => {
-        applyFilters({});
-      }}
+      onClearFilters={clearFilters}
       loadState={list.kind === 'ready' ? undefined : list}
       onRetry={() => {
         setListAttempt((value) => value + 1);
