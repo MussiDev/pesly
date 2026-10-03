@@ -26,8 +26,16 @@ const EARLIER_TABLES = [
 const ALL_TABLES = [...EARLIER_TABLES, 'holdings', 'portfolios'].sort();
 // Migrations applied after 0013 are rolled back first, so 0013 can be the one re-applied; the
 // migrator replays everything not recorded, so they come back with it.
-const LATER_MIGRATIONS = ['0014_movements'];
-const LATER_TABLES = ['movement_rate_limits', 'movements'];
+// Oldest first; rolled back newest first by journal `when`.
+const LATER_MIGRATIONS = ['0014_movements', '0015_price_snapshots'];
+const PRICE_TABLES = [
+  'crypto_market_prices',
+  'crypto_price_refresh_failures',
+  'crypto_price_sync',
+  'crypto_price_usage',
+  'portfolio_value_snapshots',
+];
+const LATER_TABLES = ['movement_rate_limits', 'movements', ...PRICE_TABLES];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 
 /** Its own throwaway database: the other migration tests reset theirs, and none may clash. */
