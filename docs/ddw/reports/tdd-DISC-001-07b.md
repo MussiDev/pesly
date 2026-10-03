@@ -314,3 +314,40 @@ Accessibility audit: the switch unmounted the focused button with no announcemen
 | row: `keeps the button enabled when nothing is pending` | passes red by construction (regression guard) |
 
 Green: 11 web files (229 tests) plus `holding-form-schema-delegation` and `price-form` (16), `pnpm typecheck` and ESLint pass; the no-float token scan of `features/investments` finds nothing.
+
+## Block 8 — Cross-cutting checks and end-to-end step
+
+Block 8 adds tests over code built in Blocks 1 to 7, so the new integration and e2e tests cannot fail before any change: they passed on their first behavioural run. That is stated here instead of being hidden; the proof that they can fail is the mutation table below (each mutation applied to one source file, the test run, the file restored with `git checkout`, `git status` clean afterwards). The no-float probe was written first and failed on the unmodified helper.
+
+API commands: `TEST_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_test pnpm --filter @pesly/api exec vitest run test/investments/price-sync-integration.test.ts test/investments/no-float-money.test.ts`
+E2E command: `E2E_DATABASE_URL=postgres://argent:argent@localhost:5435/argent07b_e2e pnpm e2e apps/web/e2e/investments.spec.ts`
+
+| Test file | Red result | Green result |
+|---|---|---|
+| `price-sync-integration.test.ts` (5 tests: 24 hour cycle, manual price vs the 5% line, 30 day old market price and monthly counter, failure log leak check with the real adapter against a local stub, snapshot overflow) | Not red by construction (code already built). The first run failed only on a fixture mistake of mine (holdings seeded with a lowercase ticker, `Error: no ETH holding in the response`), fixed in the test. Behavioural proof: mutations below. | 5/5 pass (about 19 s) |
+| `no-float-money.test.ts` (1 new probe test) | `flags a probe file with parseFloat in a new job directory`: `AssertionError: expected [] to deeply equal [ Array(1) ]` (the helper still joined its argument onto the repo root, so a temporary directory was never scanned) | 7/7 pass after `offendersIn` took a directory |
+| `apps/web/e2e/investments.spec.ts` (3 new steps in the single flow, plus `makeCryptoPriceRefreshDue` in `e2e/support/database.ts`) | Not red by construction (code already built); mutation below fails the new step | `1 passed (41.4s)`, no API response >= 400, no console error |
+
+### Block 8 mutation checks
+
+| Mutation | Failing tests |
+|---|---|
+| refresh overwrites manual prices (the `h.price_source IS DISTINCT FROM 'manual'` line removed from `storeAndApply`) | cycle (`AssertionError: expected { unitPrice: 351234n, …(3) } to match object { source: 'manual', …(1) }`), manual vs 5% line, 30 day test |
+| age hides the warning (`marketPriceDiffers` ANDed with the 24 hour rule in `portfolio-view.ts`) | 30 day old market price test (`marketPriceDiffers` expected true) |
+| an out-of-range total aborts the pass (`throw` instead of counting in `take-daily-snapshots.ts`) | overflow test (`Error: overflow`) |
+| the 5% rule uses `>=` (shared `marketPriceDiffers`) | cycle and manual vs 5% line (exactly 5% expected false) |
+| the adapter puts the response text in the failure `detail` | leak test (`expected '[{"failed_at":"2026-03-01T22:00:00.00…' not to contain 'SECRET'`) |
+| `marketPriceDiffers` forced false in `portfolio-view.ts` | e2e step `07b AC-07 a manual price far from the market shows the warning`: `expect(locator).toContainText(expected) failed` (the warning text never appears) |
+
+### Block 8 correction round
+
+- `investments.spec.ts`: the flow test has `test.setTimeout(180_000)`; the worker wait stays at 90 s but the default test timeout was 30 s.
+- `makeCryptoPriceRefreshDue` now writes `now() - interval '1 minute'` and only advances a row that is not yet due (`where crypto_price_sync.next_attempt_at > now()` on the update), so it cannot clobber a lease held by the worker; a missing row is still inserted. The `_e2e` guard is unchanged.
+- `price-sync-integration.test.ts`: the loose bounds are exact. The 24 hour cycle makes exactly 26 calls (22:00, 23:00, 23:15, 23:45, then hourly 00:45 to 21:45). The month test makes exactly 745 (72 healthy hourly calls, 3 failures at 15, 30 and 60 minute backoff, then 670 hourly attempts); the derivation is in the test comments and matched on the first run. Both are deterministic: the clock is a `MutableClock` and the schedule has no jitter. The `<= 1,000` budget invariant stays.
+- `showDetails` waits for the open or the closed toggle to be visible before branching, clicks only when closed, then waits for the open state.
+- Re-run: API tests 12/12 pass (serial); e2e `investments.spec.ts` 1 passed (36.1 s); `pnpm typecheck` clean; ESLint clean on the touched files.
+
+### Notes
+
+- The worker finds no crypto holding at start-up and defers one hour (`no_crypto_holdings`), so a flow that adds the first crypto holding would wait up to an hour. The e2e uses a support function (`makeCryptoPriceRefreshDue`, a direct upsert of the schedule row in the `_e2e` database, like `withAgedRates` for the rates) to make the refresh due, then waits for the visible price by reloading inside `toPass` (the worker polls every 30 s); there are no fixed sleeps.
+- `pnpm typecheck` and ESLint on the touched files pass; the no-float token scan of `apps/api/src/investments`, `packages/shared/src/investments` and `apps/web/src/features/investments` finds nothing.
