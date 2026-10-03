@@ -42,6 +42,7 @@ function PlainAmount({
   type: MovementType;
   directionLabel: string;
 }) {
+  const directed = type === 'income' || type === 'expense';
   // Built from the integer parts, never through a float.
   const abs = value < 0n ? -value : value;
   const decimal = `${(abs / 100n).toString()}.${(abs % 100n).toString().padStart(2, '0')}`;
@@ -52,11 +53,11 @@ function PlainAmount({
   return (
     <span
       data-slot="amount"
-      data-kind={type}
-      className={`font-semibold whitespace-nowrap tabular-nums ${type === 'income' ? 'text-income' : 'text-expense'}`}
+      data-kind={directed ? type : 'neutral'}
+      className={`font-semibold whitespace-nowrap tabular-nums ${directed ? (type === 'income' ? 'text-income' : 'text-expense') : ''}`}
     >
-      <span aria-hidden="true">{type === 'income' ? '+' : '−'}</span>
-      <span className="sr-only">{directionLabel}</span>
+      {directed ? <span aria-hidden="true">{type === 'income' ? '+' : '−'}</span> : null}
+      {directed ? <span className="sr-only">{directionLabel}</span> : null}
       {text}
     </span>
   );
@@ -94,7 +95,10 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
         className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-card px-4 shadow-xs"
       >
         {items.map((item) => {
-          const category = item.categoryName ?? t('unknownCategory');
+          const category =
+            item.type === 'transfer' || item.type === 'exchange'
+              ? t(item.type)
+              : (item.categoryName ?? t('unknownCategory'));
           const when = formatDay(item.occurredAt, locale, timeZone);
           const parsed = exactIntegerStringSchema.safeParse(item.amount);
           const hasNote = item.note !== undefined && item.note !== null && item.note !== '';
@@ -128,7 +132,7 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
                     value={BigInt(parsed.data)}
                     currency={item.currency}
                     locale={locale}
-                    kind={item.type}
+                    kind={item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'}
                     directionLabel={t(item.type)}
                     className="font-semibold"
                   />

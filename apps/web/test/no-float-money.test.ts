@@ -35,10 +35,14 @@ function offendersIn(path: string): string[] {
 describe('no floating-point money arithmetic in the web app (NFR-01, NFR-02) (AC-10, AC-11)', () => {
   const formatAmount = join(webSrc, 'lib/format-amount.ts');
   const investments = join(webSrc, 'features/investments');
+  const movementRequest = join(webSrc, 'features/movements/movement-request.ts');
+  const impliedRatePreview = join(webSrc, 'features/movements/implied-rate-preview.ts');
 
   it('finds the sources to scan', () => {
     expect(sources(formatAmount)).toHaveLength(1);
     expect(sources(investments).length).toBeGreaterThanOrEqual(1);
+    expect(sources(movementRequest)).toHaveLength(1);
+    expect(sources(impliedRatePreview)).toHaveLength(1);
   });
 
   it('format-amount.ts contains no float conversions or rounding', () => {
@@ -47,5 +51,13 @@ describe('no floating-point money arithmetic in the web app (NFR-01, NFR-02) (AC
 
   it('features/investments contains no float conversions or rounding', () => {
     expect(offendersIn(investments)).toEqual([]);
+  });
+
+  it('movement-request.ts contains no float conversions or rounding (DISC-001-03c)', () => {
+    expect(offendersIn(movementRequest)).toEqual([]);
+  });
+
+  it('implied-rate-preview.ts contains no float conversions or rounding (DISC-001-03c)', () => {
+    expect(offendersIn(impliedRatePreview)).toEqual([]);
   });
 });

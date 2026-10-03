@@ -105,7 +105,11 @@ export type ApiErrorKey =
   | 'movementDateInFuture'
   | 'rateRequired'
   | 'movementCategoryKindMismatch'
-  | 'categoryArchived';
+  | 'categoryArchived'
+  | 'movementSameAccount'
+  | 'movementCurrencyMismatch'
+  | 'exchangeSameCurrency'
+  | 'impliedRateOutOfRange';
 
 /** `NETWORK`: the request never got an HTTP answer (offline, DNS, CORS, aborted). */
 export type ApiFailureCode = ErrorCode | 'NETWORK';
@@ -154,6 +158,10 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   RATE_REQUIRED: 'rateRequired',
   MOVEMENT_CATEGORY_KIND_MISMATCH: 'movementCategoryKindMismatch',
   CATEGORY_ARCHIVED: 'categoryArchived',
+  MOVEMENT_SAME_ACCOUNT: 'movementSameAccount',
+  MOVEMENT_CURRENCY_MISMATCH: 'movementCurrencyMismatch',
+  EXCHANGE_SAME_CURRENCY: 'exchangeSameCurrency',
+  IMPLIED_RATE_OUT_OF_RANGE: 'impliedRateOutOfRange',
 };
 
 /** `null` when the id is not a plain path segment: '.' and '..' survive encoding and would be normalized. */

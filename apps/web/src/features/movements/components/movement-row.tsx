@@ -102,7 +102,11 @@ export function MovementRow({
               // The neutral code applies only when the account is not among the loaded ones.
               currency={currency ?? UNKNOWN_CURRENCY}
               locale={locale}
-              kind={movement.type}
+              kind={
+                movement.type === 'income' || movement.type === 'expense'
+                  ? movement.type
+                  : 'neutral'
+              }
               directionLabel={tTypes(movement.type)}
               className="text-body font-semibold"
             />
@@ -115,7 +119,7 @@ export function MovementRow({
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}
-      {currency === USD_CURRENCY ? (
+      {currency === USD_CURRENCY && movement.rate !== null ? (
         <p className="px-1 text-caption text-muted-foreground">
           {t('rate', { rate: formatRate(BigInt(movement.rate), locale) })}
         </p>

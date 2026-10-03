@@ -1,24 +1,13 @@
 'use client';
 
 import {
-  MOVEMENT_AMOUNT_MAX_MINOR_UNITS,
-  MOVEMENT_TYPES,
   RATE_AGE_WARNING_MS,
-  dateInTimeZone,
-  formatMinorUnitsString,
-  instantToZonedLocal,
-  movementNoteSchema,
-  occurredAtSchema,
-  parseAmountInput,
-  parseRateInput,
-  rateAgeMs,
   formatRateInput,
-  todayInTimeZone,
-  zonedLocalToInstant,
+  instantToZonedLocal,
+  rateAgeMs,
   type AccountResponse,
   type CategoryLanguage,
   type CategoryResponse,
-  type MovementType,
   type RateType,
 } from '@pesly/shared';
 import { useLocale } from 'next-intl';
@@ -29,25 +18,18 @@ import {
 } from '@/features/accounts/components/accounts-load-state';
 import { categoryLabel } from '@/features/categories/category-display';
 import { useRouter } from '@/i18n/navigation';
-import type { ApiResult, CreateMovementInput } from '@/lib/api-client';
+import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { MovementForm, type MovementFormValues } from '../components/movement-form';
 import { MovementSaved } from '../components/movement-saved';
 import { formatRate } from '../format-rate';
-import {
-  movementFailureErrors,
-  type MovementFieldMessage,
-  type MovementFieldName,
-  type MovementFormErrors,
-} from '../movement-form-errors';
+import { impliedRatePreview, type ImpliedRatePreviewInput } from '../implied-rate-preview';
+import { movementFailureErrors, type MovementFormErrors } from '../movement-form-errors';
+import { buildMovementRequest } from '../movement-request';
 
 /** The API's largest page; the container keeps asking until `total` is reached. */
 const PAGE_SIZE = 100;
 const HOUR_MS = 60 * 60 * 1000;
-const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
-const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
-
-type FieldErrors = Partial<Record<MovementFieldName, MovementFieldMessage>>;
 
 interface ScreenData {
   accounts: AccountResponse[];
@@ -77,8 +59,10 @@ async function loadAll<T>(
   }
 }
 
-function toMovementType(value: string): MovementType | undefined {
-  return MOVEMENT_TYPES.find((type) => type === value);
+/** What the saved view shows: the rate the API stored, if the movement has one. */
+interface SavedMovement {
+  rate: string | undefined;
+  implied: boolean;
 }
 
 export function CreateMovementContainer() {
@@ -90,7 +74,7 @@ export function CreateMovementContainer() {
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<MovementFormErrors>({});
-  const [savedRate, setSavedRate] = useState<string | undefined>();
+  const [saved, setSaved] = useState<SavedMovement | undefined>();
   // Bumped on every save: remounts the form so the next movement starts from a clean one.
   const [formKey, setFormKey] = useState(0);
 
@@ -162,92 +146,16 @@ export function CreateMovementContainer() {
     };
   }, [api, router, locale, attempt]);
 
-  /** The request to send, or the per-field messages explaining why there is none. */
-  function validate(
-    values: MovementFormValues,
-    data: ScreenData,
-  ):
-    | { request: CreateMovementInput; fields?: undefined }
-    | { request?: undefined; fields: FieldErrors } {
-    const fields: FieldErrors = {};
-    const type = toMovementType(values.type);
-
-    const account = data.accounts.find((item) => item.id === values.accountId && !item.archived);
-    if (account === undefined) fields.account = 'movements.errors.accountRequired';
-
-    const category = data.categories.find(
-      (item) => item.id === values.categoryId && !item.archived && item.kind === type,
-    );
-    if (category === undefined) fields.category = 'movements.errors.categoryRequired';
-
-    const amount = parseAmountInput(values.amount, locale);
-    if (amount === null) fields.amount = 'movements.errors.amountInvalid';
-    else if (amount <= 0n) fields.amount = 'movements.errors.amountNotPositive';
-    else if (amount > MOVEMENT_AMOUNT_MAX_MINOR_UNITS) {
-      fields.amount = 'movements.errors.amountOutOfRange';
-    }
-
-    let occurredAt: string | undefined;
-    if (!LOCAL_DATE_TIME.test(values.occurredAt)) {
-      fields.occurredAt = 'movements.errors.dateInvalid';
-    } else {
-      const instant = zonedLocalToInstant(values.occurredAt, data.timeZone);
-      if (instant === null) fields.occurredAt = 'movements.errors.dateSkipped';
-      else if (
-        dateInTimeZone(instant, data.timeZone) > todayInTimeZone(new Date(), data.timeZone)
-      ) {
-        fields.occurredAt = 'errors.movementDateInFuture';
-      } else if (!occurredAtSchema.safeParse(instant.toISOString()).success) {
-        fields.occurredAt = 'movements.errors.dateInvalid';
-      } else occurredAt = instant.toISOString();
-    }
-
-    let rate: CreateMovementInput['rate'] | undefined;
-    if (!values.rateEdited && data.defaultRate !== '') {
-      rate = { source: 'automatic' };
-    } else if (values.rate.trim() === '') {
-      fields.rate = 'movements.errors.rateRequired';
-    } else {
-      const scaled = parseRateInput(values.rate, locale);
-      if (scaled === null) fields.rate = 'movements.errors.rateInvalid';
-      else rate = { source: 'manual', value: scaled.toString() };
-    }
-
-    const note = movementNoteSchema.safeParse(values.note);
-    if (!note.success) {
-      fields.note = CONTROL_OR_FORMAT.test(values.note)
-        ? 'movements.errors.noteInvalidCharacters'
-        : 'movements.errors.noteTooLong';
-    }
-
-    if (
-      Object.keys(fields).length > 0 ||
-      type === undefined ||
-      account === undefined ||
-      category === undefined ||
-      amount === null ||
-      occurredAt === undefined ||
-      rate === undefined ||
-      !note.success
-    ) {
-      return { fields };
-    }
-    return {
-      request: {
-        type,
-        accountId: account.id,
-        categoryId: category.id,
-        amount: formatMinorUnitsString(amount),
-        occurredAt,
-        ...(note.data === undefined ? {} : { note: note.data }),
-        rate,
-      },
-    };
-  }
-
   async function create(values: MovementFormValues, data: ScreenData) {
     if (pending) return;
-    const { request, fields } = validate(values, data);
+    const { request, fields } = buildMovementRequest(values, {
+      accounts: data.accounts,
+      categories: data.categories,
+      timeZone: data.timeZone,
+      locale,
+      now: new Date(),
+      defaultRate: data.defaultRate,
+    });
     if (request === undefined) {
       setErrors({ fields });
       return;
@@ -256,7 +164,12 @@ export function CreateMovementContainer() {
     setErrors({});
     const result = await api.createMovement(request);
     if (result.ok) {
-      setSavedRate(formatRate(BigInt(result.data.rate), locale));
+      const { rate, rateSource } = result.data;
+      const implied = rateSource === 'implied';
+      setSaved({
+        rate: rate === null ? undefined : formatRate(BigInt(rate), locale, implied ? 4 : 2),
+        implied,
+      });
       setFormKey((current) => current + 1);
       setPending(false);
       // The notice sits above the form, which may have been scrolled well past it.
@@ -284,7 +197,7 @@ export function CreateMovementContainer() {
   const { data } = state;
   return (
     <div className="grid gap-4">
-      {savedRate === undefined ? null : <MovementSaved rate={savedRate} />}
+      {saved === undefined ? null : <MovementSaved rate={saved.rate} implied={saved.implied} />}
       <MovementForm
         key={formKey}
         accounts={data.accounts.filter((item) => !item.archived)}
@@ -297,6 +210,9 @@ export function CreateMovementContainer() {
         rateAgeHours={data.rateAgeHours}
         pending={pending}
         errors={errors}
+        previewRate={(input: ImpliedRatePreviewInput) =>
+          impliedRatePreview(input, data.accounts, locale)
+        }
         onSubmit={(values) => {
           void create(values, data);
         }}

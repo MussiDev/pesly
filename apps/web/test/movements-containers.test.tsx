@@ -95,7 +95,9 @@ const SAVED = {
   type: 'expense',
   accountId: CAJA_ID,
   categoryId: COMIDA_ID,
+  destinationAccountId: null,
   amount: '150050',
+  destinationAmount: null,
   occurredAt: NOW,
   note: null,
   rate: '12505000',
@@ -668,5 +670,335 @@ describe('CreateMovementContainer: server answers (AC-01, AC-15, AC-21, AC-25, A
     await save('network-error');
 
     expect(await screen.findByText(es.errors.network)).toBeDefined();
+  });
+});
+
+describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () => {
+  const BANCO_ID = uuid(3);
+  const AHORRO_ID = uuid(4);
+
+  const WITH_FOUR = {
+    [ACCOUNTS]: accountPage([
+      account(),
+      account({ id: DOLARES_ID, name: 'Dolares', currency: 'USD' }),
+      account({ id: BANCO_ID, name: 'Banco' }),
+      account({ id: AHORRO_ID, name: 'Ahorro', currency: 'USD' }),
+    ]),
+  };
+
+  const TRANSFER_SAVED = {
+    ...SAVED,
+    type: 'transfer',
+    categoryId: null,
+    destinationAccountId: BANCO_ID,
+    destinationAmount: '150050',
+    rate: null,
+    rateSource: null,
+    rateType: null,
+  };
+  const EXCHANGE_SAVED = {
+    ...SAVED,
+    type: 'exchange',
+    categoryId: null,
+    destinationAccountId: DOLARES_ID,
+    amount: '155730000',
+    destinationAmount: '100000',
+    rate: '15573000',
+    rateSource: 'implied',
+    rateType: null,
+  };
+
+  const destination = (locale: 'es' | 'en' = 'es') =>
+    screen.getByLabelText<HTMLSelectElement>(CATALOGS[locale].movements.fields.destinationAccount);
+  const optionNames = (control: HTMLElement) =>
+    [...control.querySelectorAll('option')].map((option) => option.textContent);
+
+  const four = (extra: Record<string, Parameters<typeof stubApi>[0][string]> = {}) =>
+    routes({ ...WITH_FOUR, ...extra });
+  const answer = (status: number, body: unknown, headers?: Record<string, string>) => ({
+    [POST]: { status, body, ...(headers === undefined ? {} : { headers }) },
+  });
+
+  async function transfer(amount: string, answers = four()) {
+    const stub = await open(answers);
+    const user = userEvent.setup();
+    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
+    await user.selectOptions(destination(), BANCO_ID);
+    if (amount !== '') await user.type(field(es.movements.fields.amount), amount);
+    return { ...stub, user };
+  }
+
+  async function exchange(out: string, into: string, answers = four()) {
+    const stub = await open(answers);
+    const user = userEvent.setup();
+    await user.selectOptions(field(es.movements.fields.type), 'exchange');
+    await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
+    await user.selectOptions(destination(), DOLARES_ID);
+    if (out !== '') await user.type(field(es.movements.fields.amountOut), out);
+    if (into !== '') await user.type(field(es.movements.fields.amountIn), into);
+    return { ...stub, user };
+  }
+
+  const describedBy = (control: HTMLElement) =>
+    document.getElementById(control.getAttribute('aria-describedby')?.split(' ').pop() ?? '')
+      ?.textContent;
+
+  it('lists as transfer destination only the other accounts of the same currency and sends the transfer (AC-01, AC-02)', async () => {
+    const { calls, user } = await transfer('1.500,50', four(answer(201, TRANSFER_SAVED)));
+    expect(optionNames(destination())).toEqual([
+      es.movements.fields.destinationAccountPlaceholder,
+      'Banco (ARS)',
+    ]);
+    expect(screen.queryByLabelText(es.movements.fields.category)).toBeNull();
+    expect(screen.queryByLabelText(es.movements.fields.rate)).toBeNull();
+
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toEqual({
+      type: 'transfer',
+      accountId: CAJA_ID,
+      destinationAccountId: BANCO_ID,
+      amount: '150050',
+      occurredAt: NOW,
+    });
+  });
+
+  it('lists as exchange destination only accounts of the other currency and sends no rate (AC-03, AC-04)', async () => {
+    const { calls, user } = await exchange(
+      '1.557.300,00',
+      '1.000,00',
+      four(answer(201, EXCHANGE_SAVED)),
+    );
+    expect(optionNames(destination())).toEqual([
+      es.movements.fields.destinationAccountPlaceholder,
+      'Dolares (USD)',
+      'Ahorro (USD)',
+    ]);
+    expect(screen.queryByLabelText(es.movements.fields.rate)).toBeNull();
+
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    const body = posts(calls)[0]?.body;
+    expect(body).toEqual({
+      type: 'exchange',
+      accountId: CAJA_ID,
+      destinationAccountId: DOLARES_ID,
+      amount: '155730000',
+      destinationAmount: '100000',
+      occurredAt: NOW,
+    });
+    expect(body).not.toHaveProperty('rate');
+  });
+
+  it.each([
+    ['1.557.300,00', '1.000,00', '1557,3000'],
+    ['2.000,00', '3,00', '666,6667'],
+  ])(
+    'previews the implied rate for %s ARS and %s USD as %s (AC-05, AC-14)',
+    async (out, into, expected) => {
+      await exchange(out, into);
+
+      expect(screen.getByRole('status').textContent).toContain(expected);
+    },
+  );
+
+  it('previews 1,557.3000 in English (AC-05)', async () => {
+    stubApi(four());
+    renderApp(<CreateMovementContainer />, { locale: 'en' });
+    await screen.findByLabelText(en.movements.fields.amount);
+    const user = userEvent.setup();
+    await user.selectOptions(screen.getByLabelText(en.movements.fields.type), 'exchange');
+    await user.selectOptions(screen.getByLabelText(en.movements.fields.account), CAJA_ID);
+    await user.selectOptions(destination('en'), DOLARES_ID);
+    await user.type(screen.getByLabelText(en.movements.fields.amountOut), '1,557,300.00');
+    await user.type(screen.getByLabelText(en.movements.fields.amountIn), '1,000.00');
+
+    expect(screen.getByRole('status').textContent).toContain('1,557.3000');
+  });
+
+  it('shows no rate until both amounts are valid and the range message when out of range (AC-14, AC-15)', async () => {
+    const { user } = await exchange('0,01', '');
+    expect(screen.getByRole('status').textContent).toContain(
+      es.movements.exchange.impliedRateEmpty,
+    );
+
+    await user.type(field(es.movements.fields.amountIn), '1.000,00');
+
+    expect(screen.getByRole('status').textContent).toContain(
+      es.movements.exchange.impliedRateOutOfRange,
+    );
+  });
+
+  it('rejects an amount of 0 or above 10^15 minor units on the client and sends nothing (invalid input) (AC-11)', async () => {
+    const { calls, user } = await transfer('0');
+    await user.click(submit());
+    expect(await screen.findByText(es.movements.errors.amountNotPositive)).toBeDefined();
+
+    await user.clear(field(es.movements.fields.amount));
+    await user.type(field(es.movements.fields.amount), '10.000.000.000.000,01');
+    await user.click(submit());
+    expect(await screen.findByText(es.movements.errors.amountOutOfRange)).toBeDefined();
+    expect(posts(calls)).toHaveLength(0);
+  });
+
+  it('rejects a zero amount entering the destination of an exchange, with no request (invalid input) (AC-11)', async () => {
+    const { calls, user } = await exchange('100', '0');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(describedBy(field(es.movements.fields.amountIn))).toBe(
+        es.movements.errors.amountNotPositive,
+      );
+    });
+    expect(posts(calls)).toHaveLength(0);
+  });
+
+  it('requires a destination account and sends nothing without one (invalid input) (AC-02)', async () => {
+    const { calls } = await open(four());
+    const user = userEvent.setup();
+    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
+    await user.type(field(es.movements.fields.amount), '100');
+    await user.click(submit());
+
+    expect(await screen.findByText(es.movements.errors.destinationRequired)).toBeDefined();
+    expect(posts(calls)).toHaveLength(0);
+    expect(document.activeElement).toBe(destination());
+  });
+
+  it('rejects a note over 500 characters on a transfer, with no request (invalid input) (AC-12)', async () => {
+    const { calls, user } = await transfer('100');
+    fireEvent.change(field(es.movements.fields.note), { target: { value: 'x'.repeat(501) } });
+    await user.click(submit());
+
+    expect(
+      await screen.findByText(es.movements.errors.noteTooLong.replace('{max}', '500')),
+    ).toBeDefined();
+    expect(posts(calls)).toHaveLength(0);
+  });
+
+  it('rejects a later local date on an exchange, with no request (invalid input) (AC-07)', async () => {
+    const { calls, user } = await exchange('1.557.300,00', '1.000,00');
+    fireEvent.change(field(es.movements.fields.occurredAt), {
+      target: { value: '2026-10-03T10:00' },
+    });
+    await user.click(submit());
+
+    expect(await screen.findByText(es.errors.movementDateInFuture)).toBeDefined();
+    expect(posts(calls)).toHaveLength(0);
+  });
+
+  it('shows a hint when the user has no second account for the transfer (AC-02)', async () => {
+    await open();
+    await userEvent.setup().selectOptions(field(es.movements.fields.type), 'transfer');
+
+    expect(screen.getByText(es.movements.fields.destinationHintTransfer)).toBeDefined();
+  });
+
+  it.each([
+    ['MOVEMENT_SAME_ACCOUNT', 'destination', es.errors.movementSameAccount],
+    ['MOVEMENT_CURRENCY_MISMATCH', 'destination', es.errors.movementCurrencyMismatch],
+    ['EXCHANGE_SAME_CURRENCY', 'destination', es.errors.exchangeSameCurrency],
+    ['IMPLIED_RATE_OUT_OF_RANGE', 'amountIn', es.errors.impliedRateOutOfRange],
+  ] as const)(
+    'shows %s on the %s field (error path) (AC-02, AC-04, AC-15)',
+    async (code, where, message) => {
+      const { user } = await exchange('1.557.300,00', '1.000,00', four(answer(400, { code })));
+      await user.click(submit());
+
+      await waitFor(() => {
+        const control =
+          where === 'destination' ? destination() : field(es.movements.fields.amountIn);
+        expect(control.getAttribute('aria-invalid')).toBe('true');
+        expect(describedBy(control)).toBe(message);
+      });
+    },
+  );
+
+  it('shows the unarchive-first message for ACCOUNT_ARCHIVED on a transfer (error path) (AC-10)', async () => {
+    const { user } = await transfer('100', four(answer(409, { code: 'ACCOUNT_ARCHIVED' })));
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(describedBy(field(es.movements.fields.account))).toBe(
+        es.movements.errors.accountArchived,
+      );
+    });
+  });
+
+  it('shows the too-many-requests message with the seconds from Retry-After on a transfer (error path) (AC-13)', async () => {
+    const { user } = await transfer(
+      '100',
+      four(answer(429, { code: 'RATE_LIMITED' }, { 'Retry-After': '17' })),
+    );
+    await user.click(submit());
+
+    expect((await screen.findByRole('alert')).textContent).toBe(
+      es.movements.errors.rateLimited.replace('{seconds}', '17'),
+    );
+  });
+
+  it('shows the implied rate returned by the API after saving an exchange (AC-05)', async () => {
+    const { user } = await exchange('1.557.300,00', '1.000,00', four(answer(201, EXCHANGE_SAVED)));
+    await user.click(submit());
+
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toContain(
+      es.movements.saved.impliedRate.replace('{rate}', '1557,3000'),
+    );
+  });
+
+  it('shows no rate after saving a transfer (AC-01)', async () => {
+    const { user } = await transfer('1.500,50', four(answer(201, TRANSFER_SAVED)));
+    await user.click(submit());
+
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toContain(es.movements.saved.title);
+    // Only the title and the way back: no rate line of any kind.
+    expect(status.textContent).not.toContain(es.movements.saved.rate.split('{rate}')[0] ?? '');
+    expect(status.textContent).not.toMatch(/\d/);
+  });
+
+  it('redirects to sign in on a 401 (error path) (AC-01)', async () => {
+    const { user, router } = await transfer(
+      '100',
+      four({
+        ...answer(401, { code: 'UNAUTHENTICATED' }),
+        'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      }),
+    );
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+  });
+
+  it('shows the generic message on a server error and sends again on retry (error path) (AC-01)', async () => {
+    const { calls, user } = await transfer(
+      '100',
+      four({
+        [POST]: [
+          { status: 500, body: { code: 'INTERNAL' } },
+          { status: 201, body: TRANSFER_SAVED },
+        ],
+      }),
+    );
+    await user.click(submit());
+
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(field(es.movements.fields.amount).value).toBe('100');
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(2);
+    });
+    expect(await screen.findByText(es.movements.saved.title)).toBeDefined();
   });
 });

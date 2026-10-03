@@ -2,14 +2,24 @@ import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import type { ApiFailure } from '@/lib/api-client';
 
 export type MovementFieldName =
-  'type' | 'account' | 'category' | 'amount' | 'occurredAt' | 'rate' | 'note';
+  | 'type'
+  | 'account'
+  | 'destinationAccount'
+  | 'category'
+  | 'amount'
+  | 'destinationAmount'
+  | 'occurredAt'
+  | 'rate'
+  | 'note';
 
 /**
  * Catalog paths of what a field can say: the entry-screen validation lives in `movements.errors`;
  * the server codes that are not movement specific are shared with the API errors in `errors`.
  */
 export type MovementFieldMessage =
+  | 'movements.errors.typeInvalid'
   | 'movements.errors.accountRequired'
+  | 'movements.errors.destinationRequired'
   | 'movements.errors.categoryRequired'
   | 'movements.errors.amountInvalid'
   | 'movements.errors.amountNotPositive'
@@ -25,7 +35,11 @@ export type MovementFieldMessage =
   | 'errors.movementDateInFuture'
   | 'errors.rateRequired'
   | 'errors.movementCategoryKindMismatch'
-  | 'errors.categoryArchived';
+  | 'errors.categoryArchived'
+  | 'errors.movementSameAccount'
+  | 'errors.movementCurrencyMismatch'
+  | 'errors.exchangeSameCurrency'
+  | 'errors.impliedRateOutOfRange';
 
 /** One message above the form and/or one message per field. */
 export interface MovementFormErrors {
@@ -46,6 +60,14 @@ export function movementFailureErrors(failure: ApiFailure): MovementFormErrors {
       return { fields: { category: 'errors.movementCategoryKindMismatch' } };
     case 'CATEGORY_ARCHIVED':
       return { fields: { category: 'errors.categoryArchived' } };
+    case 'MOVEMENT_SAME_ACCOUNT':
+      return { fields: { destinationAccount: 'errors.movementSameAccount' } };
+    case 'MOVEMENT_CURRENCY_MISMATCH':
+      return { fields: { destinationAccount: 'errors.movementCurrencyMismatch' } };
+    case 'EXCHANGE_SAME_CURRENCY':
+      return { fields: { destinationAccount: 'errors.exchangeSameCurrency' } };
+    case 'IMPLIED_RATE_OUT_OF_RANGE':
+      return { fields: { destinationAmount: 'errors.impliedRateOutOfRange' } };
     case 'ACCOUNT_ARCHIVED':
       return { fields: { account: 'movements.errors.accountArchived' } };
     case 'RATE_LIMITED':

@@ -11,7 +11,9 @@ const MOVEMENT = {
   type: 'expense',
   accountId: ACCOUNT_ID,
   categoryId: CATEGORY_ID,
+  destinationAccountId: null,
   amount: '150050',
+  destinationAmount: null,
   occurredAt: '2026-10-02T15:30:00.000Z',
   note: null,
   rate: '12505000',
@@ -64,6 +66,56 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     expect(init.method).toBe('POST');
     expect(init.credentials).toBe('include');
     expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
+  it('createMovement posts a transfer and an exchange and parses their nullable response fields (AC-01, AC-05)', async () => {
+    const DESTINATION_ID = '22222222-2222-4222-8222-222222222222';
+    const transfer = {
+      ...MOVEMENT,
+      type: 'transfer',
+      categoryId: null,
+      destinationAccountId: DESTINATION_ID,
+      destinationAmount: '150050',
+      rate: null,
+      rateSource: null,
+      rateType: null,
+    };
+    const exchange = {
+      ...transfer,
+      type: 'exchange',
+      destinationAmount: '100000',
+      rate: '15573000',
+      rateSource: 'implied',
+    };
+    const { client, fetch } = clientWith(jsonResponse(201, transfer), jsonResponse(201, exchange));
+    const occurredAt = '2026-10-02T15:30:00.000Z';
+
+    const first = await client.createMovement({
+      type: 'transfer',
+      accountId: ACCOUNT_ID,
+      destinationAccountId: DESTINATION_ID,
+      amount: '150050',
+      occurredAt,
+    });
+    const second = await client.createMovement({
+      type: 'exchange',
+      accountId: ACCOUNT_ID,
+      destinationAccountId: DESTINATION_ID,
+      amount: '155730000',
+      destinationAmount: '100000',
+      occurredAt,
+    });
+
+    expect(first).toEqual({ ok: true, data: transfer });
+    expect(second).toEqual({ ok: true, data: exchange });
+    expect(JSON.parse(requestAt(fetch, 1).init.body as string)).toEqual({
+      type: 'exchange',
+      accountId: ACCOUNT_ID,
+      destinationAccountId: DESTINATION_ID,
+      amount: '155730000',
+      destinationAmount: '100000',
+      occurredAt,
+    });
   });
 
   it('listMovements sends limit and offset and parses the page', async () => {
@@ -130,6 +182,10 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     [400, 'MOVEMENT_CATEGORY_KIND_MISMATCH', 'movementCategoryKindMismatch'],
     [409, 'CATEGORY_ARCHIVED', 'categoryArchived'],
     [409, 'ACCOUNT_ARCHIVED', 'accountArchived'],
+    [400, 'MOVEMENT_SAME_ACCOUNT', 'movementSameAccount'],
+    [400, 'MOVEMENT_CURRENCY_MISMATCH', 'movementCurrencyMismatch'],
+    [400, 'EXCHANGE_SAME_CURRENCY', 'exchangeSameCurrency'],
+    [400, 'IMPLIED_RATE_OUT_OF_RANGE', 'impliedRateOutOfRange'],
   ] as const)('maps %i %s to the message key %s', async (status, code, messageKey) => {
     const { client } = clientWith(jsonResponse(status, { code }));
 

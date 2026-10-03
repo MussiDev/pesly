@@ -624,3 +624,41 @@ describe('investments manual price warning keys (DISC-001-07b)', () => {
     }
   });
 });
+
+describe('transfers and exchanges catalog (DISC-001-03c)', () => {
+  it.each(LOCALES)('has a message for each of the four new error codes in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+
+    for (const key of [
+      'movementSameAccount',
+      'movementCurrencyMismatch',
+      'exchangeSameCurrency',
+      'impliedRateOutOfRange',
+    ]) {
+      expect(readString(catalog, `errors.${key}`)?.length).toBeGreaterThan(0);
+    }
+  });
+
+  it.each(LOCALES)('has the transfer and exchange entry screen strings in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+
+    for (const key of [
+      'movements.types.transfer',
+      'movements.types.exchange',
+      'movements.fields.destinationAccount',
+      'movements.fields.destinationAccountPlaceholder',
+      'movements.fields.destinationHintTransfer',
+      'movements.fields.destinationHintExchange',
+      'movements.fields.amountOut',
+      'movements.fields.amountIn',
+      'movements.exchange.impliedRate',
+      'movements.exchange.impliedRateEmpty',
+      'movements.exchange.impliedRateOutOfRange',
+      'movements.errors.destinationRequired',
+      'movements.errors.typeInvalid',
+      'movements.saved.impliedRate',
+    ]) {
+      expect(readString(catalog, key)?.length).toBeGreaterThan(0);
+    }
+  });
+});

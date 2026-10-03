@@ -345,6 +345,8 @@ function listItem(
       type,
       accountId: 'a1',
       categoryId: 'c1',
+      destinationAccountId: null,
+      destinationAmount: null,
       amount: '150050',
       occurredAt,
       note: null,
@@ -544,5 +546,232 @@ describe('movements round 2 (FEAT-004 review items)', () => {
     expect(dayKey('2026-11-02T05:00:00.000Z', zone)).toBe('2026-11-02');
     expect(dayKey('2026-11-01T03:59:00.000Z', zone)).toBe('2026-10-31');
     expect(formatDay('2026-11-01T06:30:00.000Z', 'en', zone)).toBe('Sunday, November 1, 2026');
+  });
+});
+
+const FOUR_ACCOUNTS = [
+  { id: 'a1', name: 'Caja', currency: 'ARS' },
+  { id: 'a2', name: 'Dolares', currency: 'USD' },
+  { id: 'a3', name: 'Banco', currency: 'ARS' },
+  { id: 'a4', name: 'Ahorro', currency: 'USD' },
+];
+
+const optionNames = (control: HTMLElement) =>
+  within(control)
+    .getAllByRole('option')
+    .map((option) => option.textContent);
+
+describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
+  it('offers expense, income, transfer and exchange in the type switch (AC-01, AC-03)', () => {
+    form();
+
+    expect(optionNames(label(es.movements.fields.type))).toEqual([
+      es.movements.types.expense,
+      es.movements.types.income,
+      es.movements.types.transfer,
+      es.movements.types.exchange,
+    ]);
+  });
+
+  it('shows no destination, second amount or preview for an expense (AC-06)', () => {
+    form({ accounts: FOUR_ACCOUNTS });
+
+    expect(screen.queryByLabelText(es.movements.fields.destinationAccount)).toBeNull();
+    expect(screen.queryByLabelText(es.movements.fields.amountIn)).toBeNull();
+    expect(screen.getByLabelText(es.movements.fields.category)).toBeDefined();
+    expect(screen.getByLabelText(es.movements.fields.rate)).toBeDefined();
+  });
+
+  it('hides category and rate for a transfer and lists as destination only the other accounts of the same currency (AC-01, AC-02)', async () => {
+    form({ accounts: FOUR_ACCOUNTS });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+    await user.selectOptions(label(es.movements.fields.account), 'a1');
+
+    expect(screen.queryByLabelText(es.movements.fields.category)).toBeNull();
+    expect(screen.queryByLabelText(es.movements.fields.rate)).toBeNull();
+    expect(screen.queryByLabelText(es.movements.fields.amountIn)).toBeNull();
+    expect(optionNames(label(es.movements.fields.destinationAccount))).toEqual([
+      es.movements.fields.destinationAccountPlaceholder,
+      'Banco (ARS)',
+    ]);
+  });
+
+  it('submits a transfer with both account ids and the typed amount (AC-01)', async () => {
+    const { onSubmit } = form({ accounts: FOUR_ACCOUNTS });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+    await user.selectOptions(label(es.movements.fields.account), 'a1');
+    await user.selectOptions(label(es.movements.fields.destinationAccount), 'a3');
+    await user.type(label(es.movements.fields.amount), '500');
+    await user.click(screen.getByRole('button', { name: es.movements.form.submit }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0]?.[0]).toMatchObject({
+      type: 'transfer',
+      accountId: 'a1',
+      destinationAccountId: 'a3',
+      amount: '500',
+    });
+  });
+
+  it('lists as destination of an exchange only the accounts of the other currency and shows two amounts and no rate field (AC-03, AC-04)', async () => {
+    form({ accounts: FOUR_ACCOUNTS });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.selectOptions(label(es.movements.fields.account), 'a1');
+
+    expect(optionNames(label(es.movements.fields.destinationAccount))).toEqual([
+      es.movements.fields.destinationAccountPlaceholder,
+      'Dolares (USD)',
+      'Ahorro (USD)',
+    ]);
+    expect(label(es.movements.fields.amountOut)).toBeDefined();
+    expect(label(es.movements.fields.amountIn)).toBeDefined();
+    expect(screen.queryByLabelText(es.movements.fields.rate)).toBeNull();
+    expect(screen.queryByLabelText(es.movements.fields.category)).toBeNull();
+
+    await user.selectOptions(label(es.movements.fields.account), 'a2');
+    expect(optionNames(label(es.movements.fields.destinationAccount))).toEqual([
+      es.movements.fields.destinationAccountPlaceholder,
+      'Caja (ARS)',
+      'Banco (ARS)',
+    ]);
+  });
+
+  it('submits an exchange with both amounts and no rate (AC-04)', async () => {
+    const { onSubmit } = form({ accounts: FOUR_ACCOUNTS });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.selectOptions(label(es.movements.fields.account), 'a1');
+    await user.selectOptions(label(es.movements.fields.destinationAccount), 'a2');
+    // The money input groups thousands as the user types.
+    await user.type(label(es.movements.fields.amountOut), '1000');
+    await user.type(label(es.movements.fields.amountIn), '1');
+    await user.click(screen.getByRole('button', { name: es.movements.form.submit }));
+
+    const [values] = onSubmit.mock.calls[0] ?? [];
+    expect(values).toMatchObject({
+      type: 'exchange',
+      accountId: 'a1',
+      destinationAccountId: 'a2',
+      amount: '1.000',
+      destinationAmount: '1',
+    });
+  });
+
+  it('shows a hint instead of an empty destination list when no account can be the destination (AC-02)', async () => {
+    form({ accounts: ACCOUNTS });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+
+    expect(screen.getByText(es.movements.fields.destinationHintTransfer)).toBeDefined();
+    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    expect(screen.queryByText(es.movements.fields.destinationHintTransfer)).toBeNull();
+    expect(screen.queryByText(es.movements.fields.destinationHintExchange)).toBeNull();
+  });
+
+  it('shows the exchange hint when there is no ARS and USD pair (AC-04)', async () => {
+    form({
+      accounts: [
+        { id: 'a1', name: 'Caja', currency: 'ARS' },
+        { id: 'a3', name: 'Banco', currency: 'ARS' },
+      ],
+    });
+    await userEvent.setup().selectOptions(label(es.movements.fields.type), 'exchange');
+
+    expect(screen.getByText(es.movements.fields.destinationHintExchange)).toBeDefined();
+  });
+
+  it('shows the preview the container computes: empty, with a rate or out of range (AC-05, AC-14, AC-15)', async () => {
+    const previewRate = vi
+      .fn<NonNullable<MovementFormProps['previewRate']>>()
+      .mockReturnValue({ kind: 'empty' });
+    form({ accounts: FOUR_ACCOUNTS, previewRate });
+    const user = userEvent.setup();
+    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.selectOptions(label(es.movements.fields.account), 'a1');
+    await user.selectOptions(label(es.movements.fields.destinationAccount), 'a2');
+    expect(screen.getByText(es.movements.exchange.impliedRateEmpty)).toBeDefined();
+
+    previewRate.mockReturnValue({ kind: 'rate', text: '1.557,3000' });
+    await user.type(label(es.movements.fields.amountOut), '1');
+    expect(screen.getByRole('status').textContent).toContain('1.557,3000');
+    expect(previewRate).toHaveBeenLastCalledWith({
+      accountId: 'a1',
+      destinationAccountId: 'a2',
+      amount: '1',
+      destinationAmount: '',
+    });
+
+    previewRate.mockReturnValue({ kind: 'out-of-range' });
+    await user.type(label(es.movements.fields.amountIn), '1');
+    expect(screen.getByRole('status').textContent).toContain(
+      es.movements.exchange.impliedRateOutOfRange,
+    );
+  });
+
+  it('ties destination and amount errors to their controls (accessibility)', async () => {
+    form({
+      accounts: FOUR_ACCOUNTS,
+      errors: {
+        fields: {
+          destinationAccount: 'errors.movementCurrencyMismatch',
+          destinationAmount: 'errors.impliedRateOutOfRange',
+        },
+      },
+    });
+    await userEvent.setup().selectOptions(label(es.movements.fields.type), 'exchange');
+
+    const destination = label(es.movements.fields.destinationAccount);
+    const amountIn = label(es.movements.fields.amountIn);
+    expect(destination.getAttribute('aria-invalid')).toBe('true');
+    expect(amountIn.getAttribute('aria-invalid')).toBe('true');
+    expect(
+      document.getElementById(amountIn.getAttribute('aria-describedby') ?? '')?.textContent,
+    ).toBe(es.errors.impliedRateOutOfRange);
+  });
+});
+
+describe('MovementSaved (DISC-001-03c)', () => {
+  it('shows the frozen rate of an expense or income as before (AC-06)', () => {
+    renderIntl(<MovementSaved rate="1250,50" />);
+
+    expect(screen.getByRole('status').textContent).toContain(
+      es.movements.saved.rate.replace('{rate}', '1250,50'),
+    );
+    expect(screen.queryByText(/implícita/i)).toBeNull();
+  });
+
+  it('shows the implied rate of an exchange (AC-05)', () => {
+    renderIntl(<MovementSaved rate="1557,3000" implied />);
+
+    const status = screen.getByRole('status').textContent;
+    expect(status).toContain(es.movements.saved.impliedRate.replace('{rate}', '1557,3000'));
+    expect(status).not.toContain(es.movements.saved.rate.replace('{rate}', '1557,3000'));
+  });
+
+  it('shows no rate for a transfer (AC-01)', () => {
+    renderIntl(<MovementSaved rate={undefined} />);
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toContain(es.movements.saved.title);
+    expect(status.textContent).not.toMatch(/\d/);
+    expect(screen.getByRole('link', { name: es.movements.saved.back })).toBeDefined();
+  });
+});
+
+describe('movementFailureErrors: transfers and exchanges (DISC-001-03c)', () => {
+  function failure(code: ApiFailure['code']): ApiFailure {
+    return { ok: false, code, messageKey: 'unexpected' };
+  }
+
+  it.each([
+    ['MOVEMENT_SAME_ACCOUNT', 'destinationAccount', 'errors.movementSameAccount'],
+    ['MOVEMENT_CURRENCY_MISMATCH', 'destinationAccount', 'errors.movementCurrencyMismatch'],
+    ['EXCHANGE_SAME_CURRENCY', 'destinationAccount', 'errors.exchangeSameCurrency'],
+    ['IMPLIED_RATE_OUT_OF_RANGE', 'destinationAmount', 'errors.impliedRateOutOfRange'],
+  ] as const)('puts %s on the %s field (AC-02, AC-04, AC-15)', (code, field, message) => {
+    expect(movementFailureErrors(failure(code))).toEqual({ fields: { [field]: message } });
   });
 });

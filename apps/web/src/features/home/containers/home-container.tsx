@@ -151,7 +151,8 @@ export function HomeContainer() {
 
   const movements: RecentMovementItem[] = state.movements.map((movement) => {
     const account = state.knownAccounts.get(movement.accountId);
-    const category = state.categories.get(movement.categoryId);
+    const category =
+      movement.categoryId === null ? undefined : state.categories.get(movement.categoryId);
     return {
       id: movement.id,
       type: movement.type,
