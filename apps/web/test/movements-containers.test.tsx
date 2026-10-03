@@ -335,7 +335,7 @@ describe('CreateMovementContainer: rate (AC-06 to AC-11, AC-20, AC-21)', () => {
       within(status).getByRole('link', { name: es.movements.saved.back }).getAttribute('href'),
     ).toBe('/es/movements');
     // The entry form is back, empty, ready for the next movement.
-    expect((field(es.movements.fields.amount)).value).toBe('');
+    expect(field(es.movements.fields.amount).value).toBe('');
   });
 });
 
