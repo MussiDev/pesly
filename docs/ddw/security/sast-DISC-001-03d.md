@@ -31,6 +31,10 @@
 - ✅ F-SAST-18 Suppressions complete: no suppressions in this report.
 - ✅ F-SAST-19 Suppressions within review window: no suppressions in this report.
 
+## Re-scan after the accessibility change
+
+The focus fix (commit `40382d0`: a ref prop on the filter bar and a focus request in the container) and the removal of the `useSearchParams` guard were re-scanned with the same searches: no HTML sink, no `eval`, no new outbound call, no logging and no new dependency were added. The result is unchanged.
+
 ## Cross-cutting checks
 
 - Authorization and data scope: every statement on `movements`, `tags`, `movement_tags` and `categories` applies `scopedTo(scope, { owner })` on its own table in the same statement, including subqueries and the page tag loader; suggestions return only the caller's tag names.
