@@ -199,7 +199,7 @@ describe('transfers and exchanges in the repository', () => {
     const read = await readScope(f.ownerId);
     expect(await repository.findById(read, sent.id)).toEqual(sent);
     expect(await repository.findById(read, changed.id)).toEqual(changed);
-    const listed = await repository.list(read, { limit: 50, offset: 0 });
+    const listed = await repository.list(read, { limit: 50, offset: 0, filters: {} });
     expect(listed.items).toEqual([sent, changed]);
   });
 
@@ -218,7 +218,11 @@ describe('transfers and exchanges in the repository', () => {
       transfer(f, { occurredAt: new Date('2026-10-02T10:00:00.000Z') }),
     );
 
-    const listed = await repository.list(await readScope(f.ownerId), { limit: 50, offset: 0 });
+    const listed = await repository.list(await readScope(f.ownerId), {
+      limit: 50,
+      offset: 0,
+      filters: {},
+    });
     expect(listed.total).toBe(4);
     const tieIds = [tieA.id, tieB.id].sort().reverse();
     expect(listed.items.map((m) => m.id)).toEqual([...tieIds, middle.id, oldest.id]);
@@ -243,7 +247,7 @@ describe('transfers and exchanges in the repository', () => {
     );
 
     const read = await readScope(mine.ownerId);
-    const listed = await repository.list(read, { limit: 50, offset: 0 });
+    const listed = await repository.list(read, { limit: 50, offset: 0, filters: {} });
     expect(listed.items.map((m) => m.id)).toEqual([own.id]);
     expect(listed.total).toBe(1);
     expect(await repository.findById(read, otherTransfer.id)).toBeNull();
@@ -315,7 +319,11 @@ describe('transfers and exchanges in the repository', () => {
           destination_amount: '1000000000000000',
         }),
       );
-      const listed = await repository.list(await readScope(f.ownerId), { limit: 50, offset: 0 });
+      const listed = await repository.list(await readScope(f.ownerId), {
+        limit: 50,
+        offset: 0,
+        filters: {},
+      });
       expect(listed.total).toBe(5);
     });
 

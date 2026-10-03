@@ -56,7 +56,16 @@ async function owner(): Promise<Owner> {
   };
 }
 
-function data(o: Owner, overrides: Partial<NewMovement> = {}): NewMovement {
+type DataOverrides = Partial<{
+  type: 'expense' | 'income';
+  accountId: string;
+  categoryId: string;
+  occurredAt: Date;
+  note: string | null;
+  tags: string[];
+}>;
+
+function data(o: Owner, overrides: DataOverrides = {}): NewMovement {
   return {
     type: 'expense',
     accountId: o.accountId,

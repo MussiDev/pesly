@@ -3,7 +3,7 @@ import { listMovementsResponseSchema, movementResponseSchema } from '@pesly/shar
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { createMovementRoutes } from '../../src/movements';
+import { createMovementRoutes, createTagRoutes } from '../../src/movements';
 import type { Database } from '../../src/shared/db/client';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -44,6 +44,8 @@ interface Setup {
   bobId: string;
   clock: MutableClock;
   lines: string[];
+  /** Lines of the app logger, where the error middleware writes. */
+  appLines: string[];
 }
 
 interface SetupOptions {
@@ -66,7 +68,7 @@ async function setup(options: SetupOptions = {}): Promise<Setup> {
   });
   const harness = createIdentityHarness(connection, {
     realSessions: true,
-    routerFactories: [routes],
+    routerFactories: [routes, createTagRoutes({ db: options.db ?? connection.db, logger })],
   });
   const suffix = randomUUID();
   const anaEmail = `ana-${suffix}@example.com`;
@@ -75,7 +77,7 @@ async function setup(options: SetupOptions = {}): Promise<Setup> {
   const bobId = await seedUser(connection, { email: bobEmail, password: PASSWORD });
   const ana = sessionFrom(await signIn(harness.app, anaEmail, PASSWORD));
   const bob = sessionFrom(await signIn(harness.app, bobEmail, PASSWORD));
-  return { app: harness.app, ana, bob, anaId, bobId, clock, lines };
+  return { app: harness.app, ana, bob, anaId, bobId, clock, lines, appLines: harness.lines };
 }
 
 function get(app: Express, path: string, cookies?: Partial<SessionCookies>) {
@@ -447,6 +449,7 @@ describe('authentication, request guards and failures', () => {
     ['list', 'get', () => '/movements'],
     ['create', 'post', () => '/movements'],
     ['get', 'get', (id) => `/movements/${id}`],
+    ['tags', 'get', () => '/tags?prefix=vi'],
   ];
 
   function call(
@@ -531,5 +534,223 @@ describe('authentication, request guards and failures', () => {
     expect(text).not.toContain('987654321');
     expect(text).not.toContain('private note text');
     expect(text).not.toContain('14000000');
+  });
+});
+
+describe('tags and filters through the real stack', () => {
+  it('creates a movement with tags and lists them (AC-03)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const created = await post(
+      s.app,
+      expenseBody(f, { tags: ['Viaje', 'viaje', 'Comida'] }),
+      s.ana,
+    );
+    expect(created.status).toBe(201);
+    expect(movementResponseSchema.parse(created.body).tags).toEqual(['Viaje', 'Comida']);
+    const listed = listMovementsResponseSchema.parse((await get(s.app, '/movements', s.ana)).body);
+    expect(listed.items[0]?.tags).toEqual(['Viaje', 'Comida']);
+  });
+
+  it('rejects an 11th tag and an empty or 31-character tag and stores nothing (AC-04, AC-06)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const eleven = Array.from({ length: 11 }, (_, i) => `t${i}`);
+    for (const tags of [eleven, [' '], ['x'.repeat(31)]]) {
+      const response = await post(s.app, expenseBody(f, { tags }), s.ana);
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect(JSON.stringify(response.body)).not.toContain('xxxxx');
+    }
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('applies all five filters together (AC-01)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const other = await fixture(s.anaId);
+    const at = '2026-03-10T15:00:00.000Z';
+    const hit = await post(s.app, expenseBody(f, { tags: ['Viaje'], occurredAt: at }), s.ana);
+    const hitId = movementResponseSchema.parse(hit.body).id;
+    await post(s.app, expenseBody(f, { tags: ['Otro'], occurredAt: at }), s.ana);
+    await post(s.app, expenseBody(f, { occurredAt: at }), s.ana);
+    await post(s.app, expenseBody(other, { tags: ['Viaje'], occurredAt: at }), s.ana);
+    await post(
+      s.app,
+      expenseBody(f, { tags: ['Viaje'], occurredAt: '2026-04-20T15:00:00.000Z' }),
+      s.ana,
+    );
+    const query = new URLSearchParams({
+      accountId: f.accountId,
+      categoryId: f.expenseCategoryId,
+      type: 'expense',
+      tag: 'viaje',
+      from: '2026-03-01',
+      to: '2026-03-31',
+    });
+    const response = await get(s.app, `/movements?${query.toString()}`, s.ana);
+    expect(response.status).toBe(200);
+    const page = listMovementsResponseSchema.parse(response.body);
+    expect(page.total).toBe(1);
+    expect(page.items.map((item) => item.id)).toEqual([hitId]);
+  });
+
+  it('type discriminates: an income matching every other filter is excluded by type=expense (AC-01)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const at = '2026-03-10T15:00:00.000Z';
+    const expense = await post(s.app, expenseBody(f, { tags: ['Viaje'], occurredAt: at }), s.ana);
+    const income = await post(
+      s.app,
+      expenseBody(f, {
+        type: 'income',
+        categoryId: f.incomeCategoryId,
+        tags: ['Viaje'],
+        occurredAt: at,
+      }),
+      s.ana,
+    );
+    expect(income.status).toBe(201);
+    // No categoryId here: an income cannot share a category with an expense, so that filter alone would hide it.
+    const base = { accountId: f.accountId, tag: 'viaje', from: '2026-03-01', to: '2026-03-31' };
+    const idsFor = async (type: string): Promise<string[]> => {
+      const query = new URLSearchParams({ ...base, type });
+      const response = await get(s.app, `/movements?${query.toString()}`, s.ana);
+      return listMovementsResponseSchema.parse(response.body).items.map((item) => item.id);
+    };
+    expect(await idsFor('expense')).toEqual([movementResponseSchema.parse(expense.body).id]);
+    expect(await idsFor('income')).toEqual([movementResponseSchema.parse(income.body).id]);
+  });
+
+  it('reads from and to as days in the callers time zone, not UTC (AC-01)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    // 01:00 UTC on the 11th is 22:00 on the 10th in America/Cordoba (UTC-3).
+    const late = await post(
+      s.app,
+      expenseBody(f, { occurredAt: '2026-03-11T01:00:00.000Z' }),
+      s.ana,
+    );
+    const lateId = movementResponseSchema.parse(late.body).id;
+    const ids = async (query: string): Promise<string[]> =>
+      listMovementsResponseSchema
+        .parse((await get(s.app, `/movements?${query}`, s.ana)).body)
+        .items.map((item) => item.id);
+    expect(await ids('from=2026-03-10&to=2026-03-10')).toEqual([lateId]);
+    expect(await ids('from=2026-03-11&to=2026-03-11')).toEqual([]);
+  });
+
+  it('includes the subcategory movements when filtering by the parent category (AC-02)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const child = await connection.pool.query<{ id: string }>(
+      `insert into categories (owner_id, kind, name, icon, color, parent_id)
+       values ($1, 'expense', $2, 'wallet', 'blue', $3) returning id`,
+      [s.anaId, `Sub ${randomUUID()}`, f.expenseCategoryId],
+    );
+    const childId = child.rows[0]?.id ?? '';
+    await post(s.app, expenseBody(f), s.ana);
+    await post(s.app, expenseBody(f, { categoryId: childId }), s.ana);
+    const page = listMovementsResponseSchema.parse(
+      (await get(s.app, `/movements?categoryId=${f.expenseCategoryId}`, s.ana)).body,
+    );
+    expect(page.total).toBe(2);
+  });
+
+  it('answers the same empty body for foreign ids and tags as for a filter matching nothing (AC-07, R-02)', async () => {
+    const s = await setup();
+    const mine = await fixture(s.anaId);
+    const theirs = await fixture(s.bobId);
+    await post(s.app, expenseBody(mine, { tags: ['Viaje'] }), s.ana);
+    await post(s.app, expenseBody(theirs, { tags: ['Secreto'] }), s.bob);
+    const empty = await get(s.app, `/movements?accountId=${randomUUID()}`, s.ana);
+    expect(empty.status).toBe(200);
+    expect(JSON.parse(empty.text)).toMatchObject({ items: [], total: 0 });
+    for (const query of [
+      `accountId=${theirs.accountId}`,
+      `categoryId=${theirs.expenseCategoryId}`,
+      'tag=Secreto',
+      `accountId=${theirs.accountId}&categoryId=${theirs.expenseCategoryId}&tag=Secreto`,
+    ]) {
+      const response = await get(s.app, `/movements?${query}`, s.ana);
+      expect(response.status).toBe(200);
+      expect(response.text).toBe(empty.text);
+    }
+  });
+
+  it('rejects invalid filters with 400 and without echoing the value', async () => {
+    const s = await setup();
+    for (const query of [
+      'from=2026-02-30',
+      'from=2026-05-02&to=2026-05-01',
+      'accountId=secret-x',
+      'type=secret-bogus',
+      'categoryId=secret-not-a-uuid',
+      `tag=${'q'.repeat(31)}`,
+    ]) {
+      const response = await get(s.app, `/movements?${query}`, s.ana);
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect(response.text).not.toContain('secret-');
+      expect(response.text).not.toContain('qqqqq');
+    }
+  });
+
+  it('answers 500 INTERNAL and logs no tag or filter value when the repository fails (R-08)', async () => {
+    const broken = createDatabase(testDatabaseUrl);
+    await broken.pool.end();
+    const s = await setup({ db: broken.db });
+    const f = await fixture(s.anaId);
+    const created = await post(s.app, expenseBody(f, { tags: ['SecretTagName'] }), s.ana);
+    expect(created.status).toBe(500);
+    expect(created.body).toEqual({ code: 'INTERNAL' });
+    const listed = await get(s.app, '/movements?tag=SecretTagName&from=2026-01-01', s.ana);
+    expect(listed.status).toBe(500);
+    expect(listed.text).toBe('{"code":"INTERNAL"}');
+    const suggested = await get(s.app, '/tags?prefix=SecretPrefix', s.ana);
+    expect(suggested.status).toBe(500);
+    expect(suggested.body).toEqual({ code: 'INTERNAL' });
+    const logged = s.lines.join('\n');
+    expect(logged).not.toContain('SecretTagName');
+    expect(logged).not.toContain('SecretPrefix');
+    expect(logged).not.toContain('2026-01-01');
+  });
+
+  it('answers 500 INTERNAL and logs no bound value when a query itself fails with an error echoing them (R-08)', async () => {
+    const stubbed = createDatabase(testDatabaseUrl);
+    const echo = 'driver echo SecretTagName SecretPrefix 2026-01-01';
+    // A PostgreSQL data exception (SQLSTATE 22xxx) is the real error that repeats request values.
+    const dataException = (): Error =>
+      Object.assign(new Error(echo), { code: '22P02', severity: 'ERROR' });
+    // Every statement of this handle fails like a driver that repeats the request values.
+    Object.assign(stubbed.pool, {
+      query: () => Promise.reject(dataException()),
+      connect: () => Promise.reject(dataException()),
+    });
+    const s = await setup({ db: stubbed.db });
+    const f = await fixture(s.anaId);
+    const responses = [
+      await post(s.app, expenseBody(f, { tags: ['SecretTagName'] }), s.ana),
+      await get(s.app, '/movements?tag=SecretTagName&from=2026-01-01', s.ana),
+      await get(s.app, '/tags?prefix=SecretPrefix', s.ana),
+    ];
+    for (const response of responses) {
+      expect(response.status).toBe(500);
+      expect(response.text).toBe('{"code":"INTERNAL"}');
+    }
+    expect(s.appLines.some((line) => line.includes('"level":50'))).toBe(true);
+    const logged = [...s.lines, ...s.appLines].join(' ');
+    for (const secret of ['SecretTagName', 'SecretPrefix', '2026-01-01', 'driver echo']) {
+      expect(logged).not.toContain(secret);
+    }
+  });
+
+  it('logs no tag name or prefix for a created movement, a filtered list or a suggestion', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    await post(s.app, expenseBody(f, { tags: ['SecretTagName'] }), s.ana);
+    await get(s.app, '/movements?tag=SecretTagName', s.ana);
+    await get(s.app, '/tags?prefix=SecretTag', s.ana);
+    expect(s.lines.join('\n')).not.toContain('SecretTag');
   });
 });
