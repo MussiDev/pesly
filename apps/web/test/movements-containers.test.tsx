@@ -104,6 +104,7 @@ const SAVED = {
   rateSource: 'automatic',
   rateType: 'blue',
   createdAt: NOW,
+  tags: [],
 };
 
 function routes(overrides: Record<string, Parameters<typeof stubApi>[0][string]> = {}) {

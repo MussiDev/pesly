@@ -76,7 +76,7 @@ describe('parseFilters', () => {
   it('ignores malformed values one by one and keeps the valid ones (invalid input)', () => {
     expect(
       read(
-        `accountId=nope&categoryId=${COMIDA}&from=2026-13-45&to=31-10-2026&type=transfer&tag=%20%20`,
+        `accountId=nope&categoryId=${COMIDA}&from=2026-13-45&to=31-10-2026&type=refund&tag=%20%20`,
       ),
     ).toEqual({ categoryId: COMIDA });
     expect(read(`tag=${'a'.repeat(31)}`)).toEqual({});

@@ -852,7 +852,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
       }),
     );
     renderApp(<MovementsContainer />, {
-      search: `accountId=${CAJA_ID}&categoryId=nope&from=2026-10-01&to=2026-02-30&type=transfer`,
+      search: `accountId=${CAJA_ID}&categoryId=nope&from=2026-10-01&to=2026-02-30&type=refund`,
     });
 
     expect(await screen.findByText('Filtrada')).toBeDefined();
