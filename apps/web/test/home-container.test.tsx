@@ -215,12 +215,6 @@ describe('HomeContainer', () => {
 
     const seeAll = screen.getByRole('link', { name: es.home.recent.seeAll });
     expect(seeAll.getAttribute('href')).toBe('/es/movements');
-    expect(
-      screen.getByRole('link', { name: es.home.quickActions.addMovement }).getAttribute('href'),
-    ).toBe('/es/movements/new');
-    expect(
-      screen.getByRole('link', { name: es.home.quickActions.addAccount }).getAttribute('href'),
-    ).toBe('/es/accounts/new');
   });
 
   it('asks the API for the five latest movements only', async () => {

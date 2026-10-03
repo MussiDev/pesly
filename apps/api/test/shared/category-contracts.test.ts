@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   CATEGORY_COLORS,
+  CATEGORY_EMOJIS,
   CATEGORY_ICONS,
   CATEGORY_KINDS,
+  EMOJI_ICON_PREFIX,
   ERROR_CODES,
   categoryIdParamsSchema,
   categoryNameSchema,
@@ -24,10 +26,12 @@ function failedPaths(result: {
 }
 
 describe('lists', () => {
-  it('offers the two kinds, 24 icons and 12 colors', () => {
+  it('offers the two kinds, 60 icons, a curated emoji list and 12 colors', () => {
     expect([...CATEGORY_KINDS]).toEqual(['expense', 'income']);
-    expect(CATEGORY_ICONS).toHaveLength(24);
-    expect(new Set(CATEGORY_ICONS).size).toBe(24);
+    expect(CATEGORY_ICONS).toHaveLength(60);
+    expect(new Set(CATEGORY_ICONS).size).toBe(60);
+    expect(CATEGORY_EMOJIS.length).toBeGreaterThan(40);
+    expect(new Set(CATEGORY_EMOJIS).size).toBe(CATEGORY_EMOJIS.length);
     expect(CATEGORY_COLORS).toHaveLength(12);
     expect(new Set(CATEGORY_COLORS).size).toBe(12);
   });
@@ -54,6 +58,10 @@ describe('createCategoryRequestSchema', () => {
     for (const icon of CATEGORY_ICONS) {
       expect(createCategoryRequestSchema.safeParse({ ...valid, icon }).success).toBe(true);
     }
+    for (const emoji of CATEGORY_EMOJIS) {
+      const icon = `${EMOJI_ICON_PREFIX}${emoji}`;
+      expect(createCategoryRequestSchema.safeParse({ ...valid, icon }).success).toBe(true);
+    }
     for (const color of CATEGORY_COLORS) {
       expect(createCategoryRequestSchema.safeParse({ ...valid, color }).success).toBe(true);
     }
@@ -70,6 +78,15 @@ describe('createCategoryRequestSchema', () => {
     expect(result.success).toBe(false);
     expect(failedPaths(result)).toContain(f);
   });
+
+  it.each(['emoji:', 'emoji:x', 'emoji:\u{1F9A4}', '\u{1F355}', 'emoji:\u{1F355}\u{1F355}'])(
+    'refuses the emoji icon %j: only the curated list is allowed',
+    (icon) => {
+      const result = createCategoryRequestSchema.safeParse({ ...valid, icon });
+      expect(result.success).toBe(false);
+      expect(failedPaths(result)).toContain('icon');
+    },
+  );
 
   it('fails on an icon outside the list and names it', () => {
     const result = createCategoryRequestSchema.safeParse({ ...valid, icon: 'rocket' });

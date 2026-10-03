@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 import { formatMoney } from '@pesly/shared';
 import { BalanceSummary } from '../src/features/home/components/balance-summary';
 import { HomeScreen, HomeSkeleton } from '../src/features/home/components/home-screen';
-import { QuickActions } from '../src/features/home/components/quick-actions';
 import {
   RecentMovements,
   type RecentMovementItem,
@@ -161,18 +160,6 @@ describe('malformed API values', () => {
   });
 });
 
-describe('QuickActions', () => {
-  it('links to the new movement and the new account forms', () => {
-    renderApp(<QuickActions />, { locale: 'en' });
-    expect(
-      screen.getByRole('link', { name: en.home.quickActions.addMovement }).getAttribute('href'),
-    ).toBe('/en/movements/new');
-    expect(
-      screen.getByRole('link', { name: en.home.quickActions.addAccount }).getAttribute('href'),
-    ).toBe('/en/accounts/new');
-  });
-});
-
 describe('HomeScreen and HomeSkeleton', () => {
   it('the skeleton announces loading and occupies the same sections as the loaded home', () => {
     renderApp(<HomeSkeleton />);
@@ -180,7 +167,7 @@ describe('HomeScreen and HomeSkeleton', () => {
     expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(2);
   });
 
-  it('the screen has one level-one heading and composes balance, movements and actions', () => {
+  it('the screen has one level-one heading and composes balance and movements', () => {
     renderApp(
       <HomeScreen
         locale="es"
@@ -194,6 +181,7 @@ describe('HomeScreen and HomeSkeleton', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('group', { name: es.home.balance.currencies.ARS })).toBeDefined();
     expect(screen.getByRole('list', { name: es.home.recent.title })).toBeDefined();
-    expect(screen.getByRole('link', { name: es.home.quickActions.addAccount })).toBeDefined();
+    // Adding a movement lives in the shell's navigation: the home does not repeat it.
+    expect(screen.queryByRole('link', { name: es.home.recent.empty.action })).toBeNull();
   });
 });

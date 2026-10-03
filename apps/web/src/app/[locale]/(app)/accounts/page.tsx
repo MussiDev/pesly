@@ -6,7 +6,7 @@ export default function AccountsPage() {
   const t = useTranslations('accounts');
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 md:p-8">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-6 p-4 md:p-8">
       <PageHeader title={t('title')} />
       <AccountsContainer />
     </main>

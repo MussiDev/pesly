@@ -1,7 +1,13 @@
 // @vitest-environment happy-dom
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { CATEGORY_COLORS, CATEGORY_ICONS, DEFAULT_CATEGORIES } from '@pesly/shared';
+import {
+  CATEGORY_COLORS,
+  CATEGORY_EMOJIS,
+  CATEGORY_ICONS,
+  DEFAULT_CATEGORIES,
+  EMOJI_ICON_PREFIX,
+} from '@pesly/shared';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
@@ -78,6 +84,23 @@ describe('CategoryVisual', () => {
     const marks = [...container.querySelectorAll('[data-icon]')];
     expect(marks.map((mark) => mark.getAttribute('data-icon'))).toEqual([...CATEGORY_ICONS]);
     expect(container.querySelectorAll('svg')).toHaveLength(CATEGORY_ICONS.length);
+  });
+
+  it('shows an emoji icon as its character, on the category color, with no svg', () => {
+    const { container } = render(<CategoryVisual icon={`${EMOJI_ICON_PREFIX}🍕`} color="red" />);
+    const mark = container.querySelector('[data-icon]');
+
+    expect(mark?.getAttribute('data-icon')).toBe('emoji:🍕');
+    expect(mark?.textContent).toBe('🍕');
+    expect(mark?.getAttribute('class')).toContain('category-red');
+    expect(container.querySelector('svg')).toBeNull();
+  });
+
+  it('treats an emoji outside the curated list as an unknown icon', () => {
+    const { container } = render(<CategoryVisual icon="emoji:🦤" color="red" />);
+
+    expect(container.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe('unknown');
+    expect(container.querySelector('svg')).not.toBeNull();
   });
 
   it('falls back to a neutral icon and color for unknown keys and never uses raw values', () => {
@@ -356,7 +379,7 @@ describe('CategoryList', () => {
 });
 
 describe('CategoryForm', () => {
-  it('has a kind select, a parent select, a name, and 24 icons and 12 colors as radios', () => {
+  it('has a kind select, a parent select, a name, and the icons, emojis and 12 colors as radios', () => {
     renderApp(<CategoryForm {...formProps()} />);
 
     expect(screen.getByLabelText<HTMLSelectElement>(es.categories.fields.kind).value).toBe(
@@ -366,10 +389,16 @@ describe('CategoryForm', () => {
     expect(screen.getByLabelText(es.categories.fields.name)).toBeDefined();
     const icons = screen.getByRole('radiogroup', { name: es.categories.fields.icon });
     const colors = screen.getByRole('radiogroup', { name: es.categories.fields.color });
-    expect(within(icons).getAllByRole('radio')).toHaveLength(CATEGORY_ICONS.length);
+    expect(within(icons).getAllByRole('radio')).toHaveLength(
+      CATEGORY_ICONS.length + CATEGORY_EMOJIS.length,
+    );
     expect(within(colors).getAllByRole('radio')).toHaveLength(CATEGORY_COLORS.length);
     for (const icon of CATEGORY_ICONS) {
       expect(within(icons).getByRole('radio', { name: es.categories.icons[icon] })).toBeDefined();
+    }
+    for (const emoji of CATEGORY_EMOJIS) {
+      const radio = within(icons).getByRole('radio', { name: emoji });
+      expect(radio.getAttribute('value')).toBe(`${EMOJI_ICON_PREFIX}${emoji}`);
     }
   });
 

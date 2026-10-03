@@ -1,4 +1,4 @@
-import { CATEGORY_COLORS, CATEGORY_ICONS, CATEGORY_KINDS } from '@pesly/shared';
+import { CATEGORY_COLORS, CATEGORY_KINDS, type CategoryIcon } from '@pesly/shared';
 import { sql } from 'drizzle-orm';
 import {
   check,
@@ -31,7 +31,7 @@ export const categories = pgTable(
     defaultKey: text('default_key'),
     /** Null while a default is untouched: the client then shows the translated default name. */
     name: text('name'),
-    icon: text('icon', { enum: CATEGORY_ICONS }).notNull(),
+    icon: text('icon').$type<CategoryIcon>().notNull(),
     color: text('color', { enum: CATEGORY_COLORS }).notNull(),
     archivedAt: timestamptz('archived_at'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),

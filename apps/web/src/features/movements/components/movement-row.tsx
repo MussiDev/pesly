@@ -1,10 +1,10 @@
 'use client';
 
 import { exactIntegerStringSchema, type MovementResponse } from '@pesly/shared';
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { ListRow } from '@/components/ui/list-row';
+import { CategoryVisual } from '@/features/categories/components/category-visual';
 import type { Locale } from '@/i18n/routing';
 import { formatRate } from '../format-rate';
 
@@ -14,6 +14,9 @@ export interface MovementRowProps {
   accountName: string | undefined;
   currency: string | undefined;
   categoryName: string | undefined;
+  /** The category's own icon and color keys; unknown or missing ones render the neutral fallback. */
+  categoryIcon?: string;
+  categoryColor?: string;
   timeZone: string;
 }
 
@@ -69,22 +72,19 @@ export function MovementRow({
   accountName,
   currency,
   categoryName,
+  categoryIcon,
+  categoryColor,
   timeZone,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
   const tTypes = useTranslations('movements.types');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const amount = exactIntegerStringSchema.safeParse(movement.amount);
-  const DirectionIcon = movement.type === 'income' ? ArrowDownLeft : ArrowUpRight;
 
   return (
     <li className="grid gap-1 text-card-foreground">
       <ListRow
-        leading={
-          <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <DirectionIcon className="size-4" aria-hidden />
-          </span>
-        }
+        leading={<CategoryVisual icon={categoryIcon ?? ''} color={categoryColor ?? ''} />}
         title={categoryName ?? t('unknownCategory')}
         description={
           <>

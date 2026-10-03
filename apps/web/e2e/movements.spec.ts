@@ -161,7 +161,9 @@ test('records an expense and an income, lists them newest first, shows the balan
   });
   await expect(page.getByLabel(t.fields.rate, { exact: true })).not.toHaveValue('');
   await submit(page).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
+  // The entry form comes back empty, ready for the next movement.
+  await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveValue('');
 
   // The income types its own rate.
   await fillMovement(page, {
@@ -171,7 +173,7 @@ test('records an expense and an income, lists them newest first, shows the balan
     rate: '1500,50',
   });
   await submit(page).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
   await expect(
     page.getByRole('status').filter({ hasText: savedRate(formatRate(15_005_000n, 'es')) }),
   ).toBeVisible();
@@ -256,7 +258,7 @@ test('with no stored rate the screen requires a manual one and saves it as manua
 
     await page.getByLabel(t.fields.rate, { exact: true }).fill('1250,50');
     await submit(page).click();
-    await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
+    await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
     await expect(
       page.getByRole('status').filter({ hasText: savedRate(formatRate(12_505_000n, 'es')) }),
     ).toBeVisible();
@@ -321,6 +323,6 @@ test('a movement on an archived account is refused with the unarchive-first mess
   }
 
   await submit(page).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
   expect((await movementsOf(email)).map((movement) => movement.amount)).toEqual(['2000']);
 });

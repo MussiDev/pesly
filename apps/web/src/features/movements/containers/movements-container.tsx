@@ -213,6 +213,8 @@ export function MovementsContainer() {
       accountName: account?.name,
       currency: account?.currency,
       categoryName: category === undefined ? undefined : categoryLabel(category, language),
+      categoryIcon: category?.icon,
+      categoryColor: category?.color,
     };
   });
 
