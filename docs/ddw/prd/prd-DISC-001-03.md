@@ -54,9 +54,11 @@ a → b → (c and d, independent of each other) → e
    the refresh ran a minute ago. The original AC-18 shows "the age of the latest stored rate"
    without saying whether that is the provider's timestamp or the time of our refresh.
    DISC-001-03a stores and returns both, so either answer needs no change there.
-6. **Implied rate rounding** (found while splitting; for DISC-001-03c's PLAN). The original FR-05
-   divides the ARS amount by the USD amount and stores 4 decimals; it does not say how a division
-   that does not end in 4 decimals is rounded.
+6. RESOLVED (2026-10-02, human decision relayed by the orchestrator): **implied rate rounding** is
+   half-up, `(ars*20000 + usd) / (2*usd)` on bigint, the same rule as `parseScaledRate`; folded into
+   DISC-001-03c FR-03 and AC-14. Original note: the original FR-05 divides the ARS amount by the USD
+   amount and stores 4 decimals; it does not say how a division that does not end in 4 decimals is
+   rounded.
 
 ## Added while splitting (not in the original text)
 The three DISC-001-03a additions (FR-03, AC-04, AC-05) were ACCEPTED by the human on 2026-10-02.
@@ -77,6 +79,16 @@ requirement.
 | 03d AC-07 | Filters never reveal another user's data | AGENTS.md rule |
 | 03e FR-04, AC-04, AC-05 | Future date and non-positive amount rejected on edit | applies the original FR-20 and AC-02 to edits |
 | 03e NFR-03 | Edit and delete < 300 ms p95 | extends the original NFR-04 (saving) to edit and delete |
+
+## Added while defining DISC-001-03c (not in the original text)
+Each applies a rule of DISC-001-03b to transfers and exchanges by human decision (2026-10-02).
+
+| New ID | What | Why |
+|---|---|---|
+| 03c FR-07, AC-10 | Archived source or destination account rejected (409 ACCOUNT_ARCHIVED) | applies 03b FR-15 |
+| 03c FR-08, AC-11, AC-12 | Amount at most 10^15 minor units, note at most 500 characters | applies the 03b caps |
+| 03c FR-09, AC-13 | 60 creations per minute per user, shared with expenses and income | applies the 03b creation limit |
+| 03c AC-14, AC-15 | Half-up rounding example; implied rate outside 0.0001 to 10,000,000.0000 rejected (400) | decision 6 and the stored-rate range |
 
 ## Added while defining and planning DISC-001-03b (not in the original text)
 Each is derived from an obligation, a convention or a human decision on record (2026-10-02).
