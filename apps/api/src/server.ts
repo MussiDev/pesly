@@ -32,7 +32,7 @@ const app = createApp({
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
-    createTagRoutes({ db, logger }),
+    createTagRoutes({ db }),
   ],
 });
 

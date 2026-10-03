@@ -7,14 +7,11 @@ import type { Database } from '../../../shared/db/client';
 import { HttpError } from '../../../shared/http/error-handler';
 import { requireVerifiedEmail } from '../../../shared/http/require-verified-email';
 import { validate } from '../../../shared/http/validate';
-import type { Logger } from '../../../shared/logging/logger';
 import { SuggestTags } from '../../application/suggest-tags';
 import { DrizzleTagRepository } from '../db/drizzle-tag-repository';
 
 export interface TagRoutesOptions {
   db: Database;
-  /** Kept for symmetry with the movement routes; no line here may carry a prefix or a tag. */
-  logger: Logger;
 }
 
 /** `/tags`: requireSession, requireVerifiedEmail, then the caller's own tags only. */

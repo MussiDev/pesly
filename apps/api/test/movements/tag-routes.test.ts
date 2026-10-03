@@ -42,7 +42,7 @@ async function setup(): Promise<{
     realSessions: true,
     routerFactories: [
       createMovementRoutes({ db: connection.db, logger }),
-      createTagRoutes({ db: connection.db, logger }),
+      createTagRoutes({ db: connection.db }),
     ],
   });
   const suffix = randomUUID();
