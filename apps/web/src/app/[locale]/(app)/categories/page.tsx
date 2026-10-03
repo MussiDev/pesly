@@ -6,7 +6,7 @@ export default function CategoriesPage() {
   const t = useTranslations('categories');
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-section p-page">
+    <main className="mx-auto flex w-full max-w-xl flex-1 flex-col gap-section p-page md:p-8">
       <PageHeader title={t('title')} />
       <CategoriesContainer />
     </main>

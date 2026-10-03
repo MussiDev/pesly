@@ -2,7 +2,7 @@ import { CreateMovementContainer } from '@/features/movements/containers/create-
 
 export default function NewMovementPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4 md:p-8">
       <CreateMovementContainer />
     </main>
   );

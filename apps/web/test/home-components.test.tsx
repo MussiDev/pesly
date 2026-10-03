@@ -42,8 +42,11 @@ describe('BalanceSummary', () => {
     );
 
     const group = screen.getByRole('group', { name: es.home.balance.currencies.ARS });
-    expect(within(group).getByText(money(1234500n, 'ARS', 'es'))).toBeDefined();
-    expect(within(group).getByText(money(1000000n, 'ARS', 'es'))).toBeDefined();
+    // The headline figure dims its cents in a nested span, so it is matched by its whole text.
+    const figures = Array.from(group.querySelectorAll('[data-slot="amount"]')).map((el) =>
+      el.textContent.replace(/\s+/g, ' '),
+    );
+    expect(figures).toEqual([money(1234500n, 'ARS', 'es'), money(1000000n, 'ARS', 'es')]);
     expect(within(group).getByText(es.home.balance.available)).toBeDefined();
     expect(screen.queryByRole('group', { name: es.home.balance.currencies.USD })).toBeNull();
   });
@@ -54,7 +57,10 @@ describe('BalanceSummary', () => {
       { locale: 'en' },
     );
     const group = screen.getByRole('group', { name: en.home.balance.currencies.USD });
-    expect(within(group).getAllByText(money(0n, 'USD', 'en'))).toHaveLength(2);
+    const figures = Array.from(group.querySelectorAll('[data-slot="amount"]')).map((el) =>
+      el.textContent.replace(/\s+/g, ' '),
+    );
+    expect(figures).toEqual([money(0n, 'USD', 'en'), money(0n, 'USD', 'en')]);
   });
 });
 

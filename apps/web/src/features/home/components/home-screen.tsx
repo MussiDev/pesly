@@ -40,14 +40,18 @@ export function HomeScreen({
 }: HomeScreenProps) {
   return (
     <HomeFrame>
-      <BalanceSummary
-        locale={locale}
-        currencies={currencies}
-        availableTotals={availableTotals}
-        netWorthTotals={netWorthTotals}
-      />
-      <QuickActions />
-      <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="grid gap-6">
+          <BalanceSummary
+            locale={locale}
+            currencies={currencies}
+            availableTotals={availableTotals}
+            netWorthTotals={netWorthTotals}
+          />
+          <QuickActions />
+        </div>
+        <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
+      </div>
     </HomeFrame>
   );
 }

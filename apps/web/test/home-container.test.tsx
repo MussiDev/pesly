@@ -196,9 +196,13 @@ describe('HomeContainer', () => {
     renderApp(<HomeContainer />);
 
     const ars = await screen.findByRole('group', { name: es.home.balance.currencies.ARS });
-    expect(within(ars).getByText(money(1234500n, 'ARS', 'es'))).toBeDefined();
+    expect(ars.querySelector('[data-slot="amount"]')?.textContent.replace(/\s+/g, ' ')).toBe(
+      money(1234500n, 'ARS', 'es'),
+    );
     const usd = screen.getByRole('group', { name: es.home.balance.currencies.USD });
-    expect(within(usd).getByText(money(25000n, 'USD', 'es'))).toBeDefined();
+    expect(usd.querySelector('[data-slot="amount"]')?.textContent.replace(/\s+/g, ' ')).toBe(
+      money(25000n, 'USD', 'es'),
+    );
 
     const list = screen.getByRole('list', { name: es.home.recent.title });
     const rows = within(list).getAllByRole('listitem');

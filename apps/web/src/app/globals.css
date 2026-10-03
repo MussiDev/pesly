@@ -5,45 +5,51 @@
 /*
  * Pesly design tokens. This file and `components/ui/` are the only places a colour, radius,
  * spacing, elevation or duration value is written; everything else uses the Tailwind utilities
- * these tokens generate. Emerald (hue 160) on warm neutrals (hue 80-90); contrast is enforced by
- * test/design-tokens-contrast.test.ts.
+ * these tokens generate. Indigo (hue 275) on cool, slightly blue-tinted neutrals
+ * (hue 250-290): a light-grey canvas with white cards, as in modern fintech dashboards. Contrast is
+ * enforced by test/design-tokens-contrast.test.ts.
  */
 :root {
   color-scheme: light;
-  --radius: 0.75rem;
+  --radius: 1rem;
 
-  --background: oklch(0.985 0.004 85);
-  --foreground: oklch(0.22 0.01 85);
-  --surface: oklch(0.965 0.006 85);
+  --background: oklch(0.962 0.004 270);
+  --foreground: oklch(0.2 0.012 270);
+  --surface: oklch(0.945 0.005 270);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.01 85);
+  --card-foreground: oklch(0.2 0.012 270);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.01 85);
-  --muted: oklch(0.955 0.006 85);
-  --muted-foreground: oklch(0.48 0.012 85);
-  --secondary: oklch(0.95 0.008 85);
-  --secondary-foreground: oklch(0.25 0.01 85);
-  --accent: oklch(0.955 0.02 160);
-  --accent-foreground: oklch(0.3 0.06 160);
-  --border: oklch(0.92 0.006 85);
-  --input: oklch(0.62 0.01 85);
-  --ring: oklch(0.6 0.12 160);
+  --popover-foreground: oklch(0.2 0.012 270);
+  --muted: oklch(0.945 0.005 270);
+  --muted-foreground: oklch(0.46 0.014 270);
+  --secondary: oklch(0.935 0.006 270);
+  --secondary-foreground: oklch(0.24 0.012 270);
+  --accent: oklch(0.94 0.03 275);
+  --accent-foreground: oklch(0.34 0.15 275);
+  --border: oklch(0.915 0.006 270);
+  --input: oklch(0.62 0.012 270);
+  --ring: oklch(0.55 0.18 275);
 
-  --primary: oklch(0.52 0.12 160);
-  --primary-foreground: oklch(0.985 0.004 85);
+  --primary: oklch(0.48 0.2 275);
+  --primary-foreground: oklch(0.985 0.004 270);
   --success: oklch(0.5 0.13 150);
-  --success-foreground: oklch(0.985 0.004 85);
+  --success-foreground: oklch(0.985 0.004 270);
   --warning: oklch(0.52 0.12 65);
-  --warning-foreground: oklch(0.985 0.004 85);
+  --warning-foreground: oklch(0.985 0.004 270);
   --destructive: oklch(0.5 0.19 27);
-  --destructive-foreground: oklch(0.985 0.004 85);
+  --destructive-foreground: oklch(0.985 0.004 270);
   --info: oklch(0.5 0.13 250);
-  --info-foreground: oklch(0.985 0.004 85);
+  --info-foreground: oklch(0.985 0.004 270);
   --income: oklch(0.5 0.12 160);
   --expense: oklch(0.5 0.19 27);
 
-  --elevation-1: 0 1px 2px 0 oklch(0.22 0.01 85 / 0.05);
-  --elevation-2: 0 4px 12px -2px oklch(0.22 0.01 85 / 0.08);
+  --elevation-1: 0 1px 2px 0 oklch(0.2 0.02 170 / 0.04), 0 1px 3px 0 oklch(0.2 0.02 170 / 0.04);
+  --elevation-2: 0 12px 28px -12px oklch(0.2 0.03 170 / 0.18);
+
+  /* The balance card: a deep green gradient with light text, the one saturated surface per screen. */
+  --hero: linear-gradient(135deg, oklch(0.52 0.2 275) 0%, oklch(0.34 0.16 285) 100%);
+  --hero-foreground: oklch(0.985 0.004 270);
+  --hero-muted: oklch(0.9 0.04 275);
 
   --category-red: oklch(0.55 0.21 25);
   --category-orange: oklch(0.58 0.18 50);
@@ -62,38 +68,42 @@
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.17 0.008 85);
-  --foreground: oklch(0.96 0.005 85);
-  --surface: oklch(0.25 0.008 85);
-  --card: oklch(0.21 0.008 85);
-  --card-foreground: oklch(0.96 0.005 85);
-  --popover: oklch(0.21 0.008 85);
-  --popover-foreground: oklch(0.96 0.005 85);
-  --muted: oklch(0.26 0.008 85);
-  --muted-foreground: oklch(0.72 0.01 85);
-  --secondary: oklch(0.28 0.008 85);
-  --secondary-foreground: oklch(0.96 0.005 85);
-  --accent: oklch(0.3 0.03 160);
-  --accent-foreground: oklch(0.92 0.05 160);
-  --border: oklch(0.3 0.008 85);
-  --input: oklch(0.55 0.01 85);
-  --ring: oklch(0.72 0.14 160);
+  --background: oklch(0.16 0.008 270);
+  --foreground: oklch(0.96 0.005 270);
+  --surface: oklch(0.24 0.008 270);
+  --card: oklch(0.2 0.009 270);
+  --card-foreground: oklch(0.96 0.005 270);
+  --popover: oklch(0.2 0.009 270);
+  --popover-foreground: oklch(0.96 0.005 270);
+  --muted: oklch(0.25 0.008 270);
+  --muted-foreground: oklch(0.72 0.012 270);
+  --secondary: oklch(0.27 0.008 270);
+  --secondary-foreground: oklch(0.96 0.005 270);
+  --accent: oklch(0.3 0.06 275);
+  --accent-foreground: oklch(0.92 0.05 275);
+  --border: oklch(0.29 0.008 270);
+  --input: oklch(0.55 0.012 270);
+  --ring: oklch(0.72 0.14 275);
 
-  --primary: oklch(0.72 0.14 160);
-  --primary-foreground: oklch(0.17 0.008 85);
+  --primary: oklch(0.72 0.14 275);
+  --primary-foreground: oklch(0.16 0.008 270);
   --success: oklch(0.74 0.15 150);
-  --success-foreground: oklch(0.17 0.008 85);
+  --success-foreground: oklch(0.16 0.008 270);
   --warning: oklch(0.78 0.14 75);
-  --warning-foreground: oklch(0.17 0.008 85);
+  --warning-foreground: oklch(0.16 0.008 270);
   --destructive: oklch(0.72 0.17 25);
-  --destructive-foreground: oklch(0.17 0.008 85);
+  --destructive-foreground: oklch(0.16 0.008 270);
   --info: oklch(0.74 0.12 250);
-  --info-foreground: oklch(0.17 0.008 85);
+  --info-foreground: oklch(0.16 0.008 270);
   --income: oklch(0.74 0.14 160);
   --expense: oklch(0.72 0.17 25);
 
   --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.3);
-  --elevation-2: 0 4px 12px -2px oklch(0 0 0 / 0.4);
+  --elevation-2: 0 12px 28px -12px oklch(0 0 0 / 0.6);
+
+  --hero: linear-gradient(135deg, oklch(0.4 0.17 275) 0%, oklch(0.26 0.1 285) 100%);
+  --hero-foreground: oklch(0.985 0.004 270);
+  --hero-muted: oklch(0.88 0.04 275);
 
   --category-red: oklch(0.75 0.16 25);
   --category-orange: oklch(0.78 0.15 55);
@@ -148,6 +158,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
   --shadow-xs: var(--elevation-1);
   --shadow-sm: var(--elevation-1);
   --shadow-md: var(--elevation-2);
@@ -179,6 +190,8 @@
   --color-info-foreground: var(--info-foreground);
   --color-income: var(--income);
   --color-expense: var(--expense);
+  --color-hero-foreground: var(--hero-foreground);
+  --color-hero-muted: var(--hero-muted);
   --color-category-red: var(--category-red);
   --color-category-orange: var(--category-orange);
   --color-category-amber: var(--category-amber);
@@ -216,6 +229,11 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* The balance card background; a gradient cannot be a colour utility. */
+@utility bg-hero {
+  background-image: var(--hero);
 }
 
 /* Keeps fixed bottom bars clear of the home indicator on notched devices. */

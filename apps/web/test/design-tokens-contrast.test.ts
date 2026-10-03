@@ -174,16 +174,16 @@ describe('design tokens (AC-01)', () => {
     }
   });
 
-  it('anchors the palette: emerald at hue 160, warm neutrals at hue 80-90 with low chroma', () => {
+  it('anchors the palette: indigo at hue 275, cool neutrals at hue 250-290 with low chroma', () => {
     for (const theme of [light, dark]) {
-      expect(colour(theme, 'primary').h).toBe(160);
+      expect(colour(theme, 'primary').h).toBe(275);
       expect(colour(theme, 'income').h).toBe(160);
       for (const token of ['background', 'surface', 'foreground', 'muted', 'secondary']) {
         const { c, h } = colour(theme, token);
         expect(c, token).toBeLessThanOrEqual(0.015);
         if (c > 0) {
-          expect(h, token).toBeGreaterThanOrEqual(80);
-          expect(h, token).toBeLessThanOrEqual(90);
+          expect(h, token).toBeGreaterThanOrEqual(250);
+          expect(h, token).toBeLessThanOrEqual(290);
         }
       }
     }
@@ -195,7 +195,7 @@ describe('design tokens (AC-01)', () => {
       expect(css, `--text-${step} line height`).toMatch(new RegExp(`--text-${step}--line-height:`));
     }
     expect(css).toMatch(/--font-sans:\s*var\(--font-sans\)|--font-sans:/);
-    expect(css).toMatch(/--radius:\s*0\.75rem;/);
+    expect(css).toMatch(/--radius:\s*1rem;/);
     expect(css).toMatch(/--elevation-1:/);
     expect(css).toMatch(/--elevation-2:/);
     expect(css).toMatch(/--duration-base:/);
