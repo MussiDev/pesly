@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { RetryableError } from '@pesly/shared';
 import {
   CreateMovement,
-  type CreateMovementInput,
+  type CategorizedMovementInput,
 } from '../../src/movements/application/create-movement';
 import { RecordManualMovement } from '../../src/movements/application/record-manual-movement';
 import { MovementWriteRateLimited } from '../../src/movements/domain/errors';
@@ -26,7 +26,7 @@ let clock: MutableClock;
 let limiter: InMemoryMovementWriteLimiter;
 let createMovement: CreateMovement;
 let record: RecordManualMovement;
-let input: CreateMovementInput;
+let input: CategorizedMovementInput;
 let reported: unknown[];
 
 function reportReleaseFailure(error: unknown): void {

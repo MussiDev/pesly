@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { AppError } from '@pesly/shared';
 import {
   CreateMovement,
-  type CreateMovementInput,
+  type CategorizedMovementInput,
 } from '../../src/movements/application/create-movement';
 import {
   CategoryArchived,
@@ -47,8 +47,8 @@ beforeEach(() => {
 });
 
 function input(
-  overrides: Partial<CreateMovementInput> & { accountId: string; categoryId: string },
-): CreateMovementInput {
+  overrides: Partial<CategorizedMovementInput> & { accountId: string; categoryId: string },
+): CategorizedMovementInput {
   return {
     type: 'expense',
     amount: 1500n,
@@ -58,7 +58,7 @@ function input(
   };
 }
 
-async function run(data: CreateMovementInput, userId = ALICE) {
+async function run(data: CategorizedMovementInput, userId = ALICE) {
   return create.execute(await writeScopeFor(userId), data);
 }
 

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { CategoryKind, RateType } from '@pesly/shared';
-import type { Movement } from '../../src/movements/domain/movement';
+import type { AccountCurrency, CategoryKind, RateType } from '@pesly/shared';
+import type { CategorizedMovement, Movement } from '../../src/movements/domain/movement';
 import type { Clock } from '../../src/movements/application/ports/clock';
 import type {
   MovementRepository,
@@ -69,8 +69,8 @@ export class InMemoryMovementRepository implements MovementRepository {
   }
 
   /** Test helper: stores a movement for any owner. */
-  seed(ownerId: string, data: Partial<Movement> = {}): Movement {
-    const movement: Movement = {
+  seed(ownerId: string, data: Partial<CategorizedMovement> = {}): Movement {
+    const movement: CategorizedMovement = {
       id: randomUUID(),
       ownerId,
       type: 'expense',
@@ -91,17 +91,22 @@ export class InMemoryMovementRepository implements MovementRepository {
 }
 
 export class InMemoryAccountLookup implements AccountLookup {
-  private readonly rows = new Map<string, { ownerId: string; archived: boolean }>();
+  private readonly rows = new Map<
+    string,
+    { ownerId: string; archived: boolean; currency: AccountCurrency }
+  >();
 
   async find(scope: AccessScope, id: string): Promise<AccountReference | null> {
     await Promise.resolve();
     const row = this.rows.get(id);
-    return row && row.ownerId === scope.userId ? { id, archived: row.archived } : null;
+    return row && row.ownerId === scope.userId
+      ? { id, archived: row.archived, currency: row.currency }
+      : null;
   }
 
-  seed(ownerId: string, archived = false): string {
+  seed(ownerId: string, archived = false, currency: AccountCurrency = 'ARS'): string {
     const id = randomUUID();
-    this.rows.set(id, { ownerId, archived });
+    this.rows.set(id, { ownerId, archived, currency });
     return id;
   }
 

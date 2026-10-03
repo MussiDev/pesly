@@ -28,10 +28,12 @@ describe('DrizzleAccountLookup', () => {
     expect(await lookup.find(await writeScope(owner), active)).toEqual({
       id: active,
       archived: false,
+      currency: 'ARS',
     });
     expect(await lookup.find(await readScope(owner), archived)).toEqual({
       id: archived,
       archived: true,
+      currency: 'ARS',
     });
   });
 
