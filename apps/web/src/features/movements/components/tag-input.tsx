@@ -135,7 +135,7 @@ export function TagInput({ value, onChange, suggestions, onPrefixChange, error }
         <ul aria-label={t('movements.tags.chips')} className="flex flex-wrap gap-2">
           {value.map((tag) => (
             <li key={tag}>
-              <Badge variant="secondary" className="gap-1 pr-1">
+              <Badge className="gap-1 pr-1">
                 {tag}
                 <Button
                   type="button"
