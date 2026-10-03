@@ -434,6 +434,19 @@
       "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en un momento.",
       "destinationRequired": "Elige una cuenta de destino.",
       "typeInvalid": "Elige un tipo de movimiento."
+    },
+    "tags": {
+      "label": "Etiquetas (opcional)",
+      "placeholder": "Escribe una etiqueta",
+      "hint": "Presiona Enter o coma para agregarla. Hasta {limit} etiquetas.",
+      "remove": "Quitar la etiqueta {tag}",
+      "suggestions": "Etiquetas sugeridas",
+      "chips": "Etiquetas elegidas",
+      "errors": {
+        "empty": "La etiqueta no puede estar vacía.",
+        "tooLong": "La etiqueta puede tener hasta {max} caracteres.",
+        "limit": "Puedes agregar hasta {limit} etiquetas."
+      }
     }
   },
   "categories": {

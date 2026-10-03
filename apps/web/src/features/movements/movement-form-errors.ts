@@ -10,7 +10,8 @@ export type MovementFieldName =
   | 'destinationAmount'
   | 'occurredAt'
   | 'rate'
-  | 'note';
+  | 'note'
+  | 'tags';
 
 /**
  * Catalog paths of what a field can say: the entry-screen validation lives in `movements.errors`;
@@ -30,6 +31,9 @@ export type MovementFieldMessage =
   | 'movements.errors.rateRequired'
   | 'movements.errors.noteTooLong'
   | 'movements.errors.noteInvalidCharacters'
+  | 'movements.tags.errors.empty'
+  | 'movements.tags.errors.tooLong'
+  | 'movements.tags.errors.limit'
   // The movement's own wording: the global account-archived message is about a setting.
   | 'movements.errors.accountArchived'
   | 'errors.movementDateInFuture'
@@ -40,6 +44,20 @@ export type MovementFieldMessage =
   | 'errors.movementCurrencyMismatch'
   | 'errors.exchangeSameCurrency'
   | 'errors.impliedRateOutOfRange';
+
+/** Why the tag field refuses a tag; the field and the entry screen share these wordings. */
+export type TagError = 'empty' | 'tooLong' | 'limit';
+
+export function tagErrorMessage(error: TagError): MovementFieldMessage {
+  switch (error) {
+    case 'empty':
+      return 'movements.tags.errors.empty';
+    case 'tooLong':
+      return 'movements.tags.errors.tooLong';
+    case 'limit':
+      return 'movements.tags.errors.limit';
+  }
+}
 
 /** One message above the form and/or one message per field. */
 export interface MovementFormErrors {

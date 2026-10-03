@@ -3,7 +3,14 @@
 import { MOVEMENT_TYPES, type MovementType, type RateType } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type ChangeEvent, type SubmitEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+  type SubmitEvent,
+} from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +21,7 @@ import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import { Link } from '@/i18n/navigation';
 import type { ImpliedRatePreview, ImpliedRatePreviewInput } from '../implied-rate-preview';
-import type { MovementFormErrors } from '../movement-form-errors';
+import type { MovementFieldMessage, MovementFormErrors } from '../movement-form-errors';
 import { MovementField } from './movement-field';
 import { RateField } from './rate-field';
 
@@ -34,6 +41,15 @@ export interface MovementFormValues {
   destinationAccountId?: string;
   /** Only present for an exchange: the amount that enters the destination account. */
   destinationAmount?: string;
+  /** The chosen tags, as the tag field spelled them; only for an expense or income, empty when none. */
+  tags?: string[];
+}
+
+/** What the tag slot receives: the form owns the chosen tags, the slot renders the field. */
+export interface TagFieldControl {
+  value: string[];
+  onChange: (value: string[]) => void;
+  error: MovementFieldMessage | undefined;
 }
 
 export interface MovementAccountOption {
@@ -60,6 +76,8 @@ export interface MovementFormProps {
   errors: MovementFormErrors;
   /** Display-only implied rate of an exchange for what is typed so far, computed by the container. */
   previewRate?: (input: ImpliedRatePreviewInput) => ImpliedRatePreview;
+  /** Renders the tag field; the screen's container supplies it so the form stays presentational. */
+  renderTagField?: (control: TagFieldControl) => ReactNode;
   onSubmit: (values: MovementFormValues) => void;
 }
 
@@ -77,6 +95,7 @@ export function MovementForm({
   pending,
   errors,
   previewRate,
+  renderTagField,
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
@@ -93,6 +112,7 @@ export function MovementForm({
   const showDestinationHint =
     !categorized &&
     (source === undefined ? !hasDestinationPair(type, accounts) : destinations.length === 0);
+  const [tags, setTags] = useState<string[]>([]);
 
   // After a failed submit, focus the first invalid field so its message is announced with it.
   useEffect(() => {
@@ -127,6 +147,7 @@ export function MovementForm({
       note: readField(form, 'note'),
       ...(categorized ? {} : { destinationAccountId: readField(form, 'destinationAccountId') }),
       ...(type === 'exchange' ? { destinationAmount: readField(form, 'destinationAmount') } : {}),
+      ...(categorized ? { tags } : {}),
     });
   }
 
@@ -288,6 +309,9 @@ export function MovementForm({
           <MovementField label={t('fields.note')} error={errors.fields?.note}>
             {(control) => <Input name="note" type="text" autoComplete="off" {...control} />}
           </MovementField>
+          {categorized
+            ? renderTagField?.({ value: tags, onChange: setTags, error: errors.fields?.tags })
+            : null}
           <Button type="submit" disabled={pending}>
             {pending ? t('form.pending') : t('form.submit')}
           </Button>

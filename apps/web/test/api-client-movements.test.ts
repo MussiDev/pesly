@@ -20,6 +20,7 @@ const MOVEMENT = {
   rateSource: 'automatic',
   rateType: 'blue',
   createdAt: '2026-10-02T15:31:00.000Z',
+  tags: [],
 };
 
 function jsonResponse(status: number, body: unknown, headers: Record<string, string> = {}) {
@@ -131,6 +132,98 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements?limit=100&offset=200`);
     expect(requestAt(fetch, 1).url).toBe(`${BASE_URL}/movements`);
     expect(requestAt(fetch, 0).init.method).toBe('GET');
+  });
+
+  it('createMovement sends the tags in the body (AC-03)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(201, { ...MOVEMENT, tags: ['Viaje'] }));
+
+    const result = await client.createMovement({
+      type: 'expense',
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      amount: '1',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'automatic' },
+      tags: ['Viaje'],
+    });
+
+    expect(result).toMatchObject({ ok: true, data: { tags: ['Viaje'] } });
+    expect(JSON.parse(requestAt(fetch, 0).init.body as string)).toMatchObject({ tags: ['Viaje'] });
+  });
+
+  it('createMovement rejects an answer without tags as a malformed response (error path)', async () => {
+    const withoutTags: Record<string, unknown> = { ...MOVEMENT };
+    delete withoutTags.tags;
+    const { client } = clientWith(jsonResponse(201, withoutTags));
+
+    const result = await client.createMovement({
+      type: 'expense',
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      amount: '1',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'automatic' },
+    });
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('listMovements forwards every provided filter and omits the undefined ones (AC-01)', async () => {
+    const page = { items: [], total: 0, limit: 20, offset: 0 };
+    const { client, fetch } = clientWith(jsonResponse(200, page), jsonResponse(200, page));
+
+    await client.listMovements({
+      limit: 20,
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      from: '2026-10-01',
+      to: '2026-10-31',
+      type: 'income',
+      tag: 'Viaje a Brasil',
+      offset: undefined,
+    });
+    await client.listMovements({ tag: undefined, type: undefined });
+
+    const url = new URL(requestAt(fetch, 0).url);
+    expect(Object.fromEntries(url.searchParams)).toEqual({
+      limit: '20',
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      from: '2026-10-01',
+      to: '2026-10-31',
+      type: 'income',
+      tag: 'Viaje a Brasil',
+    });
+    expect(requestAt(fetch, 1).url).toBe(`${BASE_URL}/movements`);
+  });
+
+  it('listTags reads /tags with the prefix and limit and parses the items (AC-05)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(200, { items: ['Viaje'] }));
+
+    const result = await client.listTags({ prefix: 'vi&a', limit: 10 });
+
+    expect(result).toEqual({ ok: true, data: { items: ['Viaje'] } });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/tags?prefix=vi%26a&limit=10`);
+    expect(init.method).toBe('GET');
+  });
+
+  it('listTags omits the limit when none is given and maps failures (error path)', async () => {
+    const refused = () => jsonResponse(401, { code: 'UNAUTHENTICATED' });
+    const { client, fetch } = clientWith(
+      jsonResponse(200, { items: [] }),
+      refused(),
+      refused(),
+      refused(),
+    );
+
+    await client.listTags({ prefix: 'a' });
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/tags?prefix=a`);
+    expect(await client.listTags({ prefix: 'a' })).toMatchObject({
+      ok: false,
+      code: 'UNAUTHENTICATED',
+    });
+    expect(fetch.mock.calls.map(([url]) => url)[3]).toBe(`${BASE_URL}/auth/refresh`);
   });
 
   it('getLatestRates reads /exchange-rates/latest', async () => {

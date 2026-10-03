@@ -76,6 +76,7 @@ function movement(overrides: Record<string, unknown> = {}) {
     rateSource: 'automatic',
     rateType: 'blue',
     createdAt: '2026-10-02T15:31:00.000Z',
+    tags: [],
     ...overrides,
   };
 }

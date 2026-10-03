@@ -26,6 +26,7 @@ import { formatRate } from '../format-rate';
 import { impliedRatePreview, type ImpliedRatePreviewInput } from '../implied-rate-preview';
 import { movementFailureErrors, type MovementFormErrors } from '../movement-form-errors';
 import { buildMovementRequest } from '../movement-request';
+import { TagInputContainer } from './tag-input-container';
 
 /** The API's largest page; the container keeps asking until `total` is reached. */
 const PAGE_SIZE = 100;
@@ -213,6 +214,9 @@ export function CreateMovementContainer() {
         previewRate={(input: ImpliedRatePreviewInput) =>
           impliedRatePreview(input, data.accounts, locale)
         }
+        renderTagField={({ value, onChange, error }) => (
+          <TagInputContainer value={value} onChange={onChange} error={error} />
+        )}
         onSubmit={(values) => {
           void create(values, data);
         }}

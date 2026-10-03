@@ -71,9 +71,9 @@ describe('movement tags', () => {
 
   it('is optional on the create request, and the old body still parses (AC-03)', () => {
     const old = createMovementRequestSchema.parse(base);
-    expect(old.tags).toBeUndefined();
+    expect('tags' in old ? old.tags : undefined).toBeUndefined();
     const withTags = createMovementRequestSchema.parse({ ...base, tags: ['Trip', 'trip'] });
-    expect(withTags.tags).toEqual(['Trip']);
+    expect('tags' in withTags ? withTags.tags : undefined).toEqual(['Trip']);
     expect(createMovementRequestSchema.safeParse({ ...base, tags: entries(11) }).success).toBe(
       false,
     );

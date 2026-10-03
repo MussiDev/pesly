@@ -1,5 +1,7 @@
 import {
   MOVEMENT_AMOUNT_MAX_MINOR_UNITS,
+  MOVEMENT_TAGS_MAX_COUNT,
+  MOVEMENT_TAG_MAX_LENGTH,
   MOVEMENT_TYPES,
   dateInTimeZone,
   formatMinorUnitsString,
@@ -13,7 +15,11 @@ import {
 } from '@pesly/shared';
 import type { CreateMovementInput } from '@/lib/api-client';
 import type { MovementFormValues } from './components/movement-form';
-import type { MovementFieldMessage, MovementFieldName } from './movement-form-errors';
+import {
+  tagErrorMessage,
+  type MovementFieldMessage,
+  type MovementFieldName,
+} from './movement-form-errors';
 
 const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
@@ -149,6 +155,14 @@ export function buildMovementRequest(
       : 'movements.errors.noteTooLong';
   }
 
+  // The tag field enforces these as the user types; this guards what reaches the request.
+  const tags = categorized ? (values.tags ?? []) : [];
+  if (tags.length > MOVEMENT_TAGS_MAX_COUNT) fields.tags = tagErrorMessage('limit');
+  else if (tags.some((tag) => tag.trim() === '')) fields.tags = tagErrorMessage('empty');
+  else if (tags.some((tag) => Array.from(tag).length > MOVEMENT_TAG_MAX_LENGTH)) {
+    fields.tags = tagErrorMessage('tooLong');
+  }
+
   if (
     Object.keys(fields).length > 0 ||
     account === undefined ||
@@ -168,7 +182,15 @@ export function buildMovementRequest(
 
   if (categorized) {
     if (category === undefined || rate === undefined) return { fields };
-    return { request: { ...common, type, categoryId: category.id, rate } };
+    return {
+      request: {
+        ...common,
+        type,
+        categoryId: category.id,
+        rate,
+        ...(tags.length === 0 ? {} : { tags }),
+      },
+    };
   }
   if (destinationId === undefined) return { fields };
   if (type === 'transfer') {

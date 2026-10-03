@@ -662,3 +662,28 @@ describe('transfers and exchanges catalog (DISC-001-03c)', () => {
     }
   });
 });
+
+describe('movement tags catalog (DISC-001-03d)', () => {
+  const KEYS = [
+    'label',
+    'placeholder',
+    'hint',
+    'remove',
+    'suggestions',
+    'chips',
+    'errors.empty',
+    'errors.tooLong',
+    'errors.limit',
+  ];
+
+  it.each(LOCALES)('holds every tag key in %s, with the placeholders the code fills', (locale) => {
+    const catalog = loadCatalog(locale);
+
+    for (const key of KEYS) {
+      expect(readString(catalog, `movements.tags.${key}`)?.length, key).toBeGreaterThan(0);
+    }
+    expect(readString(catalog, 'movements.tags.remove')).toContain('{tag}');
+    expect(readString(catalog, 'movements.tags.errors.tooLong')).toContain('{max}');
+    expect(readString(catalog, 'movements.tags.errors.limit')).toContain('{limit}');
+  });
+});

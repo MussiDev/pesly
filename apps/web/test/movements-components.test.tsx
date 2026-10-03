@@ -9,6 +9,7 @@ import es from '../messages/es.json';
 import { formatRate } from '../src/features/movements/format-rate';
 import {
   movementFailureErrors,
+  tagErrorMessage,
   type MovementFormErrors,
 } from '../src/features/movements/movement-form-errors';
 import {
@@ -128,7 +129,34 @@ describe('MovementForm', () => {
       rate: '1250,5',
       rateEdited: false,
       note: 'Almuerzo',
+      tags: [],
     });
+  });
+
+  it('renders the tag slot and submits the tags it holds (AC-03)', async () => {
+    const { onSubmit } = form({
+      renderTagField: ({ value, onChange, error }) => (
+        <div>
+          <span data-testid="tag-error">{error}</span>
+          <button
+            type="button"
+            onClick={() => {
+              onChange([...value, 'Viaje']);
+            }}
+          >
+            add-tag
+          </button>
+        </div>
+      ),
+      errors: { fields: { tags: 'movements.tags.errors.limit' } },
+    });
+    const user = userEvent.setup();
+
+    expect(screen.getByTestId('tag-error').textContent).toBe('movements.tags.errors.limit');
+    await user.click(screen.getByRole('button', { name: 'add-tag' }));
+    await user.click(screen.getByRole('button', { name: es.movements.form.submit }));
+
+    expect(onSubmit.mock.calls[0]?.[0].tags).toEqual(['Viaje']);
   });
 
   it('flags the rate as edited once the user types in it, even to the same value (AC-08)', async () => {
@@ -264,6 +292,16 @@ describe('formatRate', () => {
     [10000n, 'en', '1.00'],
   ] as const)('formats %s in %s as %s without a float', (value, locale, expected) => {
     expect(formatRate(value, locale)).toBe(expected);
+  });
+});
+
+describe('tagErrorMessage', () => {
+  it.each([
+    ['empty', 'movements.tags.errors.empty'],
+    ['tooLong', 'movements.tags.errors.tooLong'],
+    ['limit', 'movements.tags.errors.limit'],
+  ] as const)('maps %s to %s', (kind, key) => {
+    expect(tagErrorMessage(kind)).toBe(key);
   });
 });
 
