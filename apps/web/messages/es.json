@@ -365,6 +365,8 @@
       "showMore": "Ver más",
       "rate": "Cotización: {rate} ARS por USD",
       "unknownAccount": "Cuenta desconocida",
+      "transferTitle": "Transferencia",
+      "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida"
     },
     "new": {

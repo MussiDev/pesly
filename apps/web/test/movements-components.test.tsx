@@ -358,6 +358,8 @@ function listItem(
     accountName: 'Caja',
     currency: 'ARS',
     categoryName: 'Comida',
+    destinationAccountName: undefined,
+    destinationCurrency: undefined,
     ...overrides,
   };
 }

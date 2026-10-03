@@ -365,6 +365,8 @@
       "showMore": "Show more",
       "rate": "Rate: {rate} ARS per USD",
       "unknownAccount": "Unknown account",
+      "transferTitle": "Transfer",
+      "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category"
     },
     "new": {
