@@ -83,6 +83,14 @@ describe('parseFilters', () => {
     expect(read('from=&to=')).toEqual({});
   });
 
+  it.each(['transfer', 'exchange'] as const)('reads and sends type=%s', (type) => {
+    const filters = read(`type=${type}`);
+
+    expect(filters).toEqual({ type });
+    expect(serializeFilters(filters).toString()).toBe(`type=${type}`);
+    expect(filtersToListParams(filters)).toEqual({ type });
+  });
+
   it('returns no filters for an empty query', () => {
     expect(read('')).toEqual({});
   });
@@ -132,6 +140,8 @@ describe('MovementFilters', () => {
       es.movements.filters.allTypes,
       es.movements.types.expense,
       es.movements.types.income,
+      es.movements.types.transfer,
+      es.movements.types.exchange,
     ]);
     expect(screen.getByLabelText(es.movements.filters.from)).toBeDefined();
     expect(screen.getByLabelText(es.movements.filters.to)).toBeDefined();
@@ -156,6 +166,10 @@ describe('MovementFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', accountId: CAJA });
     await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'income');
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'income' });
+    await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'transfer');
+    expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'transfer' });
+    await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'exchange');
+    expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'exchange' });
     fireEvent.change(screen.getByLabelText(es.movements.filters.from), {
       target: { value: '2026-10-01' },
     });

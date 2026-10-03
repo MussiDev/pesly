@@ -1,11 +1,11 @@
-import { movementFilterShape } from '@pesly/shared';
+import { movementFilterShape, type MovementType } from '@pesly/shared';
 import type { ListMovementsParams } from '@/lib/api-client';
 
 /** The filters of the movement list; an absent key means "no filter on it". */
 export interface MovementFilterValues {
   accountId?: string | undefined;
   categoryId?: string | undefined;
-  type?: 'expense' | 'income' | undefined;
+  type?: MovementType | undefined;
   tag?: string | undefined;
   from?: string | undefined;
   to?: string | undefined;

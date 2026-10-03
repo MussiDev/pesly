@@ -514,7 +514,7 @@ describe('MovementsContainer', () => {
       stubApi(withAccounts([exchange(), transfer(), expense]));
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.exchangeTitle);
+      await screen.findByText(es.movements.list.exchangeTitle, { selector: 'div' });
       const [first, second, third] = rows();
       if (first === undefined || second === undefined || third === undefined) {
         throw new Error('Expected three rows');
@@ -539,7 +539,7 @@ describe('MovementsContainer', () => {
       stubApi(withAccounts([exchange(), movement({ id: uuid(604) })]));
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.exchangeTitle);
+      await screen.findByText(es.movements.list.exchangeTitle, { selector: 'div' });
       const [first, second] = rows();
       if (first === undefined || second === undefined) throw new Error('Expected two rows');
       expect(
@@ -559,7 +559,7 @@ describe('MovementsContainer', () => {
       );
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.transferTitle);
+      await screen.findByText(es.movements.list.transferTitle, { selector: 'div' });
       const [row] = rows();
       if (row === undefined) throw new Error('Expected a row');
       expect(within(row).getByText('Dolares viejos')).toBeDefined();
@@ -571,7 +571,7 @@ describe('MovementsContainer', () => {
       );
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.transferTitle);
+      await screen.findByText(es.movements.list.transferTitle, { selector: 'div' });
       const [row] = rows();
       if (row === undefined) throw new Error('Expected a row');
       expect(within(row).getByText(es.movements.list.unknownAccount)).toBeDefined();

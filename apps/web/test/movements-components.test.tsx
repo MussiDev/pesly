@@ -837,3 +837,30 @@ describe('tags are rendered as text, never as markup (R-07)', () => {
     },
   );
 });
+
+describe('rows without tags (DISC-001-03d with 03c types)', () => {
+  it.each([
+    ['transfer', es.movements.list.transferTitle],
+    ['exchange', es.movements.list.exchangeTitle],
+  ] as const)('a %s row renders its title and no tag group', (type, title) => {
+    const base = listItem('m1', 'expense', '2026-10-02T15:30:00.000Z');
+    const { container } = list([
+      {
+        ...base,
+        movement: {
+          ...base.movement,
+          type,
+          categoryId: null,
+          destinationAccountId: 'a2',
+          destinationAmount: '150050',
+        },
+        categoryName: undefined,
+        destinationAccountName: 'Dolares',
+        destinationCurrency: 'ARS',
+      },
+    ]);
+
+    expect(within(container).getByText(title)).toBeDefined();
+    expect(within(container).queryByRole('group', { name: es.movements.list.tags })).toBeNull();
+  });
+});

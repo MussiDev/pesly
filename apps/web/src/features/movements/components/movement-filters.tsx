@@ -1,5 +1,6 @@
 'use client';
 
+import { MOVEMENT_TYPES } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useId, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,6 @@ export interface MovementFiltersProps {
   renderTagField?: ((control: FilterTagFieldControl) => ReactNode) | undefined;
 }
 
-const TYPES = ['expense', 'income'] as const;
 const INDENT = '   ';
 
 /** A copy of `filters` with `key` set, or unset when `value` is empty. */
@@ -119,11 +119,13 @@ export function MovementFilters({
           value={filters.type ?? ''}
           onChange={(event) => {
             const value = event.currentTarget.value;
-            onChange(withValue(filters, 'type', TYPES.find((type) => type === value) ?? ''));
+            onChange(
+              withValue(filters, 'type', MOVEMENT_TYPES.find((type) => type === value) ?? ''),
+            );
           }}
         >
           <option value="">{t('filters.allTypes')}</option>
-          {TYPES.map((type) => (
+          {MOVEMENT_TYPES.map((type) => (
             <option key={type} value={type}>
               {t(`types.${type}`)}
             </option>
