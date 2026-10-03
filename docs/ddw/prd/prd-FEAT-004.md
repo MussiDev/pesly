@@ -25,7 +25,8 @@ read and consistent across screens.
 
 - Give Pesly one design system: color, type, spacing, radius, elevation, motion and components,
   all expressed as theme tokens and documented in a live reference page.
-- Direction: minimalist, emerald accent on warm neutrals, light and dark.
+- Direction: minimalist and professional, in the style of modern fintech dashboards: an indigo
+  accent on cool neutrals, a light-grey canvas with white rounded cards, light and dark.
 - Apply the system to every existing screen, with a mobile-first app shell.
 - Replace the placeholder home with a real one fed by the accounts and movements APIs.
 - Ship as a single ticket; screens are built in parallel once the foundation exists.
@@ -33,7 +34,7 @@ read and consistent across screens.
 ## Functional Requirements
 
 - FR-01: The system defines semantic color tokens as CSS variables for light and dark: background,
-  surface, foreground, muted, border, primary (emerald), and the status colors success, warning,
+  surface, foreground, muted, border, primary (indigo), and the status colors success, warning,
   destructive and info, plus the money colors income and expense.
 - FR-02: The system defines a type scale (display, title, heading, body, small, caption) with one
   self-hosted typeface loaded through `next/font`, and a tabular-numeral style for amounts.

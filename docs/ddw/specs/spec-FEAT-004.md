@@ -37,8 +37,8 @@ Design decisions taken here (the PRD leaves them open):
   holds), `display: 'swap'`, exposed as `--font-sans`. Chosen over `next/font/local` because it
   commits no binary asset and no font licence or provenance file; the build already needs network
   for `pnpm install`.
-- Palette anchors: emerald hue 160 for primary and `income`; warm neutrals at hue 80 to 90 with
-  chroma at or below 0.015; `expense` uses the destructive red family; contrast is enforced by test.
+- Palette anchors: indigo hue 275 for primary; green hue 160 for `income` only; cool neutrals at
+  hue 250 to 290 with chroma at or below 0.015; `expense` uses the destructive red family; contrast is enforced by test.
 - Theme: values `light`, `dark`, `system` stored under the `localStorage` key `pesly-theme`; an
   inline pre-paint script carrying the CSP nonce from the `x-nonce` request header sets the `dark`
   class on `<html>` before first paint.
@@ -117,9 +117,9 @@ Design decisions taken here (the PRD leaves them open):
 
 **Files**
 - `apps/web/src/app/globals.css` (modified) — semantic tokens for light and dark: background,
-  surface, foreground, muted, border, ring, primary (emerald), success, warning, destructive, info,
-  income, expense, keeping the existing `--category-*` tokens; type scale, spacing, radius,
-  elevation and motion tokens; `--font-sans`; reduced-motion rule; `@theme inline` mappings.
+  surface, foreground, muted, border, ring, primary (indigo), success, warning, destructive, info,
+  income, expense, keeping the existing `--category-*` tokens; type scale, spacing, radius (1rem base),
+  elevation and motion tokens; the `--hero` gradient and its text colors for the balance card; `--font-sans`; reduced-motion rule; `@theme inline` mappings.
 - `apps/web/src/app/[locale]/layout.tsx` (modified) — load Inter with `next/font/google`, apply
   `--font-sans`, read `x-nonce` from `headers()`, render the pre-paint script, add
   `suppressHydrationWarning` on `<html>`, mount the theme provider.
