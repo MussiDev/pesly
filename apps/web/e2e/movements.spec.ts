@@ -422,9 +422,10 @@ test('records a transfer and a currency exchange, lists them newest first with t
   await page.getByLabel(t.fields.amount, { exact: true }).fill('200,00');
   await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(FIRST_OF_SEPTEMBER);
   await submit(page).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
-  // A transfer has no rate to show.
-  await expect(page.getByRole('status')).toHaveCount(0);
+  // The saved notice sits above the fresh form. A transfer has no rate to show.
+  const savedNotice = page.getByRole('status').filter({ hasText: t.saved.title });
+  await expect(savedNotice).toBeVisible();
+  await expect(savedNotice).not.toContainText('ARS por USD');
 
   // Exchange 6.000,00 ARS from Banco for 5,00 USD in Dólares: 1.200,0000 ARS per USD.
   const impliedRate = formatRate(12_000_000n, 'es', 4);
@@ -443,10 +444,10 @@ test('records a transfer and a currency exchange, lists them newest first with t
       .filter({ hasText: t.exchange.impliedRate.replace('{rate}', impliedRate) }),
   ).toBeVisible();
   await submit(page).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
   await expect(
     page
       .getByRole('status')
+      .filter({ hasText: t.saved.title })
       .filter({ hasText: t.saved.impliedRate.replace('{rate}', impliedRate) }),
   ).toBeVisible();
 
