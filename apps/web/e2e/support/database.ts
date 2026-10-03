@@ -218,3 +218,35 @@ export async function movementsOf(email: string): Promise<StoredMovement[]> {
     destinationAmount: nullableText(row.destination_amount),
   }));
 }
+
+/** The tag names stored for `email`, sorted: one entry per distinct tag of that user. */
+export async function tagsOf(email: string): Promise<string[]> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select t.name from tags t join users u on u.id = t.owner_id
+        where u.email = $1
+        order by t.name`,
+      [email],
+    ),
+  );
+  return rows.map((row) => String(row.name));
+}
+
+/** The account and category ids of the oldest movement of `email`. */
+export async function movementIdsOf(
+  email: string,
+): Promise<{ accountId: string; categoryId: string }> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select m.account_id, m.category_id
+         from movements m join users u on u.id = m.owner_id
+        where u.email = $1
+        order by m.created_at, m.id
+        limit 1`,
+      [email],
+    ),
+  );
+  const row = rows[0];
+  if (row === undefined) throw new Error(`No movement stored for ${email}`);
+  return { accountId: String(row.account_id), categoryId: String(row.category_id) };
+}

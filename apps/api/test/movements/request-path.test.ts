@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
@@ -161,6 +161,41 @@ describe('the movements request path never reaches the rate provider (NFR-05)', 
       'apps/api/src/movements/infrastructure/db/drizzle-movement-repository.ts',
     );
   });
+
+  const TAG_FILTER_FILES = [
+    'application/suggest-tags.ts',
+    'application/ports/tag-repository.ts',
+    'infrastructure/db/drizzle-movement-filters.ts',
+    'infrastructure/db/drizzle-tag-repository.ts',
+    'infrastructure/db/tags-schema.ts',
+    'infrastructure/http/tag-routes.ts',
+  ].map((name) => join(movementsRoot, name));
+
+  it.each(TAG_FILTER_FILES.map((file) => [relativeName(file), file]))(
+    'the tags and filters file is scanned and the probes fail on it: %s',
+    (name, file) => {
+      expect(files).toContain(file);
+      const toSrc = (target: string) => toPosix(relative(dirname(file), join(srcRoot, target)));
+      const clean = readFileSync(file, 'utf8');
+      expect(ratesRequestPathFindings(file, clean), name).toEqual([]);
+      expect(
+        ratesRequestPathFindings(
+          file,
+          `${clean}
+import { x } from '${toSrc('exchange-rates/infrastructure/provider/dolarapi-rate-provider')}';
+`,
+        ),
+      ).not.toEqual([]);
+      expect(
+        foreignPersistenceFindings(
+          file,
+          `${clean}
+import { accounts } from '${toSrc('accounts/infrastructure/db/schema')}';
+`,
+        ),
+      ).not.toEqual([]);
+    },
+  );
 
   it.each(files.map((file) => [relativeName(file), file]))(
     'imports no provider, job or exchange-rates barrel: %s',
