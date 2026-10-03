@@ -36,8 +36,8 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-md py-1.5 text-caption font-medium text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            active && 'text-primary',
+            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-caption font-medium text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            active && 'bg-accent text-primary',
           )}
         >
           <Icon aria-hidden className="size-5 shrink-0" />
@@ -51,15 +51,15 @@ export function BottomNav({ currentPath }: BottomNavProps) {
     <nav
       data-slot="bottom-nav"
       aria-label={t('label')}
-      className="sticky bottom-0 z-40 border-t bg-background pb-safe md:hidden"
+      className="sticky bottom-0 z-40 border-t bg-card px-2 pb-safe md:hidden"
     >
-      <ul className="mx-auto flex max-w-md items-center pt-1">
+      <ul className="mx-auto flex max-w-md items-center pt-1.5">
         {BEFORE_ADD.map(destination)}
         <li className="flex shrink-0 justify-center">
           <Link
             href={ADD_MOVEMENT_HREF}
             aria-label={t('addMovement')}
-            className="inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <Plus aria-hidden className="size-6" />
           </Link>

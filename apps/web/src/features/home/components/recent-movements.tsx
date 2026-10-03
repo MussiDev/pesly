@@ -89,7 +89,10 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
           {t('seeAll')}
         </Link>
       </div>
-      <ul aria-labelledby="home-recent-title" className="divide-y rounded-xl border bg-card px-3">
+      <ul
+        aria-labelledby="home-recent-title"
+        className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-card px-4 shadow-xs"
+      >
         {items.map((item) => {
           const category = item.categoryName ?? t('unknownCategory');
           const when = formatDay(item.occurredAt, locale, timeZone);

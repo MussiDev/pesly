@@ -1,9 +1,9 @@
 import type { AccountCurrency } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
-import { Card } from '@/components/ui/card';
 import { MinorAmount } from '@/features/accounts/components/accounts-headline';
 import type { CurrencyTotals } from '@/features/accounts/totals';
 import type { Locale } from '@/i18n/routing';
+import { cn } from '@/lib/utils';
 
 export interface BalanceSummaryProps {
   locale: Locale;
@@ -28,28 +28,33 @@ export function BalanceSummary({
       <h2 id="home-balance-title" className="text-heading">
         {t('title')}
       </h2>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className={cn('grid gap-3', currencies.length > 1 && 'sm:grid-cols-2')}>
         {currencies.map((currency) => (
-          <Card
+          <div
             key={currency}
             role="group"
             aria-label={t(`currencies.${currency}`)}
-            className="gap-2 p-4"
+            className="relative overflow-hidden rounded-2xl bg-hero p-5 text-hero-foreground shadow-md"
           >
-            <dl className="grid gap-3">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -top-16 -right-12 size-48 rounded-full bg-hero-foreground/10 blur-2xl"
+            />
+            <dl className="relative grid gap-4">
               <div className="grid gap-1">
-                <dt className="text-small text-muted-foreground">{t('available')}</dt>
+                <dt className="text-small text-hero-muted">{t('available')}</dt>
                 <dd className="text-display">
                   <MinorAmount
                     value={availableTotals[currency] ?? '0'}
                     currency={currency}
                     locale={locale}
+                    softDecimals
                   />
                 </dd>
               </div>
-              <div className="grid gap-1">
-                <dt className="text-small text-muted-foreground">{t('netWorth')}</dt>
-                <dd className="text-body font-medium">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-hero-foreground/10 px-3 py-2">
+                <dt className="text-small text-hero-muted">{t('netWorth')}</dt>
+                <dd className="text-small font-semibold">
                   <MinorAmount
                     value={netWorthTotals[currency] ?? '0'}
                     currency={currency}
@@ -58,7 +63,7 @@ export function BalanceSummary({
                 </dd>
               </div>
             </dl>
-          </Card>
+          </div>
         ))}
       </div>
     </section>

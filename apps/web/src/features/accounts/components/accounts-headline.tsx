@@ -13,17 +13,30 @@ interface MinorAmountProps {
   currency: string;
   locale: Locale;
   className?: string;
+  softDecimals?: boolean;
 }
 
 /**
  * `Amount` for an API string. The old `formatAmount` threw on a malformed value; here it shows a
  * dash instead, so one bad figure never takes the whole screen down.
  */
-export function MinorAmount({ value, currency, locale, className }: MinorAmountProps) {
+export function MinorAmount({
+  value,
+  currency,
+  locale,
+  className,
+  softDecimals,
+}: MinorAmountProps) {
   const parsed = exactIntegerStringSchema.safeParse(value);
   if (!parsed.success) return <span className="text-muted-foreground">—</span>;
   return (
-    <Amount value={BigInt(parsed.data)} currency={currency} locale={locale} className={className} />
+    <Amount
+      value={BigInt(parsed.data)}
+      currency={currency}
+      locale={locale}
+      className={className}
+      softDecimals={softDecimals}
+    />
   );
 }
 

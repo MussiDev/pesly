@@ -136,7 +136,7 @@ All notable changes to this project are documented in this file. The format foll
   `0014_movements` adds the `movements` and `movement_rate_limits` tables; its rollback script is
   destructive. Known limitation: a create has no idempotency key, so a retry after a lost response
   can duplicate a movement (follow-up for the offline sync ticket of PRD 04).
-- FEAT-004 Design system: emerald on warm neutral tokens for light and dark (colors, type scale,
+- FEAT-004 Design system: indigo on cool neutral tokens for light and dark (colors, type scale,
   spacing, radius, elevation, motion), the Inter typeface self-hosted through `next/font`, a theme
   choice (light, dark or system) that persists and is applied before first paint, and new `badge`,
   `skeleton`, `empty-state`, `error-state`, `page-header`, `list-row` and `amount` components. A
@@ -150,6 +150,8 @@ All notable changes to this project are documented in this file. The format foll
   and categories in both states, movements and the profile in one parallel batch, so a movement on
   an archived account keeps its real currency and dates use the user's time zone; it shows a
   skeleton, an empty state without accounts, and the shared error state with a single-flight retry.
+  The balance is a gradient hero card with the cents dimmed, the quick actions are icon tiles, and
+  from 1024px the home is a two-column dashboard (balance and actions beside the latest movements).
 - FEAT-004 Tests that guard the design system: a scan that fails on color literals and arbitrary
   design values (the Google logo is the only exception), a catalog parity check over every
   namespace, key and ICU argument, and a Playwright spec for navigation by viewport, 44px targets,

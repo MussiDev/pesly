@@ -17,6 +17,8 @@ interface AmountProps extends Omit<ComponentProps<'span'>, 'children'> {
   kind?: AmountKind;
   /** Already translated direction ("Income", "Expense"), read instead of the visual sign. */
   directionLabel?: string;
+  /** Renders the cents lighter than the integer part, for large headline figures. */
+  softDecimals?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function Amount({
   locale,
   kind = 'neutral',
   directionLabel,
+  softDecimals = false,
   className,
   ...props
 }: AmountProps) {
@@ -46,7 +49,20 @@ export function Amount({
     >
       {signed ? <span aria-hidden="true">{SIGN[effectiveKind]}</span> : null}
       {signed && directionLabel ? <span className="sr-only">{directionLabel}</span> : null}
-      {text}
+      {softDecimals ? <SoftDecimals text={text} /> : text}
     </span>
+  );
+}
+
+/** Splits the last two-digit decimal group (`,75` or `.75`) off so it can be dimmed; no decimals, no split. */
+function SoftDecimals({ text }: { text: string }) {
+  const match = /^(.*\d)([.,]\d{2})(?!\d)(.*)$/.exec(text);
+  if (!match) return <>{text}</>;
+  return (
+    <>
+      {match[1]}
+      <span className="opacity-70">{match[2]}</span>
+      {match[3]}
+    </>
   );
 }
