@@ -1,6 +1,6 @@
 'use client';
 
-import { CircleAlert, Info } from 'lucide-react';
+import { CircleAlert, Info, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -27,9 +27,12 @@ export function DeleteUserGoogle({ pending, failed, error, onStart }: DeleteUser
   // from a Google one, so the hint is always present and louder once the confirmation failed.
   const prominentHint = failed || error === 'reauthenticationRequired';
   return (
-    <Card>
+    <Card className="border-destructive/40">
       <CardHeader>
-        <CardTitle as="h2">{t('warningTitle')}</CardTitle>
+        <CardTitle as="h2" className="flex items-center gap-2 text-destructive">
+          <TriangleAlert aria-hidden className="size-5 shrink-0" />
+          {t('warningTitle')}
+        </CardTitle>
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -42,7 +45,7 @@ export function DeleteUserGoogle({ pending, failed, error, onStart }: DeleteUser
         ) : null}
         <FormAlert error={error} />
         {prominentHint ? (
-          <Alert role="note">
+          <Alert variant="info" role="note">
             <Info aria-hidden />
             <AlertTitle>{t('setPassword.title')}</AlertTitle>
             <AlertDescription>

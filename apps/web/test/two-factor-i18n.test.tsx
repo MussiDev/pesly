@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import en from '../messages/en.json';
 import es from '../messages/es.json';
-import { AuthenticatedShell } from '../src/features/auth/components/authenticated-shell';
+import { ThemeProvider } from '../src/components/theme-provider';
+import { AuthenticatedShell } from '../src/features/shell/components/authenticated-shell';
 import { SecondFactorForm } from '../src/features/auth/components/second-factor-form';
 import { DisableTwoFactor } from '../src/features/two-factor/components/disable-two-factor';
 import { RecoveryCodes } from '../src/features/two-factor/components/recovery-codes';
@@ -108,16 +109,17 @@ const SCREENS: [string, ReactElement][] = [
   ],
   [
     'authenticated shell',
-    <AuthenticatedShell
-      key="shell"
-      state={{ kind: 'ready' }}
-      signingOut={false}
-      signOutError={undefined}
-      onRetry={noop}
-      onSignOut={noop}
-    >
-      <p />
-    </AuthenticatedShell>,
+    <ThemeProvider key="shell">
+      <AuthenticatedShell
+        state={{ kind: 'ready' }}
+        signingOut={false}
+        signOutError={undefined}
+        onRetry={noop}
+        onSignOut={noop}
+      >
+        <p />
+      </AuthenticatedShell>
+    </ThemeProvider>,
   ],
 ];
 

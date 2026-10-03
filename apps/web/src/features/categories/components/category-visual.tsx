@@ -40,7 +40,7 @@ export const CATEGORY_SWATCH_CLASSES: Record<CategoryColor, string> = {
 
 const FALLBACK_COLOR_CLASS = 'bg-muted text-muted-foreground';
 
-export function isCategoryColor(key: string): key is CategoryColor {
+function isCategoryColor(key: string): key is CategoryColor {
   return (CATEGORY_COLORS as readonly string[]).includes(key);
 }
 

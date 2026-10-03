@@ -8,14 +8,13 @@ import {
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import type { z } from 'zod';
-import { Button } from '@/components/ui/button';
-import { FormAlert } from '@/features/auth/components/form-alert';
 import { toFormErrors, type ErrorMessageKey, type FormErrors } from '@/features/auth/form-errors';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { DeleteUserForm, type DeleteUserFormValues } from '../components/delete-user-form';
 import { DeleteUserGoogle } from '../components/delete-user-google';
+import { ProfileLoadStateView } from '../components/profile-load-state';
 
 type State =
   | { kind: 'loading' }
@@ -59,7 +58,6 @@ function toDeleteValidationErrors(error: z.ZodError): FormErrors {
  */
 export function DeleteUserContainer() {
   const t = useTranslations('deleteUser');
-  const tApp = useTranslations('app');
   const api = useApiClient();
   const router = useRouter();
   const [state, setState] = useState<State>({ kind: 'loading' });
@@ -88,29 +86,17 @@ export function DeleteUserContainer() {
     };
   }, [api, router, attempt]);
 
+  function retry() {
+    setState({ kind: 'loading' });
+    setAttempt((value) => value + 1);
+  }
+
   if (state.kind === 'loading' || reauth === undefined) {
-    return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {tApp('loading')}
-      </p>
-    );
+    return <ProfileLoadStateView state={{ kind: 'loading' }} cards={1} onRetry={retry} />;
   }
 
   if (state.kind === 'failed') {
-    return (
-      <div className="grid gap-4">
-        <FormAlert error={state.error} />
-        <Button
-          variant="outline"
-          onClick={() => {
-            setState({ kind: 'loading' });
-            setAttempt((value) => value + 1);
-          }}
-        >
-          {tApp('retry')}
-        </Button>
-      </div>
-    );
+    return <ProfileLoadStateView state={state} cards={1} onRetry={retry} />;
   }
 
   const { profile } = state;
@@ -176,7 +162,7 @@ export function DeleteUserContainer() {
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       {confirmed ? <p className="text-sm text-muted-foreground">{t('google.confirmed')}</p> : null}
       <DeleteUserForm
         key={revision}

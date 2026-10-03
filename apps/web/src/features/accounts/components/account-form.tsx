@@ -8,7 +8,7 @@ import {
 } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useId, useState, type ChangeEvent, type SubmitEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -139,10 +139,7 @@ export function AccountForm({ pending, errors, onSubmit }: AccountFormProps) {
           <Button type="submit" disabled={pending}>
             {pending ? t('form.pending') : t('form.submit')}
           </Button>
-          <Link
-            href="/accounts"
-            className="text-sm text-primary underline-offset-4 hover:underline"
-          >
+          <Link href="/accounts" className={buttonVariants({ variant: 'ghost' })}>
             {t('form.back')}
           </Link>
         </form>

@@ -1,8 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Button } from '@/components/ui/button';
-import { FormAlert } from '@/features/auth/components/form-alert';
+import { ErrorState } from '@/components/ui/error-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 
 export type AccountsLoadState = { kind: 'loading' } | { kind: 'failed'; error: ErrorMessageKey };
@@ -16,21 +16,33 @@ export function AccountsLoadStateView({
   onRetry: () => void;
 }) {
   const t = useTranslations('app');
+  const tUi = useTranslations('ui');
+  const tErrors = useTranslations('errors');
 
   if (state.kind === 'loading') {
+    // Same blocks as the loaded view (headline cards, then rows), so nothing jumps when data lands.
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {t('loading')}
-      </p>
+      <div role="status" aria-busy="true" className="grid gap-4">
+        <span className="sr-only">{t('loading')}</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-xl" />
+        </div>
+        <div className="grid gap-3">
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+          <Skeleton className="h-16" />
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="grid gap-4">
-      <FormAlert error={state.error} />
-      <Button variant="outline" onClick={onRetry}>
-        {t('retry')}
-      </Button>
-    </div>
+    <ErrorState
+      title={tUi('error.title')}
+      description={tErrors(state.error)}
+      retryLabel={t('retry')}
+      onRetry={onRetry}
+    />
   );
 }

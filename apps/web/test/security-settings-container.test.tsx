@@ -246,6 +246,28 @@ describe('SecuritySettingsContainer', () => {
     expect(screen.getByText(es.errors.twoFactorNotEnabled)).toBeDefined();
   });
 
+  it('shows a skeleton with a loading status while the status loads (AC-21)', async () => {
+    stubApi({ 'GET /auth/2fa': status(false) });
+    renderApp(<SecuritySettingsContainer />);
+
+    const loading = screen.getByRole('status');
+    expect(loading.getAttribute('aria-busy')).toBe('true');
+    expect(loading.textContent).toBe(es.app.loading);
+    expect(loading.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    expect(await screen.findByText(es.security.twoFactor.off)).toBeDefined();
+  });
+
+  it('shows a failed status check in the shared error state, with no stale status (sad path)', async () => {
+    stubApi({ 'GET /auth/2fa': 'network-error' });
+    renderApp(<SecuritySettingsContainer />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain(es.ui.error.title);
+    expect(alert.textContent).toContain(es.errors.network);
+    expect(screen.queryByText(es.security.twoFactor.off)).toBeNull();
+    expect(screen.queryByRole('button', { name: es.security.twoFactor.enable })).toBeNull();
+  });
+
   it('shows a failed status check and retries it (sad path)', async () => {
     stubApi({ 'GET /auth/2fa': ['network-error', status(false)] });
     renderApp(<SecuritySettingsContainer />);

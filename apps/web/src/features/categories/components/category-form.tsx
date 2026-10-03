@@ -20,6 +20,9 @@ import type { CategoryFormErrors } from '../category-form-errors';
 import { CategoryField } from './category-field';
 import { ColorPicker, IconPicker } from './category-pickers';
 
+/** The create form's name field, which the list's empty state sends the user to. */
+export const NEW_CATEGORY_NAME_ID = 'new-category-name';
+
 /** What the user typed or picked, untouched: the container validates it. */
 export interface CategoryFormValues {
   kind: string;
@@ -105,7 +108,11 @@ export function CategoryForm({
               </Select>
             )}
           </CategoryField>
-          <CategoryField label={t('fields.name')} error={errors.fields?.name}>
+          <CategoryField
+            label={t('fields.name')}
+            error={errors.fields?.name}
+            id={NEW_CATEGORY_NAME_ID}
+          >
             {(control) => (
               <Input name="name" type="text" autoComplete="off" required {...control} />
             )}

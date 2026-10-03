@@ -392,6 +392,43 @@ describe('ProfileContainer', () => {
     });
   });
 
+  it('shows a skeleton with a loading status while the profile loads (AC-21)', async () => {
+    stubApi({ 'GET /profile': profile() });
+    renderApp(<ProfileContainer />);
+
+    const status = screen.getByRole('status');
+    expect(status.getAttribute('aria-busy')).toBe('true');
+    expect(status.textContent).toBe(es.app.loading);
+    expect(status.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    await loaded();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('shows the load failure in the shared error state, with no stale form (sad path)', async () => {
+    stubApi({ 'GET /profile': 'network-error' });
+    renderApp(<ProfileContainer />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain(es.ui.error.title);
+    expect(alert.textContent).toContain(es.errors.network);
+    expect(screen.getByRole('button', { name: es.app.retry })).toBeDefined();
+    expect(screen.queryByLabelText(es.profile.account.displayName)).toBeNull();
+  });
+
+  it('gives the delete-account entry the destructive treatment (AC-16)', async () => {
+    stubApi({ 'GET /profile': profile() });
+    renderApp(<ProfileContainer />);
+    await loaded();
+
+    const card = screen
+      .getByRole('link', { name: es.profile.deleteAccount.link })
+      .closest('[data-slot="card"]');
+    expect(card?.className).toContain('border-destructive/40');
+    const title = screen.getByRole('heading', { level: 2, name: es.profile.deleteAccount.title });
+    expect(title.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(title.textContent).toBe(es.profile.deleteAccount.title);
+  });
+
   it('offers a retry when the profile cannot be loaded (sad path)', async () => {
     const { calls } = stubApi({ 'GET /profile': ['network-error', profile()] });
     renderApp(<ProfileContainer />);

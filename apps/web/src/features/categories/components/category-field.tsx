@@ -19,6 +19,8 @@ interface CategoryFieldProps {
   error: CategoryFieldMessage | undefined;
   /** The control is a group (radiogroup): the label names the group instead of one input. */
   group?: boolean;
+  /** A fixed id for the control, when something outside the form must find it. */
+  id?: string;
   /** Renders the control with the id and ARIA attributes that tie it to label and message. */
   children: (control: CategoryFieldControlProps) => ReactNode;
 }
@@ -27,9 +29,16 @@ interface CategoryFieldProps {
  * A labelled control with its inline error. Messages come from two catalog namespaces
  * (`categories` and `errors`), so it translates by full path.
  */
-export function CategoryField({ label, error, group = false, children }: CategoryFieldProps) {
+export function CategoryField({
+  label,
+  error,
+  group = false,
+  id: fixedId,
+  children,
+}: CategoryFieldProps) {
   const t = useTranslations();
-  const id = useId();
+  const generatedId = useId();
+  const id = fixedId ?? generatedId;
   const labelId = `${id}-label`;
 
   return (
@@ -38,7 +47,7 @@ export function CategoryField({ label, error, group = false, children }: Categor
         <span
           id={labelId}
           data-error={Boolean(error)}
-          className="text-sm leading-none font-medium data-[error=true]:text-destructive"
+          className="text-small leading-none font-medium data-[error=true]:text-destructive"
         >
           {label}
         </span>
@@ -58,7 +67,7 @@ export function CategoryField({ label, error, group = false, children }: Categor
         'aria-labelledby': group ? labelId : undefined,
       })}
       {error ? (
-        <p id={`${id}-message`} className="text-sm text-destructive">
+        <p id={`${id}-message`} className="text-small text-destructive">
           {t(error, { max: CATEGORY_NAME_MAX_LENGTH })}
         </p>
       ) : null}

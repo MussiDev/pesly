@@ -132,6 +132,13 @@ const plain = (text: string) => text.replace(/\s+/g, ' ');
 
 const rows = () => screen.getAllByRole('listitem');
 
+/** The Amount of a row: its direction and its text (sign, direction label for screen readers, figure). */
+function amountOf(row: HTMLElement) {
+  const amount = row.querySelector('[data-slot="amount"]');
+  if (amount === null) throw new Error('Expected an Amount in the row');
+  return { kind: amount.getAttribute('data-kind'), text: plain(amount.textContent) };
+}
+
 const rateLine = (rate: bigint, locale: 'es' | 'en') =>
   (locale === 'es' ? es : en).movements.list.rate.replace('{rate}', formatRate(rate, locale));
 
@@ -156,7 +163,10 @@ describe('MovementsContainer', () => {
 
     expect(within(first).getByText('Comida')).toBeDefined();
     expect(within(first).getByText('Caja')).toBeDefined();
-    expect(within(first).getByText(plain(formatMoney(-150050n, 'ARS', 'es')))).toBeDefined();
+    expect(amountOf(first)).toEqual({
+      kind: 'expense',
+      text: `−${es.movements.types.expense}${plain(formatMoney(150050n, 'ARS', 'es'))}`,
+    });
     // An ARS-account row hides the frozen rate: it stays stored, the list does not show it.
     expect(within(first).queryByText(rateLine(12505000n, 'es'))).toBeNull();
     expect(within(first).queryByText(/Cotizaci/)).toBeNull();
@@ -166,7 +176,10 @@ describe('MovementsContainer', () => {
     // The archived account and category still name the movement; income is signed positive.
     expect(within(second).getByText('Vieja')).toBeDefined();
     expect(within(second).getByText('Dolares viejos')).toBeDefined();
-    expect(within(second).getByText(`+${plain(formatMoney(20000n, 'USD', 'es'))}`)).toBeDefined();
+    expect(amountOf(second)).toEqual({
+      kind: 'income',
+      text: `+${es.movements.types.income}${plain(formatMoney(20000n, 'USD', 'es'))}`,
+    });
     // A USD-account row shows the rate that was frozen on the movement.
     expect(within(second).getByText(rateLine(9000000n, 'es'))).toBeDefined();
     // 02:00 UTC is still the previous day in Buenos Aires (23:00).
@@ -188,7 +201,13 @@ describe('MovementsContainer', () => {
     stubApi(routes({ [FIRST_PAGE]: movementPage([movement(), usd]) }));
     renderApp(<MovementsContainer />, { locale: 'en' });
 
-    expect(await screen.findByText(plain(formatMoney(-150050n, 'ARS', 'en')))).toBeDefined();
+    await screen.findAllByRole('listitem');
+    const [ars] = rows();
+    if (ars === undefined) throw new Error('Expected a row');
+    expect(amountOf(ars)).toEqual({
+      kind: 'expense',
+      text: `−${en.movements.types.expense}${plain(formatMoney(150050n, 'ARS', 'en'))}`,
+    });
     // Only the USD row carries the rate line, in the English wording.
     expect(
       screen.getAllByText(en.movements.list.rate.replace('{rate}', formatRate(12505000n, 'en'))),

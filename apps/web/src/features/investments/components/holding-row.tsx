@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { ListRow } from '@/components/ui/list-row';
 import type { Locale } from '@/i18n/routing';
 import { formatDateTime, formatMoney, formatPercentage, formatQuantity } from '@/lib/format-amount';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,9 @@ export interface HoldingRowProps {
   onSetPrice?: (holdingId: string) => void;
   onDelete?: (holdingId: string) => void;
 }
+
+// The tone only reinforces the label and sign already in the text ("Gain +…", "Loss -…").
+const GAIN_TONE = { gain: 'text-income', loss: 'text-destructive', flat: 'text-foreground' };
 
 function signed(text: string, amount: bigint): string {
   return amount > 0n ? `+${text}` : text;
@@ -47,49 +51,55 @@ export function HoldingRow({
 
   const gainAmount = holding.gain === null ? 0n : BigInt(holding.gain.amount);
   const isLoss = gainAmount < 0n;
+  const gainTone = isLoss ? 'loss' : gainAmount > 0n ? 'gain' : 'flat';
   const pricedAt =
     holding.pricedAt === null ? null : formatDateTime(holding.pricedAt, timeZone, language);
   const currency = holding.valuationCurrency;
 
   return (
-    <li className="flex flex-col gap-2 py-3">
-      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
-        <div className="flex min-w-0 flex-col">
-          <span className="font-medium">{holding.ticker}</span>
-          <span className="truncate text-sm text-muted-foreground">{holding.instrumentName}</span>
-          <span className="text-xs text-muted-foreground">{typeLabel}</span>
-          <span className="text-xs text-muted-foreground">
-            {t('holding.quantity', {
-              quantity: formatQuantity(BigInt(holding.quantity), language),
-            })}
-          </span>
-        </div>
-        <div className="flex flex-col items-end text-right">
-          {holding.value === null ? (
-            <span className="text-sm text-muted-foreground">{t('holding.priceNeeded')}</span>
-          ) : (
-            <span className="font-medium">
-              {formatMoney(BigInt(holding.value), currency, language)}
-            </span>
-          )}
-          {holding.gain !== null && (
-            <span className={cn('text-xs', isLoss ? 'text-destructive' : 'text-foreground')}>
-              {t(isLoss ? 'holding.loss' : 'holding.gain', {
-                amount: signed(formatMoney(gainAmount, currency, language), gainAmount),
-                percent: signed(
-                  formatPercentage(BigInt(holding.gain.basisPoints), language),
-                  gainAmount,
-                ),
+    <li className="flex flex-col gap-1 py-1">
+      <ListRow
+        className="items-start"
+        title={holding.ticker}
+        description={
+          <>
+            <span className="block truncate">{holding.instrumentName}</span>
+            <span className="block">{typeLabel}</span>
+            <span className="block">
+              {t('holding.quantity', {
+                quantity: formatQuantity(BigInt(holding.quantity), language),
               })}
             </span>
-          )}
-          {holding.priceStale && pricedAt !== null && (
-            <span className="text-xs text-muted-foreground">
-              {t('holding.stalePrice', { date: pricedAt })}
-            </span>
-          )}
-        </div>
-      </div>
+          </>
+        }
+        trailing={
+          <div className="flex flex-col items-end text-right tabular-nums">
+            {holding.value === null ? (
+              <span className="text-small text-muted-foreground">{t('holding.priceNeeded')}</span>
+            ) : (
+              <span className="text-body font-medium">
+                {formatMoney(BigInt(holding.value), currency, language)}
+              </span>
+            )}
+            {holding.gain !== null && (
+              <span className={cn('text-caption', GAIN_TONE[gainTone])}>
+                {t(isLoss ? 'holding.loss' : 'holding.gain', {
+                  amount: signed(formatMoney(gainAmount, currency, language), gainAmount),
+                  percent: signed(
+                    formatPercentage(BigInt(holding.gain.basisPoints), language),
+                    gainAmount,
+                  ),
+                })}
+              </span>
+            )}
+            {holding.priceStale && pricedAt !== null && (
+              <span className="text-caption text-muted-foreground">
+                {t('holding.stalePrice', { date: pricedAt })}
+              </span>
+            )}
+          </div>
+        }
+      />
       <Button
         type="button"
         variant="ghost"
@@ -110,7 +120,10 @@ export function HoldingRow({
         <span aria-hidden>{open ? t('holding.hideDetails') : t('holding.showDetails')}</span>
       </Button>
       {open && (
-        <div id={detailsId} className="flex flex-col gap-3 rounded-md border p-3 text-sm">
+        <div
+          id={detailsId}
+          className="flex flex-col gap-3 rounded-md border bg-surface p-3 text-small"
+        >
           {holding.unitPrice === null ? (
             <p className="text-muted-foreground">{t('holding.noPrice')}</p>
           ) : (

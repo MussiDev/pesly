@@ -48,9 +48,12 @@ export function DeleteUserForm({
   }
 
   return (
-    <Card>
+    <Card className="border-destructive/40">
       <CardHeader>
-        <CardTitle as="h2">{t('warningTitle')}</CardTitle>
+        <CardTitle as="h2" className="flex items-center gap-2 text-destructive">
+          <TriangleAlert aria-hidden className="size-5 shrink-0" />
+          {t('warningTitle')}
+        </CardTitle>
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent>

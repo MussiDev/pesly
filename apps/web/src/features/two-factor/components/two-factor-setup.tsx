@@ -53,16 +53,19 @@ export function TwoFactorSetup({
       </CardHeader>
       <CardContent className="grid gap-4">
         {/* The SVG carries its own light background and quiet zone, so it scans in dark mode too. */}
-        <img
-          src={qrDataUrl}
-          alt={t('qrAlt')}
-          width={192}
-          height={192}
-          className="mx-auto size-48 rounded-md border"
-        />
-        <div className="grid gap-1 text-sm">
+        {/* data-slot is a styling and test contract hook, like the ui components' slots. */}
+        <div data-slot="qr-tile" className="mx-auto rounded-lg border p-2">
+          <img
+            src={qrDataUrl}
+            alt={t('qrAlt')}
+            width={192}
+            height={192}
+            className="size-48 rounded-md"
+          />
+        </div>
+        <div className="grid gap-2 text-small">
           <p className="text-muted-foreground">{t('manual')}</p>
-          <code className="rounded-md bg-muted px-2 py-1 font-mono break-all select-all">
+          <code className="rounded-md bg-muted px-3 py-2 font-mono break-all select-all">
             {secret}
           </code>
         </div>

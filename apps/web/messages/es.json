@@ -5,18 +5,60 @@
   },
   "home": {
     "title": "Pesly",
-    "tagline": "Tus cuentas, gastos y ahorros en pesos y dólares, en un solo lugar."
+    "tagline": "Tus cuentas, gastos y ahorros en pesos y dólares, en un solo lugar.",
+    "balance": {
+      "title": "Tu saldo",
+      "available": "Disponible",
+      "netWorth": "Patrimonio neto",
+      "currencies": {
+        "ARS": "Pesos argentinos (ARS)",
+        "USD": "Dólares estadounidenses (USD)"
+      }
+    },
+    "recent": {
+      "title": "Últimos movimientos",
+      "seeAll": "Ver todos los movimientos",
+      "income": "Ingreso",
+      "expense": "Gasto",
+      "unknownAccount": "Cuenta desconocida",
+      "unknownCategory": "Categoría desconocida",
+      "empty": {
+        "title": "Todavía no hay movimientos",
+        "description": "Registra tu primer gasto o ingreso y aparecerá aquí.",
+        "action": "Agregar un movimiento"
+      }
+    },
+    "quickActions": {
+      "title": "Acciones rápidas",
+      "addMovement": "Agregar movimiento",
+      "addAccount": "Agregar cuenta"
+    },
+    "empty": {
+      "title": "Crea tu primera cuenta",
+      "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
+      "action": "Crear cuenta"
+    }
   },
   "app": {
     "loading": "Cargando…",
     "retry": "Reintentar",
+    "brand": "Pesly",
+    "skipToContent": "Saltar al contenido",
     "nav": {
+      "label": "Navegación principal",
       "home": "Inicio",
+      "accounts": "Cuentas",
       "security": "Seguridad",
       "profile": "Perfil",
       "categories": "Categorías",
       "movements": "Movimientos",
-      "investments": "Inversiones"
+      "investments": "Inversiones",
+      "more": "Más",
+      "addMovement": "Agregar movimiento"
+    },
+    "more": {
+      "title": "Más",
+      "description": "Categorías, perfil, seguridad y apariencia."
     }
   },
   "auth": {
@@ -101,6 +143,108 @@
       "backToSignIn": "Volver a iniciar sesión"
     }
   },
+  "theme": {
+    "label": "Tema",
+    "light": "Claro",
+    "dark": "Oscuro",
+    "system": "Sistema"
+  },
+  "ui": {
+    "loading": "Cargando…",
+    "retry": "Reintentar",
+    "empty": {
+      "title": "Todavía no hay nada",
+      "description": "Cuando haya algo para mostrar, aparecerá aquí.",
+      "action": "Comenzar"
+    },
+    "error": {
+      "title": "Algo salió mal",
+      "description": "No pudimos cargar este contenido. Revisa tu conexión e inténtalo de nuevo."
+    },
+    "designSystem": {
+      "title": "Sistema de diseño",
+      "description": "Tokens y componentes de la interfaz de Pesly, en los temas claro y oscuro.",
+      "previews": {
+        "light": "Tema claro",
+        "dark": "Tema oscuro"
+      },
+      "sections": {
+        "colors": "Colores",
+        "typography": "Tipografía",
+        "shape": "Radio, elevación y espaciado",
+        "motion": "Movimiento",
+        "buttons": "Botones",
+        "controls": "Controles de formulario",
+        "alerts": "Alertas",
+        "badges": "Etiquetas",
+        "amounts": "Montos",
+        "states": "Estados de carga, vacío y error",
+        "rows": "Listas"
+      },
+      "type": {
+        "display": "Display",
+        "title": "Título",
+        "heading": "Encabezado",
+        "body": "Cuerpo",
+        "small": "Pequeño",
+        "caption": "Leyenda",
+        "sample": "Pesos y dólares, en un solo lugar"
+      },
+      "variants": {
+        "default": "Predeterminado",
+        "secondary": "Secundario",
+        "outline": "Contorno",
+        "ghost": "Fantasma",
+        "link": "Enlace",
+        "destructive": "Destructivo",
+        "success": "Éxito",
+        "warning": "Advertencia",
+        "info": "Información"
+      },
+      "sizes": {
+        "small": "Pequeño",
+        "large": "Grande",
+        "icon": "Botón de ícono"
+      },
+      "states": {
+        "disabled": "Deshabilitado",
+        "invalid": "Inválido"
+      },
+      "controls": {
+        "text": "Campo de texto",
+        "placeholder": "Escribe aquí",
+        "select": "Selector",
+        "optionOne": "Primera opción",
+        "optionTwo": "Segunda opción",
+        "checkbox": "Casilla de verificación",
+        "hint": "Aquí va el texto de ayuda.",
+        "error": "Este campo tiene un error."
+      },
+      "alerts": {
+        "title": "Atención",
+        "description": "Un mensaje breve con algo de contexto."
+      },
+      "amounts": {
+        "income": "Ingreso",
+        "expense": "Gasto",
+        "balance": "Saldo"
+      },
+      "motion": {
+        "description": "Las transiciones comparten una duración y una curva, y se detienen cuando el sistema pide reducir el movimiento.",
+        "sample": "Pasa el cursor o enfócame"
+      },
+      "shape": {
+        "radius": "Radio",
+        "elevation": "Elevación",
+        "spacing": "Espaciado"
+      },
+      "rows": {
+        "title": "Sueldo",
+        "description": "Cuenta principal",
+        "trailing": "Detalle"
+      }
+    }
+  },
   "errors": {
     "invalidCredentials": "Email o contraseña incorrectos",
     "passwordTooShort": "La contraseña debe tener al menos 10 caracteres.",
@@ -183,6 +327,7 @@
       "activeTitle": "Cuentas activas",
       "archivedTitle": "Cuentas archivadas",
       "newAccount": "Nueva cuenta",
+      "emptyTitle": "Crea tu primera cuenta",
       "empty": "Todavía no tienes cuentas. Crea una para empezar.",
       "emptyArchived": "No tienes cuentas archivadas.",
       "showArchived": "Ver cuentas archivadas",
@@ -214,6 +359,7 @@
     "title": "Movimientos",
     "list": {
       "newMovement": "Nuevo movimiento",
+      "emptyTitle": "Registra tu primer movimiento",
       "empty": "Todavía no tienes movimientos.",
       "showMore": "Ver más",
       "rate": "Cotización: {rate} ARS por USD",
@@ -302,6 +448,8 @@
       "archivedTitle": "Categorías archivadas",
       "empty": "Todavía no tienes categorías.",
       "emptyArchived": "No tienes categorías archivadas.",
+      "emptyAction": "Crear una categoría",
+      "emptyArchivedAction": "Mostrar categorías activas",
       "emptySection": "No hay categorías en esta sección.",
       "showArchived": "Mostrar categorías archivadas",
       "subcategories": "Subcategorías de {name}"
@@ -370,11 +518,13 @@
   },
   "security": {
     "title": "Seguridad",
+    "subtitle": "Protege tu cuenta con un segundo paso al iniciar sesión.",
     "enabledNotice": "Activaste la verificación en dos pasos. Cerramos tus otras sesiones.",
     "disabledNotice": "Desactivaste la verificación en dos pasos. Cerramos tus otras sesiones.",
     "twoFactor": {
       "title": "Verificación en dos pasos",
       "description": "Además de tu contraseña o de Google, te pediremos un código de tu app de autenticación al iniciar sesión.",
+      "status": "Estado",
       "on": "Activada",
       "off": "Desactivada",
       "recoveryCodesRemaining": "{count, plural, =0 {No te quedan códigos de recuperación.} one {Te queda # código de recuperación.} other {Te quedan # códigos de recuperación.}}",
@@ -415,6 +565,7 @@
   },
   "profile": {
     "title": "Perfil",
+    "subtitle": "Tus datos y cómo funciona Pesly para ti.",
     "saved": "Guardado.",
     "account": {
       "title": "Tu perfil",
@@ -468,6 +619,7 @@
   },
   "deleteUser": {
     "title": "Eliminar cuenta",
+    "subtitle": "Quita tu cuenta y todo lo que contiene de forma definitiva.",
     "warningTitle": "Esto no se puede deshacer",
     "description": "Al eliminar tu cuenta se borra ella y todo lo que contiene.",
     "warning": "Vamos a borrar de forma permanente tu cuenta, tus cuentas y todos tus movimientos. No hay forma de recuperarlos.",

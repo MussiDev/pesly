@@ -8,11 +8,15 @@ import type {
   SetPriceRequest,
   UpdateHoldingRequest,
 } from '@pesly/shared';
-import { CircleAlert } from 'lucide-react';
+import { Briefcase, CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorState } from '@/components/ui/error-state';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/i18n/routing';
 import { formatQuantity } from '@/lib/format-amount';
 import type { HoldingFormErrors, InvestmentErrorKey } from '../holding-form-errors';
@@ -95,12 +99,14 @@ function Panel({
   const ref = useFocusOnMount<HTMLHeadingElement>(null);
   const Heading = level;
   return (
-    <div className="flex flex-col gap-3 rounded-xl border bg-card p-4 text-card-foreground">
-      <Heading ref={ref} tabIndex={-1} className="text-base font-semibold">
-        {title}
-      </Heading>
-      {children}
-    </div>
+    <Card className="gap-4">
+      <CardHeader>
+        <Heading ref={ref} tabIndex={-1} className="text-heading outline-none">
+          {title}
+        </Heading>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -125,6 +131,7 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
   } = props;
   const t = useTranslations('investments');
   const tApp = useTranslations('app');
+  const tUi = useTranslations('ui');
   const tErrors = useTranslations('investments.errors');
   const rootRef = useRef<HTMLDivElement>(null);
   const opener = useRef<{ element: HTMLElement; key: string | null; label: string | null } | null>(
@@ -205,30 +212,28 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
   }, [portfolios]);
 
   if (state === 'loading') {
+    // Same frame as the loaded screen: the create button, then a portfolio card.
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {tApp('loading')}
-      </p>
-    );
-  }
-
-  const retry = (
-    <Button type="button" variant="outline" onClick={props.onRetry}>
-      {tApp('retry')}
-    </Button>
-  );
-
-  if (state === 'failed') {
-    return (
-      <div className="grid gap-4">
-        <Alert variant="destructive">
-          <CircleAlert aria-hidden />
-          <AlertDescription>{tErrors(loadError ?? 'unexpected')}</AlertDescription>
-        </Alert>
-        {retry}
+      <div className="flex flex-col gap-4">
+        <p role="status" className="sr-only">
+          {tApp('loading')}
+        </p>
+        <Skeleton className="h-11 w-40" />
+        <Skeleton className="h-64 rounded-xl" />
       </div>
     );
   }
+
+  const loadFailure = (error: InvestmentErrorKey) => (
+    <ErrorState
+      title={tUi('error.title')}
+      description={tErrors(error)}
+      retryLabel={tApp('retry')}
+      onRetry={props.onRetry}
+    />
+  );
+
+  if (state === 'failed') return loadFailure(loadError ?? 'unexpected');
 
   const createForm = (
     <CreatePortfolioForm
@@ -248,16 +253,8 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
         if (event.target instanceof HTMLElement) lastFocused.current = event.target;
       }}
     >
-      {loadError && (
-        <div className="grid gap-4">
-          <Alert variant="destructive">
-            <CircleAlert aria-hidden />
-            <AlertDescription>{tErrors(loadError)}</AlertDescription>
-          </Alert>
-          {retry}
-        </div>
-      )}
-      <p role="status" className="text-sm text-muted-foreground empty:sr-only">
+      {loadError && loadFailure(loadError)}
+      <p role="status" className="text-small text-muted-foreground empty:sr-only">
         {notice?.kind === 'merged'
           ? t('notices.merged', {
               ticker: notice.ticker,
@@ -268,11 +265,12 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
             : null}
       </p>
       {portfolios.length === 0 ? (
-        <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">{t('empty.title')}</h2>
-          <p className="text-sm text-muted-foreground">{t('empty.description')}</p>
-          {createForm}
-        </section>
+        <EmptyState
+          title={t('empty.title')}
+          description={t('empty.description')}
+          icon={<Briefcase aria-hidden />}
+          action={<div className="w-full max-w-sm text-left">{createForm}</div>}
+        />
       ) : (
         <>
           {openForm?.kind === 'create' ? (
@@ -368,11 +366,11 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
                 )}
                 {openForm?.kind === 'delete-portfolio' && openForm.portfolioId === portfolio.id && (
                   <Panel title={t('portfolio.delete')} level="h3">
-                    <p className="text-sm">{t('forms.confirmDelete.portfolio')}</p>
+                    <p className="text-small">{t('forms.confirmDelete.portfolio')}</p>
                     <div className="flex flex-wrap gap-2">
                       <Button
                         type="button"
-                        variant="default"
+                        variant="destructive"
                         disabled={pending}
                         onClick={() => {
                           props.onDeletePortfolio(portfolio.id);

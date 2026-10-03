@@ -50,6 +50,15 @@ describe('PortfolioCard', () => {
     expect(screen.getByText('500.00 USD')).toBeTruthy();
   });
 
+  it('FEAT-004: is a card with the totals as a labelled list, one entry per currency', () => {
+    renderCard();
+
+    const card = screen.getByRole('heading', { name: 'Balanz' }).closest('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    const totals = screen.getByRole('list', { name: en.investments.portfolio.totalsLabel });
+    expect(totals.querySelectorAll('li')).toHaveLength(2);
+  });
+
   it('AC-13/AC-20: formats the totals with Spanish separators in Spanish', () => {
     renderCard({}, 'es');
 
@@ -87,6 +96,7 @@ describe('PortfolioCard', () => {
 
     const list = screen.getByRole('list', { name: en.investments.portfolio.holdingsLabel });
     expect(list.querySelectorAll('li')).toHaveLength(1);
+    expect(list.querySelectorAll('li > [data-slot="list-row"]')).toHaveLength(1);
     expect(screen.getByText('AAPL')).toBeTruthy();
   });
 

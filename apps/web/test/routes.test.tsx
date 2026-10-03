@@ -63,7 +63,26 @@ describe('routes', () => {
   });
 
   it('the home page is only shown behind the session guard', async () => {
-    stubApi({ 'GET /auth/session': SESSION });
+    const { calls } = stubApi({
+      'GET /auth/session': SESSION,
+      'GET /accounts?archived=false&limit=100': {
+        status: 200,
+        body: {
+          items: [],
+          availableTotals: { ARS: '0', USD: '0' },
+          netWorthTotals: { ARS: '0', USD: '0' },
+          debtTotals: { ARS: '0', USD: '0' },
+          creditCardCount: 0,
+          total: 0,
+          limit: 100,
+          offset: 0,
+        },
+      },
+      'GET /movements?limit=5': {
+        status: 200,
+        body: { items: [], total: 0, limit: 5, offset: 0 },
+      },
+    });
     renderApp(
       <AppLayout>
         <HomePage />
@@ -72,9 +91,11 @@ describe('routes', () => {
 
     expect(screen.queryByRole('heading', { name: es.home.title })).toBeNull();
     expect(await screen.findByRole('heading', { level: 1, name: es.home.title })).toBeDefined();
-    expect(screen.getByText(es.home.tagline)).toBeDefined();
-    const link = screen.getByRole('link', { name: es.accounts.link });
-    expect(link.getAttribute('href')).toBe('/es/accounts');
+    expect(await screen.findByRole('heading', { name: es.home.empty.title })).toBeDefined();
+    const link = screen.getByRole('link', { name: es.home.empty.action });
+    expect(link.getAttribute('href')).toBe('/es/accounts/new');
+    expect(calls[0]?.path).toBe('/auth/session');
+    expect(calls.map((call) => call.path)).toContain('/movements?limit=5');
   });
 
   it('the accounts list is only shown behind the session guard', async () => {

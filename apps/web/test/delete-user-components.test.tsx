@@ -41,6 +41,26 @@ describe('DeleteUserForm', () => {
     expect(screen.getByRole('button', { name: es.deleteUser.submit })).toBeDefined();
   });
 
+  it('sits in a destructive-toned card, apart from the other settings', () => {
+    renderForm();
+
+    const card = screen
+      .getByRole('heading', { level: 2, name: es.deleteUser.warningTitle })
+      .closest('[data-slot="card"]');
+    expect(card?.className).toContain('border-destructive/40');
+    expect(
+      screen.getByRole('heading', { level: 2, name: es.deleteUser.warningTitle }).className,
+    ).toContain('text-destructive');
+  });
+
+  it('marks the destructive title with an icon, so the tone is not colour alone', () => {
+    renderForm();
+
+    const title = screen.getByRole('heading', { level: 2, name: es.deleteUser.warningTitle });
+    expect(title.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(title.textContent).toBe(es.deleteUser.warningTitle);
+  });
+
   it('shows the code field when the second factor is on and no password for a Google account', () => {
     renderForm({ requirePassword: false, requireCode: true });
 
@@ -124,6 +144,23 @@ describe('DeleteUserGoogle', () => {
 
     expect(screen.getByText(es.deleteUser.google.failed)).toBeDefined();
     expect(screen.getByRole('button', { name: es.deleteUser.google.continue })).toBeDefined();
+  });
+
+  it('marks the Google step title with an icon too', () => {
+    renderGoogle();
+
+    const title = screen.getByRole('heading', { level: 2, name: es.deleteUser.warningTitle });
+    expect(title.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(title.textContent).toBe(es.deleteUser.warningTitle);
+  });
+
+  it('sits in a destructive-toned card too', () => {
+    renderGoogle();
+
+    const card = screen
+      .getByRole('heading', { level: 2, name: es.deleteUser.warningTitle })
+      .closest('[data-slot="card"]');
+    expect(card?.className).toContain('border-destructive/40');
   });
 
   it('shows an API error key, such as an expired confirmation (sad path)', () => {

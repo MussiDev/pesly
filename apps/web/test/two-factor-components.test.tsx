@@ -108,6 +108,39 @@ describe('TwoFactorStatus', () => {
     expect(screen.getByText(en.security.disabledNotice)).toBeDefined();
   });
 
+  it('shows the status as a list row with a success badge when on, with the notice as success', () => {
+    renderApp(
+      <TwoFactorStatus
+        state={{ kind: 'ready', enabled: true, recoveryCodesRemaining: 9 }}
+        pending={false}
+        notice="enabled"
+        {...statusHandlers()}
+      />,
+    );
+
+    const row = screen.getByText(es.security.twoFactor.on).closest('[data-slot="list-row"]');
+    expect(row).not.toBeNull();
+    const badge = row?.querySelector('[data-slot="badge"]');
+    expect(badge?.textContent).toBe(es.security.twoFactor.on);
+    expect(badge?.className).toContain('text-success');
+    expect(row?.textContent).toContain('9');
+    expect(screen.getByRole('status').className).toContain('border-success/40');
+  });
+
+  it('shows the status as a neutral badge when off', () => {
+    renderApp(
+      <TwoFactorStatus
+        state={{ kind: 'ready', enabled: false, recoveryCodesRemaining: 0 }}
+        pending={false}
+        {...statusHandlers()}
+      />,
+    );
+
+    const badge = screen.getByText(es.security.twoFactor.off).closest('[data-slot="badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.className).not.toContain('text-success');
+  });
+
   it('is disabled and says so while the setup starts', () => {
     renderApp(
       <TwoFactorStatus
@@ -146,6 +179,23 @@ describe('TwoFactorSetup', () => {
     await user.type(input, '123456');
     await user.click(screen.getByRole('button', { name: es.security.setup.submit }));
     expect(onSubmit).toHaveBeenCalledWith('123456');
+  });
+
+  it('frames the QR code in its own bordered tile and the key as a muted block', () => {
+    renderApp(
+      <TwoFactorSetup
+        qrDataUrl={QR}
+        secret={SECRET}
+        pending={false}
+        errors={{}}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    );
+
+    const qr = screen.getByRole('img', { name: es.security.setup.qrAlt });
+    expect(qr.parentElement?.getAttribute('data-slot')).toBe('qr-tile');
+    expect(screen.getByText(SECRET).className).toContain('bg-muted');
   });
 
   it('shows the code error on the field, and cancels on demand', async () => {
@@ -201,6 +251,20 @@ describe('RecoveryCodes', () => {
     expect(decodeURIComponent(href.slice('data:text/plain;charset=utf-8,'.length))).toBe(
       recoveryCodesFile(en.security.recoveryCodes.fileHeader, CODES),
     );
+  });
+
+  it('renders the codes in a monospace grid and confirms a copy with the success variant', () => {
+    renderApp(
+      <RecoveryCodes codes={CODES} copyStatus="copied" onCopy={vi.fn()} onDone={vi.fn()} />,
+    );
+
+    const list = screen.getByRole('list');
+    // Preflight removes the bullets, and Safari then drops the list semantics unless explicit.
+    expect(list.getAttribute('role')).toBe('list');
+    expect(list.className).toContain('grid');
+    expect(list.className).toContain('font-mono');
+    expect(list.className).toContain('grid-cols-2');
+    expect(screen.getByRole('status').className).toContain('border-success/40');
   });
 
   it('puts one code per line after the header in the file', () => {

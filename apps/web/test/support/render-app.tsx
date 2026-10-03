@@ -6,6 +6,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { afterEach, vi, type Mock } from 'vitest';
 import en from '../../messages/en.json';
 import es from '../../messages/es.json';
+import { ThemeProvider } from '../../src/components/theme-provider';
 import { ApiClientProvider } from '../../src/lib/api-client-provider';
 
 export const CATALOGS = { es, en } as const;
@@ -82,7 +83,8 @@ export interface RenderedApp extends RenderResult {
 /**
  * Renders a screen the way `app/[locale]/layout.tsx` does: catalogs of `locale`, one API client
  * for `API_ORIGIN`, and next-intl navigation on top of a fake Next.js app router that records
- * where the screen navigates to. `strict` renders under a root StrictMode, which (unlike a nested
+ * where the screen navigates to. The theme provider is mounted too, as in the layout, because the
+ * shell renders the theme toggle. `strict` renders under a root StrictMode, which (unlike a nested
  * `<StrictMode>`) makes React mount, unmount and remount effects as in development. `pathname` is
  * what Next.js' `usePathname()` reports (with the locale prefix), `null` as outside Next.js.
  */
@@ -109,7 +111,9 @@ export function renderApp(
       <AppRouterContext.Provider value={router}>
         <PathnameContext.Provider value={pathname}>
           <NextIntlClientProvider locale={locale} timeZone="UTC" messages={CATALOGS[locale]}>
-            <ApiClientProvider apiOrigin={API_ORIGIN}>{children}</ApiClientProvider>
+            <ThemeProvider>
+              <ApiClientProvider apiOrigin={API_ORIGIN}>{children}</ApiClientProvider>
+            </ThemeProvider>
           </NextIntlClientProvider>
         </PathnameContext.Provider>
       </AppRouterContext.Provider>

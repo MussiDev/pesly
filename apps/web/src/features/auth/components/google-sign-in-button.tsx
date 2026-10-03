@@ -50,7 +50,10 @@ export function GoogleSignInOption({ href }: { href: string }) {
   return (
     <div className="grid gap-4">
       <GoogleSignInButton href={href} />
-      <div className="flex items-center gap-3 text-xs text-muted-foreground uppercase">
+      <div
+        aria-hidden="true"
+        className="flex items-center gap-3 text-caption text-muted-foreground uppercase"
+      >
         <span aria-hidden="true" className="h-px flex-1 bg-border" />
         <span>{t('or')}</span>
         <span aria-hidden="true" className="h-px flex-1 bg-border" />

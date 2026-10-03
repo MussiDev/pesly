@@ -186,10 +186,16 @@ test('records an expense and an income, lists them newest first, shows the balan
   await page.goto('/es/movements');
   const rows = page.getByRole('listitem').filter({ hasText: ACCOUNT_NAME });
   await expect(rows).toHaveCount(2);
-  await expect(rows.nth(0)).toContainText(`+${money(25_050n)}`);
+  // Direction is a data-kind contract of Amount (glyph and sr-only label, not colour alone); the
+  // figure is the magnitude.
+  const incomeAmount = rows.nth(0).locator('[data-slot="amount"]');
+  await expect(incomeAmount).toHaveAttribute('data-kind', 'income');
+  await expect(incomeAmount).toContainText(money(25_050n));
   await expect(rows.nth(0)).toContainText(INCOME_CATEGORY);
   await expect(rows.nth(0)).toContainText(ACCOUNT_NAME);
-  await expect(rows.nth(1)).toContainText(money(-10_000n));
+  const expenseAmount = rows.nth(1).locator('[data-slot="amount"]');
+  await expect(expenseAmount).toHaveAttribute('data-kind', 'expense');
+  await expect(expenseAmount).toContainText(money(10_000n));
   await expect(rows.nth(1)).toContainText(EXPENSE_CATEGORY);
   // The account is in pesos: the frozen rate stays stored (checked above) and the row hides it.
   const rateWording = t.list.rate.split('{')[0] ?? '';

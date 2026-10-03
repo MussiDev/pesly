@@ -43,7 +43,7 @@ export function VerifyEmailNotice({ resendStatus, errors, onResend }: ResendProp
         <Button variant="outline" disabled={resendStatus === 'pending'} onClick={onResend}>
           {resendStatus === 'pending' ? t('resending') : t('resend')}
         </Button>
-        <Link href="/sign-in" className="text-sm text-primary underline-offset-4 hover:underline">
+        <Link href="/sign-in" className={buttonVariants({ variant: 'link' })}>
           {t('backToSignIn')}
         </Link>
       </CardContent>

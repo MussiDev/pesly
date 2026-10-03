@@ -38,6 +38,106 @@ function productNameLeaks(catalog: Catalog, prefix = ''): string[] {
   });
 }
 
+/** Keys of `from` that `to` lacks; empty when `to` covers `from`. */
+function missingKeys(from: Catalog, to: Catalog): string[] {
+  const present = new Set(flattenKeys(to));
+  return flattenKeys(from).filter((key) => !present.has(key));
+}
+
+/** Parity in both directions, one message per gap that names the key and the catalog lacking it. */
+function parityProblems(es: Catalog, en: Catalog): string[] {
+  return [
+    ...missingKeys(es, en).map((key) => `${key} is in es but missing from en`),
+    ...missingKeys(en, es).map((key) => `${key} is in en but missing from es`),
+  ];
+}
+
+/** Index of the `}` that closes the `{` at `open`. */
+function closingBrace(text: string, open: number): number {
+  let depth = 0;
+  for (let index = open; index < text.length; index += 1) {
+    if (text[index] === '{') depth += 1;
+    if (text[index] === '}') depth -= 1;
+    if (depth === 0) return index;
+  }
+  return text.length;
+}
+
+/** Argument names of an ICU message, including those nested in plural and select branches. */
+function icuArguments(text: string, found = new Set<string>()): Set<string> {
+  let index = text.indexOf('{');
+  while (index !== -1) {
+    const end = closingBrace(text, index);
+    const [name = '', type = '', ...rest] = splitTop(text.slice(index + 1, end));
+    found.add(name.trim());
+    if (['plural', 'select', 'selectordinal'].includes(type.trim())) {
+      for (const branch of rest.join(',').matchAll(/\{/g)) {
+        const branchEnd = closingBrace(rest.join(','), branch.index);
+        icuArguments(rest.join(',').slice(branch.index + 1, branchEnd), found);
+      }
+    }
+    index = text.indexOf('{', end + 1);
+  }
+  return found;
+}
+
+/** Splits an argument body on its first two commas only (name, type, options). */
+function splitTop(body: string): string[] {
+  const first = body.indexOf(',');
+  if (first === -1) return [body];
+  const second = body.indexOf(',', first + 1);
+  if (second === -1) return [body.slice(0, first), body.slice(first + 1)];
+  return [body.slice(0, first), body.slice(first + 1, second), body.slice(second + 1)];
+}
+
+/** One message per key whose ICU argument names differ between es and en. */
+function placeholderProblems(es: Catalog, en: Catalog): string[] {
+  const enStrings = new Map(stringsOf(en));
+  const show = (names: Set<string>): string => `{${[...names].sort().join(',')}}`;
+  return stringsOf(es).flatMap(([key, value]) => {
+    const other = enStrings.get(key);
+    if (other === undefined) return [];
+    const mine = icuArguments(value);
+    const theirs = icuArguments(other);
+    return show(mine) === show(theirs)
+      ? []
+      : [`${key}: es has ${show(mine)} but en has ${show(theirs)}`];
+  });
+}
+
+/** Top-level keys as written in the file: JSON.parse silently drops a duplicated namespace. */
+function topLevelKeys(raw: string): string[] {
+  const keys: string[] = [];
+  let depth = 0;
+  let index = 0;
+  while (index < raw.length) {
+    const char = raw[index];
+    if (char === '"') {
+      let end = index + 1;
+      while (raw[end] !== '"') end += raw[end] === '\\' ? 2 : 1;
+      const isKey = depth === 1 && /^\s*:/.test(raw.slice(end + 1));
+      if (isKey) keys.push(JSON.parse(raw.slice(index, end + 1)) as string);
+      index = end + 1;
+      continue;
+    }
+    if (char === '{' || char === '[') depth += 1;
+    if (char === '}' || char === ']') depth -= 1;
+    index += 1;
+  }
+  return keys;
+}
+
+function duplicates(values: string[]): string[] {
+  return values.filter((value, index) => values.indexOf(value) !== index);
+}
+
+function readRaw(locale: string): string {
+  return readFileSync(
+    fileURLToPath(new URL(`../messages/${locale}.json`, import.meta.url)),
+    'utf8',
+  );
+}
+
 describe('i18n catalogs (NFR-10)', () => {
   const esKeys = flattenKeys(loadCatalog('es'));
   const enKeys = flattenKeys(loadCatalog('en'));
@@ -52,6 +152,119 @@ describe('i18n catalogs (NFR-10)', () => {
 
   it('has every en key in es', () => {
     expect(enKeys.filter((key) => !esKeys.includes(key))).toEqual([]);
+  });
+});
+
+describe('i18n catalog parity, namespace by namespace (FEAT-004 AC-25)', () => {
+  const es = loadCatalog('es');
+  const en = loadCatalog('en');
+  const namespaces = Object.keys(es);
+
+  it('has the same top-level namespaces in both catalogs', () => {
+    expect(Object.keys(en).sort()).toEqual([...namespaces].sort());
+  });
+
+  it.each(namespaces)('has every key of the %s namespace in both catalogs, both ways', (name) => {
+    const only = (catalog: Catalog): Catalog => ({ [name]: catalog[name] ?? {} });
+
+    expect(parityProblems(only(es), only(en)), `namespace ${name}`).toEqual([]);
+  });
+
+  it('has the same ICU arguments in en and es for every key', () => {
+    expect(placeholderProblems(es, en)).toEqual([]);
+  });
+
+  it('extracts simple, plural and nested arguments', () => {
+    expect(
+      [...icuArguments('Hi {name}, {n, plural, one {# {thing}} other {# things}}')].sort(),
+    ).toEqual(['n', 'name', 'thing']);
+    expect([...icuArguments("No arguments, just a # and an apostrophe's")]).toEqual([]);
+  });
+
+  it('error: an es string that lacks an argument of en is reported with its key', () => {
+    const esFixture: Catalog = {
+      subcategories: { label: 'Subcategorías' },
+      ok: { a: 'Hola {name}' },
+    };
+    const enFixture: Catalog = {
+      subcategories: { label: 'Subcategories of {name}' },
+      ok: { a: 'Hi {name}' },
+    };
+
+    expect(placeholderProblems(esFixture, enFixture)).toEqual([
+      'subcategories.label: es has {} but en has {name}',
+    ]);
+  });
+
+  it('error: a renamed argument and a plural variable that differ are reported', () => {
+    const esFixture: Catalog = { a: 'Hola {nombre}', b: '{total, plural, other {# cosas}}' };
+    const enFixture: Catalog = { a: 'Hi {name}', b: '{count, plural, other {# things}}' };
+
+    expect(placeholderProblems(esFixture, enFixture)).toEqual([
+      'a: es has {nombre} but en has {name}',
+      'b: es has {total} but en has {count}',
+    ]);
+  });
+
+  it('has no empty string in either catalog', () => {
+    const empty = LOCALES.flatMap((locale) =>
+      stringsOf(loadCatalog(locale))
+        .filter(([, value]) => value.trim() === '')
+        .map(([key]) => `${locale}: ${key}`),
+    );
+
+    expect(empty).toEqual([]);
+  });
+
+  it.each(LOCALES)('parses %s.json as JSON with no duplicate top-level namespace', (locale) => {
+    const raw = readRaw(locale);
+
+    expect(() => {
+      JSON.parse(raw);
+    }).not.toThrow();
+    expect(duplicates(topLevelKeys(raw))).toEqual([]);
+    expect(topLevelKeys(raw).sort()).toEqual(Object.keys(loadCatalog(locale)).sort());
+  });
+
+  it('error: a key missing from en is reported by name', () => {
+    const esFixture: Catalog = { home: { title: 'Pesly', empty: { action: 'Crear' } } };
+    const enFixture: Catalog = { home: { title: 'Pesly', empty: {} } };
+
+    expect(parityProblems(esFixture, enFixture)).toEqual([
+      'home.empty.action is in es but missing from en',
+    ]);
+  });
+
+  it('error: a key missing from es is reported by name', () => {
+    const esFixture: Catalog = { home: { title: 'Pesly' } };
+    const enFixture: Catalog = { home: { title: 'Pesly', tagline: 'Hi' } };
+
+    expect(parityProblems(esFixture, enFixture)).toEqual([
+      'home.tagline is in en but missing from es',
+    ]);
+  });
+
+  it('error: a whole namespace missing from one catalog lists each of its keys', () => {
+    const esFixture: Catalog = { home: { title: 'Pesly' }, ui: { retry: 'Reintentar' } };
+    const enFixture: Catalog = { home: { title: 'Pesly' } };
+
+    expect(parityProblems(esFixture, enFixture)).toEqual(['ui.retry is in es but missing from en']);
+  });
+
+  it('error: a duplicated top-level namespace is detected in the raw text', () => {
+    const raw = '{ "home": { "title": "a" }, "ui": { "home": 1 }, "home": { "title": "b" } }';
+
+    expect(duplicates(topLevelKeys(raw))).toEqual(['home']);
+  });
+
+  it('error: a type mismatch (string vs namespace) shows up as a missing key', () => {
+    const esFixture: Catalog = { home: { empty: 'x' } };
+    const enFixture: Catalog = { home: { empty: { title: 'x' } } };
+
+    expect(parityProblems(esFixture, enFixture)).toEqual([
+      'home.empty is in es but missing from en',
+      'home.empty.title is in en but missing from es',
+    ]);
   });
 });
 
@@ -70,6 +283,36 @@ describe('categories catalog (DISC-001-02b)', () => {
     expect(readString(catalog, 'categories.title')).toBeTruthy();
     expect(readString(catalog, 'app.nav.categories')).toBeTruthy();
   });
+
+  it.each(LOCALES)(
+    'has the restyled list and action strings in %s (FEAT-004 Block 6)',
+    (locale) => {
+      const catalog = loadCatalog(locale);
+
+      for (const key of [
+        'list.activeTitle',
+        'list.archivedTitle',
+        'list.empty',
+        'list.emptyArchived',
+        'list.emptyAction',
+        'list.emptyArchivedAction',
+        'list.emptySection',
+        'list.showArchived',
+        'list.subcategories',
+        'actions.edit',
+        'actions.save',
+        'actions.cancel',
+        'actions.archive',
+        'actions.unarchive',
+        'actions.delete',
+        'actions.confirmDelete',
+        'actions.confirmDeleteYes',
+        'actions.archiveInstead',
+      ]) {
+        expect(readString(catalog, `categories.${key}`), `categories.${key}`).toBeTruthy();
+      }
+    },
+  );
 
   it.each(LOCALES)(
     'does not duplicate any default category name in the %s namespace (shared catalog is the source)',
@@ -136,6 +379,125 @@ describe('investments catalog (DISC-001-07a)', () => {
     expect(typeof catalog.investments).toBe('object');
     expect(readString(catalog, 'investments.title')).toBeTruthy();
     expect(readString(catalog, 'app.nav.investments')).toBeTruthy();
+  });
+
+  it.each(LOCALES)(
+    'has the empty state and portfolio strings in %s (FEAT-004 Block 6)',
+    (locale) => {
+      const catalog = loadCatalog(locale);
+
+      for (const key of [
+        'description',
+        'empty.title',
+        'empty.description',
+        'portfolio.totalsLabel',
+        'portfolio.holdingsWithoutPrice',
+        'portfolio.holdingsLabel',
+        'portfolio.noHoldings',
+        'portfolio.addHolding',
+        'portfolio.addHoldingFor',
+        'portfolio.delete',
+        'portfolio.deleteFor',
+      ]) {
+        expect(readString(catalog, `investments.${key}`), `investments.${key}`).toBeTruthy();
+      }
+      for (const group of [
+        'holding',
+        'instrumentTypes',
+        'priceSources',
+        'notices',
+        'forms',
+        'errors',
+      ]) {
+        expect(typeof catalog.investments, 'investments namespace').toBe('object');
+        expect(
+          flattenKeys((catalog.investments as Catalog)[group] as Catalog, group).length,
+          `investments.${group}`,
+        ).toBeGreaterThan(0);
+      }
+    },
+  );
+});
+
+describe('home catalog (FEAT-004 Block 7)', () => {
+  it.each(LOCALES)(
+    'has the balance, recent movements, quick actions and empty copy in %s',
+    (locale) => {
+      const catalog = loadCatalog(locale);
+
+      for (const key of [
+        'tagline',
+        'balance.title',
+        'balance.available',
+        'balance.netWorth',
+        'balance.currencies.ARS',
+        'balance.currencies.USD',
+        'recent.title',
+        'recent.seeAll',
+        'recent.income',
+        'recent.expense',
+        'recent.unknownAccount',
+        'recent.unknownCategory',
+        'recent.empty.title',
+        'recent.empty.description',
+        'recent.empty.action',
+        'quickActions.title',
+        'quickActions.addMovement',
+        'quickActions.addAccount',
+        'empty.title',
+        'empty.description',
+        'empty.action',
+      ]) {
+        expect(readString(catalog, `home.${key}`), `home.${key}`).toBeTruthy();
+      }
+    },
+  );
+
+  it.each(LOCALES)('reuses the balance wording of the accounts headline in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+
+    expect(readString(catalog, 'home.balance.available')).toBe(
+      readString(catalog, 'accounts.headline.available'),
+    );
+    expect(readString(catalog, 'home.balance.netWorth')).toBe(
+      readString(catalog, 'accounts.headline.netWorth'),
+    );
+  });
+});
+
+describe('app shell catalog (FEAT-004)', () => {
+  it.each(LOCALES)(
+    'has every navigation label, the More page copy and the brand in %s',
+    (locale) => {
+      const catalog = loadCatalog(locale);
+
+      for (const key of [
+        'label',
+        'home',
+        'accounts',
+        'movements',
+        'investments',
+        'more',
+        'categories',
+        'profile',
+        'security',
+        'addMovement',
+      ]) {
+        expect(readString(catalog, `app.nav.${key}`), `app.nav.${key}`).toBeTruthy();
+      }
+      expect(readString(catalog, 'app.more.title')).toBeTruthy();
+      expect(readString(catalog, 'app.more.description')).toBeTruthy();
+      expect(readString(catalog, 'app.brand')).toBe('Pesly');
+      expect(readString(catalog, 'app.skipToContent')).toBeTruthy();
+    },
+  );
+
+  it.each(LOCALES)('names the add-movement action apart from the list link in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+
+    expect(readString(catalog, 'app.nav.addMovement')).not.toBe(
+      readString(catalog, 'movements.list.newMovement'),
+    );
   });
 });
 

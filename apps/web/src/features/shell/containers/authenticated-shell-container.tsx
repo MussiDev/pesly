@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
-import type { ErrorMessageKey } from '../form-errors';
+import { useSignOut } from '../use-sign-out';
 
 /**
  * Guards the authenticated area. The session is checked client-side against the API (no Server
@@ -18,8 +18,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   const pathname = usePathname() as string | null;
   const [state, setState] = useState<ShellState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [signingOut, setSigningOut] = useState(false);
-  const [signOutError, setSignOutError] = useState<ErrorMessageKey | undefined>();
+  const { signingOut, signOutError, signOut } = useSignOut();
 
   useEffect(() => {
     let active = true;
@@ -37,18 +36,6 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
       active = false;
     };
   }, [api, router, attempt]);
-
-  async function signOut() {
-    setSigningOut(true);
-    setSignOutError(undefined);
-    const result = await api.signOut();
-    if (result.ok) {
-      router.replace('/sign-in');
-      return;
-    }
-    setSigningOut(false);
-    setSignOutError(result.messageKey);
-  }
 
   return (
     <AuthenticatedShell

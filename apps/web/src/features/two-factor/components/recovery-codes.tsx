@@ -47,13 +47,19 @@ export function RecoveryCodes({
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <ol className="grid grid-cols-2 gap-2 rounded-md bg-muted p-3 font-mono text-sm">
+        {/* Explicit role: preflight removes the bullets and Safari then drops the list semantics. */}
+        <ol
+          role="list"
+          className="grid grid-cols-2 gap-2 rounded-lg border bg-muted p-3 font-mono text-small"
+        >
           {codes.map((code) => (
-            <li key={code}>{code}</li>
+            <li key={code} className="rounded-md bg-card px-2 py-2 text-center select-all">
+              {code}
+            </li>
           ))}
         </ol>
         {copyStatus === 'copied' ? (
-          <Alert role="status">
+          <Alert variant="success" role="status">
             <CircleCheck aria-hidden />
             <AlertDescription>{t('copied')}</AlertDescription>
           </Alert>

@@ -46,12 +46,12 @@ export function MovementField({ label, hint, error, children }: MovementFieldPro
         'aria-describedby': describedBy || undefined,
       })}
       {hint ? (
-        <div id={`${id}-hint`} className="text-sm text-muted-foreground">
+        <div id={`${id}-hint`} className="text-small text-muted-foreground">
           {hint}
         </div>
       ) : null}
       {error ? (
-        <p id={`${id}-message`} className="text-sm text-destructive">
+        <p id={`${id}-message`} className="text-small text-destructive">
           {t(error, { max: MOVEMENT_NOTE_MAX_LENGTH })}
         </p>
       ) : null}

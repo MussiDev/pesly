@@ -1,0 +1,56 @@
+'use client';
+
+import { ChevronRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import { ThemeToggle } from '@/components/theme-toggle';
+import { listRowVariants } from '@/components/ui/list-row';
+import { PageHeader } from '@/components/ui/page-header';
+import { Link } from '@/i18n/navigation';
+import type { ApiErrorKey } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
+import { MORE_LIST_ITEMS } from '../nav-items';
+import { SignOutAlert } from './sign-out-alert';
+import { SignOutButton } from './sign-out-button';
+
+export interface MoreMenuProps {
+  signingOut: boolean;
+  signOutError: ApiErrorKey | undefined;
+  onSignOut: () => void;
+}
+
+/** What the bottom bar has no room for: categories, profile, security, theme and sign out. */
+export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps) {
+  const t = useTranslations('app');
+  const tNav = useTranslations('app.nav');
+
+  return (
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
+      <PageHeader title={t('more.title')} description={t('more.description')} />
+      <ul className="divide-y rounded-lg border bg-card px-3">
+        {MORE_LIST_ITEMS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                className={cn(
+                  listRowVariants({ interactive: true }),
+                  'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                )}
+              >
+                <Icon aria-hidden className="size-4 text-muted-foreground" />
+                <span className="flex-1 text-body">{tNav(item.labelKey)}</span>
+                <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
+              </Link>
+            </li>
+          );
+        })}
+        <li className="py-3">
+          <ThemeToggle />
+        </li>
+      </ul>
+      <SignOutAlert error={signOutError} />
+      <SignOutButton pending={signingOut} onSignOut={onSignOut} />
+    </main>
+  );
+}

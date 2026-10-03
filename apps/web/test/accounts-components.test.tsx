@@ -21,6 +21,7 @@ import {
   AccountList,
   type AccountListProps,
 } from '../src/features/accounts/components/account-list';
+import { AccountsLoadStateView } from '../src/features/accounts/components/accounts-load-state';
 import {
   nameErrorMessage,
   type AccountFormErrors,
@@ -69,14 +70,14 @@ function account(overrides: Partial<AccountResponse> = {}): AccountResponse {
 
 const noop = () => undefined;
 
+// The type scale tokens, smallest to largest.
 const TEXT_SIZES = [
-  'text-xs',
-  'text-sm',
-  'text-base',
-  'text-lg',
-  'text-xl',
-  'text-2xl',
-  'text-3xl',
+  'text-caption',
+  'text-small',
+  'text-body',
+  'text-heading',
+  'text-title',
+  'text-display',
 ];
 
 /** The Tailwind type-size rank of an element, so a test compares sizes without hardcoding one. */
@@ -932,5 +933,142 @@ describe('AccountForm include in available setting', () => {
     expect(
       screen.getByRole('checkbox', { name: en.accounts.fields.includeInAvailable }),
     ).toBeDefined();
+  });
+});
+
+describe('AccountsLoadStateView (FEAT-004 AC-21)', () => {
+  it('shows skeletons inside a labelled busy status while loading, with no list yet', () => {
+    const { container } = renderIntl(
+      <AccountsLoadStateView state={{ kind: 'loading' }} onRetry={noop} />,
+    );
+
+    const status = screen.getByRole('status');
+    expect(status.textContent).toBe(es.app.loading);
+    expect(status.getAttribute('aria-busy')).toBe('true');
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(1);
+    expect(screen.queryByRole('list')).toBeNull();
+  });
+
+  it('shows the shared error state with the failure message and a working retry', async () => {
+    const onRetry = vi.fn();
+    const { container } = renderIntl(
+      <AccountsLoadStateView state={{ kind: 'failed', error: 'network' }} onRetry={onRetry} />,
+    );
+
+    expect(container.querySelector('[data-slot="alert"]')).not.toBeNull();
+    expect(screen.getByText(es.ui.error.title)).toBeDefined();
+    expect(screen.getByText(es.errors.network)).toBeDefined();
+    await userEvent.setup().click(screen.getByRole('button', { name: es.app.retry }));
+
+    expect(onRetry).toHaveBeenCalledOnce();
+  });
+});
+
+describe('accounts screens built on the design system (FEAT-004 AC-17, AC-22)', () => {
+  it('shows an empty state with a call to action to create the first account', () => {
+    const { container } = renderIntl(<AccountList {...listProps({ accounts: [] })} />);
+
+    const empty = container.querySelector<HTMLElement>('[data-slot="empty-state"]');
+    if (empty === null) throw new Error('Expected an empty state');
+    expect(within(empty).getByRole('heading', { name: es.accounts.list.emptyTitle })).toBeDefined();
+    expect(within(empty).getByText(es.accounts.list.empty)).toBeDefined();
+    expect(
+      within(empty).getByRole('link', { name: es.accounts.list.newAccount }).getAttribute('href'),
+    ).toBe('/es/accounts/new');
+  });
+
+  it('keeps the archived empty message without a call to action', () => {
+    const { container } = renderIntl(
+      <AccountList {...listProps({ accounts: [], showArchived: true })} />,
+    );
+
+    const empty = container.querySelector<HTMLElement>('[data-slot="empty-state"]');
+    if (empty === null) throw new Error('Expected an empty state');
+    expect(within(empty).getByText(es.accounts.list.emptyArchived)).toBeDefined();
+    expect(within(empty).queryByRole('link')).toBeNull();
+  });
+
+  it('renders each account as a list row with its currency badge and an Amount balance', () => {
+    renderIntl(<AccountList {...listProps()} />);
+
+    const row = screen.getByRole('listitem', { name: 'Caja' });
+    expect(row.querySelector('[data-slot="list-row"]')).not.toBeNull();
+    expect(row.querySelector('[data-slot="badge"]')?.textContent).toBe('ARS');
+    expect(row.querySelector('[data-slot="amount"]')?.textContent).toBe(
+      formatMoney(150000n, 'ARS', 'es'),
+    );
+  });
+
+  it('puts the totals in tabular Amount figures inside the headline card', () => {
+    const { container } = renderIntl(
+      <AccountsHeadline
+        availableTotals={{ ARS: '150000', USD: '0' }}
+        netWorthTotals={{ ARS: '150000', USD: '0' }}
+      />,
+    );
+
+    expect(container.querySelectorAll('[data-slot="amount"]')).toHaveLength(4);
+    expect(container.querySelectorAll('[data-slot="card"]').length).toBe(2);
+  });
+
+  it('shows the field errors of an invalid submission and focuses the first invalid field', () => {
+    const { container } = renderIntl(
+      <AccountForm pending={false} errors={INVALID} onSubmit={noop} />,
+    );
+
+    expect(container.querySelector('[data-slot="card"]')).not.toBeNull();
+    expect(screen.getByText(es.accounts.errors.nameRequired)).toBeDefined();
+    expect(document.activeElement).toBe(screen.getByLabelText(es.accounts.fields.name));
+  });
+});
+
+describe('accounts round 2 (FEAT-004 review items)', () => {
+  it('gives the include-in-available row a 44px target with one accessible name from its label', () => {
+    renderIntl(<AccountList {...listProps()} />);
+
+    const box = screen.getByRole('checkbox', {
+      name: `${es.accounts.fields.includeInAvailable} Caja`,
+    });
+    // One name only: the visible label (with the account name for screen readers), no aria-label.
+    expect(box.hasAttribute('aria-label')).toBe(false);
+    const wrapper = box.parentElement;
+    expect(wrapper?.className).toContain('min-h-11');
+    const label = wrapper?.querySelector('label');
+    expect(label?.className).toContain('flex-1');
+  });
+
+  it('shows the archived title once on the archived empty view', () => {
+    renderIntl(<AccountList {...listProps({ accounts: [], showArchived: true })} />);
+
+    expect(screen.getAllByText(es.accounts.list.archivedTitle)).toHaveLength(1);
+    expect(screen.getByText(es.accounts.list.emptyArchived)).toBeDefined();
+  });
+
+  it('renders a placeholder, never a crash, for a malformed balance or total', () => {
+    const { container } = renderIntl(
+      <>
+        <AccountList
+          {...listProps({
+            accounts: [account({ balance: '12.5x' })],
+            availableTotals: { ARS: 'abc', USD: '0' },
+            netWorthTotals: { ARS: '1e3', USD: '0' },
+            debtTotals: { ARS: 'nope', USD: '0' },
+            creditCardCount: 1,
+          })}
+        />
+      </>,
+    );
+
+    const row = screen.getByRole('listitem', { name: 'Caja' });
+    expect(within(row).getByText('—')).toBeDefined();
+    expect(row.querySelector('[data-slot="amount"]')).toBeNull();
+    // Both malformed headline figures and the malformed debt total degrade the same way.
+    expect(container.querySelectorAll('dd').length).toBeGreaterThan(0);
+    expect(
+      within(metric('es', 'ARS', es.accounts.headline.available)).getByText('—'),
+    ).toBeDefined();
+    expect(within(metric('es', 'ARS', es.accounts.headline.netWorth)).getByText('—')).toBeDefined();
+    const debt = screen.getByRole('region', { name: es.accounts.debt.title });
+    expect(within(debt).getByText('—')).toBeDefined();
   });
 });

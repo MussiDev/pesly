@@ -43,11 +43,28 @@ describe('HoldingRow', () => {
     expect(screen.getByText(es.investments.instrumentTypes.cedear)).toBeTruthy();
   });
 
-  it('AC-11: shows the gain label, sign and percentage in the foreground token', () => {
+  it('FEAT-004: draws the holding as a list row with quantity, value and gain', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow holding={HOLDING} language="en" timeZone="UTC" />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    const row = container.querySelector('li > [data-slot="list-row"]');
+    expect(row).not.toBeNull();
+    const text = (row?.textContent ?? '').replace(/\s/g, ' ');
+    expect(text).toContain('AAPL');
+    expect(text).toContain('Quantity: 10');
+    expect(text).toContain('185,000.00 ARS');
+    expect(text).toContain('Gain +35,000.00 ARS (+23.33%)');
+  });
+
+  it('class-string contract (AC-11): the gain keeps its label and sign and takes the income token', () => {
     renderRow();
 
     const gain = screen.getByText('Gain +35,000.00 ARS (+23.33%)');
-    expect(gain.className).toContain('text-foreground');
+    expect(gain.className).toContain('text-income');
     expect(gain.className).not.toContain('text-destructive');
   });
 
@@ -57,7 +74,7 @@ describe('HoldingRow', () => {
     expect(screen.getByText('Ganancia +35.000,00 ARS (+23,33%)')).toBeTruthy();
   });
 
-  it('AC-11: shows a loss with its label and minus sign, in the destructive token', () => {
+  it('class-string contract (AC-11): the loss keeps its label and minus sign and takes the destructive token', () => {
     renderRow({ gain: { amount: '-1000000', basisPoints: '-500' } });
 
     const loss = screen.getByText('Loss -10,000.00 ARS (-5.00%)');

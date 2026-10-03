@@ -7,18 +7,22 @@ import {
   type CategoryLanguage,
   type CategoryResponse,
 } from '@pesly/shared';
-import { CircleAlert } from 'lucide-react';
+import { CircleAlert, Tags } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import { ListRow } from '@/components/ui/list-row';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { readField } from '@/features/auth/read-field';
 import { categoryLabel, compareCategories } from '../category-display';
 import type { CategoryFieldMessage } from '../category-form-errors';
 import { CategoryField } from './category-field';
+import { NEW_CATEGORY_NAME_ID } from './category-form';
 import { ColorPicker, IconPicker } from './category-pickers';
 import { CategoryVisual } from './category-visual';
 
@@ -83,7 +87,7 @@ function EditForm({ category, label, pending, error, onSubmit, onCancel }: EditF
   }
 
   return (
-    <form className="grid gap-3" noValidate onSubmit={handleSubmit}>
+    <form className="grid gap-3 pb-3" noValidate onSubmit={handleSubmit}>
       <div className="grid gap-2">
         <Input
           ref={inputRef}
@@ -96,7 +100,7 @@ function EditForm({ category, label, pending, error, onSubmit, onCancel }: EditF
           aria-describedby={error ? messageId : undefined}
         />
         {error ? (
-          <p id={messageId} className="text-sm text-destructive">
+          <p id={messageId} className="text-small text-destructive">
             {tAll(error, { max: CATEGORY_NAME_MAX_LENGTH })}
           </p>
         ) : null}
@@ -117,6 +121,22 @@ function EditForm({ category, label, pending, error, onSubmit, onCancel }: EditF
       </div>
     </form>
   );
+}
+
+/**
+ * A live region is mounted empty and filled afterwards: many screen readers skip content that is
+ * already there when the region appears.
+ */
+function AnnouncedText({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.textContent = text;
+  }, [text]);
+  return <p ref={ref} role="status" className="text-small" />;
+}
+
+function focusNewCategory() {
+  document.getElementById(NEW_CATEGORY_NAME_ID)?.focus();
 }
 
 /** Expense and income sections, each category with its subcategories and the row actions. */
@@ -144,19 +164,11 @@ export function CategoryList(props: CategoryListProps) {
     const label = categoryLabel(item, language);
     const children = (childrenOf.get(item.id) ?? []).sort(compareCategories);
     return (
-      <li
-        key={item.id}
-        aria-label={label}
-        className={
-          isChild
-            ? 'grid gap-3 rounded-lg border bg-card p-3 text-card-foreground'
-            : 'grid gap-3 rounded-lg border bg-card p-4 text-card-foreground'
-        }
-      >
-        <div className="flex items-center gap-3">
-          <CategoryVisual icon={item.icon} color={item.color} />
-          <p className="min-w-0 font-medium break-words">{label}</p>
-        </div>
+      <li key={item.id} aria-label={label} className={isChild ? 'grid' : 'grid py-1'}>
+        <ListRow
+          leading={<CategoryVisual icon={item.icon} color={item.color} />}
+          title={<span className="break-words whitespace-normal">{label}</span>}
+        />
         {editingId === item.id ? (
           <EditForm
             category={item}
@@ -169,15 +181,12 @@ export function CategoryList(props: CategoryListProps) {
             onCancel={props.onCancelEdit}
           />
         ) : confirmingDeleteId === item.id ? (
-          <div className="grid gap-2">
-            <p role="status" className="text-sm">
-              {t('actions.confirmDelete', { name: label })}
-            </p>
+          <div className="grid gap-2 pb-2">
+            <AnnouncedText text={t('actions.confirmDelete', { name: label })} />
             <div className="flex gap-2">
               <Button
                 size="sm"
-                variant="outline"
-                className="text-destructive"
+                variant="destructive"
                 disabled={pending}
                 onClick={() => {
                   props.onConfirmDelete(item.id);
@@ -212,7 +221,7 @@ export function CategoryList(props: CategoryListProps) {
                 </AlertDescription>
               </Alert>
             ) : null}
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pb-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -264,7 +273,10 @@ export function CategoryList(props: CategoryListProps) {
           </>
         )}
         {children.length > 0 ? (
-          <ul aria-label={t('list.subcategories', { name: label })} className="grid gap-2 pl-4">
+          <ul
+            aria-label={t('list.subcategories', { name: label })}
+            className="ml-4 grid divide-y border-l pl-3"
+          >
             {children.map((child) => renderRow(child, true))}
           </ul>
         ) : null}
@@ -274,36 +286,47 @@ export function CategoryList(props: CategoryListProps) {
 
   return (
     <section className="grid gap-4">
-      <h2 className="text-lg font-semibold">
+      <h2 className="text-heading">
         {showArchived ? t('list.archivedTitle') : t('list.activeTitle')}
       </h2>
       <FormAlert error={props.actionError} />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={showArchived}
-          disabled={pending}
-          onChange={props.onToggleArchived}
-          className="size-4 accent-primary"
-        />
+      <label className="flex items-center gap-3 text-small">
+        <Checkbox checked={showArchived} disabled={pending} onChange={props.onToggleArchived} />
         {t('list.showArchived')}
       </label>
       {categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          {showArchived ? t('list.emptyArchived') : t('list.empty')}
-        </p>
+        <EmptyState
+          title={showArchived ? t('list.emptyArchived') : t('list.empty')}
+          icon={<Tags aria-hidden />}
+          action={
+            showArchived ? (
+              <Button type="button" variant="outline" onClick={props.onToggleArchived}>
+                {t('list.emptyArchivedAction')}
+              </Button>
+            ) : (
+              <Button type="button" onClick={focusNewCategory}>
+                {t('list.emptyAction')}
+              </Button>
+            )
+          }
+        />
       ) : (
         CATEGORY_KINDS.map((kind) => {
           const rows = roots(kind);
           return (
-            <section key={kind} aria-labelledby={`${sectionId}-${kind}`} className="grid gap-3">
-              <h3 id={`${sectionId}-${kind}`} className="font-semibold">
+            <section key={kind} aria-labelledby={`${sectionId}-${kind}`} className="grid gap-2">
+              <h3
+                id={`${sectionId}-${kind}`}
+                className="text-caption text-muted-foreground uppercase"
+              >
                 {t(`sections.${kind}`)}
               </h3>
               {rows.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t('list.emptySection')}</p>
+                <p className="text-small text-muted-foreground">{t('list.emptySection')}</p>
               ) : (
-                <ul className="grid gap-3">{rows.map((item) => renderRow(item, false))}</ul>
+                <ul className="grid divide-y rounded-xl border bg-card px-3">
+                  {rows.map((item) => renderRow(item, false))}
+                </ul>
               )}
             </section>
           );

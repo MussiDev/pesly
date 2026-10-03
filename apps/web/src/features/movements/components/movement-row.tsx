@@ -1,7 +1,11 @@
 'use client';
 
-import { formatMoney, type MovementResponse } from '@pesly/shared';
+import { exactIntegerStringSchema, type MovementResponse } from '@pesly/shared';
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Amount } from '@/components/ui/amount';
+import { ListRow } from '@/components/ui/list-row';
+import type { Locale } from '@/i18n/routing';
 import { formatRate } from '../format-rate';
 
 export interface MovementRowProps {
@@ -20,14 +24,24 @@ const UNKNOWN_CURRENCY = 'XXX';
 const USD_CURRENCY = 'USD';
 
 const DEFAULT_TIME_ZONE = 'America/Argentina/Buenos_Aires';
+
+type FormatterKind = 'time' | 'day' | 'dayKey';
+
+const FORMAT_OPTIONS: Record<FormatterKind, Intl.DateTimeFormatOptions> = {
+  time: { timeStyle: 'short' },
+  day: { dateStyle: 'full' },
+  // A sortable, locale-free `YYYY-MM-DD`: what groups movements into days.
+  dayKey: { year: 'numeric', month: '2-digit', day: '2-digit' },
+};
+
 const formatters = new Map<string, Intl.DateTimeFormat>();
 
-/** One formatter per locale and zone, shared by every row; an invalid zone uses the default. */
-function dateTimeFormat(locale: string, timeZone: string): Intl.DateTimeFormat {
-  const key = `${locale}|${timeZone}`;
+/** One formatter per kind, locale and zone, shared by every row; an invalid zone uses the default. */
+function dateFormat(kind: FormatterKind, locale: string, timeZone: string): Intl.DateTimeFormat {
+  const key = `${kind}|${locale}|${timeZone}`;
   const cached = formatters.get(key);
   if (cached !== undefined) return cached;
-  const options = { dateStyle: 'medium', timeStyle: 'short' } as const;
+  const options = FORMAT_OPTIONS[kind];
   let created: Intl.DateTimeFormat;
   try {
     created = new Intl.DateTimeFormat(locale, { ...options, timeZone });
@@ -40,6 +54,16 @@ function dateTimeFormat(locale: string, timeZone: string): Intl.DateTimeFormat {
   return created;
 }
 
+/** The calendar day of an instant in the user's zone, as `YYYY-MM-DD` (the en-CA layout). */
+export function dayKey(occurredAt: string, timeZone: string): string {
+  return dateFormat('dayKey', 'en-CA', timeZone).format(new Date(occurredAt));
+}
+
+/** The long, localized heading of that day. */
+export function formatDay(occurredAt: string, locale: string, timeZone: string): string {
+  return dateFormat('day', locale, timeZone).format(new Date(occurredAt));
+}
+
 export function MovementRow({
   movement,
   accountName,
@@ -48,34 +72,51 @@ export function MovementRow({
   timeZone,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
-  const locale = useLocale();
-  const minor = BigInt(movement.amount);
-  const signed = movement.type === 'expense' ? -minor : minor;
-  // The neutral code applies only when the account is not among the loaded ones.
-  const amount = formatMoney(signed, currency ?? UNKNOWN_CURRENCY, locale);
-  const when = dateTimeFormat(locale, timeZone).format(new Date(movement.occurredAt));
+  const tTypes = useTranslations('movements.types');
+  const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
+  const amount = exactIntegerStringSchema.safeParse(movement.amount);
+  const DirectionIcon = movement.type === 'income' ? ArrowDownLeft : ArrowUpRight;
 
   return (
-    <li className="grid gap-1 rounded-lg border bg-card p-4 text-card-foreground">
-      <div className="flex items-start justify-between gap-2">
-        <span className="font-medium">{categoryName ?? t('unknownCategory')}</span>
-        <span
-          className={
-            movement.type === 'expense'
-              ? 'font-semibold tabular-nums'
-              : 'font-semibold tabular-nums text-primary'
-          }
-        >
-          {movement.type === 'income' ? `+${amount}` : amount}
-        </span>
-      </div>
-      <p className="text-sm text-muted-foreground">{accountName ?? t('unknownAccount')}</p>
-      <p className="text-sm text-muted-foreground">
-        <time dateTime={movement.occurredAt}>{when}</time>
-      </p>
-      {movement.note === null ? null : <p className="text-sm">{movement.note}</p>}
+    <li className="grid gap-1 text-card-foreground">
+      <ListRow
+        leading={
+          <span className="flex size-9 items-center justify-center rounded-full bg-muted text-muted-foreground">
+            <DirectionIcon className="size-4" aria-hidden />
+          </span>
+        }
+        title={categoryName ?? t('unknownCategory')}
+        description={
+          <>
+            <span>{accountName ?? t('unknownAccount')}</span>
+            <span aria-hidden="true"> · </span>
+            <time dateTime={movement.occurredAt}>
+              {dateFormat('time', locale, timeZone).format(new Date(movement.occurredAt))}
+            </time>
+          </>
+        }
+        trailing={
+          amount.success ? (
+            <Amount
+              value={BigInt(amount.data)}
+              // The neutral code applies only when the account is not among the loaded ones.
+              currency={currency ?? UNKNOWN_CURRENCY}
+              locale={locale}
+              kind={movement.type}
+              directionLabel={tTypes(movement.type)}
+              className="text-body font-semibold"
+            />
+          ) : (
+            // A malformed amount degrades to a dash instead of throwing during render.
+            <span className="text-muted-foreground">—</span>
+          )
+        }
+      />
+      {movement.note === null ? null : (
+        <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
+      )}
       {currency === USD_CURRENCY ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="px-1 text-caption text-muted-foreground">
           {t('rate', { rate: formatRate(BigInt(movement.rate), locale) })}
         </p>
       ) : null}

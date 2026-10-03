@@ -5,16 +5,17 @@ import {
   type ProfileResponse,
   type UpdateProfileRequest,
 } from '@pesly/shared';
+import { TriangleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FormAlert } from '@/features/auth/components/form-alert';
 import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import type { ApiErrorKey, ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { PreferencesForm, type PreferencesValues } from '../components/preferences-form';
 import { ProfileForm } from '../components/profile-form';
+import { ProfileLoadStateView } from '../components/profile-load-state';
 import {
   toProfileFailure,
   toProfileValidationErrors,
@@ -46,7 +47,6 @@ const PROFILE_PATH = '/settings/profile';
  * rules give instant feedback and the API stays the authority.
  */
 export function ProfileContainer() {
-  const t = useTranslations('app');
   const tDelete = useTranslations('profile.deleteAccount');
   const api = useApiClient();
   const router = useRouter();
@@ -73,28 +73,16 @@ export function ProfileContainer() {
   const savedTimeZone = state.kind === 'ready' ? state.profile.preferences.timeZone : '';
   const timeZones = useMemo(() => timeZoneOptions(savedTimeZone), [savedTimeZone]);
 
-  if (state.kind === 'loading') {
+  if (state.kind === 'loading' || state.kind === 'failed') {
     return (
-      <p role="status" className="text-sm text-muted-foreground">
-        {t('loading')}
-      </p>
-    );
-  }
-
-  if (state.kind === 'failed') {
-    return (
-      <div className="grid gap-4">
-        <FormAlert error={state.error} />
-        <Button
-          variant="outline"
-          onClick={() => {
-            setState({ kind: 'loading' });
-            setAttempt((value) => value + 1);
-          }}
-        >
-          {t('retry')}
-        </Button>
-      </div>
+      <ProfileLoadStateView
+        state={state}
+        cards={3}
+        onRetry={() => {
+          setState({ kind: 'loading' });
+          setAttempt((value) => value + 1);
+        }}
+      />
     );
   }
 
@@ -190,7 +178,7 @@ export function ProfileContainer() {
   }
 
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6">
       <ProfileForm
         key={`account-${account.revision}`}
         displayName={profile.displayName}
@@ -210,9 +198,12 @@ export function ProfileContainer() {
         errors={preferences.errors}
         onSubmit={savePreferences}
       />
-      <Card>
+      <Card className="border-destructive/40">
         <CardHeader>
-          <CardTitle as="h2">{tDelete('title')}</CardTitle>
+          <CardTitle as="h2" className="flex items-center gap-2 text-destructive">
+            <TriangleAlert aria-hidden className="size-5 shrink-0" />
+            {tDelete('title')}
+          </CardTitle>
           <CardDescription>{tDelete('description')}</CardDescription>
         </CardHeader>
         <CardContent>

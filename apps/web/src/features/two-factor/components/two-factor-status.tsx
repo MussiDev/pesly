@@ -3,8 +3,12 @@
 import { CircleCheck, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ErrorState } from '@/components/ui/error-state';
+import { ListRow } from '@/components/ui/list-row';
+import { Skeleton } from '@/components/ui/skeleton';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { useFocusHeading } from '../use-focus-heading';
@@ -43,6 +47,8 @@ export function TwoFactorStatus({
 }: TwoFactorStatusProps) {
   const t = useTranslations('security');
   const tApp = useTranslations('app');
+  const tUi = useTranslations('ui');
+  const tErrors = useTranslations('errors');
   const headingRef = useFocusHeading(focusHeading);
 
   return (
@@ -55,39 +61,54 @@ export function TwoFactorStatus({
       </CardHeader>
       <CardContent className="grid gap-4">
         {notice ? (
-          <Alert role="status">
+          <Alert variant="success" role="status">
             <CircleCheck aria-hidden />
             <AlertDescription>
               {t(notice === 'enabled' ? 'enabledNotice' : 'disabledNotice')}
             </AlertDescription>
           </Alert>
         ) : null}
-        <FormAlert error={state.kind === 'failed' ? state.error : error} />
+        {state.kind === 'failed' ? null : <FormAlert error={error} />}
         {state.kind === 'loading' ? (
-          <p role="status" className="text-sm text-muted-foreground">
-            {tApp('loading')}
-          </p>
+          <div role="status" aria-busy="true" className="grid gap-4">
+            <span className="sr-only">{tApp('loading')}</span>
+            <Skeleton className="h-16" />
+            <Skeleton className="h-11" />
+          </div>
         ) : null}
         {state.kind === 'failed' ? (
-          <Button variant="outline" onClick={onRetry}>
-            {tApp('retry')}
-          </Button>
+          <ErrorState
+            title={tUi('error.title')}
+            description={tErrors(state.error)}
+            retryLabel={tApp('retry')}
+            onRetry={onRetry}
+          />
         ) : null}
         {state.kind === 'ready' ? (
           <>
-            <p className="flex items-center gap-2 text-sm font-medium">
-              {state.enabled ? (
-                <ShieldCheck aria-hidden className="size-4 text-primary" />
-              ) : (
-                <ShieldOff aria-hidden className="size-4 text-muted-foreground" />
-              )}
-              <span>{state.enabled ? t('twoFactor.on') : t('twoFactor.off')}</span>
-            </p>
-            {state.enabled ? (
-              <p className="text-sm text-muted-foreground">
-                {t('twoFactor.recoveryCodesRemaining', { count: state.recoveryCodesRemaining })}
-              </p>
-            ) : null}
+            <ListRow
+              className="border-y"
+              leading={
+                state.enabled ? (
+                  <ShieldCheck aria-hidden className="size-5 text-success" />
+                ) : (
+                  <ShieldOff aria-hidden className="size-5 text-muted-foreground" />
+                )
+              }
+              title={t('twoFactor.status')}
+              description={
+                state.enabled ? (
+                  <span className="block whitespace-normal">
+                    {t('twoFactor.recoveryCodesRemaining', { count: state.recoveryCodesRemaining })}
+                  </span>
+                ) : undefined
+              }
+              trailing={
+                <Badge variant={state.enabled ? 'success' : 'default'}>
+                  {state.enabled ? t('twoFactor.on') : t('twoFactor.off')}
+                </Badge>
+              }
+            />
             {state.enabled ? (
               <Button variant="outline" onClick={onDisable}>
                 {t('twoFactor.disable')}

@@ -5,7 +5,7 @@ import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type ChangeEvent, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -186,10 +186,7 @@ export function MovementForm({
           <Button type="submit" disabled={pending}>
             {pending ? t('form.pending') : t('form.submit')}
           </Button>
-          <Link
-            href="/movements"
-            className="text-sm text-primary underline-offset-4 hover:underline"
-          >
+          <Link href="/movements" className={buttonVariants({ variant: 'ghost' })}>
             {t('form.back')}
           </Link>
         </form>

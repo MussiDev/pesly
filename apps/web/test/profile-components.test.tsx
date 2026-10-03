@@ -103,6 +103,43 @@ describe('ProfileForm', () => {
 
     expect(screen.getByRole('status').textContent).toBe(es.profile.saved);
   });
+
+  it('shows the saved notice with the success alert variant', () => {
+    renderProfileForm({ saved: true });
+
+    expect(screen.getByRole('status').className).toContain('border-success/40');
+  });
+
+  it('groups the form in a card and shows email and 2FA status as list rows with a badge', () => {
+    renderProfileForm({ twoFactorEnabled: true });
+
+    const card = screen
+      .getByRole('heading', { level: 2, name: es.profile.account.title })
+      .closest('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    const rows = Array.from(card?.querySelectorAll('[data-slot="list-row"]') ?? []);
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain('ana@example.com');
+    const badge = rows[1]?.querySelector('[data-slot="badge"]');
+    expect(badge?.textContent).toBe(es.profile.account.twoFactorOn);
+    expect(badge?.className).toContain('text-success');
+  });
+
+  it('shows 2FA off as a neutral badge', () => {
+    renderProfileForm({ twoFactorEnabled: false });
+
+    const badge = screen.getByText(es.profile.account.twoFactorOff).closest('[data-slot="badge"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.className).not.toContain('text-success');
+  });
+
+  it('shows a rejected save as an error alert above the fields (sad path)', () => {
+    renderProfileForm({ errors: { form: 'network' } });
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(es.errors.network);
+    expect(alert.className).toContain('border-destructive/40');
+  });
 });
 
 describe('PreferencesForm', () => {
@@ -175,5 +212,11 @@ describe('PreferencesForm', () => {
     );
 
     expect(screen.getByRole('status').textContent).toBe(en.profile.saved);
+  });
+
+  it('shows the saved notice with the success alert variant', () => {
+    renderPreferencesForm({ saved: true });
+
+    expect(screen.getByRole('status').className).toContain('border-success/40');
   });
 });

@@ -1,6 +1,9 @@
 'use client';
 
+import { CircleCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
 
@@ -14,10 +17,11 @@ export function MovementSaved({ rate }: { rate: string }) {
         <CardTitle as="h1">{t('title')}</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('rate', { rate })}
-        </p>
-        <Link href="/movements" className="text-sm text-primary underline-offset-4 hover:underline">
+        <Alert variant="success" role="status">
+          <CircleCheck aria-hidden />
+          <AlertDescription>{t('rate', { rate })}</AlertDescription>
+        </Alert>
+        <Link href="/movements" className={buttonVariants({ variant: 'outline' })}>
           {t('back')}
         </Link>
       </CardContent>

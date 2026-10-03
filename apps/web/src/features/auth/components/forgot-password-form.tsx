@@ -4,7 +4,7 @@ import { CircleCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
 import type { FormErrors } from '../form-errors';
@@ -67,7 +67,7 @@ export function ForgotPasswordForm({
             </Button>
           </form>
         )}
-        <Link href="/sign-in" className="text-sm text-primary underline-offset-4 hover:underline">
+        <Link href="/sign-in" className={buttonVariants({ variant: 'link' })}>
           {t('forgotPassword.backToSignIn')}
         </Link>
       </CardContent>

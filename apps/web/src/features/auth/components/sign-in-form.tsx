@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import type { SubmitEvent } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
 import type { FormErrors } from '../form-errors';
@@ -43,7 +43,7 @@ export function SignInForm({ pending, errors, googleStartUrl, onSubmit }: SignIn
         <CardTitle as="h1">{t('signIn.title')}</CardTitle>
         <CardDescription>{t('signIn.description')}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4">
+      <CardContent className="grid gap-6">
         {googleStartUrl === undefined ? null : <GoogleSignInOption href={googleStartUrl} />}
         <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
           <FormAlert error={errors.form} />
@@ -66,18 +66,20 @@ export function SignInForm({ pending, errors, googleStartUrl, onSubmit }: SignIn
           <Button type="submit" disabled={pending}>
             {pending ? t('signIn.pending') : t('signIn.submit')}
           </Button>
-          <Link
-            href="/forgot-password"
-            className="text-sm text-primary underline-offset-4 hover:underline"
-          >
-            {t('signIn.forgotPassword')}
-          </Link>
-          <p className="text-sm text-muted-foreground">
-            {t('signIn.noAccount')}{' '}
-            <Link href="/register" className="text-primary underline-offset-4 hover:underline">
-              {t('signIn.registerLink')}
+          <div className="grid justify-items-center gap-1">
+            <Link href="/forgot-password" className={buttonVariants({ variant: 'link' })}>
+              {t('signIn.forgotPassword')}
             </Link>
-          </p>
+            <p className="flex flex-wrap items-center justify-center gap-x-1 text-small text-muted-foreground">
+              {t('signIn.noAccount')}{' '}
+              <Link
+                href="/register"
+                className={buttonVariants({ variant: 'link', className: 'px-0' })}
+              >
+                {t('signIn.registerLink')}
+              </Link>
+            </p>
+          </div>
         </form>
       </CardContent>
     </Card>

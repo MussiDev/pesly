@@ -4,8 +4,12 @@ import { resolve } from 'node:path';
 import { CATEGORY_COLORS, CATEGORY_ICONS, DEFAULT_CATEGORIES } from '@pesly/shared';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { NextIntlClientProvider } from 'next-intl';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
+import { CategoriesLoadStateView } from '../src/features/categories/components/categories-load-state';
 import {
+  NEW_CATEGORY_NAME_ID,
   CategoryForm,
   type CategoryFormProps,
 } from '../src/features/categories/components/category-form';
@@ -465,5 +469,173 @@ describe('CategoryForm', () => {
     expect(
       screen.getByRole('button', { name: es.categories.form.pending }).hasAttribute('disabled'),
     ).toBe(true);
+  });
+});
+
+describe('Category pickers (FEAT-004 NFR-05)', () => {
+  it('ring-[ source-scan contract: no arbitrary Tailwind value in the pickers (NFR-05)', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../src/features/categories/components/category-pickers.tsx'),
+      'utf8',
+    );
+
+    expect(source).not.toMatch(/ring-\[/);
+    expect(source).toContain('peer-focus-visible:');
+  });
+
+  it('class-string contract: the picked swatch has a ring that follows the checked radio', () => {
+    renderApp(<CategoryForm {...formProps()} />);
+
+    const color = screen.getByRole('radio', { name: es.categories.colors.teal });
+    const swatch = color.closest('label')?.querySelector('[data-slot="swatch"]');
+    expect(swatch?.className).toContain('peer-checked:ring-2');
+    expect(swatch?.className).toContain('peer-checked:ring-offset-2');
+  });
+
+  it('class-string contract: the focus cue and the selected cue share no utility', () => {
+    renderApp(<CategoryForm {...formProps()} />);
+
+    const strip = (prefix: string, element: Element | null | undefined) =>
+      (element?.className ?? '')
+        .split(/\s+/)
+        .filter((token) => token.startsWith(prefix))
+        .map((token) => token.slice(prefix.length));
+    const swatch = screen
+      .getByRole('radio', { name: es.categories.colors.teal })
+      .closest('label')
+      ?.querySelector('[data-slot="swatch"]');
+    const icon = screen
+      .getByRole('radio', { name: es.categories.icons.coffee })
+      .closest('label')
+      ?.querySelector('[data-icon]');
+
+    for (const element of [swatch, icon]) {
+      const focus = strip('peer-focus-visible:', element);
+      const checked = strip('peer-checked:', element);
+      expect(focus.length).toBeGreaterThan(0);
+      expect(checked.length).toBeGreaterThan(0);
+      expect(focus.filter((token) => checked.includes(token))).toEqual([]);
+    }
+  });
+
+  it('draws a hidden check marker in every swatch that the checked radio reveals', async () => {
+    renderApp(<CategoryForm {...formProps()} />);
+    const group = screen.getByRole('radiogroup', { name: es.categories.fields.color });
+
+    const checks = group.querySelectorAll('[data-slot="swatch-check"]');
+    expect(checks).toHaveLength(CATEGORY_COLORS.length);
+    for (const check of checks) {
+      expect(check.getAttribute('aria-hidden')).toBe('true');
+      expect(check.getAttribute('class')).toContain('peer-checked:opacity-100');
+      expect(check.getAttribute('class')).toContain('opacity-0');
+    }
+    await userEvent.setup().click(screen.getByRole('radio', { name: es.categories.colors.teal }));
+    const label = screen.getByRole('radio', { name: es.categories.colors.teal }).closest('label');
+    expect(label?.querySelector('[data-slot="swatch-check"]')).not.toBeNull();
+  });
+});
+
+describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
+  it('draws every category as a list row inside its list item', () => {
+    const { container } = renderApp(<CategoryList {...listProps()} />);
+
+    const items = screen.getAllByRole('listitem');
+    expect(items.length).toBeGreaterThan(1);
+    expect(container.querySelectorAll('[data-slot="list-row"]')).toHaveLength(items.length);
+    for (const item of items) {
+      expect(item.querySelector('[data-slot="list-row"] [data-icon]')).not.toBeNull();
+    }
+  });
+
+  it('shows the form as a card with its title', () => {
+    const { container } = renderApp(<CategoryForm {...formProps()} />);
+
+    expect(container.querySelector('[data-slot="card"]')).not.toBeNull();
+    expect(screen.getByRole('heading', { name: es.categories.new.title })).toBeDefined();
+  });
+
+  it('shows an empty state whose call to action focuses the CREATE form name, not an inline edit (AC-22)', async () => {
+    const { container } = renderApp(
+      <>
+        <CategoryList {...listProps({ editingId: uuid(1) })} />
+        <CategoryList {...listProps({ categories: [] })} />
+        <CategoryForm {...formProps()} />
+      </>,
+    );
+
+    const empty = container.querySelector<HTMLElement>('[data-slot="empty-state"]');
+    expect(empty).not.toBeNull();
+    const scope = within(empty as HTMLElement);
+    expect(scope.getByText(es.categories.list.empty)).toBeDefined();
+    await userEvent
+      .setup()
+      .click(scope.getByRole('button', { name: es.categories.list.emptyAction }));
+    expect(document.activeElement).toBe(screen.getByLabelText(es.categories.fields.name));
+    expect(document.activeElement?.id).toBe(NEW_CATEGORY_NAME_ID);
+  });
+
+  it('keeps the inline edit field off the create form id', () => {
+    renderApp(
+      <>
+        <CategoryList {...listProps({ editingId: uuid(1) })} />
+        <CategoryForm {...formProps()} />
+      </>,
+    );
+
+    expect(document.querySelectorAll(`#${NEW_CATEGORY_NAME_ID}`)).toHaveLength(1);
+    expect(screen.getByLabelText('Nuevo nombre de Comida').id).not.toBe(NEW_CATEGORY_NAME_ID);
+  });
+
+  it('renders the delete confirmation live region empty first, so it is announced when filled', () => {
+    const markup = renderToStaticMarkup(
+      <NextIntlClientProvider locale="es" messages={es}>
+        <CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />
+      </NextIntlClientProvider>,
+    );
+    expect(markup).toMatch(/<p role="status"[^>]*><\/p>/);
+
+    renderApp(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
+    expect(screen.getByRole('status').textContent).toContain('Comida');
+  });
+
+  it('uses the destructive variant for the delete confirmation button', () => {
+    renderApp(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
+
+    const yes = screen.getByRole('button', { name: es.categories.actions.confirmDeleteYes });
+    expect(yes.className).toContain('bg-destructive');
+  });
+
+  it('offers the way back to the active categories when the archived view is empty (AC-22)', async () => {
+    const props = listProps({ categories: [], showArchived: true });
+    const { container } = renderApp(<CategoryList {...props} />);
+
+    expect(container.querySelector('[data-slot="empty-state"]')).not.toBeNull();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: es.categories.list.emptyArchivedAction }));
+    expect(props.onToggleArchived).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('CategoriesLoadStateView (FEAT-004 AC-21)', () => {
+  it('shows a skeleton and announces the loading state while loading', () => {
+    const { container } = renderApp(
+      <CategoriesLoadStateView state={{ kind: 'loading' }} onRetry={vi.fn()} />,
+    );
+
+    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    expect(screen.getByRole('status').textContent).toBe(es.app.loading);
+  });
+
+  it('shows the error state with the reason and a retry that works', async () => {
+    const onRetry = vi.fn();
+    const { container } = renderApp(
+      <CategoriesLoadStateView state={{ kind: 'failed', error: 'network' }} onRetry={onRetry} />,
+    );
+
+    expect(screen.getByRole('alert').textContent).toContain(es.errors.network);
+    expect(container.querySelector('[data-slot="skeleton"]')).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: es.app.retry }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });

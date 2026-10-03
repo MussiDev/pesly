@@ -5,14 +5,16 @@ import { Plus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useId, type ReactNode } from 'react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState } from '@/components/ui/empty-state';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link } from '@/i18n/navigation';
+import type { Locale } from '@/i18n/routing';
 import type { AccountFieldMessage } from '../account-form-errors';
-import { formatAmount } from '../format-amount';
 import type { CurrencyTotals } from '../totals';
 import { AccountRow } from './account-row';
-import { AccountsHeadline } from './accounts-headline';
+import { AccountsHeadline, MinorAmount } from './accounts-headline';
 
 export interface AccountListProps {
   accounts: readonly AccountResponse[];
@@ -43,6 +45,12 @@ export interface AccountListProps {
   onConfirmDelete: (id: string) => void;
 }
 
+function RowList({ children }: { children: ReactNode }) {
+  return (
+    <ul className="divide-y divide-border rounded-xl border bg-card px-4 shadow-xs">{children}</ul>
+  );
+}
+
 interface DebtSectionProps {
   cards: readonly AccountResponse[];
   debtTotals: CurrencyTotals;
@@ -51,7 +59,7 @@ interface DebtSectionProps {
 
 function DebtSection({ cards, debtTotals, renderRow }: DebtSectionProps) {
   const t = useTranslations('accounts');
-  const locale = useLocale();
+  const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const titleId = useId();
   // A currency shows when it owes something or a listed card uses it.
   const currencies = ACCOUNT_CURRENCIES.filter(
@@ -61,22 +69,28 @@ function DebtSection({ cards, debtTotals, renderRow }: DebtSectionProps) {
 
   return (
     <section aria-labelledby={titleId} className="grid gap-3">
-      <h3 id={titleId} className="text-base font-semibold">
+      <h3 id={titleId} className="text-heading">
         {t('debt.title')}
       </h3>
       {currencies.length === 0 ? null : (
-        <dl className="grid gap-2 rounded-lg border bg-card p-4 text-card-foreground">
-          {currencies.map((currency) => (
-            <div key={currency} className="flex items-center justify-between gap-2">
-              <dt className="text-sm text-muted-foreground">{t(`currencies.${currency}`)}</dt>
-              <dd className="font-semibold tabular-nums">
-                {formatAmount(debtTotals[currency] ?? '0', currency, locale)}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <Card className="p-4">
+          <dl className="grid gap-2">
+            {currencies.map((currency) => (
+              <div key={currency} className="flex items-center justify-between gap-2">
+                <dt className="text-small text-muted-foreground">{t(`currencies.${currency}`)}</dt>
+                <dd className="text-body font-semibold">
+                  <MinorAmount
+                    value={debtTotals[currency] ?? '0'}
+                    currency={currency}
+                    locale={locale}
+                  />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
       )}
-      {cards.length === 0 ? null : <ul className="grid gap-3">{cards.map(renderRow)}</ul>}
+      {cards.length === 0 ? null : <RowList>{cards.map(renderRow)}</RowList>}
     </section>
   );
 }
@@ -133,24 +147,38 @@ export function AccountList(props: AccountListProps) {
   return (
     <section className="grid gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-heading">
           {showArchived ? t('list.archivedTitle') : t('list.activeTitle')}
         </h2>
-        <Link href="/accounts/new" className={buttonVariants({ size: 'sm' })}>
-          <Plus aria-hidden />
-          {t('list.newAccount')}
-        </Link>
+        {isEmpty && !showArchived ? null : (
+          <Link href="/accounts/new" className={buttonVariants({ size: 'sm' })}>
+            <Plus aria-hidden />
+            {t('list.newAccount')}
+          </Link>
+        )}
       </div>
       <FormAlert error={actionError} />
       {showArchived ? null : (
         <AccountsHeadline availableTotals={availableTotals} netWorthTotals={netWorthTotals} />
       )}
       {isEmpty ? (
-        <p className="text-sm text-muted-foreground">
-          {showArchived ? t('list.emptyArchived') : t('list.empty')}
-        </p>
+        showArchived ? (
+          <EmptyState headingAs="h3" title={t('list.emptyArchived')} />
+        ) : (
+          <EmptyState
+            headingAs="h3"
+            title={t('list.emptyTitle')}
+            description={t('list.empty')}
+            action={
+              <Link href="/accounts/new" className={buttonVariants()}>
+                <Plus aria-hidden />
+                {t('list.newAccount')}
+              </Link>
+            }
+          />
+        )
       ) : null}
-      {others.length === 0 ? null : <ul className="grid gap-3">{others.map(renderRow)}</ul>}
+      {others.length === 0 ? null : <RowList>{others.map(renderRow)}</RowList>}
       {showDebt ? (
         <DebtSection cards={cards} debtTotals={debtTotals} renderRow={renderRow} />
       ) : null}

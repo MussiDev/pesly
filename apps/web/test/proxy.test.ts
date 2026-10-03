@@ -43,6 +43,25 @@ describe('proxy', () => {
     expect(nonceOf(other.headers.get('Content-Security-Policy'))).not.toBe(nonce);
   });
 
+  it('forwards x-nonce and the CSP to the request the layout reads, through next-intl', async () => {
+    const proxy = await loadProxy({
+      NODE_ENV: 'production',
+      API_ORIGIN: 'https://api.argent.test',
+    });
+
+    const response = proxy(new NextRequest('https://argent.test/es/sign-in'));
+
+    const csp = response.headers.get('Content-Security-Policy');
+    const nonce = nonceOf(csp);
+    expect(nonce).toBeTruthy();
+    // NextResponse.next({ request: { headers } }) is how next-intl hands request headers on.
+    const overridden = (response.headers.get('x-middleware-override-headers') ?? '').split(',');
+    expect(overridden).toContain('x-nonce');
+    expect(overridden).toContain('content-security-policy');
+    expect(response.headers.get('x-middleware-request-x-nonce')).toBe(nonce);
+    expect(response.headers.get('x-middleware-request-content-security-policy')).toBe(csp);
+  });
+
   it('relaxes the CSP for the development server only', async () => {
     const proxy = await loadProxy({ NODE_ENV: 'development', API_ORIGIN: '' });
 

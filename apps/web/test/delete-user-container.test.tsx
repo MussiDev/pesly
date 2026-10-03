@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DeleteUserContainer } from '../src/features/profile/containers/delete-user-container';
@@ -234,6 +234,29 @@ describe('DeleteUserContainer, password path', () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
     });
+  });
+
+  it('shows a skeleton with a loading status while the profile loads (AC-21)', async () => {
+    stubApi({ 'GET /profile': profile({}) });
+    renderApp(<DeleteUserContainer />);
+
+    const status = screen.getByRole('status');
+    expect(status.getAttribute('aria-busy')).toBe('true');
+    expect(status.textContent).toBe(es.app.loading);
+    expect(status.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    await loadedPasswordForm();
+  });
+
+  it('shows the load failure in the shared error state, with no stale form (sad path)', async () => {
+    stubApi({ 'GET /profile': failure(500, 'INTERNAL') });
+    renderApp(<DeleteUserContainer />);
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toContain(es.ui.error.title);
+    expect(alert.textContent).toContain(es.errors.unexpected);
+    expect(within(alert).getByRole('button', { name: es.app.retry })).toBeDefined();
+    expect(screen.queryByLabelText(es.deleteUser.password)).toBeNull();
+    expect(screen.queryByRole('button', { name: es.deleteUser.submit })).toBeNull();
   });
 
   it('shows the load failure with a retry (sad path)', async () => {

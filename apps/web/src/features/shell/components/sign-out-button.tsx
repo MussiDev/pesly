@@ -12,7 +12,12 @@ export interface SignOutButtonProps {
 export function SignOutButton({ pending, onSignOut }: SignOutButtonProps) {
   const t = useTranslations('auth.signOut');
   return (
-    <Button variant="ghost" size="sm" disabled={pending} onClick={onSignOut}>
+    <Button
+      variant="ghost"
+      className="w-full justify-start px-3 text-muted-foreground"
+      disabled={pending}
+      onClick={onSignOut}
+    >
       <LogOut aria-hidden />
       {pending ? t('pending') : t('label')}
     </Button>

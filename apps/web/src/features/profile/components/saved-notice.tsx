@@ -9,7 +9,7 @@ export function SavedNotice({ saved }: { saved: boolean }) {
   const t = useTranslations('profile');
   if (!saved) return null;
   return (
-    <Alert role="status">
+    <Alert variant="success" role="status">
       <CircleCheck aria-hidden />
       <AlertDescription>{t('saved')}</AlertDescription>
     </Alert>

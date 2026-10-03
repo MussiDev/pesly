@@ -36,25 +36,28 @@ export function PortfolioCard({
       <CardHeader>
         <CardTitle as="h2">{portfolio.name}</CardTitle>
         {portfolio.totals.length > 0 && (
-          <ul aria-label={t('portfolio.totalsLabel')} className="flex flex-wrap gap-x-4 gap-y-1">
+          <ul
+            aria-label={t('portfolio.totalsLabel')}
+            className="flex flex-wrap gap-x-4 gap-y-1 pt-1"
+          >
             {portfolio.totals.map((total) => (
-              <li key={total.currency} className="text-base font-medium">
+              <li key={total.currency} className="text-heading tabular-nums">
                 {formatMoney(BigInt(total.value), total.currency, language)}
               </li>
             ))}
           </ul>
         )}
         {portfolio.holdingsWithoutPrice > 0 && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-small text-muted-foreground">
             {t('portfolio.holdingsWithoutPrice', { count: portfolio.holdingsWithoutPrice })}
           </p>
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {portfolio.holdings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('portfolio.noHoldings')}</p>
+          <p className="text-small text-muted-foreground">{t('portfolio.noHoldings')}</p>
         ) : (
-          <ul aria-label={t('portfolio.holdingsLabel')} className="divide-y">
+          <ul aria-label={t('portfolio.holdingsLabel')} className="grid divide-y">
             {portfolio.holdings.map((holding) => (
               <HoldingRow
                 key={holding.id}

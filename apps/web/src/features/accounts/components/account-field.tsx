@@ -48,12 +48,12 @@ export function AccountField({ label, hint, error, max, children }: AccountField
         'aria-describedby': describedBy || undefined,
       })}
       {hint ? (
-        <p id={`${id}-hint`} className="text-sm text-muted-foreground">
+        <p id={`${id}-hint`} className="text-small text-muted-foreground">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={`${id}-message`} className="text-sm text-destructive">
+        <p id={`${id}-message`} className="text-small text-destructive">
           {t(error, { max: max ?? ACCOUNT_NAME_MAX_LENGTH })}
         </p>
       ) : null}

@@ -81,7 +81,7 @@ export function FormDescription({ className, ...props }: ComponentProps<'p'>) {
     <p
       data-slot="form-description"
       id={`${id}-description`}
-      className={cn('text-sm text-muted-foreground', className)}
+      className={cn('text-small text-muted-foreground', className)}
       {...props}
     />
   );
@@ -94,7 +94,7 @@ export function FormMessage({ className, children, ...props }: ComponentProps<'p
     <p
       data-slot="form-message"
       id={`${id}-message`}
-      className={cn('text-sm text-destructive', className)}
+      className={cn('text-small text-destructive', className)}
       {...props}
     >
       {children}

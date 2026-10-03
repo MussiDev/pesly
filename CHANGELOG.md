@@ -136,6 +136,43 @@ All notable changes to this project are documented in this file. The format foll
   `0014_movements` adds the `movements` and `movement_rate_limits` tables; its rollback script is
   destructive. Known limitation: a create has no idempotency key, so a retry after a lost response
   can duplicate a movement (follow-up for the offline sync ticket of PRD 04).
+- FEAT-004 Design system: emerald on warm neutral tokens for light and dark (colors, type scale,
+  spacing, radius, elevation, motion), the Inter typeface self-hosted through `next/font`, a theme
+  choice (light, dark or system) that persists and is applied before first paint, and new `badge`,
+  `skeleton`, `empty-state`, `error-state`, `page-header`, `list-row` and `amount` components. A
+  reference page at `/design-system` lists every token and component and answers 404 in production.
+- FEAT-004 Mobile-first app shell: a bottom navigation below 768px and a side navigation from
+  768px, a persistent add-movement action, a More page (Investments, categories, profile, security,
+  theme and sign out) and a skip link; the shell draws its frame with a skeleton while the session
+  is checked, and children still mount only once the session is confirmed.
+- FEAT-004 The home is real: the available total and net worth per currency from the API, the five
+  latest movements with category, account and signed amount, and quick actions. It loads accounts
+  and categories in both states, movements and the profile in one parallel batch, so a movement on
+  an archived account keeps its real currency and dates use the user's time zone; it shows a
+  skeleton, an empty state without accounts, and the shared error state with a single-flight retry.
+- FEAT-004 Tests that guard the design system: a scan that fails on color literals and arbitrary
+  design values (the Google logo is the only exception), a catalog parity check over every
+  namespace, key and ICU argument, and a Playwright spec for navigation by viewport, 44px targets,
+  focus indicators, layout shift and theme persistence.
+
+### Changed
+
+- FEAT-004 Every screen uses the design system: the auth, profile, security, delete-account,
+  accounts, movements, categories and investments screens, with a skeleton while loading, an empty
+  state with a call to action and the shared error state with a retry. Movements are grouped by day
+  in the user's time zone, and the shell, its session guard and sign-out moved from `features/auth`
+  to `features/shell`.
+- FEAT-004 On a 360px screen the bottom bar has Home, Accounts, the add button, Movements and More;
+  Investments moved into More (it stays a direct link in the side navigation), because five
+  destinations plus the add button truncated their labels. This departs from the PRD assumption
+  that Investments is a primary destination.
+- FEAT-004 `cn()` is configured with the custom type scale, spacing and motion tokens, so a text
+  color no longer removes a size such as `text-caption`, and each theme toggle has its own radio
+  group so two toggles in one document no longer uncheck each other.
+- FEAT-004 Known limitations: the home resolves names and currencies from the first 100 accounts and
+  categories of each list; the performance budget of NFR-06 (skeleton within 100 ms, data within
+  2 s at p75 on 4G) has only a structural test; the 44px target and layout shift checks run against
+  `next dev`; `features/accounts/format-amount.ts` is unused and can be deleted.
 
 ### Fixed
 

@@ -5,13 +5,16 @@ import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ListRow } from '@/components/ui/list-row';
 import { readField } from '@/features/auth/read-field';
+import type { Locale } from '@/i18n/routing';
 import type { AccountFieldMessage } from '../account-form-errors';
-import { formatAmount } from '../format-amount';
+import { MinorAmount } from './accounts-headline';
 
 export interface AccountRowProps {
   account: AccountResponse;
@@ -69,7 +72,7 @@ function RenameForm({ account, pending, error, onSubmit, onCancel }: RenameFormP
         aria-describedby={error ? messageId : undefined}
       />
       {error ? (
-        <p id={messageId} className="text-sm text-destructive">
+        <p id={messageId} className="text-small text-destructive">
           {tAll(error, { max: ACCOUNT_NAME_MAX_LENGTH })}
         </p>
       ) : null}
@@ -90,39 +93,48 @@ export function AccountRow(props: AccountRowProps) {
   const { account, pending, editing, confirmingDelete, blockedDelete, renameError } = props;
   const t = useTranslations('accounts');
   const tErrors = useTranslations('errors');
-  const locale = useLocale();
+  const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const settingId = useId();
+  const nameId = useId();
   // The setting exists only for active accounts that hold money (cards are debt, FR-04/FR-06).
   const hasSetting = !account.archived && account.type !== 'credit_card';
 
   return (
-    <li
-      aria-label={account.name}
-      className="grid gap-3 rounded-lg border bg-card p-4 text-card-foreground"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-medium break-words">{account.name}</p>
-          <p className="text-sm text-muted-foreground">{t(`types.${account.type}`)}</p>
-        </div>
-        <p className="font-semibold tabular-nums">
-          {formatAmount(account.balance, account.currency, locale)}
-        </p>
-      </div>
+    <li aria-label={account.name} className="grid gap-2 py-2 text-card-foreground">
+      <ListRow
+        title={<span id={nameId}>{account.name}</span>}
+        description={t(`types.${account.type}`)}
+        trailing={
+          <div className="flex flex-col items-end gap-1">
+            <MinorAmount
+              value={account.balance}
+              currency={account.currency}
+              locale={locale}
+              className="text-body font-semibold"
+            />
+            <Badge variant="outline">{account.currency}</Badge>
+          </div>
+        }
+      />
       {hasSetting ? (
-        <div className="flex items-center gap-2">
+        <div className="flex min-h-11 items-center gap-2">
           <Checkbox
             id={settingId}
             checked={account.includeInAvailable}
             // Not `disabled`: that would drop keyboard focus while the request runs.
             aria-disabled={pending}
-            aria-label={`${t('fields.includeInAvailable')} ${account.name}`}
+            // One name from two existing elements, so the visible label text stays the catalog string.
+            aria-labelledby={`${settingId}-label ${nameId}`}
             onChange={(event) => {
               if (pending) return;
               props.onToggleAvailable(account.id, event.currentTarget.checked);
             }}
           />
-          <Label htmlFor={settingId} className="text-sm text-muted-foreground">
+          <Label
+            id={`${settingId}-label`}
+            htmlFor={settingId}
+            className="min-h-11 flex-1 cursor-pointer items-center text-small text-muted-foreground"
+          >
             {t('fields.includeInAvailable')}
           </Label>
         </div>
@@ -139,7 +151,7 @@ export function AccountRow(props: AccountRowProps) {
         />
       ) : confirmingDelete ? (
         <div className="grid gap-2">
-          <p role="status" className="text-sm">
+          <p role="status" className="text-small">
             {t('actions.confirmDelete', { name: account.name })}
           </p>
           <div className="flex gap-2">

@@ -2,7 +2,8 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { AuthenticatedShellContainer } from '../src/features/auth/containers/authenticated-shell-container';
+import { ThemeProvider } from '../src/components/theme-provider';
+import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -26,9 +27,11 @@ const UNAUTHENTICATED = { status: 401, body: { code: 'UNAUTHENTICATED' } };
 
 function renderShell() {
   return renderApp(
-    <AuthenticatedShellContainer>
-      <p>private content</p>
-    </AuthenticatedShellContainer>,
+    <ThemeProvider>
+      <AuthenticatedShellContainer>
+        <p>private content</p>
+      </AuthenticatedShellContainer>
+    </ThemeProvider>,
   );
 }
 
@@ -38,9 +41,12 @@ describe('AuthenticatedShellContainer', () => {
     renderShell();
 
     expect(screen.getByRole('status').textContent).toBe(es.app.loading);
+    expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="side-nav"]')).not.toBeNull();
     expect(screen.queryByText('private content')).toBeNull();
 
     expect(await screen.findByText('private content')).toBeDefined();
+    expect(document.querySelector('[data-slot="skeleton"]')).toBeNull();
     expect(screen.getByRole('button', { name: es.auth.signOut.label })).toBeDefined();
     expect(calls).toEqual([{ method: 'GET', path: '/auth/session', body: undefined }]);
   });
@@ -127,65 +133,76 @@ describe('AuthenticatedShellContainer', () => {
     ).toBe(false);
   });
 
+  // Both navigations are in the DOM (CSS shows one), so a destination appears in each of them.
+  function currents(name: string): (string | null)[] {
+    return screen.getAllByRole('link', { name }).map((link) => link.getAttribute('aria-current'));
+  }
+
   it('marks the security link as the current page on the security settings', async () => {
     stubApi({ 'GET /auth/session': session(true) });
     renderApp(
-      <AuthenticatedShellContainer>
-        <p>private content</p>
-      </AuthenticatedShellContainer>,
+      <ThemeProvider>
+        <AuthenticatedShellContainer>
+          <p>private content</p>
+        </AuthenticatedShellContainer>
+      </ThemeProvider>,
       { pathname: '/es/settings/security' },
     );
 
     const link = await screen.findByRole('link', { name: es.app.nav.security });
     expect(link.getAttribute('aria-current')).toBe('page');
-    expect(
-      screen.getByRole('link', { name: es.app.nav.home }).getAttribute('aria-current'),
-    ).toBeNull();
-    expect(
-      screen.getByRole('link', { name: es.app.nav.investments }).getAttribute('aria-current'),
-    ).toBeNull();
+    expect(currents(es.app.nav.home)).toEqual([null, null]);
+    expect(currents(es.app.nav.investments)).toEqual([null]);
   });
 
   it('marks the investments link as the current page on /investments', async () => {
     stubApi({ 'GET /auth/session': session(true) });
     renderApp(
-      <AuthenticatedShellContainer>
-        <p>private content</p>
-      </AuthenticatedShellContainer>,
+      <ThemeProvider>
+        <AuthenticatedShellContainer>
+          <p>private content</p>
+        </AuthenticatedShellContainer>
+      </ThemeProvider>,
       { pathname: '/es/investments' },
     );
 
-    const link = await screen.findByRole('link', { name: es.app.nav.investments });
-    expect(link.getAttribute('aria-current')).toBe('page');
-    expect(link.getAttribute('href')).toBe('/es/investments');
+    await screen.findByText('private content');
+    expect(currents(es.app.nav.investments)).toEqual(['page']);
+    for (const link of screen.getAllByRole('link', { name: es.app.nav.investments })) {
+      expect(link.getAttribute('href')).toBe('/es/investments');
+    }
     for (const name of [es.app.nav.home, es.app.nav.security, es.app.nav.profile]) {
-      expect(screen.getByRole('link', { name }).getAttribute('aria-current')).toBeNull();
+      expect(currents(name).every((value) => value === null)).toBe(true);
     }
   });
 
   it('links to the movements list and marks it as the current page there (AC-14)', async () => {
     stubApi({ 'GET /auth/session': session(true) });
     renderApp(
-      <AuthenticatedShellContainer>
-        <p>private content</p>
-      </AuthenticatedShellContainer>,
+      <ThemeProvider>
+        <AuthenticatedShellContainer>
+          <p>private content</p>
+        </AuthenticatedShellContainer>
+      </ThemeProvider>,
       { pathname: '/es/movements' },
     );
 
-    const link = await screen.findByRole('link', { name: es.app.nav.movements });
-    expect(link.getAttribute('href')).toBe('/es/movements');
-    expect(link.getAttribute('aria-current')).toBe('page');
-    expect(
-      screen.getByRole('link', { name: es.app.nav.home }).getAttribute('aria-current'),
-    ).toBeNull();
+    await screen.findByText('private content');
+    expect(currents(es.app.nav.movements)).toEqual(['page', 'page']);
+    for (const link of screen.getAllByRole('link', { name: es.app.nav.movements })) {
+      expect(link.getAttribute('href')).toBe('/es/movements');
+    }
+    expect(currents(es.app.nav.home)).toEqual([null, null]);
   });
 
   it('links to the categories and marks them as the current page there', async () => {
     stubApi({ 'GET /auth/session': session(true) });
     renderApp(
-      <AuthenticatedShellContainer>
-        <p>private content</p>
-      </AuthenticatedShellContainer>,
+      <ThemeProvider>
+        <AuthenticatedShellContainer>
+          <p>private content</p>
+        </AuthenticatedShellContainer>
+      </ThemeProvider>,
       { pathname: '/es/categories' },
     );
 

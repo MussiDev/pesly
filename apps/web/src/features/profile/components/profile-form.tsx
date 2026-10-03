@@ -1,8 +1,9 @@
 'use client';
 
-import { ShieldCheck, ShieldOff } from 'lucide-react';
+import { Mail, ShieldCheck, ShieldOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { SubmitEvent } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -12,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { ListRow } from '@/components/ui/list-row';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import type { ProfileFormErrors } from '../profile-errors';
@@ -67,25 +69,28 @@ export function ProfileForm({
             <FormDescription>{t('account.displayNameHint')}</FormDescription>
             <FormMessage>{nameError ? tErrors(nameError) : null}</FormMessage>
           </FormItem>
-          <dl className="grid gap-4 text-sm">
-            <div className="grid gap-1">
-              <dt className="font-medium">{t('account.email')}</dt>
-              <dd className="break-all text-muted-foreground">{email}</dd>
-            </div>
-            <div className="grid gap-1">
-              <dt className="font-medium">{t('account.twoFactor')}</dt>
-              <dd className="flex items-center gap-2 text-muted-foreground">
-                {twoFactorEnabled ? (
-                  <ShieldCheck aria-hidden className="size-4 text-primary" />
+          <div className="divide-y divide-border border-y">
+            <ListRow
+              leading={<Mail aria-hidden className="size-4 text-muted-foreground" />}
+              title={t('account.email')}
+              description={<span className="block break-all whitespace-normal">{email}</span>}
+            />
+            <ListRow
+              leading={
+                twoFactorEnabled ? (
+                  <ShieldCheck aria-hidden className="size-4 text-success" />
                 ) : (
-                  <ShieldOff aria-hidden className="size-4" />
-                )}
-                <span>
+                  <ShieldOff aria-hidden className="size-4 text-muted-foreground" />
+                )
+              }
+              title={t('account.twoFactor')}
+              trailing={
+                <Badge variant={twoFactorEnabled ? 'success' : 'default'}>
                   {twoFactorEnabled ? t('account.twoFactorOn') : t('account.twoFactorOff')}
-                </span>
-              </dd>
-            </div>
-          </dl>
+                </Badge>
+              }
+            />
+          </div>
           <Button type="submit" disabled={pending}>
             {pending ? t('account.pending') : t('account.submit')}
           </Button>
