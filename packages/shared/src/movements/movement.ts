@@ -2,6 +2,8 @@ import { z } from 'zod';
 import { LIST_ACCOUNTS_DEFAULT_LIMIT, LIST_ACCOUNTS_MAX_LIMIT } from '../accounts/account';
 import { scaledRateStringSchema } from '../exchange-rates/exchange-rate';
 import { rateTypeSchema } from '../rate-types';
+import { movementFilterShape } from './movement-filters';
+import { movementTagsSchema } from './tag';
 
 export const MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange'] as const;
 export const movementTypeSchema = z.enum(MOVEMENT_TYPES);
@@ -75,6 +77,7 @@ const createCategorizedMovementSchema = z.object({
   amount: movementAmountSchema,
   occurredAt: occurredAtSchema,
   note: movementNoteSchema.optional(),
+  tags: movementTagsSchema.optional(),
   rate: movementRateRequestSchema,
 });
 
@@ -127,12 +130,19 @@ function queryInteger<T extends z.ZodType>(schema: T) {
   );
 }
 
-export const listMovementsQuerySchema = z.object({
-  limit: queryInteger(z.coerce.number().int().min(1).max(LIST_MOVEMENTS_MAX_LIMIT)).default(
-    LIST_MOVEMENTS_DEFAULT_LIMIT,
-  ),
-  offset: queryInteger(z.coerce.number().int().min(0)).default(0),
-});
+export const listMovementsQuerySchema = z
+  .object({
+    limit: queryInteger(z.coerce.number().int().min(1).max(LIST_MOVEMENTS_MAX_LIMIT)).default(
+      LIST_MOVEMENTS_DEFAULT_LIMIT,
+    ),
+    offset: queryInteger(z.coerce.number().int().min(0)).default(0),
+  })
+  .extend(movementFilterShape)
+  // A refinement placed before `.extend` would not compose, so it goes last.
+  .refine((query) => query.from === undefined || query.to === undefined || query.from <= query.to, {
+    path: ['from'],
+    message: 'from must not be later than to',
+  });
 export type ListMovementsQuery = z.infer<typeof listMovementsQuerySchema>;
 
 export const movementResponseSchema = z.object({
@@ -149,6 +159,7 @@ export const movementResponseSchema = z.object({
   rateSource: movementRateSourceSchema.nullable(),
   rateType: rateTypeSchema.nullable(),
   createdAt: z.iso.datetime(),
+  tags: z.array(z.string()),
 });
 export type MovementResponse = z.infer<typeof movementResponseSchema>;
 

@@ -232,6 +232,7 @@ describe('movement response', () => {
     rateSource: 'automatic',
     rateType: 'blue',
     createdAt: '2026-10-02T15:31:00.000Z',
+    tags: ['viaje'],
   };
 
   it('accepts an automatic and a manual movement', () => {
@@ -268,6 +269,15 @@ describe('movement response', () => {
     expect(movementResponseSchema.safeParse({ ...exchangeResponse, rateSource: 'x' }).success).toBe(
       false,
     );
+  });
+
+  it('requires the tags array (AC-03)', () => {
+    expect(movementResponseSchema.safeParse({ ...response, tags: [] }).success).toBe(true);
+    const withoutTags: Partial<typeof response> = { ...response };
+    delete withoutTags.tags;
+    expect(movementResponseSchema.safeParse(withoutTags).success).toBe(false);
+    expect(movementResponseSchema.safeParse({ ...response, tags: null }).success).toBe(false);
+    expect(movementResponseSchema.safeParse({ ...response, tags: [1] }).success).toBe(false);
   });
 });
 
