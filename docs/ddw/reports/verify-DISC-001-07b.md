@@ -3,15 +3,15 @@
 | Field | Value |
 |---|---|
 | Module | `apps/api/src/investments/**` (price domain, ports and use cases, Drizzle repositories, CoinGecko adapter and fake, jobs, worker wiring, holding routes), `packages/shared/src/investments/**`, `apps/web/src/features/investments/**`, `apps/web/src/lib/api-client.ts`, migration `0015_price_snapshots` |
-| Line coverage | 97.21% |
-| Branch coverage | 92.71% |
-| Function coverage | 94.85% |
+| Line coverage | 97.34% |
+| Branch coverage | 92.91% |
+| Function coverage | 95.04% |
 | Coverage floor | 80% lines, branches and functions (AGENTS.md, "Testing") |
-| Lint | `pnpm exec eslint .` and `pnpm exec prettier --check --end-of-line auto .` — clean, 0 findings; `pnpm typecheck` — clean |
+| Lint | `pnpm exec eslint .` — clean, 0 findings; `pnpm typecheck` — clean; `pnpm exec prettier --check --end-of-line auto .` — 0 findings in this ticket's files, 1 in `apps/web/test/movements-containers.test.tsx`, identical to `origin/main` and already failing there |
 
-Run: vitest 5.0.1 with V8 coverage over `apps/api/src`, `apps/web/src` and `packages/shared/src`, 3674 tests
-passed, 0 failed, 0 skipped (218 files), report `docs/ddw/reports/tests-DISC-001-07b.md`; Playwright 76/76
-and the investments flow again after the last fix (1/1); perf 8/8; SAST `docs/ddw/security/sast-DISC-001-07b.md`
+Run (round 2, on the branch rebased onto `origin/main` 40c8b09): vitest 5.0.1 with V8 coverage over
+`apps/api/src`, `apps/web/src` and `packages/shared/src`, 4274 tests passed, 0 failed, 0 skipped
+(233 files), report `docs/ddw/reports/tests-DISC-001-07b.md`; Playwright 90/90; perf 8/8; SAST `docs/ddw/security/sast-DISC-001-07b.md`
 (0 Critical, 0 High, one Medium accepted by the owner). Coverage of the new and modified files: every new
 application, domain and route file is at or above 95% lines; the lowest branch figures are
 `drizzle-crypto-price-repository.ts` (70%, two `rowCount ?? 0` fallbacks), `drizzle-snapshot-repository.ts`
@@ -69,6 +69,23 @@ before propagating; `symbolsToPrice` selects half oldest-priced and half random 
 - ⚠️ W-VER-03 fragile tests: `price-repositories.test.ts` "eventually draws every never priced symbol" is probabilistic (about 2^-37 failure chance, unseeded `random()`); `waitForLockWaiter` assumes serial test files; the job tests use real 5 to 60 ms timers; the investments e2e depends on the worker's 30 second poll (90 second wait, 180 second test timeout) and on the fake BTC constant staying in sync with `fake-price-provider.ts`; the worker log-line tests read the source of `worker.ts`
 - ⚠️ Test and document defects found by the cross-verification, none a requirement failure: the provider test "declared or chunked" never sends a Content-Length, so the declared-length branch of `coingecko-price-provider.ts` is uncovered (the streaming cap still enforces the limit); the SAST report cites line numbers that no longer match the files (the findings are correct); the spec (Block 3) and the threat model describe the old never-priced-first ordering of `symbolsToPrice` that the SAST-driven fix replaced (the TDD report and the tests document the new behaviour); web test titles reuse "AC-11" and "AC-12" from 07a in a separate `describe`
 - ⚠️ TDD evidence: red runs of several blocks were import failures with no test running (said in the report); Block 6 kept no assertion text for three files; Block 8's integration tests and e2e steps passed on the first behavioural run and are backed by a six-row mutation table instead; the cross-verification found every named test on disk with assertions that can fail
-- ⚠️ Branch behind main: `origin/main` now contains two FEAT-004 merges (`ba7d690`) that this branch lacks, with a content conflict expected in `apps/web/src/features/investments/components/holding-row.tsx` (the restyled screens); the rebase belongs to CLOSEOUT, after which the web investments tests and the investments e2e must be re-run and the "0 commits behind" statement of the test report refreshed
+- ✅ Branch behind main: resolved in round 2 (see below); the branch is 0 commits behind `origin/main` 40c8b09
+
+## Round 2 (corrective loop after the first verdict)
+
+Round 1 passed with the warnings above. Before closeout the owner approved the push and a draft PR, which
+needed the branch rebased onto the current `origin/main` and the stale documents corrected, so the ticket went
+back through CODE and PLAN and came here again:
+- Rebase onto `origin/main` 40c8b09: one conflict, in `apps/web/src/features/investments/components/holding-row.tsx`,
+  resolved by keeping FEAT-004's restyled row and adding the 07b warning in its type scale (`text-small`); the
+  migration is still `0015_price_snapshots`, journal `when` 1790980568164, above `0014_movements` (1790966184307),
+  snapshot `prevId` chained to the 0014 snapshot, `drizzle-kit generate` reports no changes.
+- Re-run on the rebased tree: 4274 unit and integration tests passed, 97.34% lines, 92.91% branches and 95.04%
+  functions; Playwright 90/90; perf 8/8; typecheck and eslint clean.
+- The SAST report file and line references were corrected against the current files and the report was
+  re-validated; the spec (Block 3 symbol read and its test line) and the threat model (the denial of service
+  entry, new risk R-20 and its acceptance) now describe the fair symbol selection; both re-validated.
+- The remaining warnings (dead exports, the 89.47% branch figure of `take-daily-snapshots.ts`, the fragile tests
+  listed above, the undeclared Content-Length test, and the TDD evidence notes) are unchanged and do not block.
 
 Result: PASSED
