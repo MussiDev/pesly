@@ -3,7 +3,7 @@
 ────────────────────────────────────────────────────────────────
   ✅ F-TEST-07: the report describes one run
   ✅ F-TEST-01: runner and command named: vitest 5.0.1 (V8 coverage via @vitest/coverage-v8 5.0.1) — `TEST_DATABASE_URL=postgres://argent:argent@local`
-  ✅ F-TEST-02: 4157 test(s): 4157 passed, 0 failed, 0 skipped — and they add up
+  ✅ F-TEST-02: 4506 test(s): 4506 passed, 0 failed, 0 skipped — and they add up
   ✅ F-TEST-08: no failing tests
   ✅ F-TEST-03: no failures to name
   ✅ F-TEST-04: coverage stated: line 97%, branch 93%, function 95%
