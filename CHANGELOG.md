@@ -156,6 +156,24 @@ All notable changes to this project are documented in this file. The format foll
   design values (the Google logo is the only exception), a catalog parity check over every
   namespace, key and ICU argument, and a Playwright spec for navigation by viewport, 44px targets,
   focus indicators, layout shift and theme persistence.
+- DISC-001-07b Crypto prices: a background job in the worker asks CoinGecko once an hour for the USD
+  price of every crypto ticker (the ticker is matched as a CoinGecko symbol, top-ranked coin per symbol)
+  and keeps the price in whole cents read from the JSON text, never through a float; a provider fault,
+  a missing symbol or a price under one cent keeps the previous price. Requests are limited to 100
+  symbols, back off from 15 to 60 minutes after a fault and never exceed 1,000 provider calls a month.
+  A price set by hand is never replaced by an automatic one.
+- DISC-001-07b Market price warning: the market price of each crypto ticker is stored separately, and a
+  crypto holding with a manual price shows a warning (Spanish and English) when the market price differs
+  by more than 5% in either direction, saying "today it is worth X" for a price up to 24 hours old and
+  "on <date> it was worth X" for an older one, with a button that switches the holding back to the
+  automatic price (`POST /investments/holdings/:holdingId/automatic-price`).
+- DISC-001-07b Daily portfolio snapshots: once a day, at the end of the day in each user's time zone,
+  the total value of every portfolio per currency is stored for the dashboard; a total above the 64-bit
+  limit skips that portfolio's snapshot for the day and is logged. Migration 0015 adds the
+  `crypto_price_sync`, `crypto_price_usage`, `crypto_price_refresh_failures`, `crypto_market_prices` and
+  `portfolio_value_snapshots` tables; its rollback script is destructive. The optional
+  `COINGECKO_API_KEY` is a worker-only secret (the worker starts without it); deploy the API before the web
+  app because the holding response gained four fields.
 
 ### Changed
 

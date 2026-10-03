@@ -296,6 +296,22 @@ const REGISTRY: readonly RegisteredTable[] = [
       );
     },
   },
+  {
+    table: 'portfolio_value_snapshots',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after portfolios: the snapshot hangs from the user's portfolio. The market price
+    // table is deliberately absent: it has no foreign key and holds no user data.
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into portfolio_value_snapshots (portfolio_id, owner_id, snapshot_date, currency, total_value, taken_at)
+         select id, owner_id, '2026-10-01', 'ARS', 1500000, now()
+         from portfolios where owner_id = $1 order by created_at, id limit 1`,
+        [context.userId],
+      );
+    },
+  },
 ];
 
 /** Created by the access-control tests and never dropped; they are not user data of the product. */

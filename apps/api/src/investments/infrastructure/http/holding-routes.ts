@@ -14,6 +14,7 @@ import type {
   GetHolding,
   SetManualPrice,
   UpdateHolding,
+  UseAutomaticPrice,
 } from '../../application/holding-use-cases';
 import type { HoldingEditPatch } from '../../domain/holding';
 import type { AccessPolicy } from '../../../shared/access';
@@ -29,6 +30,7 @@ export interface HoldingRoutesDependencies {
   getHolding: GetHolding;
   updateHolding: UpdateHolding;
   setManualPrice: SetManualPrice;
+  useAutomaticPrice: UseAutomaticPrice;
   deleteHolding: DeleteHolding;
 }
 
@@ -44,6 +46,7 @@ export function holdingRoutes({
   getHolding,
   updateHolding,
   setManualPrice,
+  useAutomaticPrice,
   deleteHolding,
 }: HoldingRoutesDependencies): Router {
   const router = Router();
@@ -139,6 +142,27 @@ export function holdingRoutes({
         );
         logger.info(
           { requestId, userId: scope.userId, action: 'holding.price', holdingId: holding.id },
+          'investments.mutation',
+        );
+        res.json(serializeHolding(holding));
+      },
+    ),
+  );
+
+  router.post(
+    '/investments/holdings/:holdingId/automatic-price',
+    validate(
+      { params: holdingIdParamsSchema, response: holdingResponseSchema },
+      async ({ params }, { res, auth, requestId }) => {
+        const scope = await scopeOf(policy, auth, 'write');
+        const holding = await useAutomaticPrice.execute(scope, params.holdingId);
+        logger.info(
+          {
+            requestId,
+            userId: scope.userId,
+            action: 'holding.automatic-price',
+            holdingId: holding.id,
+          },
           'investments.mutation',
         );
         res.json(serializeHolding(holding));

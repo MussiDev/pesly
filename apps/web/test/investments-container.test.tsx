@@ -977,3 +977,138 @@ describe('InvestmentsContainer', () => {
     expect(within(document.body).queryAllByRole('heading', { level: 1 })).toHaveLength(0);
   });
 });
+
+describe('InvestmentsContainer manual price warning (DISC-001-07b)', () => {
+  const WARNED: HoldingResponse = {
+    ...HOLDING,
+    marketUnitPrice: '2050000',
+    marketPricedAt: '2026-09-30T23:30:00.000Z',
+    marketPriceDiffers: true,
+    marketPriceRecent: true,
+  };
+  const SWITCH = `POST /investments/holdings/${HOLDING.id}/automatic-price`;
+  const switchName = inv.holding.useAutomaticPriceFor.replace('{ticker}', 'AAPL');
+  const warning = inv.holding.manualPriceDiffersToday.replace('{price}', '20.500,00 ARS');
+
+  it('AC-12: pressing the button switches the holding to automatic and hides the warning', async () => {
+    const switched: HoldingResponse = {
+      ...WARNED,
+      unitPrice: '2050000',
+      priceSource: 'automatic',
+      marketPriceDiffers: false,
+      value: '20500000',
+      gain: null,
+    };
+    const { calls } = stubApi({
+      'GET /auth/session': session(),
+      [LIST]: [list(portfolio({}, [WARNED])), list(portfolio({}, [switched]))],
+      [SWITCH]: { status: 200, body: switched },
+    });
+    renderApp(<InvestmentsContainer />);
+
+    expect(await screen.findByText(warning)).toBeDefined();
+    await userEvent.setup().click(screen.getByRole('button', { name: switchName }));
+
+    await waitFor(() => {
+      expect(screen.queryByText(warning)).toBeNull();
+    });
+    expect(screen.queryByRole('button', { name: switchName })).toBeNull();
+    await openDetails('AAPL');
+    expect(screen.getByText(inv.priceSources.automatic)).toBeDefined();
+    expect(paths(calls)).toEqual(['GET /auth/session', LIST, SWITCH, LIST]);
+  });
+
+  it.each([
+    ['404', NOT_FOUND, inv.errors.notFound],
+    ['400', { status: 400, body: { code: 'VALIDATION_FAILED' } }, inv.errors.unexpected],
+  ])(
+    'AC-13: a %s leaves the holding and shows the portfolio message',
+    async (_name, answer, key) => {
+      const { calls } = stubApi({
+        'GET /auth/session': session(),
+        [LIST]: list(portfolio({}, [WARNED])),
+        [SWITCH]: answer,
+      });
+      renderApp(<InvestmentsContainer />);
+
+      await userEvent.setup().click(await screen.findByRole('button', { name: switchName }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert.textContent).toContain(key);
+      expect(screen.getByText(warning)).toBeDefined();
+      expect(screen.getByRole('button', { name: switchName })).toBeDefined();
+      expect(paths(calls).filter((call) => call === LIST)).toHaveLength(1);
+    },
+  );
+
+  const switched: HoldingResponse = {
+    ...WARNED,
+    unitPrice: '2050000',
+    priceSource: 'automatic',
+    marketPriceDiffers: false,
+    value: '20500000',
+    gain: null,
+  };
+  const notice = inv.notices.automaticPrice.replace('{ticker}', 'AAPL');
+  const detailsToggle = inv.holding.showDetailsFor.replace('{ticker}', 'AAPL');
+
+  it('announces the switch in the status region and moves focus to the holding details toggle', async () => {
+    stubApi({
+      'GET /auth/session': session(),
+      [LIST]: [list(portfolio({}, [WARNED])), list(portfolio({}, [switched]))],
+      [SWITCH]: { status: 200, body: switched },
+    });
+    renderApp(<InvestmentsContainer />);
+
+    const button = await screen.findByRole('button', { name: switchName });
+    button.focus();
+    await userEvent.setup().click(button);
+
+    await waitFor(() => {
+      expect(screen.getByRole('status').textContent).toBe(notice);
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: detailsToggle }));
+    });
+  });
+
+  it('shows the portfolio failure and no notice when the switch fails', async () => {
+    stubApi({
+      'GET /auth/session': session(),
+      [LIST]: list(portfolio({}, [WARNED])),
+      [SWITCH]: NOT_FOUND,
+    });
+    renderApp(<InvestmentsContainer />);
+
+    await userEvent.setup().click(await screen.findByRole('button', { name: switchName }));
+
+    await screen.findByRole('alert');
+    expect(screen.getByRole('status').textContent).toBe('');
+  });
+
+  it('disables the button while the switch is in flight and sends one POST on a double click', async () => {
+    const { calls, fetch } = stubApi({
+      'GET /auth/session': session(),
+      [LIST]: [list(portfolio({}, [WARNED])), list(portfolio({}, [switched]))],
+      [SWITCH]: { status: 200, body: switched },
+    });
+    const gate = gateRequests(fetch, (method) => method === 'POST');
+    renderApp(<InvestmentsContainer />);
+
+    const button = await screen.findByRole<HTMLButtonElement>('button', { name: switchName });
+    const user = userEvent.setup();
+    await user.dblClick(button);
+
+    await waitFor(() => {
+      expect(gate.held()).toBe(1);
+    });
+    expect(button.disabled).toBe(true);
+    expect(gate.held()).toBe(1);
+
+    gate.release(0);
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: switchName })).toBeNull();
+    });
+    expect(paths(calls).filter((call) => call === SWITCH)).toHaveLength(1);
+  });
+});

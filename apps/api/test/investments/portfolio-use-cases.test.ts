@@ -8,7 +8,11 @@ import {
 } from '../../src/investments/application/portfolio-use-cases';
 import { ResourceNotFound } from '../../src/shared/access';
 import { MutableClock } from '../fakes/mutable-clock';
-import { InMemoryInvestments, scopeFor } from './fakes/in-memory-investments';
+import {
+  InMemoryInvestments,
+  InMemoryMarketPriceReader,
+  scopeFor,
+} from './fakes/in-memory-investments';
 
 const ALICE = randomUUID();
 const BOB = randomUUID();
@@ -16,12 +20,14 @@ const BOB = randomUUID();
 function setup() {
   const clock = new MutableClock(new Date('2026-10-01T12:00:00.000Z'));
   const store = new InMemoryInvestments(clock);
+  const market = new InMemoryMarketPriceReader();
   return {
     clock,
     store,
-    create: new CreatePortfolio(store.portfolios, clock),
-    list: new ListPortfolios(store.portfolios, store.holdings, clock),
-    get: new GetPortfolio(store.portfolios, store.holdings, clock),
+    market,
+    create: new CreatePortfolio(store.portfolios, market, clock),
+    list: new ListPortfolios(store.portfolios, store.holdings, market, clock),
+    get: new GetPortfolio(store.portfolios, store.holdings, market, clock),
     remove: new DeletePortfolio(store.portfolios),
   };
 }
@@ -31,13 +37,14 @@ async function addHolding(
   userId: string,
   portfolioId: string,
   ticker = 'AAPL',
+  instrumentType: 'cedear' | 'crypto' = 'cedear',
 ) {
   const inserted = await store.holdings.insert(await scopeFor(userId, 'write'), portfolioId, {
     ticker,
     instrumentName: 'Apple CEDEAR',
-    instrumentType: 'cedear',
+    instrumentType,
     quantity: 1_000_000_000n,
-    valuationCurrency: 'ARS',
+    valuationCurrency: instrumentType === 'crypto' ? 'USD' : 'ARS',
     totalCost: null,
   });
   if (inserted === null) throw new Error('fixture insert failed');
@@ -81,6 +88,93 @@ describe('portfolio use cases', () => {
 
     expect(view?.totals).toEqual([{ currency: 'ARS', value: 18_500_000n }]);
     expect(view?.holdings).toHaveLength(1);
+  });
+
+  describe('market price lookup (FR-05)', () => {
+    const MARKET_TIME = new Date('2026-10-01T10:00:00.000Z');
+
+    async function cryptoSetup() {
+      const ctx = setup();
+      const write = await scopeFor(ALICE, 'write');
+      const first = await ctx.create.execute(write, 'First');
+      const second = await ctx.create.execute(write, 'Second');
+      const btc = await addHolding(ctx.store, ALICE, first.id, 'BTC', 'crypto');
+      await addHolding(ctx.store, ALICE, first.id, 'eth', 'crypto');
+      await addHolding(ctx.store, ALICE, first.id, 'AAPL');
+      await addHolding(ctx.store, ALICE, second.id, 'BTC', 'crypto');
+      await ctx.store.holdings.setPrice(write, btc.id, 6_000_000n, 'manual', ctx.clock.now());
+      ctx.market.set('btc', 6_400_000n, MARKET_TIME);
+      ctx.market.calls.length = 0;
+      return { ...ctx, first, second };
+    }
+
+    it('lists portfolios with crypto holdings with one lookup, fills the fields per holding', async () => {
+      const { list, market } = await cryptoSetup();
+
+      const views = await list.execute(await scopeFor(ALICE, 'read'));
+
+      expect(market.calls).toHaveLength(1);
+      expect([...(market.calls[0] ?? [])].sort()).toEqual(['btc', 'eth']);
+      const holdings = views.flatMap((view) => view.holdings);
+      const byKey = Object.fromEntries(
+        views.flatMap((view) =>
+          view.holdings.map((h) => [
+            view.name + h.ticker,
+            [h.market?.unitPrice ?? null, h.marketPriceDiffers, h.marketPriceRecent],
+          ]),
+        ),
+      );
+      expect(holdings).toHaveLength(4);
+      expect(byKey).toEqual({
+        FirstAAPL: [null, false, false],
+        FirstBTC: [6_400_000n, true, true],
+        Firsteth: [null, false, false],
+        SecondBTC: [6_400_000n, false, true],
+      });
+    });
+
+    it('reads one portfolio with one lookup', async () => {
+      const { get, market, first } = await cryptoSetup();
+
+      const view = await get.execute(await scopeFor(ALICE, 'read'), first.id);
+
+      expect(market.calls).toHaveLength(1);
+      expect(view.holdings.find((h) => h.ticker === 'BTC')?.marketPriceDiffers).toBe(true);
+    });
+
+    it('makes no lookup for a list or a read without crypto, nor for an empty list', async () => {
+      const { create, list, get, store, market } = setup();
+      await list.execute(await scopeFor(ALICE, 'read'));
+      const created = await create.execute(await scopeFor(ALICE, 'write'), 'Balanz');
+      await addHolding(store, ALICE, created.id);
+
+      const listed = await list.execute(await scopeFor(ALICE, 'read'));
+      const read = await get.execute(await scopeFor(ALICE, 'read'), created.id);
+
+      expect(market.calls).toEqual([]);
+      expect(listed[0]?.holdings[0]).toMatchObject({ market: null, marketPriceDiffers: false });
+      expect(read.holdings[0]?.marketPriceRecent).toBe(false);
+    });
+
+    it('does not look up the market of another user or a missing portfolio', async () => {
+      const { get, market, first } = await cryptoSetup();
+
+      await expect(get.execute(await scopeFor(BOB, 'read'), first.id)).rejects.toBeInstanceOf(
+        ResourceNotFound,
+      );
+
+      expect(market.calls).toEqual([]);
+    });
+
+    it('creates a portfolio without a lookup and propagates a reader failure on list', async () => {
+      const { create, list, market } = await cryptoSetup();
+
+      await create.execute(await scopeFor(ALICE, 'write'), 'Third');
+      expect(market.calls).toEqual([]);
+
+      market.failure = new Error('reader down');
+      await expect(list.execute(await scopeFor(ALICE, 'read'))).rejects.toThrow('reader down');
+    });
   });
 
   it('reads a portfolio of the caller', async () => {

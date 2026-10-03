@@ -16,6 +16,10 @@ export function serializeHolding(view: HoldingView): HoldingResponse {
     priceSource: view.price === null ? null : view.price.source,
     pricedAt: view.price === null ? null : view.price.pricedAt.toISOString(),
     priceStale: view.priceStale,
+    marketUnitPrice: view.market === null ? null : view.market.unitPrice.toString(),
+    marketPricedAt: view.market === null ? null : view.market.pricedAt.toISOString(),
+    marketPriceDiffers: view.marketPriceDiffers,
+    marketPriceRecent: view.marketPriceRecent,
     value: view.value === null ? null : view.value.toString(),
     gain:
       view.gain === null

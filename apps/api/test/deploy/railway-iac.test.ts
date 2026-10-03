@@ -19,6 +19,8 @@ const SECRETS = [
   'RESEND_API_KEY',
   // Encrypts the stored TOTP secrets (DISC-001-01c); losing it makes them unreadable.
   'TOTP_ENCRYPTION_KEY',
+  // Optional Demo plan key of the worker's price job (DISC-001-07b); the worker starts without it.
+  'COINGECKO_API_KEY',
 ];
 
 const ALLOWED_LITERALS: Record<string, readonly string[]> = {
@@ -57,7 +59,7 @@ const SERVICE_SECRETS: Record<string, readonly string[]> = {
     'RESEND_API_KEY',
     'TOTP_ENCRYPTION_KEY',
   ],
-  'argent-worker': ['RESEND_API_KEY'],
+  'argent-worker': ['COINGECKO_API_KEY', 'RESEND_API_KEY'],
   'argent-web': [],
 };
 
@@ -378,6 +380,17 @@ describe('Railway Infrastructure as Code definition', () => {
       for (const secret of secrets) {
         expect(serviceNamed(name).variables?.[secret], `${name}.${secret}`).toEqual(preserve());
       }
+    }
+  });
+
+  it('gives the CoinGecko key to the worker only, through preserve(), and declares no price provider literal', () => {
+    expect(serviceNamed('argent-worker').variables?.COINGECKO_API_KEY).toEqual(preserve());
+    for (const service of services) {
+      const names = Object.keys(service.variables ?? {});
+      expect(names, service.name).not.toContain('PRICE_PROVIDER');
+      expect(names, service.name).not.toContain('COINGECKO_BASE_URL');
+      if (service.name !== 'argent-worker')
+        expect(names, service.name).not.toContain('COINGECKO_API_KEY');
     }
   });
 

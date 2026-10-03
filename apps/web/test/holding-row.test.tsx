@@ -217,3 +217,168 @@ describe('HoldingRow', () => {
     expect(screen.getByText('oracle')).toBeTruthy();
   });
 });
+
+describe('HoldingRow manual price warning (DISC-001-07b)', () => {
+  const MARKET_AT = '2026-09-30T23:30:00.000Z';
+  const BUENOS_AIRES = 'America/Argentina/Buenos_Aires';
+  const WARNED: Partial<HoldingResponse> = {
+    marketUnitPrice: '2050000',
+    marketPricedAt: MARKET_AT,
+    marketPriceDiffers: true,
+    marketPriceRecent: true,
+  };
+
+  function renderWarned(
+    holding: Partial<HoldingResponse>,
+    options: { locale?: TestLocale; timeZone?: string; callback?: boolean } = {},
+  ) {
+    const { locale = 'en', timeZone = 'UTC', callback = true } = options;
+    const onUseAutomaticPrice = vi.fn();
+    renderApp(
+      <ul>
+        <HoldingRow
+          holding={{ ...HOLDING, ...holding }}
+          language={locale}
+          timeZone={timeZone}
+          onUseAutomaticPrice={callback ? onUseAutomaticPrice : undefined}
+        />
+      </ul>,
+      { locale },
+    );
+    return onUseAutomaticPrice;
+  }
+
+  it('AC-07: a recent market price says "today" with the price, without opening the details', () => {
+    renderWarned(WARNED);
+
+    expect(
+      screen.getByText(
+        "This price is manual, but the market price changed: today it's worth 20,500.00 ARS",
+      ),
+    ).toBeTruthy();
+  });
+
+  it('AC-08: says "hoy vale" with Spanish separators in Spanish', () => {
+    renderWarned(WARNED, { locale: 'es' });
+
+    expect(
+      screen.getByText('Este precio es manual, pero el de mercado cambió: hoy vale 20.500,00 ARS'),
+    ).toBeTruthy();
+  });
+
+  it('AC-08: formats a USD market price with its currency', () => {
+    renderWarned({ ...WARNED, valuationCurrency: 'USD', marketUnitPrice: '123456' });
+
+    expect(screen.getByText(/today it's worth 1,234.56 USD$/)).toBeTruthy();
+  });
+
+  it('AC-11: an older market price says "on <date>" in the user time zone and never "today"', () => {
+    renderWarned({ ...WARNED, marketPriceRecent: false }, { timeZone: BUENOS_AIRES });
+
+    const date = formatDateTime(MARKET_AT, BUENOS_AIRES, 'en');
+    expect(date).not.toBe(formatDateTime(MARKET_AT, 'UTC', 'en'));
+    expect(
+      screen.getByText(
+        `This price is manual, but the market price changed: on ${date} it was worth 20,500.00 ARS`,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/today/)).toBeNull();
+  });
+
+  it('AC-11: the older wording in Spanish uses "al <fecha> valía"', () => {
+    renderWarned({ ...WARNED, marketPriceRecent: false }, { locale: 'es', timeZone: BUENOS_AIRES });
+
+    const date = formatDateTime(MARKET_AT, BUENOS_AIRES, 'es');
+    expect(
+      screen.getByText(
+        `Este precio es manual, pero el de mercado cambió: al ${date} valía 20.500,00 ARS`,
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText(/hoy/)).toBeNull();
+  });
+
+  it('AC-16: a 30 day old market price still warns with its date, not "today"', () => {
+    const old = '2026-09-02T12:00:00.000Z';
+    renderWarned({ ...WARNED, marketPricedAt: old, marketPriceRecent: false });
+
+    const date = formatDateTime(old, 'UTC', 'en');
+    expect(screen.getByText(new RegExp(`on ${date} it was worth 20,500.00 ARS$`))).toBeTruthy();
+    expect(screen.queryByText(/today/)).toBeNull();
+  });
+
+  it('AC-09: shows no warning and no button when the market price does not differ', () => {
+    renderWarned({ ...WARNED, marketPriceDiffers: false });
+
+    expect(screen.queryByText(/market price changed/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Use automatic price/ })).toBeNull();
+  });
+
+  it('AC-10: shows no warning and no button for an automatic price', () => {
+    renderWarned({ priceSource: 'automatic', marketUnitPrice: null, marketPriceDiffers: false });
+
+    expect(screen.queryByText(/market price changed/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Use automatic price/ })).toBeNull();
+  });
+
+  it('shows no warning when the flag is set but the market price is missing', () => {
+    renderWarned({ ...WARNED, marketUnitPrice: null });
+
+    expect(screen.queryByText(/market price changed/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Use automatic price/ })).toBeNull();
+  });
+
+  it('AC-12: the button has the ticker in its name and calls the callback with the holding id', async () => {
+    const onUseAutomaticPrice = renderWarned(WARNED);
+
+    const button = screen.getByRole('button', { name: 'Use automatic price for AAPL' });
+    expect(button.textContent).toContain('Use automatic price');
+    await userEvent.setup().click(button);
+
+    expect(onUseAutomaticPrice).toHaveBeenCalledTimes(1);
+    expect(onUseAutomaticPrice).toHaveBeenCalledWith(HOLDING.id);
+  });
+
+  it('the button name is in Spanish in Spanish', () => {
+    renderWarned(WARNED, { locale: 'es' });
+
+    expect(screen.getByRole('button', { name: 'Usar precio automático de AAPL' })).toBeTruthy();
+    expect(screen.getByText('Usar precio automático')).toBeTruthy();
+  });
+
+  it('shows the warning but no button without the callback', () => {
+    renderWarned(WARNED, { callback: false });
+
+    expect(screen.getByText(/market price changed/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Use automatic price/ })).toBeNull();
+  });
+
+  it('disables the button while a change is pending', () => {
+    const onUseAutomaticPrice = vi.fn();
+    renderApp(
+      <ul>
+        <HoldingRow
+          holding={{ ...HOLDING, ...WARNED }}
+          language="en"
+          timeZone="UTC"
+          pending
+          onUseAutomaticPrice={onUseAutomaticPrice}
+        />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    const button = screen.getByRole<HTMLButtonElement>('button', {
+      name: 'Use automatic price for AAPL',
+    });
+    expect(button.disabled).toBe(true);
+  });
+
+  it('keeps the button enabled when nothing is pending', () => {
+    renderWarned(WARNED);
+
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: 'Use automatic price for AAPL' })
+        .disabled,
+    ).toBe(false);
+  });
+});

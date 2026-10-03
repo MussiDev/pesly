@@ -35,7 +35,9 @@ export type OpenForm =
   | { kind: 'delete-portfolio'; portfolioId: string };
 
 export type InvestmentsNotice =
-  { kind: 'merged'; ticker: string; quantity: string } | { kind: 'deleted' };
+  | { kind: 'merged'; ticker: string; quantity: string }
+  | { kind: 'deleted' }
+  | { kind: 'automaticPrice'; ticker: string; holdingId: string };
 
 /** A message above one portfolio. The object is created once per failure, so focus moves once. */
 export interface PortfolioMessage {
@@ -64,6 +66,7 @@ export interface InvestmentsScreenProps {
   onEditHolding: (holdingId: string, values: UpdateHoldingRequest) => void;
   onSetPrice: (holdingId: string, values: SetPriceRequest) => void;
   onDeleteHolding: (holdingId: string) => void;
+  onUseAutomaticPrice?: (holdingId: string) => void;
   onDeletePortfolio: (portfolioId: string) => void;
 }
 
@@ -200,6 +203,23 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
     lastFocused.current = target;
   }, [openForm]);
 
+  // The switch to the automatic price removes the button that was pressed, with its warning. Focus
+  // goes to the holding's details toggle, which stays, and the status region announces the change.
+  useEffect(() => {
+    if (notice?.kind !== 'automaticPrice') return;
+    const root = rootRef.current;
+    if (!root) return;
+    const toggle = Array.from(root.querySelectorAll<HTMLElement>('[data-details-toggle]')).find(
+      (candidate) => candidate.dataset.detailsToggle === notice.holdingId,
+    );
+    if (!toggle) {
+      focusHeading();
+      return;
+    }
+    toggle.focus();
+    lastFocused.current = toggle;
+  }, [notice]);
+
   // A control that had focus and is gone after the list changed (a deleted portfolio or holding,
   // or the opener of a form closed by its own deletion) leaves focus on the body: move it to the
   // heading. Focus the user moved elsewhere on purpose is left alone.
@@ -262,7 +282,9 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
             })
           : notice?.kind === 'deleted'
             ? t('notices.deleted')
-            : null}
+            : notice?.kind === 'automaticPrice'
+              ? t('notices.automaticPrice', { ticker: notice.ticker })
+              : null}
       </p>
       {portfolios.length === 0 ? (
         <EmptyState
@@ -304,6 +326,7 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
                   portfolio={portfolio}
                   language={language}
                   timeZone={timeZone}
+                  pending={pending}
                   onAddHolding={
                     adding
                       ? undefined
@@ -321,6 +344,7 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
                     openPanel({ kind: 'price', holdingId });
                   }}
                   onDeleteHolding={props.onDeleteHolding}
+                  onUseAutomaticPrice={props.onUseAutomaticPrice}
                 />
                 {adding && (
                   <Panel title={t('forms.addHolding.title')} level="h3">

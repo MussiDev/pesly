@@ -218,6 +218,19 @@ export function InvestmentsContainer() {
     );
   }
 
+  async function useAutomaticPrice(holdingId: string) {
+    setNotice(null);
+    // No form of its own: a failure shows above the holding's portfolio and nothing else changes.
+    const switched = await mutate(
+      () => api.setHoldingAutomaticPrice(holdingId),
+      () => false,
+      portfolioFailure(portfolioOfHolding(holdingId)),
+    );
+    if (switched?.reloaded) {
+      setNotice({ kind: 'automaticPrice', ticker: switched.data.ticker, holdingId });
+    }
+  }
+
   async function deleteHolding(holdingId: string) {
     setNotice(null);
     const owner = portfolioOfHolding(holdingId);
@@ -290,6 +303,7 @@ export function InvestmentsContainer() {
       onEditHolding={(holdingId, values) => void editHolding(holdingId, values)}
       onSetPrice={(holdingId, values) => void setPrice(holdingId, values)}
       onDeleteHolding={(holdingId) => void deleteHolding(holdingId)}
+      onUseAutomaticPrice={(holdingId) => void useAutomaticPrice(holdingId)}
       onDeletePortfolio={(portfolioId) => void deletePortfolio(portfolioId)}
     />
   );

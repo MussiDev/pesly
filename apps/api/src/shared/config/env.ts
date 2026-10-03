@@ -45,6 +45,27 @@ function googleEndpoint(name: GoogleEndpoint) {
 /** The only dolarapi host production may call; only a local fake server replaces it elsewhere. */
 export const DOLARAPI_BASE_URL_DEFAULT = 'https://dolarapi.com';
 
+/** The only CoinGecko host production may call; only a local fake server replaces it elsewhere. */
+export const COINGECKO_BASE_URL_DEFAULT = 'https://api.coingecko.com/api/v3';
+
+/**
+ * A pasted secret often carries a trailing newline or space, so the value is trimmed first; a blank
+ * one counts as unset. What remains must be one visible ASCII token, so a malformed key stops
+ * startup naming the variable, never the value.
+ */
+const coingeckoKeySchema = z.preprocess(
+  (value) => {
+    if (typeof value !== 'string') return value;
+    const trimmed = value.trim();
+    return trimmed === '' ? undefined : trimmed;
+  },
+  z
+    .string()
+    .max(255)
+    .regex(/^[!-~]+$/, 'must be a single token without spaces')
+    .optional(),
+);
+
 type Issue = { path: string[]; message: string };
 
 /**
@@ -62,6 +83,11 @@ const workerFields = {
   /** Which adapter feeds the exchange rates; `fake` is for local runs and e2e only. */
   RATE_PROVIDER: z.enum(['dolarapi', 'fake']).default('dolarapi'),
   DOLARAPI_BASE_URL: z.url().default(DOLARAPI_BASE_URL_DEFAULT),
+  /** Which adapter prices crypto; `fake` is for local runs and e2e only. */
+  PRICE_PROVIDER: z.enum(['coingecko', 'fake']).default('coingecko'),
+  COINGECKO_BASE_URL: z.url().default(COINGECKO_BASE_URL_DEFAULT),
+  /** Optional Demo plan key: a missing key never blocks startup; only a malformed one does. */
+  COINGECKO_API_KEY: coingeckoKeySchema,
   /** Sender of auth emails; required with Resend, whose sending domain must be verified. */
   EMAIL_FROM: z
     .string()
@@ -79,6 +105,8 @@ interface RawWorkerEnv {
   WEB_BASE_URL: string;
   RATE_PROVIDER: string;
   DOLARAPI_BASE_URL: string;
+  PRICE_PROVIDER: string;
+  COINGECKO_BASE_URL: string;
 }
 
 interface RawEnv extends RawWorkerEnv {
@@ -133,6 +161,15 @@ function workerProductionIssues(env: RawWorkerEnv): Issue[] {
     issues.push({
       path: ['DOLARAPI_BASE_URL'],
       message: 'must be the default dolarapi endpoint in production',
+    });
+  }
+  if (env.PRICE_PROVIDER !== 'coingecko') {
+    issues.push({ path: ['PRICE_PROVIDER'], message: 'must be coingecko in production' });
+  }
+  if (env.COINGECKO_BASE_URL !== COINGECKO_BASE_URL_DEFAULT) {
+    issues.push({
+      path: ['COINGECKO_BASE_URL'],
+      message: 'must be the default CoinGecko endpoint in production',
     });
   }
   return [...issues, ...httpsIssue('WEB_BASE_URL', env.WEB_BASE_URL)];

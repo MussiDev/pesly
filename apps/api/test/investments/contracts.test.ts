@@ -39,6 +39,10 @@ const validHoldingResponse = {
   value: '18500000',
   gain: { amount: '3500000', basisPoints: '2333' },
   priceStale: false,
+  marketUnitPrice: null,
+  marketPricedAt: null,
+  marketPriceDiffers: false,
+  marketPriceRecent: false,
 };
 
 describe('add holding contract', () => {
@@ -220,6 +224,51 @@ describe('response contracts', () => {
       false,
     );
     expect(holdingResponseSchema.safeParse({ ...rest, priceStale }).success).toBe(false);
+  });
+
+  it.each([
+    'marketUnitPrice',
+    'marketPricedAt',
+    'marketPriceDiffers',
+    'marketPriceRecent',
+  ] as const)('requires %s in the holding response', (field) => {
+    const { [field]: removed, ...rest } = validHoldingResponse;
+    expect(removed).toBeDefined();
+    expect(holdingResponseSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('accepts a market price with its date and null market values', () => {
+    const market = {
+      ...validHoldingResponse,
+      marketUnitPrice: '6400000',
+      marketPricedAt: '2026-10-02T09:00:00.000Z',
+      marketPriceDiffers: true,
+      marketPriceRecent: true,
+    };
+    expect(holdingResponseSchema.safeParse(market).success).toBe(true);
+    expect(holdingResponseSchema.safeParse(validHoldingResponse).success).toBe(true);
+  });
+
+  it.each(['1.5', '-1', '01', '', 'abc', 6400000.5])(
+    'rejects an invalid marketUnitPrice %j',
+    (marketUnitPrice) => {
+      expect(
+        holdingResponseSchema.safeParse({ ...validHoldingResponse, marketUnitPrice }).success,
+      ).toBe(false);
+    },
+  );
+
+  it('rejects a marketPricedAt that is not an ISO date-time and non-boolean flags', () => {
+    expect(
+      holdingResponseSchema.safeParse({ ...validHoldingResponse, marketPricedAt: 'today' }).success,
+    ).toBe(false);
+    expect(
+      holdingResponseSchema.safeParse({ ...validHoldingResponse, marketPriceDiffers: 'yes' })
+        .success,
+    ).toBe(false);
+    expect(
+      holdingResponseSchema.safeParse({ ...validHoldingResponse, marketPriceRecent: null }).success,
+    ).toBe(false);
   });
 
   it('rejects a response with a float amount', () => {

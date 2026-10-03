@@ -147,6 +147,59 @@ describe('portfolio routes', () => {
     expect((own.body as PortfolioResponse).name).toBe('Balanz');
   });
 
+  it('carries the market price fields on the list and the read for a manual crypto price 6.67% away (AC-07)', async () => {
+    const { app, ana, anaId } = await setup();
+    const holdings = new DrizzleHoldingRepository(connection.db);
+    const portfolioId = await createdId(app, ana, 'Crypto');
+    const write = await scopeFor(anaId, 'write');
+    const btc = await holdings.insert(write, portfolioId, {
+      ticker: 'BTC',
+      instrumentName: 'Bitcoin',
+      instrumentType: 'crypto',
+      quantity: 100_000_000n,
+      valuationCurrency: 'USD',
+      totalCost: null,
+    });
+    const aapl = await holdings.insert(write, portfolioId, {
+      ticker: 'AAPL',
+      instrumentName: 'Apple',
+      instrumentType: 'cedear',
+      quantity: 1_000_000_000n,
+      valuationCurrency: 'ARS',
+      totalCost: null,
+    });
+    if (btc === null || aapl === null) throw new Error('fixture insert failed');
+    await holdings.setPrice(write, btc.id, 6_000_000n, 'manual', new Date());
+    const marketAt = new Date(Date.now() - 3 * 3_600_000);
+    await connection.pool.query(
+      `insert into crypto_market_prices (symbol, unit_price, priced_at) values ('btc', 6400000, $1)`,
+      [marketAt.toISOString()],
+    );
+
+    const listed = await list(app, ana);
+    const read = await request(app)
+      .get(`/investments/portfolios/${portfolioId}`)
+      .set('Cookie', ana);
+
+    const fromList = (listed.body as { portfolios: PortfolioResponse[] }).portfolios[0];
+    for (const portfolio of [fromList, read.body as PortfolioResponse]) {
+      const bitcoin = portfolio?.holdings.find((h) => h.ticker === 'BTC');
+      const apple = portfolio?.holdings.find((h) => h.ticker === 'AAPL');
+      expect(bitcoin).toMatchObject({
+        marketUnitPrice: '6400000',
+        marketPricedAt: marketAt.toISOString(),
+        marketPriceDiffers: true,
+        marketPriceRecent: true,
+      });
+      expect(apple).toMatchObject({
+        marketUnitPrice: null,
+        marketPricedAt: null,
+        marketPriceDiffers: false,
+        marketPriceRecent: false,
+      });
+    }
+  });
+
   it('lists only the portfolios of the caller (AC-16)', async () => {
     const { app, ana, bob } = await setup();
     const anaPortfolio = await createdId(app, ana, 'Ana portfolio');

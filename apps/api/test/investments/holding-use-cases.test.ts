@@ -6,13 +6,18 @@ import {
   GetHolding,
   SetManualPrice,
   UpdateHolding,
+  UseAutomaticPrice,
   type AddHoldingInput,
 } from '../../src/investments/application/holding-use-cases';
 import { GetPortfolio } from '../../src/investments/application/portfolio-use-cases';
 import { InvestmentRuleViolation } from '../../src/investments/domain/errors';
 import { ResourceNotFound } from '../../src/shared/access';
 import { MutableClock } from '../fakes/mutable-clock';
-import { InMemoryInvestments, scopeFor } from './fakes/in-memory-investments';
+import {
+  InMemoryInvestments,
+  InMemoryMarketPriceReader,
+  scopeFor,
+} from './fakes/in-memory-investments';
 
 const ALICE = randomUUID();
 const BOB = randomUUID();
@@ -21,17 +26,20 @@ const START = new Date('2026-10-01T12:00:00.000Z');
 async function setup() {
   const clock = new MutableClock(START);
   const store = new InMemoryInvestments(clock);
+  const market = new InMemoryMarketPriceReader();
   const portfolio = await store.portfolios.create(await scopeFor(ALICE, 'write'), 'Balanz');
   return {
     clock,
     store,
+    market,
     portfolio,
-    add: new AddHolding(store, clock),
-    get: new GetHolding(store.holdings, clock),
-    update: new UpdateHolding(store, clock),
-    setPrice: new SetManualPrice(store.holdings, clock),
+    add: new AddHolding(store, market, clock),
+    get: new GetHolding(store.holdings, market, clock),
+    update: new UpdateHolding(store, market, clock),
+    setPrice: new SetManualPrice(store.holdings, market, clock),
+    useAutomatic: new UseAutomaticPrice(store.holdings, market, clock),
     remove: new DeleteHolding(store.holdings),
-    getPortfolio: new GetPortfolio(store.portfolios, store.holdings, clock),
+    getPortfolio: new GetPortfolio(store.portfolios, store.holdings, market, clock),
   };
 }
 
@@ -276,6 +284,210 @@ describe('SetManualPrice', () => {
       setPrice.execute(await scopeFor(ALICE, 'write'), randomUUID(), 1n),
     ).rejects.toBeInstanceOf(ResourceNotFound);
     expect(store.holdingRows.get(holding.id)?.holding.price).toBeNull();
+  });
+});
+
+const BTC = { ticker: 'BTC', instrumentType: 'crypto', valuationCurrency: 'USD' } as const;
+const MARKET_TIME = new Date('2026-10-01T10:00:00.000Z');
+
+/** A manual BTC holding at 60,000.00 USD with a stored market price of 64,000.00 USD (+6.67%). */
+async function manualCrypto(ctx: Awaited<ReturnType<typeof setup>>) {
+  const scope = await scopeFor(ALICE, 'write');
+  const { holding } = await ctx.add.execute(scope, input(ctx.portfolio.id, { ...BTC }));
+  await ctx.setPrice.execute(scope, holding.id, 6_000_000n);
+  ctx.market.set('btc', 6_400_000n, MARKET_TIME);
+  ctx.market.calls.length = 0;
+  return { scope, id: holding.id };
+}
+
+describe('UseAutomaticPrice', () => {
+  it('sets the market price, source automatic and the market time, and the warning disappears (AC-12)', async () => {
+    const ctx = await setup();
+    const { scope, id } = await manualCrypto(ctx);
+    const before = await ctx.get.execute(await scopeFor(ALICE, 'read'), id);
+    expect(before.marketPriceDiffers).toBe(true);
+    ctx.market.calls.length = 0;
+    ctx.clock.advance(60_000);
+
+    const view = await ctx.useAutomatic.execute(scope, id);
+
+    expect(view.price).toEqual({
+      unitPrice: 6_400_000n,
+      source: 'automatic',
+      pricedAt: MARKET_TIME,
+    });
+    expect(view.value).toBe(64_000_000n);
+    expect(view.marketPriceDiffers).toBe(false);
+    expect(view.market).toEqual({ unitPrice: 6_400_000n, pricedAt: MARKET_TIME });
+    expect(ctx.store.holdingRows.get(id)?.holding.price).toEqual(view.price);
+    expect(ctx.market.calls).toHaveLength(1);
+  });
+
+  it('rejects a stock holding on the marketPrice field and changes nothing (AC-13)', async () => {
+    const ctx = await setup();
+    const scope = await scopeFor(ALICE, 'write');
+    const { holding } = await ctx.add.execute(scope, input(ctx.portfolio.id, { ticker: 'BTC' }));
+    await ctx.setPrice.execute(scope, holding.id, 1_850_000n);
+    ctx.market.set('btc', 6_400_000n, MARKET_TIME);
+    const stored = ctx.store.holdingRows.get(holding.id)?.holding;
+
+    const attempt = ctx.useAutomatic.execute(scope, holding.id);
+
+    await expect(attempt).rejects.toBeInstanceOf(InvestmentRuleViolation);
+    await expect(attempt).rejects.toMatchObject({ fields: ['body.marketPrice'] });
+    expect(ctx.store.holdingRows.get(holding.id)?.holding).toEqual(stored);
+  });
+
+  it.each([
+    ['ticker', { ticker: 'ETH' }],
+    ['instrument type', { instrumentType: 'stock' as const }],
+  ])(
+    'writes nothing and rejects on marketPrice when the %s changes between the read and the write',
+    async (_name, change) => {
+      const ctx = await setup();
+      const { scope, id } = await manualCrypto(ctx);
+      const original = ctx.market.findMany.bind(ctx.market);
+      ctx.market.findMany = async (symbols) => {
+        const found = await original(symbols);
+        const row = ctx.store.holdingRows.get(id);
+        if (row) row.holding = { ...row.holding, ...change };
+        return found;
+      };
+      const before = ctx.store.holdingRows.get(id)?.holding.price;
+
+      const attempt = ctx.useAutomatic.execute(scope, id);
+
+      await expect(attempt).rejects.toBeInstanceOf(InvestmentRuleViolation);
+      await expect(attempt).rejects.toMatchObject({ fields: ['body.marketPrice'] });
+      expect(ctx.store.holdingRows.get(id)?.holding.price).toEqual(before);
+    },
+  );
+
+  it('rejects a crypto holding without a stored market price and changes nothing (AC-13)', async () => {
+    const ctx = await setup();
+    const { scope, id } = await manualCrypto(ctx);
+    ctx.market.prices.clear();
+    const stored = ctx.store.holdingRows.get(id)?.holding;
+
+    const attempt = ctx.useAutomatic.execute(scope, id);
+
+    await expect(attempt).rejects.toBeInstanceOf(InvestmentRuleViolation);
+    await expect(attempt).rejects.toMatchObject({ fields: ['body.marketPrice'] });
+    expect(ctx.store.holdingRows.get(id)?.holding).toEqual(stored);
+  });
+
+  it('answers not found for another owner or an unknown id and changes nothing (AC-14)', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    const stored = ctx.store.holdingRows.get(id)?.holding;
+
+    await expect(ctx.useAutomatic.execute(await scopeFor(BOB, 'write'), id)).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+    await expect(
+      ctx.useAutomatic.execute(await scopeFor(ALICE, 'write'), randomUUID()),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    expect(ctx.store.holdingRows.get(id)?.holding).toEqual(stored);
+  });
+
+  it('does not look up the market for a holding it cannot switch', async () => {
+    const ctx = await setup();
+    const scope = await scopeFor(ALICE, 'write');
+    const { holding } = await ctx.add.execute(scope, input(ctx.portfolio.id));
+    ctx.market.calls.length = 0;
+
+    await expect(ctx.useAutomatic.execute(scope, holding.id)).rejects.toBeInstanceOf(
+      InvestmentRuleViolation,
+    );
+    await expect(ctx.useAutomatic.execute(scope, randomUUID())).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+
+    expect(ctx.market.calls).toEqual([]);
+  });
+
+  it('propagates a storage failure of the reader and changes nothing', async () => {
+    const ctx = await setup();
+    const { scope, id } = await manualCrypto(ctx);
+    ctx.market.failure = new Error('reader down');
+    const stored = ctx.store.holdingRows.get(id)?.holding;
+
+    await expect(ctx.useAutomatic.execute(scope, id)).rejects.toThrow('reader down');
+    expect(ctx.store.holdingRows.get(id)?.holding).toEqual(stored);
+  });
+});
+
+describe('market price in the holding use cases (FR-05)', () => {
+  it('fills the market fields on get, edit and manual price, one reader call each, lowercase ticker', async () => {
+    const ctx = await setup();
+    const { scope, id } = await manualCrypto(ctx);
+
+    const got = await ctx.get.execute(await scopeFor(ALICE, 'read'), id);
+    const edited = await ctx.update.execute(scope, id, { quantity: 200_000_000n });
+    const priced = await ctx.setPrice.execute(scope, id, 6_000_000n);
+
+    for (const view of [got, edited, priced]) {
+      expect(view.market).toEqual({ unitPrice: 6_400_000n, pricedAt: MARKET_TIME });
+      expect(view.marketPriceDiffers).toBe(true);
+      expect(view.marketPriceRecent).toBe(true);
+    }
+    expect(ctx.market.calls).toEqual([['btc'], ['btc'], ['btc']]);
+  });
+
+  it('fills the market fields on add, including a merge, with one reader call each', async () => {
+    const ctx = await setup();
+    ctx.market.set('btc', 6_400_000n, MARKET_TIME);
+    const scope = await scopeFor(ALICE, 'write');
+
+    const created = await ctx.add.execute(scope, input(ctx.portfolio.id, { ...BTC }));
+    const merged = await ctx.add.execute(
+      scope,
+      input(ctx.portfolio.id, { ...BTC, ticker: 'btc', totalCost: undefined }),
+    );
+
+    expect(created.holding.market).toEqual({ unitPrice: 6_400_000n, pricedAt: MARKET_TIME });
+    expect(merged.merged).toBe(true);
+    expect(merged.holding.market).toEqual({ unitPrice: 6_400_000n, pricedAt: MARKET_TIME });
+    expect(ctx.market.calls).toEqual([['btc'], ['btc']]);
+  });
+
+  it('makes no reader call when the holding is not crypto', async () => {
+    const ctx = await setup();
+    const scope = await scopeFor(ALICE, 'write');
+
+    const { holding } = await ctx.add.execute(scope, input(ctx.portfolio.id));
+    await ctx.get.execute(await scopeFor(ALICE, 'read'), holding.id);
+    await ctx.update.execute(scope, holding.id, { quantity: 1n });
+    const priced = await ctx.setPrice.execute(scope, holding.id, 1_850_000n);
+
+    expect(ctx.market.calls).toEqual([]);
+    expect(priced).toMatchObject({
+      market: null,
+      marketPriceDiffers: false,
+      marketPriceRecent: false,
+    });
+  });
+
+  it('answers not found before reading the market for a foreign holding', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+
+    await expect(ctx.get.execute(await scopeFor(BOB, 'read'), id)).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+    await expect(ctx.setPrice.execute(await scopeFor(BOB, 'write'), id, 1n)).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+
+    expect(ctx.market.calls).toEqual([]);
+  });
+
+  it('propagates a storage failure of the reader from get', async () => {
+    const ctx = await setup();
+    const { id } = await manualCrypto(ctx);
+    ctx.market.failure = new Error('reader down');
+
+    await expect(ctx.get.execute(await scopeFor(ALICE, 'read'), id)).rejects.toThrow('reader down');
   });
 });
 

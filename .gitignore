@@ -13,3 +13,4 @@ test-results/
 !.env.example
 next-env.d.ts
 *.tsbuildinfo
+.vitest/

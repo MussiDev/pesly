@@ -10,6 +10,7 @@ import {
   GetHolding,
   SetManualPrice,
   UpdateHolding,
+  UseAutomaticPrice,
 } from './application/holding-use-cases';
 import {
   CreatePortfolio,
@@ -19,6 +20,7 @@ import {
 } from './application/portfolio-use-cases';
 import type { Clock } from './application/ports';
 import { DrizzleHoldingRepository } from './infrastructure/db/drizzle-holding-repository';
+import { DrizzleMarketPriceReader } from './infrastructure/db/drizzle-market-price-reader';
 import { DrizzleInvestmentsUnitOfWork } from './infrastructure/db/drizzle-unit-of-work';
 import { DrizzlePortfolioRepository } from './infrastructure/db/drizzle-portfolio-repository';
 import type { InvestmentsDb } from './infrastructure/db/schema';
@@ -44,6 +46,8 @@ export function createInvestmentsRoutes({
   const portfolios = new DrizzlePortfolioRepository(db);
   const holdings = new DrizzleHoldingRepository(db);
   const unitOfWork = new DrizzleInvestmentsUnitOfWork(db);
+  // Read-only reader: the API never imports the worker repository that writes these prices.
+  const marketPrices = new DrizzleMarketPriceReader(db);
 
   return ({ requireSession }) => {
     const router = Router();
@@ -52,9 +56,9 @@ export function createInvestmentsRoutes({
       portfolioRoutes({
         policy,
         logger,
-        createPortfolio: new CreatePortfolio(portfolios, clock),
-        listPortfolios: new ListPortfolios(portfolios, holdings, clock),
-        getPortfolio: new GetPortfolio(portfolios, holdings, clock),
+        createPortfolio: new CreatePortfolio(portfolios, marketPrices, clock),
+        listPortfolios: new ListPortfolios(portfolios, holdings, marketPrices, clock),
+        getPortfolio: new GetPortfolio(portfolios, holdings, marketPrices, clock),
         deletePortfolio: new DeletePortfolio(portfolios),
       }),
     );
@@ -62,10 +66,11 @@ export function createInvestmentsRoutes({
       holdingRoutes({
         policy,
         logger,
-        addHolding: new AddHolding(unitOfWork, clock),
-        getHolding: new GetHolding(holdings, clock),
-        updateHolding: new UpdateHolding(unitOfWork, clock),
-        setManualPrice: new SetManualPrice(holdings, clock),
+        addHolding: new AddHolding(unitOfWork, marketPrices, clock),
+        getHolding: new GetHolding(holdings, marketPrices, clock),
+        updateHolding: new UpdateHolding(unitOfWork, marketPrices, clock),
+        setManualPrice: new SetManualPrice(holdings, marketPrices, clock),
+        useAutomaticPrice: new UseAutomaticPrice(holdings, marketPrices, clock),
         deleteHolding: new DeleteHolding(holdings),
       }),
     );

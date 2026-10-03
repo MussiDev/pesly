@@ -104,6 +104,10 @@ async function seedDependents(userId: string, email: string): Promise<void> {
     "insert into holdings (portfolio_id, owner_id, ticker, instrument_name, instrument_type, quantity, valuation_currency) values ($1, $2, 'AAPL', 'Apple', 'cedear', 1000000000, 'ARS')",
     [(portfolio.rows[0] as { id: string }).id, userId],
   );
+  await q(
+    "insert into portfolio_value_snapshots (portfolio_id, owner_id, snapshot_date, currency, total_value, taken_at) values ($1, $2, '2026-10-01', 'ARS', 1500000, $3)",
+    [(portfolio.rows[0] as { id: string }).id, userId, NOW],
+  );
   await oauthStates.create({
     stateHash: `state-${userId}`,
     bindingHash: 'binding',
@@ -142,6 +146,9 @@ async function rowsOf(userId: string): Promise<number> {
   total += await count('select count(*) as n from accounts where owner_id = $1', [userId]);
   total += await count('select count(*) as n from portfolios where owner_id = $1', [userId]);
   total += await count('select count(*) as n from holdings where owner_id = $1', [userId]);
+  total += await count('select count(*) as n from portfolio_value_snapshots where owner_id = $1', [
+    userId,
+  ]);
   total += await count('select count(*) as n from deletion_grants where user_id = $1', [userId]);
   for (const table of USER_TABLES) {
     total += await count(`select count(*) as n from ${table} where user_id = $1`, [userId]);
@@ -238,7 +245,7 @@ describe('DrizzleUserDeletionRepository.erase', () => {
     const bobRows = await rowsOf(bob);
     const grant = { tokenHash: `grant-${ana}`, sessionFamilyId: FAMILY, now: NOW };
 
-    expect(await rowsOf(ana)).toBe(12);
+    expect(await rowsOf(ana)).toBe(13);
     expect(await outboxRowsOf(ana, 'ana@example.com')).toBe(2);
 
     expect(await deletion.erase({ userId: ana, credentialsVersion: 0, grant })).toBe('erased');

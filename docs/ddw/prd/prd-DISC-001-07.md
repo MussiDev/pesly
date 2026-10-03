@@ -11,11 +11,18 @@
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
 | DISC-001-07a | Portfolios, Holdings and Manual Valuation | prd-DISC-001-07a.md | depends on DISC-001-01a (on main) | done — merges when its PR merges (draft PR; migration 0013) |
-| DISC-001-07b | Crypto Prices and Daily Portfolio Snapshots | prd-DISC-001-07b.md | depends on a | active — next; branches off main after 07a merges |
+| DISC-001-07b | Crypto Prices and Daily Portfolio Snapshots | prd-DISC-001-07b.md | depends on a (on main) | done — merges when its PR merges (draft PR; migration 0015) |
 | DISC-001-07c | Balanz Holdings CSV Import | prd-DISC-001-07c.md | depends on a | blocked — needs an anonymized Balanz CSV sample |
 
 ## Suggested implementation order
 a → b → c (c can start only once the sample file exists)
+
+## Follow-ups (not yet PRDs)
+
+- Finer price scale for sub-cent crypto (recorded 2026-10-02, owner decision in DISC-001-07b):
+  unit prices are stored in cents, so coins priced below 1 cent cannot be priced automatically
+  and keep their previous price. Needs a finer price scale, which changes DISC-001-07a's
+  contracts and storage. Depends on b.
 
 ## Original context
 PRD 07 of discovery DISC-001 defined investments for the finance PWA: portfolios (one per broker

@@ -18,6 +18,10 @@ const holding = {
   priceSource: null,
   pricedAt: null,
   priceStale: false,
+  marketUnitPrice: null,
+  marketPricedAt: null,
+  marketPriceDiffers: false,
+  marketPriceRecent: false,
   value: null,
   gain: null,
 };
@@ -230,6 +234,61 @@ describe('investments api client', () => {
     );
 
     const result = await client.listPortfolios();
+
+    expect(result.ok).toBe(true);
+    expect(requestAt(fetch, 2).url).toBe(`${BASE_URL}/auth/refresh`);
+  });
+});
+
+describe('setHoldingAutomaticPrice (DISC-001-07b)', () => {
+  const switched = {
+    ...holding,
+    unitPrice: '2050000',
+    priceSource: 'automatic',
+    pricedAt: '2026-09-30T23:30:00.000Z',
+    marketUnitPrice: '2050000',
+    marketPricedAt: '2026-09-30T23:30:00.000Z',
+  };
+
+  it('posts to the automatic-price route and returns the parsed holding (AC-12)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(200, switched));
+
+    const result = await client.setHoldingAutomaticPrice(HOLDING_ID);
+
+    expect(result).toEqual({ ok: true, data: switched });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/investments/holdings/${HOLDING_ID}/automatic-price`);
+    expect(init.method).toBe('POST');
+    expectGuarded(init);
+  });
+
+  it('answers not found on a 404', async () => {
+    const { client } = clientWith(jsonResponse(404, { code: 'NOT_FOUND' }));
+
+    expect(await client.setHoldingAutomaticPrice(HOLDING_ID)).toEqual({
+      ok: false,
+      code: 'NOT_FOUND',
+      messageKey: 'unexpected',
+    });
+  });
+
+  it('rejects a payload with an invalid marketUnitPrice', async () => {
+    const { client } = clientWith(jsonResponse(200, { ...switched, marketUnitPrice: '1.5' }));
+
+    const result = await client.setHoldingAutomaticPrice(HOLDING_ID);
+
+    expect(result.ok).toBe(false);
+  });
+
+  it('refreshes the session once when the access token is refused', async () => {
+    const { client, fetch } = clientWith(
+      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      jsonResponse(200, { status: 'refreshed' }),
+      jsonResponse(200, switched),
+    );
+
+    const result = await client.setHoldingAutomaticPrice(HOLDING_ID);
 
     expect(result.ok).toBe(true);
     expect(requestAt(fetch, 2).url).toBe(`${BASE_URL}/auth/refresh`);

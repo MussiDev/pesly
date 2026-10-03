@@ -40,6 +40,23 @@ export async function resetAttemptLimits(): Promise<void> {
 }
 
 /**
+ * Makes the worker's crypto price refresh due. At start-up the worker finds no crypto holding and
+ * rests for an hour, so a flow that adds the first one would otherwise wait that long. It only
+ * advances a row that is not due yet, so it cannot clobber a lease the worker holds; the minute
+ * back absorbs the difference between this clock and the worker's.
+ */
+export async function makeCryptoPriceRefreshDue(): Promise<void> {
+  await withE2eDatabase((client) =>
+    client.query(
+      `insert into crypto_price_sync (id, next_attempt_at)
+       values (1, now() - interval '1 minute')
+       on conflict (id) do update set next_attempt_at = now() - interval '1 minute'
+         where crypto_price_sync.next_attempt_at > now()`,
+    ),
+  );
+}
+
+/**
  * Sessions of the user that are still usable. A detected refresh-token reuse revokes the whole
  * family, which leaves none.
  */

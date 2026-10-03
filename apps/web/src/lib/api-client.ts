@@ -274,6 +274,7 @@ export interface ApiClient {
   addHolding(portfolioId: string, body: AddHoldingRequest): Promise<ApiResult<AddHoldingResponse>>;
   updateHolding(holdingId: string, body: UpdateHoldingRequest): Promise<ApiResult<HoldingResponse>>;
   setHoldingPrice(holdingId: string, body: SetPriceRequest): Promise<ApiResult<HoldingResponse>>;
+  setHoldingAutomaticPrice(holdingId: string): Promise<ApiResult<HoldingResponse>>;
   deleteHolding(holdingId: string): Promise<ApiResult<undefined>>;
   createMovement(body: CreateMovementInput): Promise<ApiResult<MovementResponse>>;
   listMovements(query: ListMovementsParams): Promise<ApiResult<ListMovementsResponse>>;
@@ -690,6 +691,13 @@ export function createApiClient({
         method: 'PUT',
         path: `/investments/holdings/${encodeURIComponent(holdingId)}/price`,
         body,
+        response: holdingResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    setHoldingAutomaticPrice: (holdingId) =>
+      request({
+        method: 'POST',
+        path: `/investments/holdings/${encodeURIComponent(holdingId)}/automatic-price`,
         response: holdingResponseSchema,
         refreshOnUnauthenticated: true,
       }),

@@ -5,6 +5,7 @@ import {
   gainOrLoss,
   holdingValue,
   isPriceStale,
+  marketPriceDiffers,
   totalsByCurrency,
 } from '@pesly/shared';
 
@@ -80,5 +81,43 @@ describe('isPriceStale (AC-14)', () => {
     expect(STALE_PRICE_AFTER_MS).toBe(week);
     const at = new Date(pricedAt.getTime() + STALE_PRICE_AFTER_MS);
     expect(isPriceStale(pricedAt, at)).toBe(false);
+  });
+});
+
+describe('marketPriceDiffers (AC-07, AC-08, AC-09)', () => {
+  it('is true when the market price is 6.67% above or below the manual one', () => {
+    expect(marketPriceDiffers(6_000_000n, 6_400_000n)).toBe(true);
+    expect(marketPriceDiffers(6_000_000n, 5_600_000n)).toBe(true);
+  });
+
+  it('is false at exactly 5% above or below (the boundary is inclusive of "no warning")', () => {
+    expect(marketPriceDiffers(6_000_000n, 6_300_000n)).toBe(false);
+    expect(marketPriceDiffers(6_000_000n, 5_700_000n)).toBe(false);
+  });
+
+  it('is true one minor unit past 5% and false one unit short of it', () => {
+    expect(marketPriceDiffers(6_000_000n, 6_300_001n)).toBe(true);
+    expect(marketPriceDiffers(6_000_000n, 5_699_999n)).toBe(true);
+    expect(marketPriceDiffers(6_000_000n, 6_299_999n)).toBe(false);
+    expect(marketPriceDiffers(6_000_000n, 5_700_001n)).toBe(false);
+  });
+
+  it('is false for equal prices', () => {
+    expect(marketPriceDiffers(6_000_000n, 6_000_000n)).toBe(false);
+  });
+
+  it('measures against the manual price, not the market one', () => {
+    // 1,052 is 5.2% above 1,000 but 1,000 is only 4.94% below 1,052.
+    expect(marketPriceDiffers(1_000n, 1_052n)).toBe(true);
+    expect(marketPriceDiffers(1_052n, 1_000n)).toBe(false);
+  });
+
+  it('does not overflow at the 10^12 limit', () => {
+    const limit = 10n ** 12n;
+    expect(marketPriceDiffers(limit, limit)).toBe(false);
+    expect(marketPriceDiffers(limit, 1n)).toBe(true);
+    expect(marketPriceDiffers(1n, limit)).toBe(true);
+    expect(marketPriceDiffers(limit, limit - limit / 20n)).toBe(false);
+    expect(marketPriceDiffers(limit, limit - limit / 20n - 1n)).toBe(true);
   });
 });

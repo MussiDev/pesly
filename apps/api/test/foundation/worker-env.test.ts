@@ -19,6 +19,9 @@ function parseProduction(overrides: Record<string, string | undefined>) {
   return () => parseWorkerEnv({ ...WORKER_PRODUCTION, ...overrides });
 }
 
+const COINGECKO_DEFAULT = 'https://api.coingecko.com/api/v3';
+const SECRET_KEY = 'CG-worker-secret-key-0123456789';
+
 describe('worker environment', () => {
   it('accepts production with only its seven settings, without JWT_SECRET or Google settings', () => {
     const env = parseWorkerEnv(WORKER_PRODUCTION);
@@ -95,5 +98,74 @@ describe('worker environment', () => {
 
     expect(env.NODE_ENV).toBe('development');
     expect(env.EMAIL_FROM).toMatch(/no-reply@/);
+  });
+
+  it('defaults PRICE_PROVIDER to coingecko, the base URL to the public API and the key to unset', () => {
+    const env = parseWorkerEnv(WORKER_PRODUCTION);
+
+    expect(env.PRICE_PROVIDER).toBe('coingecko');
+    expect(env.COINGECKO_BASE_URL).toBe(COINGECKO_DEFAULT);
+    expect(env.COINGECKO_API_KEY).toBeUndefined();
+  });
+
+  it('accepts a missing, empty or blank key in production so the worker starts without one', () => {
+    for (const COINGECKO_API_KEY of [undefined, '', '   ']) {
+      const env = parseProduction({ COINGECKO_API_KEY })();
+      expect(env.COINGECKO_API_KEY).toBeUndefined();
+    }
+  });
+
+  it('trims whitespace around a pasted key and still rejects interior whitespace or non-ASCII', () => {
+    for (const padded of [`${SECRET_KEY}\n`, ` ${SECRET_KEY} `, `\t${SECRET_KEY}\r\n`]) {
+      expect(parseProduction({ COINGECKO_API_KEY: padded })().COINGECKO_API_KEY).toBe(SECRET_KEY);
+    }
+    for (const bad of ['abc def-secret', 'clave-\u00f1andu-secret']) {
+      let message = '';
+      try {
+        parseProduction({ COINGECKO_API_KEY: ` ${bad}\n` })();
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain('COINGECKO_API_KEY');
+      expect(message).not.toContain(bad);
+    }
+  });
+
+  it('keeps a configured key and accepts fake and a local base URL outside production', () => {
+    expect(parseProduction({ COINGECKO_API_KEY: SECRET_KEY })().COINGECKO_API_KEY).toBe(SECRET_KEY);
+
+    const local = parseWorkerEnv({
+      ...WORKER_PRODUCTION,
+      NODE_ENV: 'development',
+      EMAIL_PROVIDER: 'console',
+      PRICE_PROVIDER: 'fake',
+      COINGECKO_BASE_URL: 'http://127.0.0.1:4300',
+    });
+    expect(local.PRICE_PROVIDER).toBe('fake');
+    expect(local.COINGECKO_BASE_URL).toBe('http://127.0.0.1:4300');
+  });
+
+  it('refuses fake and a changed base URL in production, naming the variable only', () => {
+    expect(parseProduction({ PRICE_PROVIDER: 'fake' })).toThrow(/PRICE_PROVIDER/);
+    const changed = parseProduction({ COINGECKO_BASE_URL: 'https://evil.example.com' });
+    expect(changed).toThrow(/COINGECKO_BASE_URL/);
+    expect(changed).not.toThrow(/evil\.example/);
+  });
+
+  it('refuses an invalid price provider, base URL or key by name without printing the value', () => {
+    for (const [name, value] of [
+      ['PRICE_PROVIDER', 'unknown-provider-value'],
+      ['COINGECKO_BASE_URL', 'not-a-url-value'],
+      ['COINGECKO_API_KEY', 'key with spaces'],
+    ] as const) {
+      let message = '';
+      try {
+        parseProduction({ NODE_ENV: 'development', EMAIL_PROVIDER: 'console', [name]: value })();
+      } catch (error) {
+        message = (error as Error).message;
+      }
+      expect(message).toContain(name);
+      expect(message).not.toContain(value);
+    }
   });
 });

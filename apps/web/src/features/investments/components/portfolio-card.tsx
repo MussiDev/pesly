@@ -12,22 +12,26 @@ export interface PortfolioCardProps {
   portfolio: PortfolioResponse;
   language: Locale;
   timeZone: string;
+  pending?: boolean;
   onAddHolding?: (portfolioId: string) => void;
   onDeletePortfolio?: (portfolioId: string) => void;
   onEditHolding?: (holdingId: string) => void;
   onSetPrice?: (holdingId: string) => void;
   onDeleteHolding?: (holdingId: string) => void;
+  onUseAutomaticPrice?: (holdingId: string) => void;
 }
 
 export function PortfolioCard({
   portfolio,
   language,
   timeZone,
+  pending,
   onAddHolding,
   onDeletePortfolio,
   onEditHolding,
   onSetPrice,
   onDeleteHolding,
+  onUseAutomaticPrice,
 }: PortfolioCardProps) {
   const t = useTranslations('investments');
 
@@ -64,9 +68,11 @@ export function PortfolioCard({
                 holding={holding}
                 language={language}
                 timeZone={timeZone}
+                pending={pending}
                 onEdit={onEditHolding}
                 onSetPrice={onSetPrice}
                 onDelete={onDeleteHolding}
+                onUseAutomaticPrice={onUseAutomaticPrice}
               />
             ))}
           </ul>
