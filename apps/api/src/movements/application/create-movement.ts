@@ -45,6 +45,7 @@ interface MovementInputBase {
 export interface CategorizedMovementInput extends MovementInputBase {
   type: CategorizedMovementType;
   categoryId: string;
+  tags?: string[];
   rate: { source: 'automatic' } | { source: 'manual'; value: bigint };
 }
 
@@ -115,6 +116,7 @@ export class CreateMovement {
       rate,
       rateSource: input.rate.source,
       rateType,
+      tags: input.tags ?? [],
     });
   }
 
