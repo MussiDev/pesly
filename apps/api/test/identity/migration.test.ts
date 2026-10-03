@@ -1972,7 +1972,7 @@ describe('0014_movements migration', () => {
 
   it('has a rollback that still runs when accounts is already gone', async () => {
     // The rollbacks of older migrations drop accounts; the script of 0014 must still run then.
-    await client.query('drop table movement_rate_limits, movements');
+    await client.query('drop table movement_tags, movement_rate_limits, movements');
     await client.query('drop table accounts cascade');
     await client.query(await rollback('0017_tags'));
     await client.query(await rollback('0016_transfers_exchanges'));
