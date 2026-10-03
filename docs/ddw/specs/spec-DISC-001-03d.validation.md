@@ -14,7 +14,7 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contracts) (5 files, 827 words), Block 2 (Domain, ports and use cases) (9 files, 681 words), Block 3 (Persistence: tags, migration 0017 and the repositories) (7 files, 1364 words), Block 4 (HTTP and composition) (6 files, 646 words), Block 5 (Web: tags on the entry screen) (8 files, 729 words), Block 6 (Web: filters on the movement list) (7 files, 623 words), Block 7 (Performance, end-to-end flow and scans) (5 files, 724 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contracts) (5 files, 827 words), Block 2 (Domain, ports and use cases) (9 files, 681 words), Block 3 (Persistence: tags, migration 0017 and the repositories) (7 files, 1364 words), Block 4 (HTTP and composition) (6 files, 646 words), Block 5 (Web: tags on the entry screen) (8 files, 729 words), Block 6 (Web: filters on the movement list) (7 files, 623 words), Block 7 (Performance, end-to-end flow and scans) (5 files, 928 words)
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
   ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 2 in total for this document

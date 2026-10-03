@@ -318,7 +318,7 @@ The web unit tests pass, `pnpm lint` and `pnpm typecheck` pass, and the list nar
 - `apps/api/test/foundation/architecture-boundaries.test.ts` (modified) — probes for the new files.
 
 **Logic**
-The performance test seeds one user with 100,000 movements, 100 accounts, the default categories and 200 tags, then measures the server-side p95 of: the list with all five filters, a category-only filter on a parent, a tag-only filter and an unfiltered first page, with the sample size and warm-up of the existing performance tests; it asserts p95 under 500 ms for each and, with `EXPLAIN`, that the combined-filter statement uses an index ordered by date and does no full sort. The end-to-end flow signs up and verifies a user, creates accounts and a movement with two tags (the second in another case of the first), sees the suggestion, and filters the list by tag, by category and by date range, and clears the filters. The scans read source text only: the new files have no `parseFloat`, `Number(`, `.toFixed` or `Math.round`, and no new file imports the exchange-rates provider, the sync job or a foreign persistence file outside `foreign-relations.ts`.
+The performance test seeds one user with 100,000 movements, 100 accounts, the default categories and 200 tags, then measures the server-side p95 of: the list with all five filters, a category-only filter on a parent, a tag-only filter and an unfiltered first page, with the sample size and warm-up of the existing performance tests; it asserts p95 under 500 ms for each and, with `EXPLAIN`, that the combined statement without the tag filter uses an index ordered by date and has no Sort node, and that the statements with a tag filter start from the tag index, do not scan `movements` sequentially and sort only the tag's few rows with a top-N sort. The end-to-end flow signs up and verifies a user, creates accounts and a movement with two tags (the second in another case of the first), sees the suggestion, and filters the list by tag, by category and by date range, and clears the filters. The scans read source text only: the new files have no `parseFloat`, `Number(`, `.toFixed` or `Math.round`, and no new file imports the exchange-rates provider, the sync job or a foreign persistence file outside `foreign-relations.ts`.
 
 **Input validation**
 The performance seed uses bound parameters; the end-to-end flow also types an empty tag and an 11th tag to see the field messages.
@@ -331,7 +331,7 @@ The performance seed uses bound parameters; the end-to-end flow also types an em
 **Required tests**
 - [ ] with 100,000 movements the list with all five filters answers in under 500 ms at p95 — validates NFR-01
 - [ ] with 100,000 movements the parent-category filter, the tag filter and the unfiltered first page each answer in under 500 ms at p95 — validates NFR-01
-- [ ] the combined-filter statement uses an index ordered by date and the plan has no sort node — validates NFR-01
+- [ ] the combined statement without the tag filter uses an index ordered by date and its plan has no Sort node; the statements with a tag filter start from the tag index, have no sequential scan of `movements` and use a top-N sort under the limit — validates NFR-01
 - [ ] a page of 100 items with filters is returned and a limit of 101 is refused (invalid input) — validates NFR-02
 - [ ] the flow saves a movement with two tags typed in different cases, sees one stored tag, and filters the list by tag, by category (parent includes children) and by date range — validates AC-01, AC-02, AC-03, AC-05
 - [ ] the flow refuses an 11th tag and a 31-character tag in the field (invalid input) — validates AC-04, AC-06
@@ -342,6 +342,11 @@ The performance seed uses bound parameters; the end-to-end flow also types an em
 
 **Completion criterion**
 The performance test meets 500 ms p95 on every scenario, the end-to-end flow passes, and `pnpm test`, `pnpm lint`, `pnpm typecheck` and `pnpm e2e` pass; the migration count and journal checks include 0017, and the pre-existing migration tests that chain rollbacks from 0014 start from 0015.
+
+## Decisions recorded during CODE
+
+- 2026-10-03, human decision (owner): the NFR-01 plan assertion is relaxed for the tagged case. With a tag filter the planner correctly starts from the tag index (a tag matches a few hundred of 100,000 movements) and sorts that small set with a top-N heapsort, which is cheaper than walking the date index; the untagged combined statement keeps the date-ordered index and no Sort node. The p95 limits (500 ms) are unchanged. Known gap: a very popular tag would take the same plan over a large set; only the p95 measurement would catch it.
+- 2026-10-03, human decision (owner): the accessibility debt found in review is fixed before VERIFY: after "clear filters" and "show all movements" focus moves to a stable element of the filter bar, and the `useSearchParams` null guard is replaced by a proper fix.
 
 ## Final verification
 - FR-01 and FR-02: up to 10 tags are stored with a movement, and the caller's existing tags are suggested by prefix, through the API and the entry screen.
