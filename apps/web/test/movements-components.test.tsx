@@ -392,6 +392,7 @@ function listItem(
       rateSource: 'automatic',
       rateType: 'blue',
       createdAt: occurredAt,
+      tags: [],
     },
     accountName: 'Caja',
     currency: 'ARS',
@@ -814,4 +815,25 @@ describe('movementFailureErrors: transfers and exchanges (DISC-001-03c)', () => 
   ] as const)('puts %s on the %s field (AC-02, AC-04, AC-15)', (code, field, message) => {
     expect(movementFailureErrors(failure(code))).toEqual({ fields: { [field]: message } });
   });
+});
+
+describe('tags are rendered as text, never as markup (R-07)', () => {
+  it.each(['<b>x</b>', '<img src=x onerror=alert(1)>'])(
+    'a movement row shows the tag %s literally',
+    (payload) => {
+      const { container } = list([
+        listItem('m1', 'expense', '2026-10-02T15:30:00.000Z', {
+          movement: {
+            ...listItem('m1', 'expense', '2026-10-02T15:30:00.000Z').movement,
+            tags: [payload],
+          },
+        }),
+      ]);
+
+      const group = within(container).getByRole('group', { name: es.movements.list.tags });
+      expect(group.textContent).toBe(payload);
+      expect(container.querySelector('img, b')).toBeNull();
+      expect(group.children).toHaveLength(1);
+    },
+  );
 });

@@ -208,3 +208,17 @@ describe('source check: presentational files import no container and no api clie
     expect(imports.filter((source) => source.includes('api-client'))).toEqual([]);
   });
 });
+
+describe('TagInput renders tags as text, never as markup (R-07)', () => {
+  it.each(['<b>x</b>', '<img src=x onerror=alert(1)>'])(
+    'the chip for %s is literal text',
+    (payload) => {
+      renderTagInput({ initial: [payload] });
+
+      const chips = screen.getByRole('list', { name: es.movements.tags.chips });
+      expect(chips.textContent).toContain(payload);
+      expect(chips.querySelector('img, b')).toBeNull();
+      expect(chips.querySelectorAll('li')).toHaveLength(1);
+    },
+  );
+});

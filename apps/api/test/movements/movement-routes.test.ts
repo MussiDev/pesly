@@ -68,7 +68,7 @@ async function setup(options: SetupOptions = {}): Promise<Setup> {
   });
   const harness = createIdentityHarness(connection, {
     realSessions: true,
-    routerFactories: [routes, createTagRoutes({ db: options.db ?? connection.db, logger })],
+    routerFactories: [routes, createTagRoutes({ db: options.db ?? connection.db })],
   });
   const suffix = randomUUID();
   const anaEmail = `ana-${suffix}@example.com`;

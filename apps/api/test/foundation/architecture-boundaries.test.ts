@@ -106,10 +106,10 @@ describe('hexagonal import boundaries in the movements module', () => {
       "import { x } from '../infrastructure/http/tag-routes';",
     ],
     [
-      'apps/api/src/movements/domain/tag.ts',
+      'apps/api/src/movements/domain/movement.ts',
       "import { tags } from '../infrastructure/db/tags-schema';",
     ],
-    ['apps/api/src/movements/domain/tag.ts', "import { sql } from 'drizzle-orm';"],
+    ['apps/api/src/movements/domain/movement.ts', "import { sql } from 'drizzle-orm';"],
   ])(
     'rejects infrastructure and runtime imports in the tags and filters file %s: %s',
     async (file, source) => {
