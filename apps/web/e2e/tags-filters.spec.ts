@@ -111,7 +111,7 @@ async function addTag(page: Page, text: string): Promise<void> {
 
 async function save(page: Page): Promise<void> {
   await page.getByRole('button', { name: t.form.submit }).click();
-  await expect(page.getByRole('heading', { name: t.saved.title })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
 }
 
 function rows(page: Page) {
