@@ -66,7 +66,7 @@ function isoDay(offsetDays: number): string {
 }
 
 describe('filtered movement list latency (NFR-01, NFR-02)', () => {
-  it('keeps p95 of every filter scenario below 500 ms and the combined plan free of a sort', async () => {
+  it('keeps p95 of every filter scenario below 500 ms and each plan bounded', async () => {
     const routes = createMovementRoutes({
       db: connection.db,
       logger: createLogger({ level: 'error', destination: { write: () => undefined } }),
@@ -97,6 +97,26 @@ describe('filtered movement list latency (NFR-01, NFR-02)', () => {
     const accountId = target.rows[0]?.id;
     const accountTag = target.rows[0]?.tag;
     if (!accountId || !accountTag) throw new Error('The seeded account or tag was not found');
+
+    // The seed never makes 'Account 2' a destination, so incoming movements are added here (and
+    // only here, so the balances other benchmarks expect from the shared seed do not change):
+    // 1,000 transfers from 'Account 4' (same currency) and 1,000 exchanges from 'Account 3' (USD
+    // to ARS) into it. Every query of the account filter then exercises both OR branches.
+    await pool.query(
+      `insert into movements (owner_id, type, account_id, destination_account_id, amount,
+                              destination_amount, occurred_at, rate, rate_source)
+       select $1, case when g % 2 = 0 then 'transfer' else 'exchange' end,
+              case when g % 2 = 0 then src_t.id else src_x.id end,
+              $2::uuid, 1000, case when g % 2 = 0 then 1000 else 14000 end,
+              now() - make_interval(secs => g * 60),
+              case when g % 2 = 0 then null else 14000000 end,
+              case when g % 2 = 0 then null else 'implied' end
+         from generate_series(1, 2000) as g,
+              (select id from accounts where owner_id = $1 and name = 'Account 4') src_t,
+              (select id from accounts where owner_id = $1 and name = 'Account 3') src_x`,
+      [userId, accountId],
+    );
+    await pool.query('analyze movements');
 
     server = createServer(harness.app);
     const listening = server;
@@ -155,6 +175,12 @@ describe('filtered movement list latency (NFR-01, NFR-02)', () => {
         minItems: 100,
       },
       {
+        name: 'account only (incoming transfers and exchanges included)',
+        path: `/movements?limit=100&accountId=${accountId}`,
+        minTotal: 2000,
+        minItems: 100,
+      },
+      {
         name: 'tag only',
         path: `/movements?limit=100&tag=${encodeURIComponent(seeded.tagName)}`,
         minTotal: 100,
@@ -198,11 +224,13 @@ describe('filtered movement list latency (NFR-01, NFR-02)', () => {
 
     // The planner runs with its default settings (no enable_* switches).
     //
-    // Without a tag, the combined statement must be ordered by an index on the date: no sort.
-    // With a tag the plan is different on purpose: one tag matches few movements (about 333 of
-    // 100,000 here), so the planner starts from the tag index and sorts that small set, which is
-    // cheaper than walking a date-ordered index. That is accepted as a bounded top-N sort under the
-    // LIMIT over the tag-restricted set, never a scan or a full sort of the movements table.
+    // Without an account or a tag, the statement (category, type and date range) must be ordered
+    // by an index on the date: no sort.
+    // With an account the filter is `account_id = $a OR destination_account_id = $a`: no single
+    // date-ordered index serves an OR over two columns, and an account selects few movements, so
+    // the planner combines both account indexes and sorts that small set. With a tag it starts from
+    // the tag index for the same reason. Both are accepted as a bounded top-N sort under the LIMIT
+    // over a selective set, never a scan of the movements table or a full sort of it.
     const scope = await new OwnerOrGroupMemberAccessPolicy(
       new DenyAllGroupMembershipReader(),
     ).scopeFor({ userId, sessionId: 's', emailVerified: true }, 'read');
@@ -223,12 +251,18 @@ describe('filtered movement list latency (NFR-01, NFR-02)', () => {
       );
       return plan.rows.map((row) => row['QUERY PLAN']).join('\n');
     }
-    const withoutTag = await planOf({
+    const withoutAccountOrTag = await planOf({
+      categoryId: seeded.parentCategoryId,
+      type: 'expense',
+      ...range,
+    });
+    const withAccount = await planOf({
       accountId,
       categoryId: seeded.parentCategoryId,
       type: 'expense',
       ...range,
     });
+    const accountOnly = await planOf({ accountId });
     const withTag = await planOf({
       accountId,
       categoryId: seeded.parentCategoryId,
@@ -237,22 +271,46 @@ describe('filtered movement list latency (NFR-01, NFR-02)', () => {
       ...range,
     });
     const tagOnly = await planOf({ tag: seeded.tagName });
-    console.log(`[NFR-01] plan without tag:\n${withoutTag}`);
-    console.log(`[NFR-01] plan with tag:\n${withTag}`);
-    console.log(`[NFR-01] plan tag only:\n${tagOnly}`);
+    console.log(`[NFR-01] plan without account or tag:
+${withoutAccountOrTag}`);
+    console.log(`[NFR-01] plan with account:
+${withAccount}`);
+    console.log(`[NFR-01] plan account only:
+${accountOnly}`);
+    console.log(`[NFR-01] plan with tag:
+${withTag}`);
+    console.log(`[NFR-01] plan tag only:
+${tagOnly}`);
 
     for (const result of results) {
       expect(result.p95, `${result.name} p95`).toBeLessThan(MAX_P95_MS);
     }
-    expect(withoutTag).toMatch(/Index (Only )?Scan( Backward)? using movements_owner_\w*date_idx/);
-    expect(withoutTag).not.toMatch(/\bSort\b/);
-    for (const plan of [withTag, tagOnly]) {
-      expect(plan).toMatch(
-        /Index Scan on movement_tags_tag_idx|Index Scan (?:using|on) tags_owner_name_\w*/,
-      );
+    expect(withoutAccountOrTag).toMatch(
+      /Index (Only )?Scan( Backward)? using movements_owner_\w*date_idx/,
+    );
+    expect(withoutAccountOrTag).not.toMatch(/\bSort\b/);
+    const startsFromIndex = {
+      account: /Index Scan (?:using|on) movements_(?:account|destination)_idx/,
+      tag: /Index Scan on movement_tags_tag_idx|Index Scan (?:using|on) tags_owner_name_\w*/,
+    };
+    const bounded: [string, RegExp][] = [
+      [withAccount, startsFromIndex.account],
+      [withTag, startsFromIndex.tag],
+      [tagOnly, startsFromIndex.tag],
+    ];
+    for (const [plan, start] of bounded) {
+      expect(plan).toMatch(start);
       expect(plan).not.toMatch(/Seq Scan on movements\b/);
       expect(plan).toMatch(/Sort Method: top-N heapsort/);
       expect(plan).not.toMatch(/Sort Method: (quicksort|external)/);
     }
+    // An account alone covers about 3% of the movements, so the planner may instead walk the date
+    // index and stop at the limit (no sort at all). Either shape is bounded; a scan of the movements
+    // table or a full sort is not.
+    expect(accountOnly).not.toMatch(/Seq Scan on movements\b/);
+    expect(accountOnly).not.toMatch(/Sort Method: (quicksort|external)/);
+    expect(accountOnly).toMatch(
+      /Index (Only )?Scan( Backward)? using movements_owner_\w*date_idx|Index Scan (?:using|on) movements_(?:account|destination)_idx/,
+    );
   }, 600_000);
 });
