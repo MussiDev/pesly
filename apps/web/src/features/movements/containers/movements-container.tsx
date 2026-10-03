@@ -207,9 +207,16 @@ export function MovementsContainer() {
 
   const items: MovementListItem[] = state.movements.map((movement) => {
     const account = state.accounts.get(movement.accountId);
-    const category = state.categories.get(movement.categoryId);
+    const category =
+      movement.categoryId === null ? undefined : state.categories.get(movement.categoryId);
+    const destination =
+      movement.destinationAccountId === null
+        ? undefined
+        : state.accounts.get(movement.destinationAccountId);
     return {
       movement,
+      destinationAccountName: destination?.name,
+      destinationCurrency: destination?.currency,
       accountName: account?.name,
       currency: account?.currency,
       categoryName: category === undefined ? undefined : categoryLabel(category, language),

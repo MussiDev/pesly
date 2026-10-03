@@ -18,6 +18,8 @@ export interface MovementListItem {
   categoryName: string | undefined;
   categoryIcon?: string;
   categoryColor?: string;
+  destinationAccountName: string | undefined;
+  destinationCurrency: string | undefined;
 }
 
 export interface MovementListProps {
@@ -100,6 +102,8 @@ export function MovementList({
                     categoryName={item.categoryName}
                     categoryIcon={item.categoryIcon}
                     categoryColor={item.categoryColor}
+                    destinationAccountName={item.destinationAccountName}
+                    destinationCurrency={item.destinationCurrency}
                     timeZone={timeZone}
                   />
                 ))}

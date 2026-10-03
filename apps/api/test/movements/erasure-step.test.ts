@@ -5,7 +5,14 @@ import { DrizzleUserDeletionRepository } from '../../src/identity/infrastructure
 import { eraseUserMovements } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { newAccount, newCategory, newMovement, newUserId } from './db-fixtures';
+import {
+  newAccount,
+  newCategory,
+  newExchange,
+  newMovement,
+  newTransfer,
+  newUserId,
+} from './db-fixtures';
 
 let connection: DatabaseConnection;
 
@@ -63,6 +70,33 @@ describe('eraseUserMovements', () => {
     expect(await movementsOf(ana.ownerId)).toBe(0);
     expect(await accountsOf(ana.ownerId)).toBe(1);
     expect(await movementsOf(bea.ownerId)).toBe(2);
+  });
+
+  it('deletes transfers and exchanges, whose destination key also restricts the accounts', async () => {
+    const ana = await userWithMovements(1);
+    const usd = await newAccount(connection.pool, ana.ownerId, false, 'USD');
+    const second = await newAccount(connection.pool, ana.ownerId);
+    await newTransfer(connection.pool, {
+      ownerId: ana.ownerId,
+      accountId: ana.accountId,
+      destinationAccountId: second,
+      amount: 10n,
+    });
+    await newExchange(connection.pool, {
+      ownerId: ana.ownerId,
+      accountId: ana.accountId,
+      destinationAccountId: usd,
+      amount: 15_000n,
+      destinationAmount: 10n,
+      rate: 15_000_000n,
+    });
+    expect(await movementsOf(ana.ownerId)).toBe(3);
+
+    expect(await eraseWithStep(ana.ownerId)).toBe('erased');
+
+    expect(await movementsOf(ana.ownerId)).toBe(0);
+    expect(await accountsOf(ana.ownerId)).toBe(0);
+    expect(await usersWith(ana.ownerId)).toBe(0);
   });
 
   it('is a no-op for a user without movements', async () => {

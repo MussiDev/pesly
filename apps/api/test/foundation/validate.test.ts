@@ -128,6 +128,62 @@ describe('validation middleware', () => {
     expect(typeof validate({ body: bodySchema }, handler)).toBe('function');
   });
 
+  it('strips unknown keys per union member and validates per discriminator', async () => {
+    const unionBody = z.discriminatedUnion('type', [
+      z.object({ type: z.literal('a'), name: z.string().min(1) }),
+      z.object({ type: z.literal('b'), count: z.number().int() }),
+    ]);
+    const router = Router();
+    router.post(
+      '/union',
+      validate({ body: unionBody }, ({ body }, { res }) => {
+        res.json({ body });
+      }),
+    );
+    const app = createApp({
+      env: testEnv(),
+      logger: createLogger({ level: 'silent' }),
+      routers: [router],
+    });
+    const post = (payload: Record<string, unknown>) =>
+      request(app).post('/union').set(trustedHeaders).send(payload);
+
+    const a = await post({ type: 'a', name: 'Ana', count: 3, isAdmin: true });
+    expect(a.status).toBe(200);
+    expect(a.body).toEqual({ body: { type: 'a', name: 'Ana' } });
+
+    const b = await post({ type: 'b', count: 3, name: 'Ana', isAdmin: true });
+    expect(b.status).toBe(200);
+    expect(b.body).toEqual({ body: { type: 'b', count: 3 } });
+
+    // `count` is valid for member b only: member a's rules apply when type is 'a'.
+    const wrongMember = await post({ type: 'a', count: 3 });
+    expect(wrongMember.status).toBe(400);
+    expect(wrongMember.body).toEqual({
+      code: 'VALIDATION_FAILED',
+      fields: ['body.name'],
+    });
+
+    const unknownType = await post({ type: 'c', name: 'Ana' });
+    expect(unknownType.status).toBe(400);
+    expect(unknownType.body).toEqual({ code: 'VALIDATION_FAILED', fields: ['body.type'] });
+  });
+
+  it('rejects a union body with a loose member like a loose object (compile-time)', () => {
+    const handler = () => undefined;
+    const stripping = z.discriminatedUnion('type', [
+      z.object({ type: z.literal('a'), name: z.string() }),
+      z.object({ type: z.literal('b'), count: z.number() }),
+    ]);
+    const withLoose = z.discriminatedUnion('type', [
+      z.object({ type: z.literal('a'), name: z.string() }),
+      z.looseObject({ type: z.literal('b'), count: z.number() }),
+    ]);
+    // @ts-expect-error one loose member keeps unknown keys for the whole union
+    validate({ body: withLoose }, handler);
+    expect(typeof validate({ body: stripping }, handler)).toBe('function');
+  });
+
   it('types res.json with the route response schema (compile-time)', () => {
     const responseSchema = z.object({ status: z.literal('ok') });
     const route = validate({ body: bodySchema, response: responseSchema }, (_input, { res }) => {

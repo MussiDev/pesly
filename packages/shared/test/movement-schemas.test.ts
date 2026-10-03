@@ -4,6 +4,8 @@ import {
   MOVEMENT_AMOUNT_MAX_MINOR_UNITS,
   MOVEMENT_NOTE_MAX_LENGTH,
   RetryableError,
+  CATEGORIZED_MOVEMENT_TYPES,
+  MOVEMENT_TYPES,
   createMovementRequestSchema,
   listMovementsQuerySchema,
   movementResponseSchema,
@@ -36,7 +38,7 @@ describe('create movement request', () => {
       rate: { source: 'manual', value: '16233000' },
     });
     expect(income.type).toBe('income');
-    expect(income.rate).toEqual({ source: 'manual', value: '16233000' });
+    expect('rate' in income && income.rate).toEqual({ source: 'manual', value: '16233000' });
   });
 
   it('accepts the amount bounds 1 and 10^15 and rejects 0, negatives, decimals and above (AC-02)', () => {
@@ -112,7 +114,7 @@ describe('create movement request', () => {
   it('rejects bad ids and types and strips unknown keys', () => {
     expect(fieldsOf({ ...base, accountId: 'nope' })).toContain('accountId');
     expect(fieldsOf({ ...base, categoryId: 'nope' })).toContain('categoryId');
-    expect(fieldsOf({ ...base, type: 'transfer' })).toContain('type');
+    expect(fieldsOf({ ...base, type: 'refund' })).toContain('type');
     const parsed = createMovementRequestSchema.parse({ ...base, ownerId: 'x' });
     expect(parsed).not.toHaveProperty('ownerId');
   });
@@ -120,6 +122,81 @@ describe('create movement request', () => {
   it('never echoes the rejected value in the issues', () => {
     const result = createMovementRequestSchema.safeParse({ ...base, note: 'secret\u0000' });
     expect(JSON.stringify(result.error?.issues)).not.toContain('secret');
+  });
+});
+
+const DEST_ID = '7c1e9a20-3b4d-4e5f-8a6b-9c0d1e2f3a4b';
+
+const transfer = {
+  type: 'transfer',
+  accountId: ACCOUNT_ID,
+  destinationAccountId: DEST_ID,
+  amount: '150050',
+  occurredAt: '2026-10-02T15:30:00Z',
+};
+
+const exchange = {
+  type: 'exchange',
+  accountId: ACCOUNT_ID,
+  destinationAccountId: DEST_ID,
+  amount: '155730000',
+  destinationAmount: '100000',
+  occurredAt: '2026-10-02T15:30:00Z',
+};
+
+describe('transfer and exchange create requests', () => {
+  it('lists the four types and the two categorized ones', () => {
+    expect(MOVEMENT_TYPES).toEqual(['expense', 'income', 'transfer', 'exchange']);
+    expect(CATEGORIZED_MOVEMENT_TYPES).toEqual(['expense', 'income']);
+  });
+
+  it('parses a valid transfer and a valid exchange and strips keys of other types (AC-01, AC-03)', () => {
+    const t = createMovementRequestSchema.parse({
+      ...transfer,
+      categoryId: CATEGORY_ID,
+      rate: { source: 'automatic' },
+      destinationAmount: '5',
+    });
+    expect(t).toEqual(transfer);
+    const e = createMovementRequestSchema.parse({
+      ...exchange,
+      categoryId: CATEGORY_ID,
+      rate: { source: 'manual', value: '16233000' },
+    });
+    expect(e).toEqual(exchange);
+  });
+
+  it('rejects 0, negative, malformed and above-10^15 amounts on both amount fields (AC-11)', () => {
+    for (const amount of ['0', '-5', '12.5', '1000000000000001', '', 'abc']) {
+      expect(fieldsOf({ ...transfer, amount }), amount).toContain('amount');
+      expect(fieldsOf({ ...exchange, amount }), amount).toContain('amount');
+      expect(fieldsOf({ ...exchange, destinationAmount: amount }), amount).toContain(
+        'destinationAmount',
+      );
+    }
+  });
+
+  it('rejects a note of 501 characters and a control character (AC-12)', () => {
+    for (const body of [transfer, exchange]) {
+      expect(fieldsOf({ ...body, note: 'a'.repeat(MOVEMENT_NOTE_MAX_LENGTH + 1) })).toContain(
+        'note',
+      );
+      expect(fieldsOf({ ...body, note: 'a\u0000b' })).toContain('note');
+    }
+  });
+
+  it('names the missing destination fields (FR-02)', () => {
+    const without = (body: Record<string, string>, key: string) =>
+      Object.fromEntries(Object.entries(body).filter(([name]) => name !== key));
+    const noDestTransfer = without(transfer, 'destinationAccountId');
+    const noDestExchange = without(exchange, 'destinationAccountId');
+    const noAmountExchange = without(exchange, 'destinationAmount');
+    expect(fieldsOf(noDestTransfer)).toContain('destinationAccountId');
+    expect(fieldsOf(noDestExchange)).toContain('destinationAccountId');
+    expect(fieldsOf(noAmountExchange)).toContain('destinationAmount');
+    expect(fieldsOf({ ...transfer, destinationAccountId: 'nope' })).toContain(
+      'destinationAccountId',
+    );
   });
 });
 
@@ -146,7 +223,9 @@ describe('movement response', () => {
     type: 'expense',
     accountId: ACCOUNT_ID,
     categoryId: CATEGORY_ID,
+    destinationAccountId: null,
     amount: '150050',
+    destinationAmount: null,
     occurredAt: '2026-10-02T15:30:00.000Z',
     note: null,
     rate: '16233000',
@@ -163,6 +242,33 @@ describe('movement response', () => {
     ).toBe(true);
     expect(movementResponseSchema.safeParse({ ...response, rateSource: 'x' }).success).toBe(false);
   });
+
+  it('accepts an expense with null destination fields, a transfer and an exchange (FR-06)', () => {
+    expect(movementResponseSchema.safeParse(response).success).toBe(true);
+    const transferResponse = {
+      ...response,
+      type: 'transfer',
+      categoryId: null,
+      rate: null,
+      rateSource: null,
+      rateType: null,
+      destinationAccountId: DEST_ID,
+      destinationAmount: '150050',
+    };
+    expect(movementResponseSchema.safeParse(transferResponse).success).toBe(true);
+    const exchangeResponse = {
+      ...transferResponse,
+      type: 'exchange',
+      amount: '155730000',
+      destinationAmount: '100000',
+      rate: '15573000',
+      rateSource: 'implied',
+    };
+    expect(movementResponseSchema.safeParse(exchangeResponse).success).toBe(true);
+    expect(movementResponseSchema.safeParse({ ...exchangeResponse, rateSource: 'x' }).success).toBe(
+      false,
+    );
+  });
 });
 
 describe('new error codes and RetryableError', () => {
@@ -172,6 +278,17 @@ describe('new error codes and RetryableError', () => {
       'RATE_REQUIRED',
       'MOVEMENT_CATEGORY_KIND_MISMATCH',
       'CATEGORY_ARCHIVED',
+    ]) {
+      expect(ERROR_CODES as readonly string[]).toContain(code);
+    }
+  });
+
+  it('lists the four transfer and exchange codes (AC-02, AC-04, AC-15)', () => {
+    for (const code of [
+      'MOVEMENT_SAME_ACCOUNT',
+      'MOVEMENT_CURRENCY_MISMATCH',
+      'EXCHANGE_SAME_CURRENCY',
+      'IMPLIED_RATE_OUT_OF_RANGE',
     ]) {
       expect(ERROR_CODES as readonly string[]).toContain(code);
     }

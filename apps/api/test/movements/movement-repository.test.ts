@@ -91,7 +91,7 @@ async function fixture(email = 'ana@example.com'): Promise<Fixture> {
   };
 }
 
-function data(f: Fixture, overrides: Partial<NewMovement> = {}): NewMovement {
+function data(f: Fixture, overrides: Record<string, unknown> = {}): NewMovement {
   return {
     type: 'expense',
     accountId: f.accountId,
@@ -202,7 +202,7 @@ describe('DrizzleMovementRepository', () => {
       ownerId: other.ownerId,
       createdAt: new Date('2000-01-01T00:00:00.000Z'),
       updatedAt: new Date('2000-01-01T00:00:00.000Z'),
-    } as NewMovement;
+    } as unknown as NewMovement;
     const created = await repository.insert(await writeScope(f.ownerId), loose);
     expect(created.id).not.toBe(smuggledId);
     expect(created.ownerId).toBe(f.ownerId);
@@ -299,7 +299,7 @@ describe('DrizzleMovementRepository', () => {
       ['an amount above the maximum', { amount: '1000000000000001' }],
       ['a rate of 0', { rate: '0' }],
       ['a rate above the maximum', { rate: (RATE_MAX_SCALED + 1n).toString() }],
-      ['an unknown type', { type: 'transfer' }],
+      ['an unknown type', { type: 'refund' }],
       ['a note of 501 characters', { note: 'x'.repeat(501) }],
       ['an unknown rate source', { rate_source: 'guess' }],
       ['an automatic rate without a type', { rate_source: 'automatic', rate_type: null }],

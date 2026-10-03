@@ -70,6 +70,31 @@ describe('no floating point in the movements sources (NFR-01, NFR-02)', () => {
     expect(files.length).toBeGreaterThanOrEqual(25);
   });
 
+  it('scans the implied-rate helper and the transfer and exchange use case', () => {
+    const names = files.map((file) => file.slice(repoRoot.length).replaceAll('\\', '/'));
+    expect(names).toContain('packages/shared/src/movements/implied-rate.ts');
+    expect(names).toContain('apps/api/src/movements/application/create-movement.ts');
+  });
+
+  it.each([
+    'export const toRate = (x: bigint) => parseFloat(String(x));',
+    'export const toRate = (x: bigint) => Number(x) / 100;',
+    'export const text = (x: number) => x.toFixed(4);',
+    'export const rounded = (x: number) => Math.round(x);',
+    'export function impliedRate(amount: number, destinationAmount: bigint): bigint { return 1n; }',
+  ])('a probe appended to implied-rate.ts is flagged: %s', (probe) => {
+    const real = readFileSync(
+      join(repoRoot, 'packages/shared/src/movements/implied-rate.ts'),
+      'utf8',
+    );
+    expect(floatFindings(real)).toEqual([]);
+    expect(
+      floatFindings(`${real}
+${probe}
+`),
+    ).not.toEqual([]);
+  });
+
   it.each(files.map((file) => [file.slice(repoRoot.length).replaceAll('\\', '/'), file]))(
     'has no float constructs: %s',
     (name, file) => {

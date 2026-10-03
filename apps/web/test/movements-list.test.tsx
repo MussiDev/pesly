@@ -67,7 +67,9 @@ function movement(overrides: Record<string, unknown> = {}) {
     type: 'expense',
     accountId: CAJA_ID,
     categoryId: COMIDA_ID,
+    destinationAccountId: null,
     amount: '150050',
+    destinationAmount: null,
     occurredAt: '2026-10-02T15:30:00.000Z',
     note: null,
     rate: '12505000',
@@ -463,5 +465,149 @@ describe('MovementsContainer', () => {
     expect(screen.getByRole('list').getAttribute('role')).toBe('list');
     const button = screen.getByRole('button', { name: es.movements.list.showMore });
     expect(button.getAttribute('aria-busy')).toBe('false');
+  });
+
+  describe('transfers and exchanges (03c)', () => {
+    const AHORRO_ID = uuid(3);
+    const MEP_ID = uuid(4);
+    const transfer = (overrides: Record<string, unknown> = {}) =>
+      movement({
+        id: uuid(601),
+        type: 'transfer',
+        categoryId: null,
+        destinationAccountId: AHORRO_ID,
+        amount: '500000',
+        destinationAmount: '500000',
+        rate: null,
+        rateSource: null,
+        rateType: null,
+        occurredAt: '2026-10-02T15:30:00.000Z',
+        ...overrides,
+      });
+    const exchange = (overrides: Record<string, unknown> = {}) =>
+      movement({
+        id: uuid(602),
+        type: 'exchange',
+        categoryId: null,
+        destinationAccountId: MEP_ID,
+        amount: '1250000',
+        destinationAmount: '1000',
+        rate: '125000000',
+        rateSource: 'implied',
+        rateType: null,
+        occurredAt: '2026-10-03T15:30:00.000Z',
+        ...overrides,
+      });
+    const withAccounts = (items: unknown[]) =>
+      routes({
+        [ACTIVE_ACCOUNTS]: accountPage([
+          account(),
+          account({ id: AHORRO_ID, name: 'Ahorro' }),
+          account({ id: MEP_ID, name: 'Dolar MEP', currency: 'USD' }),
+        ]),
+        [FIRST_PAGE]: movementPage(items),
+      });
+
+    it('lists a transfer and an exchange newest first among expenses and income with both account names and currencies (AC-08)', async () => {
+      const expense = movement({ id: uuid(603), occurredAt: '2026-10-01T15:30:00.000Z' });
+      stubApi(withAccounts([exchange(), transfer(), expense]));
+      renderApp(<MovementsContainer />);
+
+      await screen.findByText(es.movements.list.exchangeTitle);
+      const [first, second, third] = rows();
+      if (first === undefined || second === undefined || third === undefined) {
+        throw new Error('Expected three rows');
+      }
+      expect(within(first).getByText(es.movements.list.exchangeTitle)).toBeDefined();
+      expect(within(first).getByText('Caja')).toBeDefined();
+      expect(within(first).getByText('Dolar MEP')).toBeDefined();
+      expect(within(first).getByText(plain(formatMoney(-1250000n, 'ARS', 'es')))).toBeDefined();
+      expect(within(first).getByText(`+${plain(formatMoney(1000n, 'USD', 'es'))}`)).toBeDefined();
+
+      expect(within(second).getByText(es.movements.list.transferTitle)).toBeDefined();
+      expect(within(second).getByText('Caja')).toBeDefined();
+      expect(within(second).getByText('Ahorro')).toBeDefined();
+      expect(within(second).getByText(plain(formatMoney(-500000n, 'ARS', 'es')))).toBeDefined();
+      expect(within(second).getByText(/12:30/)).toBeDefined();
+      expect(within(second).queryByText(/\+/)).toBeNull();
+
+      expect(within(third).getByText('Comida')).toBeDefined();
+    });
+
+    it('an exchange row shows the implied rate with 4 decimals while an ARS expense row hides the rate (AC-05, AC-08)', async () => {
+      stubApi(withAccounts([exchange(), movement({ id: uuid(604) })]));
+      renderApp(<MovementsContainer />);
+
+      await screen.findByText(es.movements.list.exchangeTitle);
+      const [first, second] = rows();
+      if (first === undefined || second === undefined) throw new Error('Expected two rows');
+      expect(
+        within(first).getByText(
+          es.movements.list.rate.replace('{rate}', formatRate(12500n * 10000n, 'es', 4)),
+        ),
+      ).toBeDefined();
+      expect(within(second).queryByText(/12\.505/)).toBeNull();
+      expect(within(second).queryByText(/Cotizaci|Tipo de cambio/)).toBeNull();
+    });
+
+    it('a transfer to an archived destination shows its name (AC-08)', async () => {
+      stubApi(
+        routes({
+          [FIRST_PAGE]: movementPage([transfer({ destinationAccountId: DOLARES_ID })]),
+        }),
+      );
+      renderApp(<MovementsContainer />);
+
+      await screen.findByText(es.movements.list.transferTitle);
+      const [row] = rows();
+      if (row === undefined) throw new Error('Expected a row');
+      expect(within(row).getByText('Dolares viejos')).toBeDefined();
+    });
+
+    it('a destination id missing from the loaded sets shows the placeholder and does not fail (error path, AC-08)', async () => {
+      stubApi(
+        routes({ [FIRST_PAGE]: movementPage([transfer({ destinationAccountId: uuid(99) })]) }),
+      );
+      renderApp(<MovementsContainer />);
+
+      await screen.findByText(es.movements.list.transferTitle);
+      const [row] = rows();
+      if (row === undefined) throw new Error('Expected a row');
+      expect(within(row).getByText(es.movements.list.unknownAccount)).toBeDefined();
+      expect(within(row).getByText('Caja')).toBeDefined();
+      expect(screen.queryByText(es.errors.unexpected)).toBeNull();
+    });
+
+    it('a 401 redirects to sign in and a server error keeps the transfer rows with the generic message (error path, AC-08)', async () => {
+      const page = Array.from({ length: 100 }, (_, index) =>
+        transfer({ id: uuid(7000 + index), note: `Nota ${index}` }),
+      );
+      stubApi(
+        withAccountsPaged(page, [
+          { status: 500 },
+          { status: 401, body: { code: 'UNAUTHENTICATED' } },
+        ]),
+      );
+      const { router } = renderApp(<MovementsContainer />);
+      const user = userEvent.setup();
+
+      await screen.findByText('Nota 0');
+      await user.click(screen.getByRole('button', { name: es.movements.list.showMore }));
+      expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+      expect(rows()).toHaveLength(100);
+      await user.click(screen.getByRole('button', { name: es.movements.list.showMore }));
+      await waitFor(() => {
+        expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+      });
+      expect(rows()).toHaveLength(100);
+    });
+
+    function withAccountsPaged(page: unknown[], second: Parameters<typeof stubApi>[0][string]) {
+      return routes({
+        [ACTIVE_ACCOUNTS]: accountPage([account(), account({ id: AHORRO_ID, name: 'Ahorro' })]),
+        [FIRST_PAGE]: movementPage(page, 101),
+        [SECOND_PAGE]: second,
+      });
+    }
   });
 });

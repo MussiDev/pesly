@@ -64,10 +64,11 @@ interface RegisteredTable {
   seed: (context: SeedContext) => Promise<void>;
 }
 
-/** The two restricting composite keys of `movements` (migration 0014). */
+/** The restricting composite keys of `movements` (migrations 0014 and 0016). */
 const MOVEMENTS_STEP_CONSTRAINTS = [
   'movements_account_owner_fk',
   'movements_category_owner_kind_fk',
+  'movements_destination_owner_fk',
 ] as const;
 
 const query = (context: SeedContext, statement: string, params: unknown[]) =>
@@ -513,6 +514,7 @@ describe('the erasure guard (NFR-01)', () => {
     const expected = [
       'key movements_account_owner_fk of movements does not cascade on delete',
       'key movements_category_owner_kind_fk of movements does not cascade on delete',
+      'key movements_destination_owner_fk of movements does not cascade on delete',
     ];
 
     const asCascade = await guardViolations(connection.pool, withMovements({ policy: 'cascade' }));
@@ -524,7 +526,7 @@ describe('the erasure guard (NFR-01)', () => {
 
     expect(asCascade.sort()).toEqual(expected);
     expect(unnamed.sort()).toEqual(expected);
-    expect(oneNamed).toEqual([expected[1]]);
+    expect(oneNamed).toEqual([expected[1], expected[2]]);
   });
 
   it('fails for another non-cascading key on the movements table, even though it is an erase-step table (error, sad path)', async () => {

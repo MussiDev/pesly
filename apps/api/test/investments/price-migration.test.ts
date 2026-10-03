@@ -5,6 +5,8 @@ import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0015_price_snapshots';
+// Journal-newer migrations go first: the migrator only replays what is newer than the last recorded.
+const NEWER_TAGS = ['0016_transfers_exchanges'];
 const PRICE_TABLES = [
   'crypto_market_prices',
   'crypto_price_refresh_failures',
@@ -79,6 +81,11 @@ function rollback(tag: string): Promise<string> {
   return readFile(`${migrationsFolder}/rollback/${tag}.down.sql`, 'utf8');
 }
 
+async function rollBackNewerAndOwn(): Promise<void> {
+  for (const tag of [...NEWER_TAGS].reverse()) await client.query(await rollback(tag));
+  await client.query(await rollback(TAG));
+}
+
 async function appliedMigrations(): Promise<number> {
   return countOf('select count(*) as n from drizzle.__drizzle_migrations');
 }
@@ -93,8 +100,8 @@ async function insertUser(email: string): Promise<string> {
 describe('0015_price_snapshots migration', () => {
   it('applies on a database that already holds the earlier migrations and their data', async () => {
     await runMigrations(migrationDatabaseUrl);
-    const earlierCount = (await appliedMigrations()) - 1;
-    await client.query(await rollback(TAG));
+    const earlierCount = (await appliedMigrations()) - 1 - NEWER_TAGS.length;
+    await rollBackNewerAndOwn();
     expect(await priceTables()).toEqual([]);
     expect(await appliedMigrations()).toBe(earlierCount);
     await insertUser('before@prices.test');
@@ -102,7 +109,7 @@ describe('0015_price_snapshots migration', () => {
     await runMigrations(migrationDatabaseUrl);
 
     expect(await priceTables()).toEqual(PRICE_TABLES);
-    expect(await appliedMigrations()).toBe(earlierCount + 1);
+    expect(await appliedMigrations()).toBe(earlierCount + 1 + NEWER_TAGS.length);
     expect(
       await countOf("select count(*) as n from users where email = 'before@prices.test'"),
     ).toBe(1);
@@ -257,9 +264,9 @@ describe('0015_price_snapshots migration', () => {
   });
 
   it('is reverted by its rollback script, dropping the tables and the index and keeping earlier data, and re-applies', async () => {
-    const earlierCount = (await appliedMigrations()) - 1;
+    const earlierCount = (await appliedMigrations()) - 1 - NEWER_TAGS.length;
 
-    await client.query(await rollback(TAG));
+    await rollBackNewerAndOwn();
 
     expect(await priceTables()).toEqual([]);
     expect(await indexDefinition('holdings_crypto_ticker_idx')).toBeUndefined();
@@ -274,7 +281,7 @@ describe('0015_price_snapshots migration', () => {
     await runMigrations(migrationDatabaseUrl);
     expect(await priceTables()).toEqual(PRICE_TABLES);
     expect(await indexDefinition('holdings_crypto_ticker_idx')).toBeDefined();
-    expect(await appliedMigrations()).toBe(earlierCount + 1);
+    expect(await appliedMigrations()).toBe(earlierCount + 1 + NEWER_TAGS.length);
   });
 });
 

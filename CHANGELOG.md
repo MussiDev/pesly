@@ -136,6 +136,22 @@ All notable changes to this project are documented in this file. The format foll
   `0014_movements` adds the `movements` and `movement_rate_limits` tables; its rollback script is
   destructive. Known limitation: a create has no idempotency key, so a retry after a lost response
   can duplicate a movement (follow-up for the offline sync ticket of PRD 04).
+- DISC-001-03c Transfers and currency exchange: a user moves money between two of their own accounts
+  of the same currency (a transfer) or buys and sells USD between an ARS and a USD account (a
+  currency exchange). Neither is an expense nor an income. An exchange stores its implied rate, the
+  ARS amount over the USD amount scaled by 10,000 and rounded half-up, and one outside 0.0001 to
+  10,000,000.0000 ARS per USD is refused. Balances and the Available and Net worth totals count
+  the source and the destination side; an account that is only the destination of a movement can
+  no longer be deleted.
+- DISC-001-03c The entry screen has a four-way type switch with a destination account picker
+  (filtered by currency), a second amount and a read-only implied-rate preview for exchanges, and
+  the movements list shows transfers and exchanges with both accounts. The rules of
+  DISC-001-03b apply to the new types: amounts up to 10^15 minor units, notes up to 500
+  characters, archived accounts refused (409), and the same 60 creations per minute per user
+  shared with expenses and income. Migration `0016_transfers_exchanges` stores a transfer or
+  exchange as one row with a destination account and amount (category empty, rate only on
+  exchanges); its rollback script is destructive for transfers and exchanges only (it deletes
+  those rows, so balances change).
 - FEAT-004 Design system: indigo on cool neutral tokens for light and dark (colors, type scale,
   spacing, radius, elevation, motion), the Inter typeface self-hosted through `next/font`, a theme
   choice (light, dark or system) that persists and is applied before first paint, and new `badge`,

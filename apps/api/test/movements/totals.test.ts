@@ -46,11 +46,12 @@ async function createAccount(
   s: ObligationsSetup,
   includeInAvailable: boolean,
   openingBalance: string,
+  currency: 'ARS' | 'USD' = 'ARS',
 ): Promise<string> {
   const response = await send(s.app, 'post', '/accounts', s.ana, {
     name: `Cuenta ${randomUUID()}`,
     type: 'cash',
-    currency: 'ARS',
+    currency,
     openingBalance,
     includeInAvailable,
   });
@@ -75,6 +76,96 @@ async function record(
   );
   expect(response.status).toBe(201);
 }
+
+async function usdTotals(s: ObligationsSetup): Promise<Totals> {
+  const response = await get(s.app, '/accounts?limit=100', s.ana);
+  const body = response.body as {
+    availableTotals: Record<string, string | undefined>;
+    netWorthTotals: Record<string, string | undefined>;
+  };
+  return {
+    available: BigInt(body.availableTotals.USD ?? '0'),
+    netWorth: BigInt(body.netWorthTotals.USD ?? '0'),
+  };
+}
+
+describe('Available and Net worth with transfers and exchanges', () => {
+  it('a transfer from an included to a non-included account lowers Available by the amount and leaves Net worth unchanged (AC-06)', async () => {
+    const s = await obligationsSetup(connection);
+    const included = await createAccount(s, true, '50000');
+    const excluded = await createAccount(s, false, '20000');
+    expect(await totals(s)).toEqual({ available: 50000n, netWorth: 70000n });
+
+    const response = await send(s.app, 'post', '/movements', s.ana, {
+      type: 'transfer',
+      accountId: included,
+      destinationAccountId: excluded,
+      amount: '12000',
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    expect(response.status).toBe(201);
+    expect(await totals(s)).toEqual({ available: 38000n, netWorth: 70000n });
+
+    const back = await send(s.app, 'post', '/movements', s.ana, {
+      type: 'transfer',
+      accountId: excluded,
+      destinationAccountId: included,
+      amount: '2000',
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    expect(back.status).toBe(201);
+    expect(await totals(s)).toEqual({ available: 40000n, netWorth: 70000n });
+  });
+
+  it('a transfer between two included accounts leaves Available unchanged (AC-06)', async () => {
+    const s = await obligationsSetup(connection);
+    const one = await createAccount(s, true, '50000');
+    const two = await createAccount(s, true, '1000');
+    const response = await send(s.app, 'post', '/movements', s.ana, {
+      type: 'transfer',
+      accountId: one,
+      destinationAccountId: two,
+      amount: '7000',
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    expect(response.status).toBe(201);
+    expect(await totals(s)).toEqual({ available: 51000n, netWorth: 51000n });
+  });
+
+  it('an exchange moves each currency total by its own side only (AC-06)', async () => {
+    const s = await obligationsSetup(connection);
+    const ars = await createAccount(s, true, '20000000');
+    const usd = await createAccount(s, true, '0', 'USD');
+    const response = await send(s.app, 'post', '/movements', s.ana, {
+      type: 'exchange',
+      accountId: ars,
+      destinationAccountId: usd,
+      amount: '15573000',
+      destinationAmount: '100000',
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    expect(response.status).toBe(201);
+    expect(await totals(s)).toEqual({ available: 4427000n, netWorth: 4427000n });
+    expect(await usdTotals(s)).toEqual({ available: 100000n, netWorth: 100000n });
+  });
+
+  it('an exchange into a non-included USD account lowers ARS Available and raises only USD Net worth (AC-06)', async () => {
+    const s = await obligationsSetup(connection);
+    const ars = await createAccount(s, true, '1000000');
+    const usd = await createAccount(s, false, '0', 'USD');
+    const response = await send(s.app, 'post', '/movements', s.ana, {
+      type: 'exchange',
+      accountId: ars,
+      destinationAccountId: usd,
+      amount: '300000',
+      destinationAmount: '200',
+      occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+    });
+    expect(response.status).toBe(201);
+    expect(await totals(s)).toEqual({ available: 700000n, netWorth: 700000n });
+    expect(await usdTotals(s)).toEqual({ available: 0n, netWorth: 200n });
+  });
+});
 
 describe('Available and Net worth with real movements', () => {
   it('an expense of 100.00 lowers both, an income raises both, a non-included account moves only Net worth (AC-24, AC-12, AC-13)', async () => {

@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/select';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import { Link } from '@/i18n/navigation';
+import type { ImpliedRatePreview, ImpliedRatePreviewInput } from '../implied-rate-preview';
 import type { MovementFormErrors } from '../movement-form-errors';
 import { MovementField } from './movement-field';
 import { RateField } from './rate-field';
@@ -29,6 +30,10 @@ export interface MovementFormValues {
   /** `true` once the user typed in the rate field, even if the text ended up the same. */
   rateEdited: boolean;
   note: string;
+  /** Only present for a transfer or an exchange. */
+  destinationAccountId?: string;
+  /** Only present for an exchange: the amount that enters the destination account. */
+  destinationAmount?: string;
 }
 
 export interface MovementAccountOption {
@@ -53,6 +58,8 @@ export interface MovementFormProps {
   rateAgeHours: number | undefined;
   pending: boolean;
   errors: MovementFormErrors;
+  /** Display-only implied rate of an exchange for what is typed so far, computed by the container. */
+  previewRate?: (input: ImpliedRatePreviewInput) => ImpliedRatePreview;
   onSubmit: (values: MovementFormValues) => void;
 }
 
@@ -69,12 +76,23 @@ export function MovementForm({
   rateAgeHours,
   pending,
   errors,
+  previewRate,
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
   const formRef = useRef<HTMLFormElement>(null);
   const [type, setType] = useState<MovementType>('expense');
   const [rateEdited, setRateEdited] = useState(false);
+  const [sourceId, setSourceId] = useState('');
+  const [destinationId, setDestinationId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [destinationAmount, setDestinationAmount] = useState('');
+  const categorized = type === 'expense' || type === 'income';
+  const source = accounts.find((account) => account.id === sourceId);
+  const destinations = destinationsFor(type, source, accounts);
+  const showDestinationHint =
+    !categorized &&
+    (source === undefined ? !hasDestinationPair(type, accounts) : destinations.length === 0);
 
   // After a failed submit, focus the first invalid field so its message is announced with it.
   useEffect(() => {
@@ -83,7 +101,16 @@ export function MovementForm({
   }, [errors]);
 
   function handleTypeChange(event: ChangeEvent<HTMLSelectElement>) {
-    setType(toMovementType(event.currentTarget.value));
+    const next = toMovementType(event.currentTarget.value);
+    setType(next);
+    setDestinationId('');
+    // The rate field is unmounted for a transfer or an exchange, so its edit flag must not outlive it.
+    if (next !== 'expense' && next !== 'income') setRateEdited(false);
+  }
+
+  function handleSourceChange(event: ChangeEvent<HTMLSelectElement>) {
+    setSourceId(event.currentTarget.value);
+    setDestinationId('');
   }
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
@@ -98,6 +125,8 @@ export function MovementForm({
       rate: readField(form, 'rate'),
       rateEdited,
       note: readField(form, 'note'),
+      ...(categorized ? {} : { destinationAccountId: readField(form, 'destinationAccountId') }),
+      ...(type === 'exchange' ? { destinationAmount: readField(form, 'destinationAmount') } : {}),
     });
   }
 
@@ -124,7 +153,13 @@ export function MovementForm({
           </MovementField>
           <MovementField label={t('fields.account')} error={errors.fields?.account}>
             {(control) => (
-              <Select name="accountId" defaultValue="" required {...control}>
+              <Select
+                name="accountId"
+                defaultValue=""
+                required
+                onChange={handleSourceChange}
+                {...control}
+              >
                 <option value="">{t('fields.accountPlaceholder')}</option>
                 {accounts.map((account) => (
                   <option key={account.id} value={account.id}>
@@ -134,24 +169,100 @@ export function MovementForm({
               </Select>
             )}
           </MovementField>
-          <MovementField label={t('fields.category')} error={errors.fields?.category}>
-            {(control) => (
-              // Keyed by type so the picked category resets when the type changes.
-              <Select key={type} name="categoryId" defaultValue="" required {...control}>
-                <option value="">{t('fields.categoryPlaceholder')}</option>
-                {categories
-                  .filter((category) => category.kind === type)
-                  .map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
+          {categorized ? null : (
+            <MovementField
+              label={t('fields.destinationAccount')}
+              hint={
+                showDestinationHint
+                  ? t(
+                      type === 'transfer'
+                        ? 'fields.destinationHintTransfer'
+                        : 'fields.destinationHintExchange',
+                    )
+                  : undefined
+              }
+              error={errors.fields?.destinationAccount}
+            >
+              {(control) => (
+                // Keyed by type and source so the picked destination resets when either changes.
+                <Select
+                  key={`${type}:${sourceId}`}
+                  name="destinationAccountId"
+                  defaultValue=""
+                  required
+                  onChange={(event) => {
+                    setDestinationId(event.currentTarget.value);
+                  }}
+                  {...control}
+                >
+                  <option value="">{t('fields.destinationAccountPlaceholder')}</option>
+                  {destinations.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {`${account.name} (${account.currency})`}
                     </option>
                   ))}
-              </Select>
+                </Select>
+              )}
+            </MovementField>
+          )}
+          {categorized ? (
+            <MovementField label={t('fields.category')} error={errors.fields?.category}>
+              {(control) => (
+                // Keyed by type so the picked category resets when the type changes.
+                <Select key={type} name="categoryId" defaultValue="" required {...control}>
+                  <option value="">{t('fields.categoryPlaceholder')}</option>
+                  {categories
+                    .filter((category) => category.kind === type)
+                    .map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.label}
+                      </option>
+                    ))}
+                </Select>
+              )}
+            </MovementField>
+          ) : null}
+          <MovementField
+            label={type === 'exchange' ? t('fields.amountOut') : t('fields.amount')}
+            error={errors.fields?.amount}
+          >
+            {(control) => (
+              <MoneyInput
+                name="amount"
+                required
+                onChange={(event) => {
+                  setAmount(event.currentTarget.value);
+                }}
+                {...control}
+              />
             )}
           </MovementField>
-          <MovementField label={t('fields.amount')} error={errors.fields?.amount}>
-            {(control) => <MoneyInput name="amount" required {...control} />}
-          </MovementField>
+          {type === 'exchange' ? (
+            <>
+              <MovementField label={t('fields.amountIn')} error={errors.fields?.destinationAmount}>
+                {(control) => (
+                  <MoneyInput
+                    name="destinationAmount"
+                    required
+                    onChange={(event) => {
+                      setDestinationAmount(event.currentTarget.value);
+                    }}
+                    {...control}
+                  />
+                )}
+              </MovementField>
+              {previewRate === undefined ? null : (
+                <ImpliedRateLine
+                  preview={previewRate({
+                    accountId: sourceId,
+                    destinationAccountId: destinationId,
+                    amount,
+                    destinationAmount,
+                  })}
+                />
+              )}
+            </>
+          ) : null}
           <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
             {(control) => (
               <Input
@@ -163,15 +274,17 @@ export function MovementForm({
               />
             )}
           </MovementField>
-          <RateField
-            defaultValue={defaultRate}
-            rateType={rateType}
-            ageHours={rateAgeHours}
-            error={errors.fields?.rate}
-            onEdited={() => {
-              setRateEdited(true);
-            }}
-          />
+          {categorized ? (
+            <RateField
+              defaultValue={defaultRate}
+              rateType={rateType}
+              ageHours={rateAgeHours}
+              error={errors.fields?.rate}
+              onEdited={() => {
+                setRateEdited(true);
+              }}
+            />
+          ) : null}
           <MovementField label={t('fields.note')} error={errors.fields?.note}>
             {(control) => <Input name="note" type="text" autoComplete="off" {...control} />}
           </MovementField>
@@ -184,6 +297,43 @@ export function MovementForm({
         </form>
       </CardContent>
     </Card>
+  );
+}
+
+/** The destinations a source allows: another account of the same currency, or of the other one. */
+function destinationsFor(
+  type: MovementType,
+  source: MovementAccountOption | undefined,
+  accounts: readonly MovementAccountOption[],
+): MovementAccountOption[] {
+  if (source === undefined || (type !== 'transfer' && type !== 'exchange')) return [];
+  return accounts.filter(
+    (account) =>
+      account.id !== source.id &&
+      (type === 'transfer'
+        ? account.currency === source.currency
+        : account.currency !== source.currency),
+  );
+}
+
+/** Whether any account can be the source of a movement that has a destination. */
+function hasDestinationPair(
+  type: MovementType,
+  accounts: readonly MovementAccountOption[],
+): boolean {
+  return accounts.some((account) => destinationsFor(type, account, accounts).length > 0);
+}
+
+function ImpliedRateLine({ preview }: { preview: ImpliedRatePreview }) {
+  const t = useTranslations('movements.exchange');
+  return (
+    <p role="status" className="text-sm text-muted-foreground">
+      {preview.kind === 'rate'
+        ? t('impliedRate', { rate: preview.text })
+        : preview.kind === 'empty'
+          ? t('impliedRateEmpty')
+          : t('impliedRateOutOfRange')}
+    </p>
   );
 }
 

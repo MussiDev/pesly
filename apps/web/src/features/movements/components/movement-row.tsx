@@ -1,6 +1,7 @@
 'use client';
 
-import { exactIntegerStringSchema, type MovementResponse } from '@pesly/shared';
+import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
+import { ArrowLeftRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { ListRow } from '@/components/ui/list-row';
@@ -17,6 +18,9 @@ export interface MovementRowProps {
   /** The category's own icon and color keys; unknown or missing ones render the neutral fallback. */
   categoryIcon?: string;
   categoryColor?: string;
+  /** Transfers and exchanges only; `undefined` when the destination is not in the loaded sets. */
+  destinationAccountName: string | undefined;
+  destinationCurrency: string | undefined;
   timeZone: string;
 }
 
@@ -74,21 +78,51 @@ export function MovementRow({
   categoryName,
   categoryIcon,
   categoryColor,
+  destinationAccountName,
+  destinationCurrency,
   timeZone,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
   const tTypes = useTranslations('movements.types');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const amount = exactIntegerStringSchema.safeParse(movement.amount);
+  const moving = movement.type === 'transfer' || movement.type === 'exchange';
+  const incoming =
+    movement.type === 'exchange' && movement.destinationAmount !== null
+      ? exactIntegerStringSchema.safeParse(movement.destinationAmount)
+      : undefined;
+  const title =
+    movement.type === 'transfer'
+      ? t('transferTitle')
+      : movement.type === 'exchange'
+        ? t('exchangeTitle')
+        : (categoryName ?? t('unknownCategory'));
 
   return (
     <li className="grid gap-1 text-card-foreground">
       <ListRow
-        leading={<CategoryVisual icon={categoryIcon ?? ''} color={categoryColor ?? ''} />}
-        title={categoryName ?? t('unknownCategory')}
+        leading={
+          moving ? (
+            <span
+              aria-hidden="true"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&>svg]:size-5"
+            >
+              <ArrowLeftRight />
+            </span>
+          ) : (
+            <CategoryVisual icon={categoryIcon ?? ''} color={categoryColor ?? ''} />
+          )
+        }
+        title={title}
         description={
           <>
             <span>{accountName ?? t('unknownAccount')}</span>
+            {moving ? (
+              <>
+                <span aria-hidden="true"> → </span>
+                <span>{destinationAccountName ?? t('unknownAccount')}</span>
+              </>
+            ) : null}
             <span aria-hidden="true"> · </span>
             <time dateTime={movement.occurredAt}>
               {dateFormat('time', locale, timeZone).format(new Date(movement.occurredAt))}
@@ -97,15 +131,27 @@ export function MovementRow({
         }
         trailing={
           amount.success ? (
-            <Amount
-              value={BigInt(amount.data)}
-              // The neutral code applies only when the account is not among the loaded ones.
-              currency={currency ?? UNKNOWN_CURRENCY}
-              locale={locale}
-              kind={movement.type}
-              directionLabel={tTypes(movement.type)}
-              className="text-body font-semibold"
-            />
+            <span className="grid justify-items-end">
+              <Amount
+                // A transfer or exchange takes money out of the source: it keeps its own minus sign.
+                value={moving ? -BigInt(amount.data) : BigInt(amount.data)}
+                // The neutral code applies only when the account is not among the loaded ones.
+                currency={currency ?? UNKNOWN_CURRENCY}
+                locale={locale}
+                kind={
+                  movement.type === 'income' || movement.type === 'expense'
+                    ? movement.type
+                    : 'neutral'
+                }
+                directionLabel={tTypes(movement.type)}
+                className="text-body font-semibold"
+              />
+              {incoming?.success ? (
+                <span className="text-body font-semibold whitespace-nowrap tabular-nums text-income">
+                  {`+${formatMoney(BigInt(incoming.data), destinationCurrency ?? UNKNOWN_CURRENCY, locale)}`}
+                </span>
+              ) : null}
+            </span>
           ) : (
             // A malformed amount degrades to a dash instead of throwing during render.
             <span className="text-muted-foreground">—</span>
@@ -115,9 +161,12 @@ export function MovementRow({
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}
-      {currency === USD_CURRENCY ? (
+      {movement.rate !== null &&
+      (movement.type === 'exchange' || (currency === USD_CURRENCY && !moving)) ? (
         <p className="px-1 text-caption text-muted-foreground">
-          {t('rate', { rate: formatRate(BigInt(movement.rate), locale) })}
+          {t('rate', {
+            rate: formatRate(BigInt(movement.rate), locale, movement.type === 'exchange' ? 4 : 2),
+          })}
         </p>
       ) : null}
     </li>

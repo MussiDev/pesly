@@ -41,3 +41,31 @@ export class MovementWriteRateLimited extends RetryableError {
     super('RATE_LIMITED', retryAfterSeconds);
   }
 }
+
+/** A transfer or exchange needs two different accounts. */
+export class MovementSameAccount extends AppError {
+  constructor() {
+    super('MOVEMENT_SAME_ACCOUNT');
+  }
+}
+
+/** A transfer moves money between accounts of the same currency. */
+export class MovementCurrencyMismatch extends AppError {
+  constructor() {
+    super('MOVEMENT_CURRENCY_MISMATCH');
+  }
+}
+
+/** An exchange needs one ARS and one USD account. */
+export class ExchangeSameCurrency extends AppError {
+  constructor() {
+    super('EXCHANGE_SAME_CURRENCY');
+  }
+}
+
+/** The rate implied by the two amounts of an exchange is outside 1 to RATE_MAX scaled. */
+export class ImpliedRateOutOfRange extends AppError {
+  constructor() {
+    super('IMPLIED_RATE_OUT_OF_RANGE');
+  }
+}

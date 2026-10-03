@@ -154,6 +154,14 @@ describe('the movements request path never reaches the rate provider (NFR-05)', 
     expect(files.length).toBeGreaterThanOrEqual(25);
   });
 
+  it('scans the use case and the repository that now save transfers and exchanges', () => {
+    const names = files.map(relativeName);
+    expect(names).toContain('apps/api/src/movements/application/create-movement.ts');
+    expect(names).toContain(
+      'apps/api/src/movements/infrastructure/db/drizzle-movement-repository.ts',
+    );
+  });
+
   it.each(files.map((file) => [relativeName(file), file]))(
     'imports no provider, job or exchange-rates barrel: %s',
     (name, file) => {

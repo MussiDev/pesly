@@ -3,11 +3,16 @@ import { LIST_ACCOUNTS_DEFAULT_LIMIT, LIST_ACCOUNTS_MAX_LIMIT } from '../account
 import { scaledRateStringSchema } from '../exchange-rates/exchange-rate';
 import { rateTypeSchema } from '../rate-types';
 
-export const MOVEMENT_TYPES = ['expense', 'income'] as const;
+export const MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange'] as const;
 export const movementTypeSchema = z.enum(MOVEMENT_TYPES);
 export type MovementType = z.infer<typeof movementTypeSchema>;
 
-export const MOVEMENT_RATE_SOURCES = ['automatic', 'manual'] as const;
+/** The types that carry a category (and so a category kind). */
+export const CATEGORIZED_MOVEMENT_TYPES = ['expense', 'income'] as const;
+export const categorizedMovementTypeSchema = z.enum(CATEGORIZED_MOVEMENT_TYPES);
+export type CategorizedMovementType = z.infer<typeof categorizedMovementTypeSchema>;
+
+export const MOVEMENT_RATE_SOURCES = ['automatic', 'manual', 'implied'] as const;
 export const movementRateSourceSchema = z.enum(MOVEMENT_RATE_SOURCES);
 export type MovementRateSource = z.infer<typeof movementRateSourceSchema>;
 
@@ -63,9 +68,8 @@ export const movementRateRequestSchema = z.discriminatedUnion('source', [
 ]);
 export type MovementRateRequest = z.infer<typeof movementRateRequestSchema>;
 
-/** `POST /movements`. The client picks the rate source; the automatic value is resolved on the server. */
-export const createMovementRequestSchema = z.object({
-  type: movementTypeSchema,
+const createCategorizedMovementSchema = z.object({
+  type: categorizedMovementTypeSchema,
   accountId: z.uuid(),
   categoryId: z.uuid(),
   amount: movementAmountSchema,
@@ -73,6 +77,38 @@ export const createMovementRequestSchema = z.object({
   note: movementNoteSchema.optional(),
   rate: movementRateRequestSchema,
 });
+
+const createTransferSchema = z.object({
+  type: z.literal('transfer'),
+  accountId: z.uuid(),
+  destinationAccountId: z.uuid(),
+  amount: movementAmountSchema,
+  occurredAt: occurredAtSchema,
+  note: movementNoteSchema.optional(),
+});
+
+/** `accountId` is the source; `amount` leaves it and `destinationAmount` enters the destination. */
+const createExchangeSchema = z.object({
+  type: z.literal('exchange'),
+  accountId: z.uuid(),
+  destinationAccountId: z.uuid(),
+  amount: movementAmountSchema,
+  destinationAmount: movementAmountSchema,
+  occurredAt: occurredAtSchema,
+  note: movementNoteSchema.optional(),
+});
+
+/**
+ * `POST /movements`, discriminated on `type`. For expense and income the client picks the rate
+ * source and the automatic value is resolved on the server; transfers and exchanges carry no
+ * category and no rate (an exchange's rate is implied by its two amounts). Foreign keys are stripped.
+ */
+export const createMovementRequestSchema = z.discriminatedUnion('type', [
+  createCategorizedMovementSchema.extend({ type: z.literal('expense') }),
+  createCategorizedMovementSchema.extend({ type: z.literal('income') }),
+  createTransferSchema,
+  createExchangeSchema,
+]);
 export type CreateMovementRequest = z.infer<typeof createMovementRequestSchema>;
 
 export const movementIdParamsSchema = z.object({
@@ -103,12 +139,14 @@ export const movementResponseSchema = z.object({
   id: z.string(),
   type: movementTypeSchema,
   accountId: z.string(),
-  categoryId: z.string(),
+  categoryId: z.string().nullable(),
+  destinationAccountId: z.string().nullable(),
   amount: movementAmountSchema,
+  destinationAmount: movementAmountSchema.nullable(),
   occurredAt: z.iso.datetime(),
   note: z.string().nullable(),
-  rate: scaledRateStringSchema,
-  rateSource: movementRateSourceSchema,
+  rate: scaledRateStringSchema.nullable(),
+  rateSource: movementRateSourceSchema.nullable(),
   rateType: rateTypeSchema.nullable(),
   createdAt: z.iso.datetime(),
 });

@@ -20,6 +20,8 @@
       "seeAll": "See all movements",
       "income": "Income",
       "expense": "Expense",
+      "transfer": "Transfer",
+      "exchange": "Currency exchange",
       "unknownAccount": "Unknown account",
       "unknownCategory": "Unknown category",
       "empty": {
@@ -275,6 +277,10 @@
     "rateRequired": "Enter the exchange rate: there is no stored rate to use.",
     "movementCategoryKindMismatch": "This category does not match the movement type. Choose another one.",
     "categoryArchived": "This category is archived, so it cannot be used. Unarchive it first.",
+    "movementSameAccount": "The destination must be a different account from the source.",
+    "movementCurrencyMismatch": "A transfer needs two accounts in the same currency.",
+    "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
+    "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
@@ -359,11 +365,13 @@
       "showMore": "Show more",
       "rate": "Rate: {rate} ARS per USD",
       "unknownAccount": "Unknown account",
+      "transferTitle": "Transfer",
+      "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category"
     },
     "new": {
       "title": "New movement",
-      "description": "Record an expense or an income."
+      "description": "Record an expense, an income, a transfer or a currency exchange."
     },
     "fields": {
       "type": "Type",
@@ -374,16 +382,29 @@
       "amount": "Amount",
       "occurredAt": "Date and time",
       "rate": "Exchange rate (ARS per USD)",
-      "note": "Note (optional)"
+      "note": "Note (optional)",
+      "destinationAccount": "Destination account",
+      "destinationAccountPlaceholder": "Choose the destination account",
+      "destinationHintTransfer": "You need another active account in the same currency as the source.",
+      "destinationHintExchange": "You need one active ARS account and one active USD account.",
+      "amountOut": "Amount going out",
+      "amountIn": "Amount coming in"
     },
     "types": {
       "expense": "Expense",
-      "income": "Income"
+      "income": "Income",
+      "transfer": "Transfer",
+      "exchange": "Currency exchange"
     },
     "rate": {
       "automatic": "Stored {rateType} rate. Edit it to use your own.",
       "missing": "There is no stored rate. Enter the ARS per USD rate for this movement.",
       "age": "Rate from {hours} h ago"
+    },
+    "exchange": {
+      "impliedRate": "Implied rate: {rate} ARS per USD",
+      "impliedRateEmpty": "Enter both amounts to see the implied rate.",
+      "impliedRateOutOfRange": "With those amounts the rate is outside the allowed range."
     },
     "form": {
       "submit": "Save movement",
@@ -393,7 +414,8 @@
     "saved": {
       "title": "Movement saved",
       "rate": "Rate used: {rate} ARS per USD",
-      "back": "Back to movements"
+      "back": "Back to movements",
+      "impliedRate": "Implied rate: {rate} ARS per USD"
     },
     "errors": {
       "accountRequired": "Choose an account.",
@@ -409,7 +431,9 @@
       "noteInvalidCharacters": "The note contains characters that cannot be shown. Remove them and try again.",
       "accountArchived": "This account is archived. Unarchive it before recording movements on it.",
       "rateLimited": "You are saving movements too fast. Try again in {seconds} s.",
-      "rateLimitedGeneric": "You are saving movements too fast. Try again in a moment."
+      "rateLimitedGeneric": "You are saving movements too fast. Try again in a moment.",
+      "destinationRequired": "Choose a destination account.",
+      "typeInvalid": "Choose a movement type."
     }
   },
   "categories": {

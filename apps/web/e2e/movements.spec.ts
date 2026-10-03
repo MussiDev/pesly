@@ -11,6 +11,7 @@ import {
 } from './support/database';
 
 const API_URL = 'http://localhost:4000';
+const WEB_URL = 'http://localhost:3000';
 
 const es = catalogs.es;
 const t = es.movements;
@@ -325,4 +326,299 @@ test('a movement on an archived account is refused with the unarchive-first mess
   await submit(page).click();
   await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
   expect((await movementsOf(email)).map((movement) => movement.amount)).toEqual(['2000']);
+});
+
+type Currency = 'ARS' | 'USD';
+
+async function createNamedAccount(
+  page: Page,
+  name: string,
+  currency: Currency,
+  openingBalance: string,
+): Promise<void> {
+  await page.goto('/es/accounts/new');
+  await page.getByLabel(accountsCatalog.fields.name).fill(name);
+  await page.getByLabel(accountsCatalog.fields.type).selectOption({
+    label: accountsCatalog.types.cash,
+  });
+  await page.getByLabel(accountsCatalog.fields.currency).selectOption({
+    label: accountsCatalog.currencies[currency],
+  });
+  await page.getByLabel(accountsCatalog.fields.openingBalance).fill(openingBalance);
+  await page.getByRole('button', { name: accountsCatalog.form.submit }).click();
+  await expect(page).toHaveURL(/\/es\/accounts$/);
+  await expect(namedAccountRow(page, name)).toBeVisible();
+}
+
+function namedAccountRow(page: Page, name: string) {
+  return page.getByRole('listitem', { name, exact: true });
+}
+
+const CASH = 'Caja';
+const BANK = 'Banco';
+const DOLLARS = 'Dólares';
+const label = (name: string, currency: Currency): string => `${name} (${currency})`;
+
+/** Opens the entry screen on a transfer or an exchange with its source picked. */
+async function openTwoAccountEntry(
+  page: Page,
+  type: 'transfer' | 'exchange',
+  source: string,
+): Promise<void> {
+  await page.goto('/es/movements/new');
+  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types[type] });
+  await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: source });
+}
+
+function destinationPicker(page: Page) {
+  return page.getByLabel(t.fields.destinationAccount, { exact: true });
+}
+
+async function destinationOptions(page: Page): Promise<string[]> {
+  return destinationPicker(page).locator('option').allTextContents();
+}
+
+/** Today plus one day in the e2e user's zone (Cordoba, UTC-3 all year), as a datetime-local value. */
+function tomorrowLocal(): string {
+  return new Date(Date.now() + 24 * 3_600_000 - 3 * 3_600_000).toISOString().slice(0, 16);
+}
+
+/** What the API's origin guard requires on a state-changing request. */
+function apiHeaders(): Record<string, string> {
+  return { Origin: WEB_URL, 'X-Requested-With': 'argent' };
+}
+
+async function accountIds(page: Page): Promise<Map<string, string>> {
+  const response = await page.request.get(`${API_URL}/accounts?limit=100`);
+  expect(response.status()).toBe(200);
+  const body = (await response.json()) as { items: { id: string; name: string }[] };
+  return new Map(body.items.map((item) => [item.name, item.id]));
+}
+
+function idOf(ids: Map<string, string>, name: string): string {
+  const id = ids.get(name);
+  if (id === undefined) throw new Error(`No account named ${name}`);
+  return id;
+}
+
+const FIRST_OF_SEPTEMBER = '2026-09-01T10:00';
+const SECOND_OF_SEPTEMBER = '2026-09-02T10:00';
+
+test('records a transfer and a currency exchange, lists them newest first with the implied rate and moves the three balances (AC-01, AC-03, AC-05, AC-06, AC-08)', async ({
+  page,
+}) => {
+  const email = await signedInUser(page, 'movements-two-accounts');
+  await createNamedAccount(page, CASH, 'ARS', '1.000,00');
+  await createNamedAccount(page, BANK, 'ARS', '10.000,00');
+  await createNamedAccount(page, DOLLARS, 'USD', '100,00');
+
+  // Transfer 200,00 from Caja to Banco. The picker offers only the other ARS account.
+  await openTwoAccountEntry(page, 'transfer', label(CASH, 'ARS'));
+  expect(await destinationOptions(page)).toEqual([
+    t.fields.destinationAccountPlaceholder,
+    label(BANK, 'ARS'),
+  ]);
+  await destinationPicker(page).selectOption({ label: label(BANK, 'ARS') });
+  await page.getByLabel(t.fields.amount, { exact: true }).fill('200,00');
+  await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(FIRST_OF_SEPTEMBER);
+  await submit(page).click();
+  // The saved notice sits above the fresh form. A transfer has no rate to show.
+  const savedNotice = page.getByRole('status').filter({ hasText: t.saved.title });
+  await expect(savedNotice).toBeVisible();
+  await expect(savedNotice).not.toContainText('ARS por USD');
+
+  // Exchange 6.000,00 ARS from Banco for 5,00 USD in Dólares: 1.200,0000 ARS per USD.
+  const impliedRate = formatRate(12_000_000n, 'es', 4);
+  await openTwoAccountEntry(page, 'exchange', label(BANK, 'ARS'));
+  expect(await destinationOptions(page)).toEqual([
+    t.fields.destinationAccountPlaceholder,
+    label(DOLLARS, 'USD'),
+  ]);
+  await destinationPicker(page).selectOption({ label: label(DOLLARS, 'USD') });
+  await page.getByLabel(t.fields.amountOut, { exact: true }).fill('6.000,00');
+  await page.getByLabel(t.fields.amountIn, { exact: true }).fill('5,00');
+  await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(SECOND_OF_SEPTEMBER);
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: t.exchange.impliedRate.replace('{rate}', impliedRate) }),
+  ).toBeVisible();
+  await submit(page).click();
+  await expect(
+    page
+      .getByRole('status')
+      .filter({ hasText: t.saved.title })
+      .filter({ hasText: t.saved.impliedRate.replace('{rate}', impliedRate) }),
+  ).toBeVisible();
+
+  const stored = await movementsOf(email);
+  expect(
+    stored.map((movement) => [
+      movement.type,
+      movement.amount,
+      movement.destinationAmount,
+      movement.destinationAccountName,
+      movement.rate,
+      movement.rateSource,
+    ]),
+  ).toEqual([
+    ['transfer', '20000', '20000', BANK, null, null],
+    ['exchange', '600000', '500', DOLLARS, '12000000', 'implied'],
+  ]);
+
+  // Newest first: the exchange (2 Sep) before the transfer (1 Sep).
+  await page.goto('/es/movements');
+  const rows = page.getByRole('listitem').filter({ hasText: BANK });
+  await expect(rows).toHaveCount(2);
+  await expect(rows.nth(0)).toContainText(t.list.exchangeTitle);
+  await expect(rows.nth(0)).toContainText(money(-600_000n));
+  await expect(rows.nth(0)).toContainText(`+${formatMoney(500n, 'USD', 'es')}`);
+  await expect(rows.nth(0)).toContainText(DOLLARS);
+  await expect(rows.nth(0)).toContainText(t.list.rate.replace('{rate}', impliedRate));
+  await expect(rows.nth(1)).toContainText(t.list.transferTitle);
+  await expect(rows.nth(1)).toContainText(money(-20_000n));
+  await expect(rows.nth(1)).toContainText(CASH);
+
+  // 1.000,00 - 200,00; 10.000,00 + 200,00 - 6.000,00; 100,00 + 5,00.
+  await page.goto('/es/accounts');
+  await expect(namedAccountRow(page, CASH)).toContainText(money(80_000n));
+  await expect(namedAccountRow(page, BANK)).toContainText(money(420_000n));
+  await expect(namedAccountRow(page, DOLLARS)).toContainText(formatMoney(10_500n, 'USD', 'es'));
+});
+
+test('a transfer between currencies and an exchange between equal currencies cannot be picked, and the API refuses them with their codes (AC-02, AC-04)', async ({
+  page,
+}) => {
+  const email = await signedInUser(page, 'movements-currency-rules');
+  await createNamedAccount(page, CASH, 'ARS', '1.000,00');
+  await createNamedAccount(page, BANK, 'ARS', '1.000,00');
+  await createNamedAccount(page, DOLLARS, 'USD', '100,00');
+
+  // The screen never offers a destination the rules would refuse.
+  await openTwoAccountEntry(page, 'transfer', label(CASH, 'ARS'));
+  expect(await destinationOptions(page)).not.toContain(label(DOLLARS, 'USD'));
+  await openTwoAccountEntry(page, 'exchange', label(CASH, 'ARS'));
+  expect(await destinationOptions(page)).not.toContain(label(BANK, 'ARS'));
+
+  // Submitting without a destination names the field.
+  await page.getByLabel(t.fields.amountOut, { exact: true }).fill('10,00');
+  await page.getByLabel(t.fields.amountIn, { exact: true }).fill('1,00');
+  await submit(page).click();
+  await expect(page.getByText(t.errors.destinationRequired)).toBeVisible();
+
+  // The server rules still hold for any other client.
+  allowedStatuses = [400];
+  const ids = await accountIds(page);
+  const occurredAt = new Date(Date.now() - 3_600_000).toISOString();
+  const mismatched = await page.request.post(`${API_URL}/movements`, {
+    headers: apiHeaders(),
+    data: {
+      type: 'transfer',
+      accountId: idOf(ids, CASH),
+      destinationAccountId: idOf(ids, DOLLARS),
+      amount: '1000',
+      occurredAt,
+    },
+  });
+  expect(mismatched.status()).toBe(400);
+  expect(await mismatched.json()).toMatchObject({ code: 'MOVEMENT_CURRENCY_MISMATCH' });
+  const sameCurrency = await page.request.post(`${API_URL}/movements`, {
+    headers: apiHeaders(),
+    data: {
+      type: 'exchange',
+      accountId: idOf(ids, CASH),
+      destinationAccountId: idOf(ids, BANK),
+      amount: '1000',
+      destinationAmount: '1000',
+      occurredAt,
+    },
+  });
+  expect(sameCurrency.status()).toBe(400);
+  expect(await sameCurrency.json()).toMatchObject({ code: 'EXCHANGE_SAME_CURRENCY' });
+
+  expect(await movementsOf(email)).toEqual([]);
+});
+
+test('a zero amount and a date of tomorrow are refused on a transfer and on an exchange and save nothing (AC-07)', async ({
+  page,
+}) => {
+  const email = await signedInUser(page, 'movements-two-accounts-invalid');
+  await createNamedAccount(page, CASH, 'ARS', '1.000,00');
+  await createNamedAccount(page, BANK, 'ARS', '1.000,00');
+  await createNamedAccount(page, DOLLARS, 'USD', '100,00');
+
+  await openTwoAccountEntry(page, 'transfer', label(CASH, 'ARS'));
+  await destinationPicker(page).selectOption({ label: label(BANK, 'ARS') });
+  await page.getByLabel(t.fields.amount, { exact: true }).fill('0');
+  await submit(page).click();
+  await expect(page.getByText(t.errors.amountNotPositive)).toBeVisible();
+
+  await page.getByLabel(t.fields.amount, { exact: true }).fill('10,00');
+  await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(tomorrowLocal());
+  await submit(page).click();
+  await expect(page.getByText(es.errors.movementDateInFuture)).toBeVisible();
+  await expect(page).toHaveURL(/\/es\/movements\/new$/);
+
+  await openTwoAccountEntry(page, 'exchange', label(BANK, 'ARS'));
+  await destinationPicker(page).selectOption({ label: label(DOLLARS, 'USD') });
+  await page.getByLabel(t.fields.amountOut, { exact: true }).fill('1.000,00');
+  await page.getByLabel(t.fields.amountIn, { exact: true }).fill('1,00');
+  await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(tomorrowLocal());
+  await submit(page).click();
+  await expect(page.getByText(es.errors.movementDateInFuture)).toBeVisible();
+  await expect(page).toHaveURL(/\/es\/movements\/new$/);
+
+  expect(await movementsOf(email)).toEqual([]);
+});
+
+test('an account of another user sent by API on a transfer answers 404 and the balances do not change (AC-09)', async ({
+  page,
+  browser,
+}) => {
+  const email = await signedInUser(page, 'movements-owner');
+  await createNamedAccount(page, CASH, 'ARS', '1.000,00');
+  await createNamedAccount(page, BANK, 'ARS', '500,00');
+
+  const otherContext = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
+  const other = await otherContext.newPage();
+  guard(other);
+  let foreignId: string;
+  try {
+    await signedInUser(other, 'movements-stranger');
+    await createNamedAccount(other, 'Ajena', 'ARS', '300,00');
+    foreignId = idOf(await accountIds(other), 'Ajena');
+  } finally {
+    await otherContext.close();
+  }
+
+  allowedStatuses = [404];
+  const ids = await accountIds(page);
+  const occurredAt = new Date(Date.now() - 3_600_000).toISOString();
+  const intoForeign = await page.request.post(`${API_URL}/movements`, {
+    headers: apiHeaders(),
+    data: {
+      type: 'transfer',
+      accountId: idOf(ids, CASH),
+      destinationAccountId: foreignId,
+      amount: '1000',
+      occurredAt,
+    },
+  });
+  expect(intoForeign.status()).toBe(404);
+  const fromForeign = await page.request.post(`${API_URL}/movements`, {
+    headers: apiHeaders(),
+    data: {
+      type: 'transfer',
+      accountId: foreignId,
+      destinationAccountId: idOf(ids, BANK),
+      amount: '1000',
+      occurredAt,
+    },
+  });
+  expect(fromForeign.status()).toBe(404);
+
+  expect(await movementsOf(email)).toEqual([]);
+  await page.goto('/es/accounts');
+  await expect(namedAccountRow(page, CASH)).toContainText(money(100_000n));
+  await expect(namedAccountRow(page, BANK)).toContainText(money(50_000n));
 });

@@ -106,6 +106,13 @@
       "when": 1790980568164,
       "tag": "0015_price_snapshots",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790991879498,
+      "tag": "0016_transfers_exchanges",
+      "breakpoints": true
     }
   ]
 }

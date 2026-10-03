@@ -20,6 +20,8 @@
       "seeAll": "Ver todos los movimientos",
       "income": "Ingreso",
       "expense": "Gasto",
+      "transfer": "Transferencia",
+      "exchange": "Cambio de moneda",
       "unknownAccount": "Cuenta desconocida",
       "unknownCategory": "Categoría desconocida",
       "empty": {
@@ -275,6 +277,10 @@
     "rateRequired": "Ingresa la cotización: no hay una guardada para usar.",
     "movementCategoryKindMismatch": "Esta categoría no coincide con el tipo de movimiento. Elige otra.",
     "categoryArchived": "Esta categoría está archivada, por eso no se puede usar. Desarchívala primero.",
+    "movementSameAccount": "El destino debe ser una cuenta distinta del origen.",
+    "movementCurrencyMismatch": "Una transferencia necesita dos cuentas de la misma moneda.",
+    "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
+    "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
     "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
   },
@@ -359,11 +365,13 @@
       "showMore": "Ver más",
       "rate": "Cotización: {rate} ARS por USD",
       "unknownAccount": "Cuenta desconocida",
+      "transferTitle": "Transferencia",
+      "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida"
     },
     "new": {
       "title": "Nuevo movimiento",
-      "description": "Registra un gasto o un ingreso."
+      "description": "Registra un gasto, un ingreso, una transferencia o un cambio de moneda."
     },
     "fields": {
       "type": "Tipo",
@@ -374,16 +382,29 @@
       "amount": "Monto",
       "occurredAt": "Fecha y hora",
       "rate": "Cotización (ARS por USD)",
-      "note": "Nota (opcional)"
+      "note": "Nota (opcional)",
+      "destinationAccount": "Cuenta de destino",
+      "destinationAccountPlaceholder": "Elige la cuenta de destino",
+      "destinationHintTransfer": "Necesitas otra cuenta activa de la misma moneda que la de origen.",
+      "destinationHintExchange": "Necesitas una cuenta activa en ARS y otra en USD.",
+      "amountOut": "Monto que sale",
+      "amountIn": "Monto que entra"
     },
     "types": {
       "expense": "Gasto",
-      "income": "Ingreso"
+      "income": "Ingreso",
+      "transfer": "Transferencia",
+      "exchange": "Cambio de moneda"
     },
     "rate": {
       "automatic": "Cotización {rateType} guardada. Edítala para usar la tuya.",
       "missing": "No hay una cotización guardada. Ingresa los ARS por USD de este movimiento.",
       "age": "Cotización de hace {hours} h"
+    },
+    "exchange": {
+      "impliedRate": "Cotización implícita: {rate} ARS por USD",
+      "impliedRateEmpty": "Ingresa ambos montos para ver la cotización implícita.",
+      "impliedRateOutOfRange": "Con esos montos la cotización queda fuera del rango permitido."
     },
     "form": {
       "submit": "Guardar movimiento",
@@ -393,7 +414,8 @@
     "saved": {
       "title": "Movimiento guardado",
       "rate": "Cotización usada: {rate} ARS por USD",
-      "back": "Volver a movimientos"
+      "back": "Volver a movimientos",
+      "impliedRate": "Cotización implícita: {rate} ARS por USD"
     },
     "errors": {
       "accountRequired": "Elige una cuenta.",
@@ -409,7 +431,9 @@
       "noteInvalidCharacters": "La nota contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo.",
       "accountArchived": "Esta cuenta está archivada. Desarchívala antes de registrar movimientos en ella.",
       "rateLimited": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en {seconds} s.",
-      "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en un momento."
+      "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en un momento.",
+      "destinationRequired": "Elige una cuenta de destino.",
+      "typeInvalid": "Elige un tipo de movimiento."
     }
   },
   "categories": {

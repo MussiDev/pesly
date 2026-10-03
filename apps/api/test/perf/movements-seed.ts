@@ -40,19 +40,29 @@ export async function seedDataset(pool: pg.Pool, ownerId: string): Promise<Seede
   );
   const expenseCategoryId = await insertCategory(pool, ownerId, 'expense');
   const incomeCategoryId = await insertCategory(pool, ownerId, 'income');
+  // One movement in ten is a transfer (g % 10 = 3, to the account two ahead: same currency) and
+  // one in ten an exchange (g % 10 = 7, to the next account: the other currency).
   await pool.query(
-    `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source)
+    `insert into movements (owner_id, type, account_id, category_id, destination_account_id,
+                            amount, destination_amount, occurred_at, rate, rate_source)
      select $1,
-            case when g % 2 = 0 then 'income' else 'expense' end,
+            case g % 10 when 3 then 'transfer' when 7 then 'exchange'
+                 else case when g % 2 = 0 then 'income' else 'expense' end end,
             a.id,
-            case when g % 2 = 0 then $4::uuid else $3::uuid end,
+            case when g % 10 in (3, 7) then null
+                 when g % 2 = 0 then $4::uuid else $3::uuid end,
+            d.id,
             ((g % 2000) + 1)::bigint * 100,
+            case when g % 10 in (3, 7) then ((g % 2000) + 1)::bigint * 100 end,
             now() - make_interval(secs => g),
-            14000000,
-            'manual'
+            case when g % 10 = 3 then null else 14000000 end,
+            case g % 10 when 3 then null when 7 then 'implied' else 'manual' end
        from generate_series(1, $2::int) as g
        join (select id, substring(name from 9)::int as n from accounts where owner_id = $1) a
-         on a.n = (g % $5::int) + 1`,
+         on a.n = (g % $5::int) + 1
+       left join (select id, substring(name from 9)::int as n from accounts where owner_id = $1) d
+         on d.n = case g % 10 when 3 then ((g % $5::int) + 2) % $5::int + 1
+                              when 7 then ((g % $5::int) + 1) % $5::int + 1 end`,
     [ownerId, MOVEMENTS, expenseCategoryId, incomeCategoryId, ACCOUNTS],
   );
   await pool.query('analyze movements');
@@ -80,10 +90,16 @@ export async function removeDataset(pool: pg.Pool, ownerId: string): Promise<voi
 export function expectedBalance(n: number): bigint {
   let sum = BigInt(n) * 100n;
   for (let g = 1; g <= MOVEMENTS; g += 1) {
-    if (g % ACCOUNTS === n - 1) {
-      const amount = BigInt((g % 2000) + 1) * 100n;
-      sum += g % 2 === 0 ? amount : -amount;
-    }
+    const amount = BigInt((g % 2000) + 1) * 100n;
+    const source = (g % ACCOUNTS) + 1;
+    const kind = g % 10;
+    const isTransferOrExchange = kind === 3 || kind === 7;
+    if (source === n) sum += !isTransferOrExchange && g % 2 === 0 ? amount : -amount;
+    // The destination is two accounts ahead for a transfer and one ahead for an exchange.
+    const destination = isTransferOrExchange
+      ? (((g % ACCOUNTS) + (kind === 3 ? 2 : 1)) % ACCOUNTS) + 1
+      : 0;
+    if (destination === n) sum += amount;
   }
   return sum;
 }

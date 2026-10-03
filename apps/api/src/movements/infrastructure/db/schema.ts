@@ -38,8 +38,10 @@ const AMOUNT_MAX_LITERAL = sql.raw(MOVEMENT_AMOUNT_MAX_MINOR_UNITS.toString());
 const RATE_MAX_LITERAL = sql.raw(RATE_MAX_SCALED.toString());
 
 /**
- * Expenses and income. The account and category keys are composite so that the database also
- * enforces the owner of the account and that the category kind equals the movement type.
+ * Expenses, income, transfers and exchanges, one row each. The account, destination and category
+ * keys are composite so that the database also enforces the owner of the accounts and that the
+ * category kind equals the movement type. A transfer or exchange has no category (a null column
+ * skips a MATCH SIMPLE key), a destination account and amount, and only an exchange has a rate.
  */
 export const movements = pgTable(
   'movements',
@@ -50,16 +52,24 @@ export const movements = pgTable(
       .references(() => users.id, { onDelete: 'cascade' }),
     type: text('type', { enum: MOVEMENT_TYPES }).notNull(),
     accountId: uuid('account_id').notNull(),
-    categoryId: uuid('category_id').notNull(),
-    /** Positive minor units of the account's currency. */
+    /** Null for transfers and exchanges. */
+    categoryId: uuid('category_id'),
+    /** Positive minor units of the (source) account's currency. */
     amount: bigint('amount', { mode: 'bigint' }).notNull(),
     /** The UTC instant; screens show it in the user's time zone. */
     occurredAt: timestamptz('occurred_at').notNull(),
     note: text('note'),
-    /** ARS per USD scaled by 10,000, frozen when the movement is recorded; never joined to exchange_rates. */
-    rate: bigint('rate', { mode: 'bigint' }).notNull(),
-    rateSource: text('rate_source', { enum: MOVEMENT_RATE_SOURCES }).notNull(),
+    /**
+     * ARS per USD scaled by 10,000, frozen when the movement is recorded; never joined to
+     * exchange_rates. Null for transfers; implied by the two amounts for exchanges.
+     */
+    rate: bigint('rate', { mode: 'bigint' }),
+    rateSource: text('rate_source', { enum: MOVEMENT_RATE_SOURCES }),
     rateType: text('rate_type', { enum: RATE_TYPES }),
+    /** The receiving account of a transfer or exchange; null for expenses and income. */
+    destinationAccountId: uuid('destination_account_id'),
+    /** Minor units of the destination account's currency; equals `amount` for a transfer. */
+    destinationAmount: bigint('destination_amount', { mode: 'bigint' }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },
@@ -74,6 +84,11 @@ export const movements = pgTable(
       columns: [table.categoryId, table.ownerId, table.type],
       foreignColumns: [categories.id, categories.ownerId, categories.kind],
     }).onDelete('restrict'),
+    foreignKey({
+      name: 'movements_destination_owner_fk',
+      columns: [table.destinationAccountId, table.ownerId],
+      foreignColumns: [accounts.id, accounts.ownerId],
+    }).onDelete('restrict'),
     check('movements_type_check', oneOf(table.type, MOVEMENT_TYPES)),
     check('movements_amount_range_check', sql`${table.amount} between 1 and ${AMOUNT_MAX_LITERAL}`),
     check(
@@ -85,6 +100,20 @@ export const movements = pgTable(
       sql`char_length(${table.note}) <= ${sql.raw(String(MOVEMENT_NOTE_MAX_LENGTH))}`,
     ),
     check('movements_rate_range_check', sql`${table.rate} between 1 and ${RATE_MAX_LITERAL}`),
+    check(
+      'movements_destination_amount_range_check',
+      sql`${table.destinationAmount} between 1 and ${AMOUNT_MAX_LITERAL}`,
+    ),
+    check(
+      'movements_destination_differs_check',
+      sql`${table.destinationAccountId} <> ${table.accountId}`,
+    ),
+    // The three allowed shapes; the currencies of the two accounts are checked by the use case.
+    // A check passes on null, so each column a shape relies on is also guarded with `is not null`.
+    check(
+      'movements_shape_check',
+      sql`(${table.type} in ('expense', 'income') and ${table.categoryId} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} in ('automatic', 'manual') and ${table.destinationAccountId} is null and ${table.destinationAmount} is null) or (${table.type} = 'transfer' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.destinationAmount} = ${table.amount} and ${table.rate} is null and ${table.rateSource} is null and ${table.rateType} is null) or (${table.type} = 'exchange' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} = 'implied' and ${table.rateType} is null)`,
+    ),
     check('movements_rate_source_check', oneOf(table.rateSource, MOVEMENT_RATE_SOURCES)),
     // A null rate type passes (a check on null is not violated); the pairing check below ties it to the source.
     check('movements_rate_type_check', oneOf(table.rateType, RATE_TYPES)),
@@ -96,6 +125,7 @@ export const movements = pgTable(
     index('movements_owner_date_idx').on(table.ownerId, table.occurredAt.desc(), table.id.desc()),
     index('movements_account_idx').on(table.accountId),
     index('movements_category_idx').on(table.categoryId),
+    index('movements_destination_idx').on(table.destinationAccountId),
   ],
 );
 

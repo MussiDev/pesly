@@ -59,6 +59,8 @@ function movement(n: number, type: 'expense' | 'income' = 'expense', accountId =
     type,
     accountId,
     categoryId: 'c1',
+    destinationAccountId: null,
+    destinationAmount: null,
     amount: String(n * 100),
     occurredAt: `2026-10-0${String(n)}T12:00:00.000Z`,
     note: `Note ${String(n)}`,

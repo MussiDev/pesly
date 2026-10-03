@@ -179,16 +179,31 @@ export async function withAgedRates<T>(hours: number, work: () => Promise<T>): P
 export interface StoredMovement {
   type: string;
   amount: string;
-  rate: string;
-  rateSource: string;
+  /** `null` for a transfer. */
+  rate: string | null;
+  /** `null` for a transfer; `implied` for an exchange. */
+  rateSource: string | null;
+  /** Transfers and exchanges only. */
+  destinationAccountName: string | null;
+  /** Exchanges only: the amount that entered the destination account. */
+  destinationAmount: string | null;
+}
+
+function nullableText(value: unknown): string | null {
+  // Every selected column is text in SQL, so anything else is a SQL null.
+  return typeof value === 'string' ? value : null;
 }
 
 /** The movements saved for `email`, oldest first, with the rate frozen on each. */
 export async function movementsOf(email: string): Promise<StoredMovement[]> {
   const { rows } = await withE2eDatabase((client) =>
     client.query(
-      `select m.type, m.amount::text as amount, m.rate::text as rate, m.rate_source as rate_source
-         from movements m join users u on u.id = m.owner_id
+      `select m.type, m.amount::text as amount, m.rate::text as rate, m.rate_source as rate_source,
+              d.name as destination_account_name,
+              m.destination_amount::text as destination_amount
+         from movements m
+         join users u on u.id = m.owner_id
+         left join accounts d on d.id = m.destination_account_id
         where u.email = $1
         order by m.created_at, m.id`,
       [email],
@@ -197,7 +212,9 @@ export async function movementsOf(email: string): Promise<StoredMovement[]> {
   return rows.map((row) => ({
     type: String(row.type),
     amount: String(row.amount),
-    rate: String(row.rate),
-    rateSource: String(row.rate_source),
+    rate: nullableText(row.rate),
+    rateSource: nullableText(row.rate_source),
+    destinationAccountName: nullableText(row.destination_account_name),
+    destinationAmount: nullableText(row.destination_amount),
   }));
 }
