@@ -27,7 +27,7 @@ const ALL_TABLES = [...EARLIER_TABLES, 'holdings', 'portfolios'].sort();
 // Migrations applied after 0013 are rolled back first, so 0013 can be the one re-applied; the
 // migrator replays everything not recorded, so they come back with it.
 // Oldest first; rolled back newest first by journal `when`.
-const LATER_MIGRATIONS = ['0014_movements', '0015_price_snapshots'];
+const LATER_MIGRATIONS = ['0014_movements', '0015_price_snapshots', '0016_transfers_exchanges'];
 const PRICE_TABLES = [
   'crypto_market_prices',
   'crypto_price_refresh_failures',

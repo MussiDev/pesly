@@ -10,6 +10,12 @@ import { movements } from './schema';
 
 const ACCOUNT_KEY = 'movements_account_owner_fk';
 const CATEGORY_KEY = 'movements_category_owner_kind_fk';
+const DESTINATION_KEY = 'movements_destination_owner_fk';
+const NOT_FOUND_KEYS: readonly (string | undefined)[] = [
+  ACCOUNT_KEY,
+  CATEGORY_KEY,
+  DESTINATION_KEY,
+];
 
 const columns = {
   id: movements.id,
@@ -23,18 +29,106 @@ const columns = {
   rate: movements.rate,
   rateSource: movements.rateSource,
   rateType: movements.rateType,
+  destinationAccountId: movements.destinationAccountId,
+  destinationAmount: movements.destinationAmount,
   createdAt: movements.createdAt,
 };
+
+/** A row as the database returns it: every column of the union, the optional ones nullable. */
+export type MovementRow = Pick<typeof movements.$inferSelect, keyof typeof columns>;
 
 const inScope = (scope: AccessScope) => scopedTo(scope, { owner: movements.ownerId });
 
 /**
- * An account or category that vanished between the read and the insert is a not-found, never a
- * 500. Any other violation (the key to users, a check) is rethrown as it is.
+ * An account, destination or category that vanished between the read and the insert is a
+ * not-found, never a 500. Any other violation (the key to users, a check) is rethrown as it is.
  */
 function asNotFound(error: unknown): unknown {
   const key = violatedConstraint(error, '23503');
-  return key === ACCOUNT_KEY || key === CATEGORY_KEY ? new ResourceNotFound() : error;
+  return NOT_FOUND_KEYS.includes(key) ? new ResourceNotFound() : error;
+}
+
+function inconsistent(row: MovementRow): Error {
+  // The id is enough to find the row; no amount or account goes into the message.
+  return new Error(`Movement ${row.id} has an inconsistent shape for its type "${row.type}"`);
+}
+
+/**
+ * Maps a stored row to the variant of its type. The shape check keeps the database consistent, so
+ * a row that does not fit its type is a programming error (a missed migration), never returned.
+ */
+export function toMovement(row: MovementRow): Movement {
+  const base = {
+    id: row.id,
+    ownerId: row.ownerId,
+    accountId: row.accountId,
+    amount: row.amount,
+    occurredAt: row.occurredAt,
+    note: row.note,
+    createdAt: row.createdAt,
+  };
+  switch (row.type) {
+    case 'expense':
+    case 'income': {
+      if (
+        row.categoryId === null ||
+        row.rate === null ||
+        row.rateSource === null ||
+        row.rateSource === 'implied' ||
+        row.destinationAccountId !== null ||
+        row.destinationAmount !== null
+      ) {
+        throw inconsistent(row);
+      }
+      return {
+        ...base,
+        type: row.type,
+        categoryId: row.categoryId,
+        rate: row.rate,
+        rateSource: row.rateSource,
+        rateType: row.rateType,
+      };
+    }
+    case 'transfer': {
+      if (
+        row.categoryId !== null ||
+        row.destinationAccountId === null ||
+        row.destinationAmount === null ||
+        row.rate !== null ||
+        row.rateSource !== null ||
+        row.rateType !== null
+      ) {
+        throw inconsistent(row);
+      }
+      return {
+        ...base,
+        type: 'transfer',
+        destinationAccountId: row.destinationAccountId,
+        destinationAmount: row.destinationAmount,
+      };
+    }
+    case 'exchange': {
+      if (
+        row.categoryId !== null ||
+        row.destinationAccountId === null ||
+        row.destinationAmount === null ||
+        row.rate === null ||
+        row.rateSource !== 'implied' ||
+        row.rateType !== null
+      ) {
+        throw inconsistent(row);
+      }
+      return {
+        ...base,
+        type: 'exchange',
+        destinationAccountId: row.destinationAccountId,
+        destinationAmount: row.destinationAmount,
+        rate: row.rate,
+        rateSource: 'implied',
+        rateType: null,
+      };
+    }
+  }
 }
 
 /** The list statement, exposed so a test can ask the planner about it. */
@@ -59,6 +153,8 @@ export class DrizzleMovementRepository implements MovementRepository {
   constructor(private readonly db: Database) {}
 
   async insert(scope: AccessScope<'write'>, data: NewMovement): Promise<Movement> {
+    // A note that is empty after trimming carries no information.
+    const note = data.note === null || data.note.trim() === '' ? null : data.note;
     try {
       const [row] = await this.db
         .insert(movements)
@@ -67,18 +163,19 @@ export class DrizzleMovementRepository implements MovementRepository {
           ownerId: scope.userId,
           type: data.type,
           accountId: data.accountId,
-          categoryId: data.categoryId,
+          categoryId: 'categoryId' in data ? data.categoryId : null,
           amount: data.amount,
           occurredAt: data.occurredAt,
-          // A note that is empty after trimming carries no information.
-          note: data.note === null || data.note.trim() === '' ? null : data.note,
-          rate: data.rate,
-          rateSource: data.rateSource,
-          rateType: data.rateType,
+          note,
+          rate: 'rate' in data ? data.rate : null,
+          rateSource: 'rateSource' in data ? data.rateSource : null,
+          rateType: 'rateType' in data ? data.rateType : null,
+          destinationAccountId: 'destinationAccountId' in data ? data.destinationAccountId : null,
+          destinationAmount: 'destinationAmount' in data ? data.destinationAmount : null,
         })
         .returning(columns);
       if (!row) throw new Error('Inserting a movement returned no row');
-      return row;
+      return toMovement(row);
     } catch (error) {
       throw asNotFound(error);
     }
@@ -89,9 +186,9 @@ export class DrizzleMovementRepository implements MovementRepository {
     options: { limit: number; offset: number },
   ): Promise<{ items: Movement[]; total: number }> {
     const where = inScope(scope);
-    const items = await listMovementsQuery(this.db, scope, options);
+    const rows = await listMovementsQuery(this.db, scope, options);
     const [totalRow] = await this.db.select({ total: count() }).from(movements).where(where);
-    return { items, total: totalRow?.total ?? 0 };
+    return { items: rows.map(toMovement), total: totalRow?.total ?? 0 };
   }
 
   async findById(scope: AccessScope, id: string): Promise<Movement | null> {
@@ -100,6 +197,6 @@ export class DrizzleMovementRepository implements MovementRepository {
       .from(movements)
       .where(and(eq(movements.id, id), inScope(scope)))
       .limit(1);
-    return row ?? null;
+    return row ? toMovement(row) : null;
   }
 }

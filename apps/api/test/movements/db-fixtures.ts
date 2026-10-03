@@ -42,11 +42,12 @@ export async function newAccount(
   pool: pg.Pool,
   ownerId: string,
   archived = false,
+  currency: 'ARS' | 'USD' = 'ARS',
 ): Promise<string> {
   const result = await pool.query<{ id: string }>(
     `insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available, archived_at)
-     values ($1, $2, 'cash', 'ARS', 0, true, $3) returning id`,
-    [ownerId, `Caja ${randomUUID()}`, archived ? new Date() : null],
+     values ($1, $2, 'cash', $4, 0, true, $3) returning id`,
+    [ownerId, `Caja ${randomUUID()}`, archived ? new Date() : null, currency],
   );
   return firstId(result.rows);
 }
@@ -84,6 +85,44 @@ export async function newMovement(
       fixture.accountId,
       fixture.categoryId,
       fixture.amount.toString(),
+    ],
+  );
+}
+
+/** A raw transfer row: no category, no rate, the destination amount equals the amount. */
+export async function newTransfer(
+  pool: pg.Pool,
+  fixture: { ownerId: string; accountId: string; destinationAccountId: string; amount: bigint },
+): Promise<void> {
+  await pool.query(
+    `insert into movements (owner_id, type, account_id, destination_account_id, amount, destination_amount, occurred_at)
+     values ($1, 'transfer', $2, $3, $4, $4, now())`,
+    [fixture.ownerId, fixture.accountId, fixture.destinationAccountId, fixture.amount.toString()],
+  );
+}
+
+/** A raw exchange row with its implied rate and no category. */
+export async function newExchange(
+  pool: pg.Pool,
+  fixture: {
+    ownerId: string;
+    accountId: string;
+    destinationAccountId: string;
+    amount: bigint;
+    destinationAmount: bigint;
+    rate: bigint;
+  },
+): Promise<void> {
+  await pool.query(
+    `insert into movements (owner_id, type, account_id, destination_account_id, amount, destination_amount, occurred_at, rate, rate_source)
+     values ($1, 'exchange', $2, $3, $4, $5, now(), $6, 'implied')`,
+    [
+      fixture.ownerId,
+      fixture.accountId,
+      fixture.destinationAccountId,
+      fixture.amount.toString(),
+      fixture.destinationAmount.toString(),
+      fixture.rate.toString(),
     ],
   );
 }

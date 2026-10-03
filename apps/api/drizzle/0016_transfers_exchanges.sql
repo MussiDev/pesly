@@ -1,0 +1,14 @@
+ALTER TABLE "movements" DROP CONSTRAINT "movements_type_check";--> statement-breakpoint
+ALTER TABLE "movements" DROP CONSTRAINT "movements_rate_source_check";--> statement-breakpoint
+ALTER TABLE "movements" ALTER COLUMN "category_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "movements" ALTER COLUMN "rate" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "movements" ALTER COLUMN "rate_source" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "movements" ADD COLUMN "destination_account_id" uuid;--> statement-breakpoint
+ALTER TABLE "movements" ADD COLUMN "destination_amount" bigint;--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_destination_owner_fk" FOREIGN KEY ("destination_account_id","owner_id") REFERENCES "public"."accounts"("id","owner_id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "movements_destination_idx" ON "movements" USING btree ("destination_account_id");--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_destination_amount_range_check" CHECK ("movements"."destination_amount" between 1 and 1000000000000000);--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_destination_differs_check" CHECK ("movements"."destination_account_id" <> "movements"."account_id");--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_shape_check" CHECK (("movements"."type" in ('expense', 'income') and "movements"."category_id" is not null and "movements"."rate" is not null and "movements"."rate_source" is not null and "movements"."rate_source" in ('automatic', 'manual') and "movements"."destination_account_id" is null and "movements"."destination_amount" is null) or ("movements"."type" = 'transfer' and "movements"."category_id" is null and "movements"."destination_account_id" is not null and "movements"."destination_amount" is not null and "movements"."destination_amount" = "movements"."amount" and "movements"."rate" is null and "movements"."rate_source" is null and "movements"."rate_type" is null) or ("movements"."type" = 'exchange' and "movements"."category_id" is null and "movements"."destination_account_id" is not null and "movements"."destination_amount" is not null and "movements"."rate" is not null and "movements"."rate_source" is not null and "movements"."rate_source" = 'implied' and "movements"."rate_type" is null));--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_type_check" CHECK ("movements"."type" in ('expense', 'income', 'transfer', 'exchange'));--> statement-breakpoint
+ALTER TABLE "movements" ADD CONSTRAINT "movements_rate_source_check" CHECK ("movements"."rate_source" in ('automatic', 'manual', 'implied'));

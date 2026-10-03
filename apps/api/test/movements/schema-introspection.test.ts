@@ -66,17 +66,18 @@ describe('movements schema introspection', () => {
     const result = await connection.pool.query<{ column_name: string; data_type: string }>(
       `select column_name, data_type from information_schema.columns
         where table_schema = 'public' and table_name = 'movements'
-          and column_name in ('amount', 'rate', 'occurred_at')`,
+          and column_name in ('amount', 'rate', 'occurred_at', 'destination_amount')`,
     );
     const types = Object.fromEntries(result.rows.map((row) => [row.column_name, row.data_type]));
     expect(types).toEqual({
       amount: 'bigint',
+      destination_amount: 'bigint',
       rate: 'bigint',
       occurred_at: 'timestamp with time zone',
     });
   });
 
-  it('has the three foreign keys of movements with the expected actions', async () => {
+  it('has the four foreign keys of movements with the expected actions', async () => {
     const keys = await foreignKeys('movements');
     expect(
       keys.map((key) => [
@@ -100,6 +101,13 @@ describe('movements schema introspection', () => {
         'categories',
         ['category_id', 'owner_id', 'type'],
         ['id', 'owner_id', 'kind'],
+        'r',
+      ],
+      [
+        'movements_destination_owner_fk',
+        'accounts',
+        ['destination_account_id', 'owner_id'],
+        ['id', 'owner_id'],
         'r',
       ],
       ['movements_owner_id_users_id_fk', 'users', ['owner_id'], ['id'], 'c'],
@@ -133,6 +141,7 @@ describe('movements schema introspection', () => {
       expect.arrayContaining([
         'movements_account_idx',
         'movements_category_idx',
+        'movements_destination_idx',
         'movements_owner_date_idx',
       ]),
     );

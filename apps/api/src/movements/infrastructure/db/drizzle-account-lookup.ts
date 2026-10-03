@@ -8,10 +8,14 @@ import { accounts } from './foreign-relations';
 export class DrizzleAccountLookup implements AccountLookup {
   constructor(private readonly db: Database) {}
 
-  /** Id and archived state only, filtered by the scope in the same statement. */
+  /** Id, archived state and currency, filtered by the scope in the same statement. */
   async find(scope: AccessScope, id: string): Promise<AccountReference | null> {
     const [row] = await this.db
-      .select({ id: accounts.id, archived: sql<boolean>`${accounts.archivedAt} is not null` })
+      .select({
+        id: accounts.id,
+        archived: sql<boolean>`${accounts.archivedAt} is not null`,
+        currency: accounts.currency,
+      })
       .from(accounts)
       .where(and(eq(accounts.id, id), scopedTo(scope, { owner: accounts.ownerId })))
       .limit(1);
