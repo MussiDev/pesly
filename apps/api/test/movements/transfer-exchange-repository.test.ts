@@ -177,6 +177,7 @@ describe('transfers and exchanges in the repository', () => {
       destinationAmount: big,
       occurredAt: new Date('2026-10-02T15:30:00.000Z'),
       note: 'ahorro',
+      tags: [],
       createdAt: sent.createdAt,
     });
     expect(changed).toEqual({
@@ -192,6 +193,7 @@ describe('transfers and exchanges in the repository', () => {
       rateType: null,
       occurredAt: new Date('2026-10-01T03:00:00.001Z'),
       note: null,
+      tags: [],
       createdAt: changed.createdAt,
     });
     expect(typeof changed.amount).toBe('bigint');
