@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, sql, type SQL } from 'drizzle-orm';
+import { and, eq, gte, lt, or, sql, type SQL } from 'drizzle-orm';
 import type { MovementFilters } from '../../domain/movement';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
@@ -13,7 +13,15 @@ import { movementTags, tags } from './tags-schema';
  */
 export function movementConditions(scope: AccessScope, filters: MovementFilters): SQL {
   const conditions: SQL[] = [scopedTo(scope, { owner: movements.ownerId })];
-  if (filters.accountId !== undefined) conditions.push(eq(movements.accountId, filters.accountId));
+  if (filters.accountId !== undefined) {
+    // A transfer or exchange INTO the account belongs to its history as much as one out of it.
+    conditions.push(
+      or(
+        eq(movements.accountId, filters.accountId),
+        eq(movements.destinationAccountId, filters.accountId),
+      ) ?? sql`false`,
+    );
+  }
   if (filters.type !== undefined) conditions.push(eq(movements.type, filters.type));
   if (filters.occurredFrom !== undefined) {
     conditions.push(gte(movements.occurredAt, filters.occurredFrom));

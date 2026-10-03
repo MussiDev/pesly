@@ -7,7 +7,15 @@ import type {
 } from '../../src/movements/application/ports/movement-repository';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { newAccount, newCategory, newUserId, readScope, writeScope } from './db-fixtures';
+import {
+  newAccount,
+  newCategory,
+  newExchange,
+  newTransfer,
+  newUserId,
+  readScope,
+  writeScope,
+} from './db-fixtures';
 
 let connection: DatabaseConnection;
 let repository: DrizzleMovementRepository;
@@ -249,5 +257,77 @@ describe('movement list filters', () => {
     });
     expect(page.total).toBe(5);
     expect(page.items.map((m) => m.occurredAt.getTime())).toEqual([base + 3000, base + 2000]);
+  });
+});
+
+describe('account filter and transfers or exchanges into the account', () => {
+  it('lists a transfer and an exchange whose destination is the filtered account, and not an unrelated one', async () => {
+    const o = await owner();
+    const usd = await newAccount(connection.pool, o.ownerId, false, 'USD');
+    const third = await newAccount(connection.pool, o.ownerId);
+    const scope = await writeScope(o.ownerId);
+    const expense = await repository.insert(scope, data(o));
+    await newTransfer(connection.pool, {
+      ownerId: o.ownerId,
+      accountId: o.otherAccountId,
+      destinationAccountId: o.accountId,
+      amount: 200n,
+    });
+    await newExchange(connection.pool, {
+      ownerId: o.ownerId,
+      accountId: third,
+      destinationAccountId: o.accountId,
+      amount: 10n,
+      destinationAmount: 15_000n,
+      rate: 15_000_000n,
+    });
+    await newTransfer(connection.pool, {
+      ownerId: o.ownerId,
+      accountId: o.otherAccountId,
+      destinationAccountId: third,
+      amount: 5n,
+    });
+    await newExchange(connection.pool, {
+      ownerId: o.ownerId,
+      accountId: o.accountId,
+      destinationAccountId: usd,
+      amount: 15_000n,
+      destinationAmount: 10n,
+      rate: 15_000_000n,
+    });
+
+    const result = await listFor(o.ownerId, { accountId: o.accountId });
+
+    expect(result.total).toBe(4);
+    expect(result.items.map((m) => m.type).sort()).toEqual([
+      'exchange',
+      'exchange',
+      'expense',
+      'transfer',
+    ]);
+    expect(result.items.some((m) => m.id === expense.id)).toBe(true);
+    expect(
+      result.items.filter((m) => 'destinationAccountId' in m && m.destinationAccountId === third),
+    ).toEqual([]);
+    const intoOnly = await listFor(o.ownerId, { accountId: usd });
+    expect(intoOnly.items.map((m) => m.type)).toEqual(['exchange']);
+    const typed = await listFor(o.ownerId, { accountId: o.accountId, type: 'transfer' });
+    expect(typed.total).toBe(1);
+  });
+
+  it("does not match another user's account as a destination either", async () => {
+    const mine = await owner();
+    const theirs = await owner();
+    await newTransfer(connection.pool, {
+      ownerId: theirs.ownerId,
+      accountId: theirs.otherAccountId,
+      destinationAccountId: theirs.accountId,
+      amount: 1n,
+    });
+
+    expect(await listFor(mine.ownerId, { accountId: theirs.accountId })).toEqual({
+      items: [],
+      total: 0,
+    });
   });
 });

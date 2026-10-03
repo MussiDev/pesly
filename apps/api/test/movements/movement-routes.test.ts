@@ -18,7 +18,7 @@ import {
 } from '../helpers/session-client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { trustedHeaders, WEB_ORIGIN } from '../helpers/test-env';
-import { newAccount, newCategory } from './db-fixtures';
+import { newAccount, newCategory, newExchange, newTransfer } from './db-fixtures';
 
 let connection: DatabaseConnection;
 
@@ -620,6 +620,46 @@ describe('tags and filters through the real stack', () => {
     };
     expect(await idsFor('expense')).toEqual([movementResponseSchema.parse(expense.body).id]);
     expect(await idsFor('income')).toEqual([movementResponseSchema.parse(income.body).id]);
+  });
+
+  it('the account filter also lists transfers and exchanges into that account, never another users', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const usd = await newAccount(connection.pool, s.anaId, false, 'USD');
+    const other = await newAccount(connection.pool, s.anaId);
+    const unrelated = await newAccount(connection.pool, s.anaId);
+    const expense = await post(s.app, expenseBody(f), s.ana);
+    await newTransfer(connection.pool, {
+      ownerId: s.anaId,
+      accountId: other,
+      destinationAccountId: f.accountId,
+      amount: 100n,
+    });
+    await newExchange(connection.pool, {
+      ownerId: s.anaId,
+      accountId: usd,
+      destinationAccountId: f.accountId,
+      amount: 10n,
+      destinationAmount: 15_000n,
+      rate: 15_000_000n,
+    });
+    await newTransfer(connection.pool, {
+      ownerId: s.anaId,
+      accountId: other,
+      destinationAccountId: unrelated,
+      amount: 1n,
+    });
+
+    const own = await get(s.app, `/movements?accountId=${f.accountId}`, s.ana);
+    expect(own.status).toBe(200);
+    const page = listMovementsResponseSchema.parse(own.body);
+    expect(page.total).toBe(3);
+    expect(page.items.map((item) => item.type).sort()).toEqual(['exchange', 'expense', 'transfer']);
+    expect(
+      page.items.some((item) => item.id === movementResponseSchema.parse(expense.body).id),
+    ).toBe(true);
+    const foreign = await get(s.app, `/movements?accountId=${f.accountId}`, s.bob);
+    expect(listMovementsResponseSchema.parse(foreign.body)).toMatchObject({ items: [], total: 0 });
   });
 
   it('reads from and to as days in the callers time zone, not UTC (AC-01)', async () => {

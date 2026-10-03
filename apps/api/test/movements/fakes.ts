@@ -72,7 +72,12 @@ export class InMemoryMovementRepository implements MovementRepository {
     // A parent category is not modelled here: the category filter is an exact match.
     const own = this.rows
       .filter((row) => row.ownerId === scope.userId)
-      .filter((row) => filters.accountId === undefined || row.accountId === filters.accountId)
+      .filter(
+        (row) =>
+          filters.accountId === undefined ||
+          row.accountId === filters.accountId ||
+          ('destinationAccountId' in row && row.destinationAccountId === filters.accountId),
+      )
       .filter(
         (row) =>
           filters.categoryId === undefined ||
