@@ -13,7 +13,7 @@ import {
   zonedLocalToInstant,
   type MovementType,
 } from '@pesly/shared';
-import type { CreateMovementInput } from '@/lib/api-client';
+import type { CreateMovementInput, UpdateMovementInput } from '@/lib/api-client';
 import type { MovementFormValues } from './components/movement-form';
 import {
   tagErrorMessage,
@@ -48,8 +48,26 @@ export interface MovementRequestContext {
   defaultRate: string;
 }
 
+/**
+ * Present when editing: the references the movement already has. An archived one among them is
+ * still accepted, and an untouched rate field means "keep the stored rate".
+ */
+export interface MovementEditReferences {
+  accountId?: string;
+  destinationAccountId?: string;
+  categoryId?: string;
+}
+
+export interface EditMovementRequestContext extends MovementRequestContext {
+  edit: MovementEditReferences;
+}
+
 export type MovementRequestResult =
   | { request: CreateMovementInput; fields?: undefined }
+  | { request?: undefined; fields: FieldErrors };
+
+export type EditMovementRequestResult =
+  | { request: UpdateMovementInput; fields?: undefined }
   | { request?: undefined; fields: FieldErrors };
 
 function toMovementType(value: string): MovementType | undefined {
@@ -77,21 +95,33 @@ function parseAmountField(
  */
 export function buildMovementRequest(
   values: MovementFormValues,
+  context: EditMovementRequestContext,
+): EditMovementRequestResult;
+export function buildMovementRequest(
+  values: MovementFormValues,
   context: MovementRequestContext,
-): MovementRequestResult {
-  const { accounts, categories, timeZone, locale, now } = context;
+): MovementRequestResult;
+export function buildMovementRequest(
+  values: MovementFormValues,
+  context: MovementRequestContext & { edit?: MovementEditReferences },
+): MovementRequestResult | EditMovementRequestResult {
+  const { accounts, categories, timeZone, locale, now, edit } = context;
   const type = toMovementType(values.type);
   if (type === undefined) return { fields: { type: 'movements.errors.typeInvalid' } };
   const categorized = type === 'expense' || type === 'income';
   const fields: FieldErrors = {};
 
-  const account = accounts.find((item) => item.id === values.accountId && !item.archived);
+  const account = accounts.find(
+    (item) => item.id === values.accountId && (!item.archived || item.id === edit?.accountId),
+  );
   if (account === undefined) fields.account = 'movements.errors.accountRequired';
 
   let destinationId: string | undefined;
   if (!categorized) {
     const destination = accounts.find(
-      (item) => item.id === values.destinationAccountId && !item.archived,
+      (item) =>
+        item.id === values.destinationAccountId &&
+        (!item.archived || item.id === edit?.destinationAccountId),
     );
     if (destination === undefined)
       fields.destinationAccount = 'movements.errors.destinationRequired';
@@ -107,7 +137,10 @@ export function buildMovementRequest(
 
   const category = categorized
     ? categories.find(
-        (item) => item.id === values.categoryId && !item.archived && item.kind === type,
+        (item) =>
+          item.id === values.categoryId &&
+          (!item.archived || item.id === edit?.categoryId) &&
+          item.kind === type,
       )
     : undefined;
   if (categorized && category === undefined) fields.category = 'movements.errors.categoryRequired';
@@ -135,9 +168,11 @@ export function buildMovementRequest(
     } else occurredAt = instant.toISOString();
   }
 
-  let rate: Extract<CreateMovementInput, { type: 'expense' }>['rate'] | undefined;
+  let rate: Extract<UpdateMovementInput, { type: 'expense' }>['rate'] | undefined;
   if (categorized) {
-    if (!values.rateEdited && context.defaultRate !== '') {
+    if (!values.rateEdited && edit !== undefined) {
+      rate = { source: 'keep' };
+    } else if (!values.rateEdited && context.defaultRate !== '') {
       rate = { source: 'automatic' };
     } else if (values.rate.trim() === '') {
       fields.rate = 'movements.errors.rateRequired';

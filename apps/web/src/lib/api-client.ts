@@ -30,6 +30,7 @@ import {
   type CategoryResponse,
   type createAccountRequestSchema,
   type createMovementRequestSchema,
+  type updateMovementRequestSchema,
   type LatestRatesResponse,
   type ListMovementsQuery,
   type ListMovementsResponse,
@@ -216,6 +217,9 @@ export type ListCategoriesParams = Partial<
 /** What the entry screen sends to create a movement: the body of `POST /movements`. */
 export type CreateMovementInput = z.input<typeof createMovementRequestSchema>;
 
+/** What the edit screen sends: the body of `PUT /movements/:id`; the rate may also be `keep`. */
+export type UpdateMovementInput = z.input<typeof updateMovementRequestSchema>;
+
 /** Paging and the optional filters of `GET /movements`; whatever is undefined is not sent. */
 export type ListMovementsParams = Partial<
   Pick<
@@ -310,6 +314,10 @@ export interface ApiClient {
   setHoldingAutomaticPrice(holdingId: string): Promise<ApiResult<HoldingResponse>>;
   deleteHolding(holdingId: string): Promise<ApiResult<undefined>>;
   createMovement(body: CreateMovementInput): Promise<ApiResult<MovementResponse>>;
+  getMovement(id: string): Promise<ApiResult<MovementResponse>>;
+  /** A full replacement: what the body omits (note, tags) is cleared. */
+  updateMovement(id: string, body: UpdateMovementInput): Promise<ApiResult<MovementResponse>>;
+  deleteMovement(id: string): Promise<ApiResult<undefined>>;
   listMovements(query: ListMovementsParams): Promise<ApiResult<ListMovementsResponse>>;
   /** The caller's stored tags that start with `prefix`, for suggestions. */
   listTags(query: ListTagsParams): Promise<ApiResult<TagSuggestionsResponse>>;
@@ -419,6 +427,14 @@ export function createApiClient({
     build: (path: string) => Promise<ApiResult<T>>,
   ): Promise<ApiResult<T>> {
     const path = resourcePath('categories', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onMovement<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('movements', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
   }
 
@@ -751,6 +767,34 @@ export function createApiClient({
         response: movementResponseSchema,
         refreshOnUnauthenticated: true,
       }),
+    getMovement: (id) =>
+      onMovement(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: movementResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateMovement: (id, body) =>
+      onMovement(id, (path) =>
+        request({
+          method: 'PUT',
+          path,
+          body,
+          response: movementResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteMovement: (id) =>
+      onMovement(id, (path) =>
+        request({
+          method: 'DELETE',
+          path,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
     listMovements: (params) => {
       const query = new URLSearchParams();
       for (const key of LIST_MOVEMENTS_QUERY_KEYS) {

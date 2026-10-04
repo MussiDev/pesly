@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { MovementFormValues } from '../src/features/movements/components/movement-form';
 import {
   buildMovementRequest,
+  type EditMovementRequestContext,
   type MovementRequestContext,
 } from '../src/features/movements/movement-request';
 import { impliedRatePreview } from '../src/features/movements/implied-rate-preview';
@@ -312,5 +313,85 @@ describe('impliedRatePreview (AC-05, AC-14, AC-15)', () => {
     ['two accounts of the same currency', { destinationAccountId: 'ars2' }],
   ])('is empty with %s', (_name, overrides) => {
     expect(impliedRatePreview(input(overrides), accounts, 'en')).toEqual({ kind: 'empty' });
+  });
+});
+
+describe('buildMovementRequest in edit mode (DISC-001-03e Block 6)', () => {
+  const expense = (overrides: Partial<MovementFormValues> = {}) =>
+    values({ type: 'expense', categoryId: COMIDA, destinationAccountId: undefined, ...overrides });
+  const editing = (
+    overrides: Partial<EditMovementRequestContext> = {},
+  ): EditMovementRequestContext => ({
+    ...context(),
+    edit: { accountId: CAJA, categoryId: COMIDA },
+    ...overrides,
+  });
+
+  it('keeps the stored rate while the rate field is untouched, even with a default rate (FR-01)', () => {
+    expect(buildMovementRequest(expense(), editing()).request).toMatchObject({
+      type: 'expense',
+      rate: { source: 'keep' },
+    });
+  });
+
+  it('sends a manual rate once the user edited it (FR-01)', () => {
+    const result = buildMovementRequest(expense({ rateEdited: true, rate: '1.300,25' }), editing());
+
+    expect(result.request).toMatchObject({ rate: { source: 'manual', value: '13002500' } });
+  });
+
+  it('never builds keep when creating (FR-01)', () => {
+    expect(buildMovementRequest(expense(), context()).request).toMatchObject({
+      rate: { source: 'automatic' },
+    });
+  });
+
+  it('keeps an archived account the movement already uses but refuses switching to one (FR-01)', () => {
+    const same = buildMovementRequest(
+      expense({ accountId: VIEJA }),
+      editing({ edit: { accountId: VIEJA, categoryId: COMIDA } }),
+    );
+    const other = buildMovementRequest(expense({ accountId: VIEJA }), editing());
+
+    expect(same.request).toMatchObject({ accountId: VIEJA });
+    expect(other.fields).toEqual({ account: 'movements.errors.accountRequired' });
+  });
+
+  it('keeps an archived category the movement already uses (FR-01)', () => {
+    const archived = [{ id: COMIDA, kind: 'expense' as const, archived: true }];
+
+    const same = buildMovementRequest(expense(), editing({ categories: archived }));
+    const other = buildMovementRequest(
+      expense(),
+      editing({ categories: archived, edit: { accountId: CAJA } }),
+    );
+
+    expect(same.request).toMatchObject({ categoryId: COMIDA });
+    expect(other.fields).toEqual({ category: 'movements.errors.categoryRequired' });
+  });
+
+  it('rejects a date after today and an amount of 0 and builds no request (FR-04, AC-05)', () => {
+    const late = buildMovementRequest(expense({ occurredAt: '2026-10-03T12:00' }), editing());
+    const zero = buildMovementRequest(expense({ amount: '0' }), editing());
+
+    expect(late.request).toBeUndefined();
+    expect(late.fields).toEqual({ occurredAt: 'errors.movementDateInFuture' });
+    expect(zero.request).toBeUndefined();
+    expect(zero.fields).toEqual({ amount: 'movements.errors.amountNotPositive' });
+  });
+
+  it('builds an edited transfer without a rate (FR-01)', () => {
+    const result = buildMovementRequest(
+      values({ destinationAccountId: BANCO }),
+      editing({ edit: { accountId: CAJA, destinationAccountId: BANCO } }),
+    );
+
+    expect(result.request).toEqual({
+      type: 'transfer',
+      accountId: CAJA,
+      destinationAccountId: BANCO,
+      amount: '100000',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+    });
   });
 });

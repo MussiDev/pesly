@@ -334,3 +334,95 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     }
   });
 });
+
+describe('api client: edit and delete movements (DISC-001-03e Block 6)', () => {
+  it('getMovement gets /movements/:id and parses the movement (AC-01)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(200, MOVEMENT));
+
+    const result = await client.getMovement(MOVEMENT.id);
+
+    expect(result).toEqual({ ok: true, data: MOVEMENT });
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements/${MOVEMENT.id}`);
+    expect(requestAt(fetch, 0).init.method).toBe('GET');
+  });
+
+  it('updateMovement puts the body to /movements/:id and parses the movement (AC-01)', async () => {
+    const edited = { ...MOVEMENT, amount: '9000', note: 'fixed' };
+    const { client, fetch } = clientWith(jsonResponse(200, edited));
+    const body = {
+      type: 'expense',
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      amount: '9000',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      note: 'fixed',
+      rate: { source: 'keep' },
+    } as const;
+
+    const result = await client.updateMovement(MOVEMENT.id, body);
+
+    expect(result).toEqual({ ok: true, data: edited });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/movements/${MOVEMENT.id}`);
+    expect(init.method).toBe('PUT');
+    expect(init.credentials).toBe('include');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
+  it('deleteMovement sends DELETE to /movements/:id and resolves on 204 (AC-02)', async () => {
+    const { client, fetch } = clientWith(new Response(null, { status: 204 }));
+
+    const result = await client.deleteMovement(MOVEMENT.id);
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements/${MOVEMENT.id}`);
+    expect(requestAt(fetch, 0).init.method).toBe('DELETE');
+  });
+
+  it('maps a future date and an immutable type error of updateMovement to their message keys (FR-04)', async () => {
+    const { client } = clientWith(
+      jsonResponse(400, { code: 'MOVEMENT_DATE_IN_FUTURE' }),
+      jsonResponse(409, { code: 'MOVEMENT_TYPE_IMMUTABLE' }),
+    );
+    const body = {
+      type: 'expense',
+      accountId: ACCOUNT_ID,
+      categoryId: CATEGORY_ID,
+      amount: '9000',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'automatic' },
+    } as const;
+
+    expect(await client.updateMovement(MOVEMENT.id, body)).toMatchObject({
+      ok: false,
+      code: 'MOVEMENT_DATE_IN_FUTURE',
+      messageKey: 'movementDateInFuture',
+    });
+    expect(await client.updateMovement(MOVEMENT.id, body)).toMatchObject({
+      ok: false,
+      code: 'MOVEMENT_TYPE_IMMUTABLE',
+      messageKey: 'movementTypeImmutable',
+    });
+  });
+
+  it('a 404 from deleteMovement is a failed result, not an exception (AC-03)', async () => {
+    const { client } = clientWith(jsonResponse(404, { code: 'NOT_FOUND' }));
+
+    const result = await client.deleteMovement(MOVEMENT.id);
+
+    expect(result).toMatchObject({ ok: false, code: 'NOT_FOUND', messageKey: 'unexpected' });
+  });
+
+  it('refuses an id that is not a plain path segment without calling the network (error path)', async () => {
+    const { client, fetch } = clientWith();
+
+    for (const id of ['', '.', '..']) {
+      expect(await client.getMovement(id)).toMatchObject({ ok: false, code: 'VALIDATION_FAILED' });
+      expect(await client.deleteMovement(id)).toMatchObject({
+        ok: false,
+        code: 'VALIDATION_FAILED',
+      });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});
