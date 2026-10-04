@@ -4,6 +4,8 @@ export const MOVEMENT_TAG_MAX_LENGTH = 30;
 export const MOVEMENT_TAGS_MAX_COUNT = 10;
 export const TAG_SUGGESTIONS_MAX_LIMIT = 20;
 export const TAG_SUGGESTIONS_DEFAULT_LIMIT = 10;
+export const LIST_TAGS_MAX_LIMIT = 100;
+export const LIST_TAGS_DEFAULT_LIMIT = 50;
 
 const CONTROL_OR_FORMAT_CHARACTER = /[\p{Cc}\p{Cf}]/u;
 
@@ -64,3 +66,24 @@ export const tagSuggestionsResponseSchema = z.object({
   items: z.array(z.string()),
 });
 export type TagSuggestionsResponse = z.infer<typeof tagSuggestionsResponseSchema>;
+
+/**
+ * `GET /tags/all`: every tag of the caller, one page at a time, for the copy kept on the device.
+ * The suggestions route above stays the one for typing; this one lists.
+ */
+export const listTagsQuerySchema = z.object({
+  limit: queryInteger(z.coerce.number().int().min(1).max(LIST_TAGS_MAX_LIMIT)).default(
+    LIST_TAGS_DEFAULT_LIMIT,
+  ),
+  offset: queryInteger(z.coerce.number().int().min(0)).default(0),
+});
+export type ListTagsQuery = z.infer<typeof listTagsQuerySchema>;
+
+export const listTagsResponseSchema = z.object({
+  /** The stored spellings, alphabetical without regard to case. */
+  items: z.array(z.string()),
+  total: z.number().int().min(0),
+  limit: z.number().int().min(1).max(LIST_TAGS_MAX_LIMIT),
+  offset: z.number().int().min(0),
+});
+export type ListTagsResponse = z.infer<typeof listTagsResponseSchema>;
