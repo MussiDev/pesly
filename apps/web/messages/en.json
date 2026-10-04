@@ -281,6 +281,7 @@
     "movementCurrencyMismatch": "A transfer needs two accounts in the same currency.",
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
+    "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },

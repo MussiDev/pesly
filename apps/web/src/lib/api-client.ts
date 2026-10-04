@@ -112,7 +112,8 @@ export type ApiErrorKey =
   | 'movementSameAccount'
   | 'movementCurrencyMismatch'
   | 'exchangeSameCurrency'
-  | 'impliedRateOutOfRange';
+  | 'impliedRateOutOfRange'
+  | 'movementTypeImmutable';
 
 /** `NETWORK`: the request never got an HTTP answer (offline, DNS, CORS, aborted). */
 export type ApiFailureCode = ErrorCode | 'NETWORK';
@@ -165,6 +166,7 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   MOVEMENT_CURRENCY_MISMATCH: 'movementCurrencyMismatch',
   EXCHANGE_SAME_CURRENCY: 'exchangeSameCurrency',
   IMPLIED_RATE_OUT_OF_RANGE: 'impliedRateOutOfRange',
+  MOVEMENT_TYPE_IMMUTABLE: 'movementTypeImmutable',
 };
 
 /** `null` when the id is not a plain path segment: '.' and '..' survive encoding and would be normalized. */

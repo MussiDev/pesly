@@ -281,6 +281,7 @@
     "movementCurrencyMismatch": "Una transferencia necesita dos cuentas de la misma moneda.",
     "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
+    "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
     "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
   },
