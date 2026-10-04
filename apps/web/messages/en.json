@@ -391,6 +391,11 @@
       "title": "New movement",
       "description": "Record an expense, an income, a transfer or a currency exchange."
     },
+    "edit": {
+      "title": "Edit movement",
+      "description": "Change what you need. Your balances update on their own.",
+      "notFound": "This movement does not exist or is no longer there."
+    },
     "fields": {
       "type": "Type",
       "account": "Account",
@@ -417,6 +422,7 @@
     "rate": {
       "automatic": "Stored {rateType} rate. Edit it to use your own.",
       "missing": "There is no stored rate. Enter the ARS per USD rate for this movement.",
+      "kept": "This movement keeps its own stored rate. Edit it only to use a different one.",
       "age": "Rate from {hours} h ago"
     },
     "exchange": {
@@ -426,6 +432,7 @@
     },
     "form": {
       "submit": "Save movement",
+      "save": "Save changes",
       "pending": "Saving…",
       "back": "Back to movements"
     },

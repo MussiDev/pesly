@@ -45,6 +45,9 @@ export interface MovementFormValues {
   tags?: string[];
 }
 
+/** The values an edit starts from: what the form shows before the user touches anything. */
+export type MovementFormInitialValues = Omit<MovementFormValues, 'rateEdited'>;
+
 /** What the tag slot receives: the form owns the chosen tags, the slot renders the field. */
 export interface TagFieldControl {
   value: string[];
@@ -78,6 +81,9 @@ export interface MovementFormProps {
   previewRate?: (input: ImpliedRatePreviewInput) => ImpliedRatePreview;
   /** Renders the tag field; the screen's container supplies it so the form stays presentational. */
   renderTagField?: (control: TagFieldControl) => ReactNode;
+  /** `edit` fills the form from `initialValues`, locks the type and keeps the stored rate until edited. */
+  mode?: 'create' | 'edit';
+  initialValues?: MovementFormInitialValues;
   onSubmit: (values: MovementFormValues) => void;
 }
 
@@ -96,23 +102,27 @@ export function MovementForm({
   errors,
   previewRate,
   renderTagField,
+  mode = 'create',
+  initialValues,
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
   const formRef = useRef<HTMLFormElement>(null);
-  const [type, setType] = useState<MovementType>('expense');
+  const [type, setType] = useState<MovementType>(toMovementType(initialValues?.type ?? 'expense'));
   const [rateEdited, setRateEdited] = useState(false);
-  const [sourceId, setSourceId] = useState('');
-  const [destinationId, setDestinationId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [destinationAmount, setDestinationAmount] = useState('');
+  const [sourceId, setSourceId] = useState(initialValues?.accountId ?? '');
+  const [destinationId, setDestinationId] = useState(initialValues?.destinationAccountId ?? '');
+  const [amount, setAmount] = useState(initialValues?.amount ?? '');
+  const [destinationAmount, setDestinationAmount] = useState(
+    initialValues?.destinationAmount ?? '',
+  );
   const categorized = type === 'expense' || type === 'income';
   const source = accounts.find((account) => account.id === sourceId);
   const destinations = destinationsFor(type, source, accounts);
   const showDestinationHint =
     !categorized &&
     (source === undefined ? !hasDestinationPair(type, accounts) : destinations.length === 0);
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(initialValues?.tags ?? []);
 
   // After a failed submit, focus the first invalid field so its message is announced with it.
   useEffect(() => {
@@ -154,8 +164,10 @@ export function MovementForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle as="h1">{t('new.title')}</CardTitle>
-        <CardDescription>{t('new.description')}</CardDescription>
+        <CardTitle as="h1">{t(mode === 'edit' ? 'edit.title' : 'new.title')}</CardTitle>
+        <CardDescription>
+          {t(mode === 'edit' ? 'edit.description' : 'new.description')}
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
@@ -163,7 +175,13 @@ export function MovementForm({
           <RateLimitAlert rateLimit={errors.rateLimit} />
           <MovementField label={t('fields.type')} error={errors.fields?.type}>
             {(control) => (
-              <Select name="type" value={type} onChange={handleTypeChange} {...control}>
+              <Select
+                name="type"
+                value={type}
+                disabled={mode === 'edit'}
+                onChange={handleTypeChange}
+                {...control}
+              >
                 {MOVEMENT_TYPES.map((value) => (
                   <option key={value} value={value}>
                     {t(`types.${value}`)}
@@ -176,7 +194,7 @@ export function MovementForm({
             {(control) => (
               <Select
                 name="accountId"
-                defaultValue=""
+                defaultValue={initialValues?.accountId ?? ''}
                 required
                 onChange={handleSourceChange}
                 {...control}
@@ -209,7 +227,12 @@ export function MovementForm({
                 <Select
                   key={`${type}:${sourceId}`}
                   name="destinationAccountId"
-                  defaultValue=""
+                  // The stored destination only fits the stored source; another source starts empty.
+                  defaultValue={
+                    sourceId === initialValues?.accountId
+                      ? (initialValues.destinationAccountId ?? '')
+                      : ''
+                  }
                   required
                   onChange={(event) => {
                     setDestinationId(event.currentTarget.value);
@@ -230,7 +253,13 @@ export function MovementForm({
             <MovementField label={t('fields.category')} error={errors.fields?.category}>
               {(control) => (
                 // Keyed by type so the picked category resets when the type changes.
-                <Select key={type} name="categoryId" defaultValue="" required {...control}>
+                <Select
+                  key={type}
+                  name="categoryId"
+                  defaultValue={initialValues?.categoryId ?? ''}
+                  required
+                  {...control}
+                >
                   <option value="">{t('fields.categoryPlaceholder')}</option>
                   {categories
                     .filter((category) => category.kind === type)
@@ -250,6 +279,7 @@ export function MovementForm({
             {(control) => (
               <MoneyInput
                 name="amount"
+                defaultValue={initialValues?.amount}
                 required
                 onChange={(event) => {
                   setAmount(event.currentTarget.value);
@@ -264,6 +294,7 @@ export function MovementForm({
                 {(control) => (
                   <MoneyInput
                     name="destinationAmount"
+                    defaultValue={initialValues?.destinationAmount}
                     required
                     onChange={(event) => {
                       setDestinationAmount(event.currentTarget.value);
@@ -289,7 +320,7 @@ export function MovementForm({
               <Input
                 name="occurredAt"
                 type="datetime-local"
-                defaultValue={defaultOccurredAt}
+                defaultValue={initialValues?.occurredAt ?? defaultOccurredAt}
                 required
                 {...control}
               />
@@ -297,7 +328,8 @@ export function MovementForm({
           </MovementField>
           {categorized ? (
             <RateField
-              defaultValue={defaultRate}
+              defaultValue={initialValues?.rate ?? defaultRate}
+              kept={mode === 'edit'}
               rateType={rateType}
               ageHours={rateAgeHours}
               error={errors.fields?.rate}
@@ -307,13 +339,21 @@ export function MovementForm({
             />
           ) : null}
           <MovementField label={t('fields.note')} error={errors.fields?.note}>
-            {(control) => <Input name="note" type="text" autoComplete="off" {...control} />}
+            {(control) => (
+              <Input
+                name="note"
+                type="text"
+                autoComplete="off"
+                defaultValue={initialValues?.note}
+                {...control}
+              />
+            )}
           </MovementField>
           {categorized
             ? renderTagField?.({ value: tags, onChange: setTags, error: errors.fields?.tags })
             : null}
           <Button type="submit" disabled={pending}>
-            {pending ? t('form.pending') : t('form.submit')}
+            {pending ? t('form.pending') : t(mode === 'edit' ? 'form.save' : 'form.submit')}
           </Button>
           <Link href="/movements" className={buttonVariants({ variant: 'ghost' })}>
             {t('form.back')}

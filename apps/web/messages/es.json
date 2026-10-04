@@ -391,6 +391,11 @@
       "title": "Nuevo movimiento",
       "description": "Registra un gasto, un ingreso, una transferencia o un cambio de moneda."
     },
+    "edit": {
+      "title": "Editar movimiento",
+      "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
+      "notFound": "Este movimiento no existe o ya no está."
+    },
     "fields": {
       "type": "Tipo",
       "account": "Cuenta",
@@ -417,6 +422,7 @@
     "rate": {
       "automatic": "Cotización {rateType} guardada. Edítala para usar la tuya.",
       "missing": "No hay una cotización guardada. Ingresa los ARS por USD de este movimiento.",
+      "kept": "Este movimiento conserva su propia cotización guardada. Edítala solo para usar otra.",
       "age": "Cotización de hace {hours} h"
     },
     "exchange": {
@@ -426,6 +432,7 @@
     },
     "form": {
       "submit": "Guardar movimiento",
+      "save": "Guardar cambios",
       "pending": "Guardando…",
       "back": "Volver a movimientos"
     },
