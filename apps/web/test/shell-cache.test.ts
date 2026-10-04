@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   acceptedCacheUrls,
   isCacheableDocument,
+  isFrameworkFetch,
   shouldServeFromCache,
   warmUrls,
 } from '../src/lib/service-worker/shell-cache';
@@ -102,5 +103,34 @@ describe('warmUrls and acceptedCacheUrls', () => {
 
   it('normalizes a path with dot segments instead of trusting it as written (FR-04)', () => {
     expect(acceptedCacheUrls(['/es/../en/movements'], ORIGIN)).toEqual(['/en/movements']);
+  });
+});
+
+describe('isFrameworkFetch', () => {
+  const rsc = `${ORIGIN}/es/accounts?_rsc=abc123`;
+
+  it('recognizes a same-origin RSC read, which the worker answers without the network (NFR-02)', () => {
+    expect(isFrameworkFetch({ method: 'GET', url: rsc, origin: ORIGIN })).toBe(true);
+  });
+
+  it('never matches a cross-origin request, the API above all', () => {
+    expect(
+      isFrameworkFetch({
+        method: 'GET',
+        url: 'https://api.pesly.test/accounts?_rsc=abc',
+        origin: ORIGIN,
+      }),
+    ).toBe(false);
+  });
+
+  it('ignores writes and plain fetches without the RSC marker', () => {
+    expect(isFrameworkFetch({ method: 'POST', url: rsc, origin: ORIGIN })).toBe(false);
+    expect(isFrameworkFetch({ method: 'GET', url: `${ORIGIN}/es/accounts`, origin: ORIGIN })).toBe(
+      false,
+    );
+  });
+
+  it('rejects an invalid URL instead of throwing', () => {
+    expect(isFrameworkFetch({ method: 'GET', url: 'not a url', origin: ORIGIN })).toBe(false);
   });
 });

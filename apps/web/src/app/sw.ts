@@ -2,7 +2,11 @@
 import { Serwist, type PrecacheEntry, type SerwistGlobalConfig } from 'serwist';
 import { cacheRequestedUrls } from '../lib/service-worker/cache-urls';
 import { CACHE_URLS_MESSAGE } from '../lib/service-worker/warmup';
-import { isCacheableDocument, shouldServeFromCache } from '../lib/service-worker/shell-cache';
+import {
+  isCacheableDocument,
+  isFrameworkFetch,
+  shouldServeFromCache,
+} from '../lib/service-worker/shell-cache';
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -54,6 +58,15 @@ async function handleNavigation(request: Request): Promise<Response> {
 
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  // Prefetches of the framework are dropped without a failed request when there is no connection,
+  // whether the browser reports it or the fetch only finds out by failing.
+  if (
+    isFrameworkFetch({ method: request.method, url: request.url, origin: self.location.origin })
+  ) {
+    const empty = () => new Response(null, { status: 204 });
+    event.respondWith(self.navigator.onLine ? fetch(request).catch(empty) : empty());
+    return;
+  }
   // Only page loads of this origin: scripts and styles come from the precache, and every request
   // to another origin (the API above all) is left alone.
   if (request.mode !== 'navigate' || request.method !== 'GET') return;

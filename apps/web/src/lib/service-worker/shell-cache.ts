@@ -21,6 +21,26 @@ export function shouldServeFromCache(request: NavigationRequest): boolean {
   return request.mode === 'navigate' && request.method === 'GET' && !request.online;
 }
 
+/**
+ * Next.js prefetches the screens its links point to with `?_rsc=` fetches. Without a connection
+ * those would fail for nothing: the worker answers them with an empty response, the prefetch is
+ * dropped quietly, and a click falls back to a page load that the page cache can serve (NFR-02).
+ * Only same-origin reads qualify; the API origin is never touched.
+ */
+export function isFrameworkFetch(request: {
+  method: string;
+  url: string;
+  origin: string;
+}): boolean {
+  if (request.method !== 'GET') return false;
+  try {
+    const url = new URL(request.url);
+    return url.origin === request.origin && url.searchParams.has('_rsc');
+  } catch {
+    return false;
+  }
+}
+
 /** The parts of a `Response` the cache looks at. */
 export interface DocumentResponse {
   status: number;

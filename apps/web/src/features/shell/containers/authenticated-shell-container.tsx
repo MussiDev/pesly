@@ -95,8 +95,9 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         void signOut();
       }}
     >
-      {storageDenied ? <StorageWarning /> : null}
       {children}
+      {/* After the content: it arrives late and must not push the screen down (NFR-03). */}
+      {storageDenied ? <StorageWarning /> : null}
     </AuthenticatedShell>
   );
 }

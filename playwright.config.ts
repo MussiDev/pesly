@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const isCI = Boolean(process.env.CI);
+/** The service worker only exists in a production build; this runs the web app as CI does. */
+const productionBuild = isCI || process.env.E2E_PRODUCTION_BUILD === '1';
 const WEB_URL = 'http://localhost:3000';
 const API_URL = 'http://localhost:4000';
 
@@ -94,11 +96,12 @@ export default defineConfig({
       env: WORKER_ENV,
     },
     {
-      command: isCI
+      command: productionBuild
         ? 'pnpm --filter @pesly/web build && pnpm --filter @pesly/web start'
         : 'pnpm --filter @pesly/web dev',
       url: `${WEB_URL}/es`,
-      reuseExistingServer: !isCI,
+      // A dev server cannot stand in for the production build the offline flows need.
+      reuseExistingServer: !productionBuild,
       timeout: 180_000,
       env: {
         API_ORIGIN: API_URL,
