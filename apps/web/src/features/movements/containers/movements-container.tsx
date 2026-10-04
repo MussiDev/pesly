@@ -14,6 +14,13 @@ import { categoryLabel, compareCategories } from '@/features/categories/category
 import { useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
+import { useOnlineStatus } from '@/lib/connectivity';
+import {
+  readRecentMovementsCopy,
+  readReferenceCopy,
+  writeRecentMovementsCopy,
+} from '@/lib/local-store/device-copy';
+import { readSessionPointer } from '@/lib/local-store/session-pointer';
 import {
   MovementFilters,
   type FilterAccountOption,
@@ -42,6 +49,8 @@ interface ReferenceData {
   timeZone: string;
   accounts: AccountResponse[];
   categories: CategoryResponse[];
+  /** Built from the copy kept on the device: only the active accounts and categories. */
+  offline: boolean;
 }
 
 type ReferenceState = MovementsLoadState | { kind: 'ready'; data: ReferenceData };
@@ -52,6 +61,8 @@ interface ReadyList {
   total: number;
   /** The filters this page was loaded with: "show more" keeps asking with these. */
   filtersKey: string;
+  /** The movements come from the copy kept on the device, not from the API. */
+  fromCopy?: boolean;
 }
 
 type ListState = MovementsLoadState | ReadyList;
@@ -117,6 +128,7 @@ function filtersFromKey(key: string): MovementFilterValues {
 export function MovementsContainer() {
   const api = useApiClient();
   const router = useRouter();
+  const online = useOnlineStatus();
   const locale = useLocale();
   const tFilters = useTranslations('movements.filters');
   const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
@@ -178,6 +190,29 @@ export function MovementsContainer() {
     // A function, not the variable: TypeScript would narrow `active` to `true` across the awaits.
     const isActive = () => active;
     void (async () => {
+      const copyUser = readSessionPointer()?.userId;
+      const showCopy = async (): Promise<boolean> => {
+        const copy = await readReferenceCopy(copyUser);
+        if (!isActive()) return true;
+        if (copy === null) return false;
+        setReference({
+          kind: 'ready',
+          data: {
+            timeZone: copy.preferences.timeZone,
+            accounts: copy.accounts,
+            categories: copy.categories,
+            offline: true,
+          },
+        });
+        return true;
+      };
+      if (!online) {
+        // No request while offline: the copy of the last online visit is the only source.
+        if (!(await showCopy()) && isActive()) {
+          setReference({ kind: 'failed', error: 'offlineNoCopy' });
+        }
+        return;
+      }
       const [profile, activeAccounts, archivedAccounts, activeCategories, archivedCategories] =
         await Promise.all([
           api.getProfile(),
@@ -224,6 +259,9 @@ export function MovementsContainer() {
           return;
         }
       }
+      const networkFailed = results.some((result) => !result.ok && result.code === 'NETWORK');
+      if (networkFailed && (await showCopy())) return;
+      if (!isActive()) return;
       for (const result of results) {
         if (!result.ok) {
           setReference({ kind: 'failed', error: result.messageKey });
@@ -245,13 +283,14 @@ export function MovementsContainer() {
           timeZone: profile.data.preferences.timeZone,
           accounts: [...activeAccounts.data, ...archivedAccounts.data],
           categories: [...activeCategories.data, ...archivedCategories.data],
+          offline: false,
         },
       });
     })();
     return () => {
       active = false;
     };
-  }, [api, router, referenceAttempt]);
+  }, [api, router, referenceAttempt, online]);
 
   // Only the list reloads when a filter changes; the bar and the reference data stay as they are.
   useEffect(() => {
@@ -272,6 +311,27 @@ export function MovementsContainer() {
     // A function, not the variable: TypeScript would narrow `live` to `true` across the await.
     const isLive = () => live;
     void (async () => {
+      const copyUser = readSessionPointer()?.userId;
+      const showSaved = async (): Promise<boolean> => {
+        const saved = await readRecentMovementsCopy(copyUser);
+        if (!isLive()) return true;
+        if (saved === null) return false;
+        setList({
+          kind: 'ready',
+          movements: saved,
+          total: saved.length,
+          filtersKey,
+          fromCopy: true,
+        });
+        return true;
+      };
+      if (!online) {
+        // No request while offline: the saved movements are shown, whatever the filters say.
+        if (!(await showSaved()) && isLive()) {
+          setList({ kind: 'failed', error: 'offlineNoCopy' });
+        }
+        return;
+      }
       const first = await api.listMovements({ limit: PAGE_SIZE, ...filtersToListParams(active) });
       if (!isLive()) return;
       if (first.ok) {
@@ -281,8 +341,14 @@ export function MovementsContainer() {
           total: first.data.total,
           filtersKey,
         });
+        // Only the newest page of an unfiltered list is the copy to keep.
+        if (filtersKey === '' && copyUser !== undefined) {
+          void writeRecentMovementsCopy(copyUser, first.data.items);
+        }
       } else if (first.code === 'UNAUTHENTICATED') {
         router.replace('/sign-in');
+      } else if (first.code === 'NETWORK' && (await showSaved())) {
+        // The saved movements are on screen.
       } else {
         setList({ kind: 'failed', error: first.messageKey });
       }
@@ -290,7 +356,7 @@ export function MovementsContainer() {
     return () => {
       live = false;
     };
-  }, [api, router, filtersKey, listAttempt]);
+  }, [api, router, filtersKey, listAttempt, online]);
 
   async function remove(id: string) {
     if (deleting) return;
@@ -373,6 +439,7 @@ export function MovementsContainer() {
     );
   }
 
+  const viewingCopy = list.kind === 'ready' && list.fromCopy === true;
   const lookups = {
     accounts: indexById(reference.data.accounts),
     categories: indexById(reference.data.categories),
@@ -433,13 +500,15 @@ export function MovementsContainer() {
           rangeInvalid={rangeInvalid}
           onChange={applyFilters}
           onClear={clearFilters}
+          disabled={viewingCopy}
           firstControlRef={firstFilterRef}
           renderTagField={({ value, onChange }) => (
             <TagInputContainer value={value} onChange={onChange} />
           )}
         />
       }
-      filtersActive={hasActiveFilters(filters)}
+      filtersActive={!viewingCopy && hasActiveFilters(filters)}
+      offlineNotice={viewingCopy}
       onClearFilters={clearFilters}
       loadState={list.kind === 'ready' ? undefined : list}
       onRetry={() => {

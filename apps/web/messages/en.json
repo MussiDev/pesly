@@ -371,6 +371,7 @@
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
       "tags": "Tags",
+      "offlineNotice": "You are offline: showing your 100 most recent movements. Filters are off until you reconnect.",
       "actions": {
         "edit": "Edit",
         "delete": "Delete",

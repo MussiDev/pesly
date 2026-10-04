@@ -371,6 +371,7 @@
       "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida",
       "tags": "Etiquetas",
+      "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
       "actions": {
         "edit": "Editar",
         "delete": "Eliminar",

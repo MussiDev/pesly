@@ -18,13 +18,8 @@ import { useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
-import {
-  loadReferenceData,
-  saveReferenceData,
-  type ReferenceData,
-} from '@/lib/local-store/reference-cache';
+import { readReferenceCopy, writeReferenceCopy } from '@/lib/local-store/device-copy';
 import { readSessionPointer } from '@/lib/local-store/session-pointer';
-import { openLocalStore } from '@/lib/local-store/stores';
 
 /** The API's largest page; the loader keeps asking until `total` is reached. */
 const PAGE_SIZE = 100;
@@ -65,35 +60,6 @@ async function loadAll<T>(
 function merge<T>(open: ApiResult<T[]>, archived: ApiResult<T[]> | undefined): ApiResult<T[]> {
   if (!open.ok || archived === undefined) return open;
   return archived.ok ? { ok: true, data: [...open.data, ...archived.data] } : archived;
-}
-
-/** The copy kept for this user, or `null`: no user known, nothing saved, or the store unavailable. */
-async function readCopy(userId: string | undefined): Promise<ReferenceData | null> {
-  if (userId === undefined) return null;
-  try {
-    const store = await openLocalStore(userId);
-    try {
-      return await loadReferenceData(store);
-    } finally {
-      store.close();
-    }
-  } catch {
-    // An unavailable or broken store is the same as no copy; the screen says to connect once.
-    return null;
-  }
-}
-
-async function writeCopy(userId: string, data: ReferenceData): Promise<void> {
-  try {
-    const store = await openLocalStore(userId);
-    try {
-      await saveReferenceData(store, data);
-    } finally {
-      store.close();
-    }
-  } catch {
-    // The copy is a convenience: failing to keep it must never break a screen that just loaded.
-  }
 }
 
 interface FormDataSource {
@@ -153,7 +119,7 @@ export function useMovementFormData({
       const copyUser = includeArchived ? undefined : readSessionPointer()?.userId;
 
       const showCopy = async (): Promise<boolean> => {
-        const copy = await readCopy(copyUser);
+        const copy = await readReferenceCopy(copyUser);
         if (!isActive()) return true;
         if (copy === null) return false;
         setState({ kind: 'ready', data: buildFormData({ ...copy, locale, offline: true }) });
@@ -230,7 +196,7 @@ export function useMovementFormData({
 
       const freshRates = rates.ok ? rates.data.rates : [];
       // A failed tag list keeps the tags of the last copy instead of replacing them with none.
-      const previous = tags?.ok === false ? await readCopy(copyUser) : null;
+      const previous = tags?.ok === false ? await readReferenceCopy(copyUser) : null;
       const tagNames = tags?.ok ? tags.data : (previous?.tags ?? []);
       if (!isActive()) return;
       setState({
@@ -246,7 +212,7 @@ export function useMovementFormData({
         }),
       });
       if (copyUser !== undefined) {
-        void writeCopy(copyUser, {
+        void writeReferenceCopy(copyUser, {
           accounts: accounts.data.filter((item) => !item.archived),
           categories: categories.data.filter((item) => !item.archived),
           tags: tagNames,

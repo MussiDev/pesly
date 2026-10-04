@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
+import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -212,5 +213,96 @@ describe('AuthenticatedShellContainer', () => {
     expect(
       screen.getByRole('link', { name: es.app.nav.security }).getAttribute('aria-current'),
     ).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer without connectivity (DISC-001-04a)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('renders ready from the pointer and makes no request while offline (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    setOnline(false);
+    const { fetch } = stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText('private content')).toBeDefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('shows the failed state with a retry when offline and nobody signed in on this device (FR-03)', async () => {
+    setOnline(false);
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+    expect(screen.getByRole('button', { name: es.app.retry })).toBeDefined();
+  });
+
+  it('does not trust a pointer of an unverified user while offline (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: false });
+    setOnline(false);
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+  });
+
+  it('opens from the pointer when the session request fails with a network error (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    stubApi({ 'GET /auth/session': 'network-error' });
+
+    renderShell();
+
+    expect(await screen.findByText('private content')).toBeDefined();
+  });
+
+  it('keeps the failed state on a network error when no pointer exists (FR-03)', async () => {
+    stubApi({ 'GET /auth/session': 'network-error' });
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.network)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+  });
+
+  it('writes the pointer only after a successful online session check (FR-03)', async () => {
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    expect(readSessionPointer()).toEqual({ userId: 'u1', emailVerified: true });
+  });
+
+  it('writes no pointer and still redirects to sign in on a 401 (FR-03)', async () => {
+    stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+
+    const { router } = renderShell();
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(readSessionPointer()).toBeNull();
   });
 });
