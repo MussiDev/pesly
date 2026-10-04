@@ -969,3 +969,112 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     expect(within(second).queryByRole('group')).toBeNull();
   });
 });
+
+describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
+  const stored = movement({ id: uuid(500), note: 'Almuerzo' });
+  const deletePath = `DELETE /movements/${uuid(500)}`;
+  const actions = es.movements.list.actions;
+
+  async function open(answers: Record<string, Parameters<typeof stubApi>[0][string]>) {
+    const stub = stubApi(routes(answers));
+    const view = renderApp(<MovementsContainer />);
+    await screen.findByText('Almuerzo');
+    return { ...stub, ...view };
+  }
+
+  it('shows an edit link to the edit route and a delete button on every row (AC-01)', async () => {
+    await open({ [FIRST_PAGE]: movementPage([stored]) });
+
+    const link = screen.getByRole('link', { name: `${actions.edit} Comida` });
+    expect(link.getAttribute('href')).toBe(`/es/movements/${uuid(500)}/edit`);
+    expect(screen.getByRole('button', { name: `${actions.delete} Comida` })).toBeDefined();
+  });
+
+  it('keeps the amount out of the accessible names of the actions (AC-02)', async () => {
+    await open({ [FIRST_PAGE]: movementPage([stored]) });
+
+    for (const name of [`${actions.edit} Comida`, `${actions.delete} Comida`]) {
+      expect(name).not.toMatch(/\d/);
+    }
+    expect(screen.queryByRole('button', { name: /1\.500/ })).toBeNull();
+  });
+
+  it('asks before deleting, deletes on confirmation and the row disappears after the reload (AC-02)', async () => {
+    const { calls } = await open({
+      [FIRST_PAGE]: [movementPage([stored]), movementPage([])],
+      [deletePath]: { status: 204 },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    expect(screen.getByText(actions.confirmDelete)).toBeDefined();
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0);
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Almuerzo')).toBeNull();
+    });
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
+    expect(calls.filter((call) => call.path === '/movements?limit=100')).toHaveLength(2);
+  });
+
+  it('deletes nothing when the confirmation is cancelled (AC-02)', async () => {
+    const { calls } = await open({ [FIRST_PAGE]: movementPage([stored]) });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.cancel }));
+
+    expect(screen.queryByText(actions.confirmDelete)).toBeNull();
+    expect(screen.getByText('Almuerzo')).toBeDefined();
+    expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0);
+  });
+
+  it('keeps the row and shows the error when the delete fails (error path)', async () => {
+    await open({
+      [FIRST_PAGE]: movementPage([stored]),
+      [deletePath]: { status: 500, body: { code: 'INTERNAL' } },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(screen.getByText('Almuerzo')).toBeDefined();
+    expect(screen.queryByText(actions.confirmDelete)).toBeNull();
+  });
+
+  it('reloads the list without an error when the movement was already deleted: 404 (AC-03)', async () => {
+    const { calls } = await open({
+      [FIRST_PAGE]: [movementPage([stored]), movementPage([])],
+      [deletePath]: { status: 404, body: { code: 'NOT_FOUND' } },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Almuerzo')).toBeNull();
+    });
+    expect(screen.queryByText(es.errors.unexpected)).toBeNull();
+    expect(calls.filter((call) => call.path === '/movements?limit=100')).toHaveLength(2);
+  });
+
+  it('goes to sign in when the delete answers 401 (error path)', async () => {
+    const { router } = await open({
+      [FIRST_PAGE]: movementPage([stored]),
+      [deletePath]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
+    });
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+  });
+});

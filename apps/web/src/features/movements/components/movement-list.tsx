@@ -31,6 +31,8 @@ export interface MovementListProps {
   loadingMore: boolean;
   /** Why the last "show more" failed; the rows already shown stay. */
   moreError: ErrorMessageKey | undefined;
+  /** Edit and delete on every row, with the inline delete confirmation; absent, rows are read-only. */
+  rowActions?: MovementListRowActions;
   onShowMore: () => void;
   /** The filter bar; it stays mounted while the rows below reload. */
   filterBar?: ReactNode;
@@ -41,6 +43,18 @@ export interface MovementListProps {
   /** While the rows (re)load or fail to load, this replaces them and the bar stays. */
   loadState?: MovementsLoadState | undefined;
   onRetry?: (() => void) | undefined;
+}
+
+export interface MovementListRowActions {
+  /** The movement whose delete confirmation is open. */
+  confirmingDeleteId: string | undefined;
+  /** A delete is in flight. */
+  pending: boolean;
+  /** Why the last delete failed; the row stays. */
+  error: ErrorMessageKey | undefined;
+  onAskDelete: (id: string) => void;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
 }
 
 interface DayGroup {
@@ -67,6 +81,7 @@ export function MovementList({
   hasMore,
   loadingMore,
   moreError,
+  rowActions,
   onShowMore,
   filterBar,
   filtersActive = false,
@@ -136,6 +151,21 @@ export function MovementList({
                     destinationAccountName={item.destinationAccountName}
                     destinationCurrency={item.destinationCurrency}
                     timeZone={timeZone}
+                    actions={
+                      rowActions === undefined
+                        ? undefined
+                        : {
+                            pending: rowActions.pending,
+                            confirmingDelete: rowActions.confirmingDeleteId === item.movement.id,
+                            onAskDelete: () => {
+                              rowActions.onAskDelete(item.movement.id);
+                            },
+                            onConfirmDelete: () => {
+                              rowActions.onConfirmDelete(item.movement.id);
+                            },
+                            onCancelDelete: rowActions.onCancelDelete,
+                          }
+                    }
                   />
                 ))}
               </ul>
@@ -144,6 +174,7 @@ export function MovementList({
         </>
       )}
       <FormAlert error={moreError} />
+      <FormAlert error={rowActions?.error} />
       {hasMore && loadState === undefined ? (
         <Button
           variant="outline"

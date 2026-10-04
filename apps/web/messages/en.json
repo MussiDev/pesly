@@ -369,7 +369,14 @@
       "transferTitle": "Transfer",
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
-      "tags": "Tags"
+      "tags": "Tags",
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirmDelete": "Delete this movement? Your balances will update.",
+        "confirmDeleteYes": "Yes, delete",
+        "cancel": "Cancel"
+      }
     },
     "filters": {
       "title": "Filters",

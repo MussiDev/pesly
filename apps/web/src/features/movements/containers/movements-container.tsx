@@ -133,6 +133,9 @@ export function MovementsContainer() {
   const [listAttempt, setListAttempt] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<ErrorMessageKey | undefined>();
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<ErrorMessageKey | undefined>();
   // Bumped on every (re)load, so a "show more" answer from before it is discarded.
   const generation = useRef(0);
   // Both clear actions unmount the control that had focus; this moves it to the bar's first control.
@@ -289,6 +292,19 @@ export function MovementsContainer() {
     };
   }, [api, router, filtersKey, listAttempt]);
 
+  async function remove(id: string) {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteError(undefined);
+    const result = await api.deleteMovement(id);
+    setDeleting(false);
+    setConfirmingDeleteId(undefined);
+    // Already gone elsewhere (404) is what the user wanted: the reload drops the stale row.
+    if (result.ok || result.code === 'NOT_FOUND') setListAttempt((value) => value + 1);
+    else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+    else setDeleteError(result.messageKey);
+  }
+
   async function showMore(current: ReadyList) {
     if (loadingMore) return;
     const requestGeneration = generation.current;
@@ -391,6 +407,21 @@ export function MovementsContainer() {
       hasMore={list.kind === 'ready' && list.movements.length < list.total}
       loadingMore={loadingMore}
       moreError={moreError}
+      rowActions={{
+        confirmingDeleteId,
+        pending: deleting,
+        error: deleteError,
+        onAskDelete: (id) => {
+          setDeleteError(undefined);
+          setConfirmingDeleteId(id);
+        },
+        onConfirmDelete: (id) => {
+          void remove(id);
+        },
+        onCancelDelete: () => {
+          setConfirmingDeleteId(undefined);
+        },
+      }}
       onShowMore={() => {
         if (list.kind === 'ready') void showMore(list);
       }}

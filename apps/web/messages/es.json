@@ -369,7 +369,14 @@
       "transferTitle": "Transferencia",
       "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida",
-      "tags": "Etiquetas"
+      "tags": "Etiquetas",
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
+        "confirmDeleteYes": "Sí, eliminar",
+        "cancel": "Cancelar"
+      }
     },
     "filters": {
       "title": "Filtros",
