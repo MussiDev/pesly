@@ -4,6 +4,7 @@ import {
   listMovementsResponseSchema,
   movementIdParamsSchema,
   movementResponseSchema,
+  updateMovementRequestSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
 import type { z } from 'zod';
@@ -28,10 +29,16 @@ import {
   type ExchangeInput,
   type TransferInput,
 } from '../../application/create-movement';
+import type {
+  EditCategorizedMovementInput,
+  EditMovementInput,
+} from '../../application/build-new-movement';
+import { DeleteMovement } from '../../application/delete-movement';
 import { GetMovement } from '../../application/get-movement';
 import { ListMovements } from '../../application/list-movements';
 import type { Clock } from '../../application/ports/clock';
 import { RecordManualMovement } from '../../application/record-manual-movement';
+import { UpdateMovement } from '../../application/update-movement';
 import { DrizzleAccountLookup } from '../db/drizzle-account-lookup';
 import { DrizzleCategoryLookup } from '../db/drizzle-category-lookup';
 import { DrizzleMovementRepository } from '../db/drizzle-movement-repository';
@@ -52,11 +59,14 @@ export interface MovementRoutesOptions {
 }
 
 type CreateBody = z.infer<typeof createMovementRequestSchema>;
+type UpdateBody = z.infer<typeof updateMovementRequestSchema>;
+type ExpenseOrIncomeUpdateBody = Extract<UpdateBody, { type: 'expense' | 'income' }>;
 type ExpenseOrIncomeBody = Extract<CreateBody, { type: 'expense' | 'income' }>;
 type TransferBody = Extract<CreateBody, { type: 'transfer' }>;
 type ExchangeBody = Extract<CreateBody, { type: 'exchange' }>;
 
-function categorizedInput(body: ExpenseOrIncomeBody): CategorizedMovementInput {
+/** Everything an expense or income carries except the rate, which a creation and an edit read differently. */
+function categorizedFields(body: ExpenseOrIncomeBody | ExpenseOrIncomeUpdateBody) {
   return {
     type: body.type,
     accountId: body.accountId,
@@ -65,11 +75,31 @@ function categorizedInput(body: ExpenseOrIncomeBody): CategorizedMovementInput {
     ...(body.tags === undefined ? {} : { tags: body.tags }),
     occurredAt: new Date(body.occurredAt),
     ...(body.note === undefined ? {} : { note: body.note }),
+  };
+}
+
+function categorizedInput(body: ExpenseOrIncomeBody): CategorizedMovementInput {
+  return {
+    ...categorizedFields(body),
     rate:
       body.rate.source === 'automatic'
         ? { source: 'automatic' }
         : { source: 'manual', value: BigInt(body.rate.value) },
   };
+}
+
+function editCategorizedInput(body: ExpenseOrIncomeUpdateBody): EditCategorizedMovementInput {
+  switch (body.rate.source) {
+    case 'keep':
+      return { ...categorizedFields(body), rate: { source: 'keep' } };
+    case 'automatic':
+      return { ...categorizedFields(body), rate: { source: 'automatic' } };
+    case 'manual':
+      return {
+        ...categorizedFields(body),
+        rate: { source: 'manual', value: BigInt(body.rate.value) },
+      };
+  }
 }
 
 function transferInput(body: TransferBody): TransferInput {
@@ -100,6 +130,18 @@ function toCreateInput(body: CreateBody): CreateMovementInput {
     case 'expense':
     case 'income':
       return categorizedInput(body);
+    case 'transfer':
+      return transferInput(body);
+    case 'exchange':
+      return exchangeInput(body);
+  }
+}
+
+function toEditInput(body: UpdateBody): EditMovementInput {
+  switch (body.type) {
+    case 'expense':
+    case 'income':
+      return editCategorizedInput(body);
     case 'transfer':
       return transferInput(body);
     case 'exchange':
@@ -151,6 +193,15 @@ export function createMovementRoutes({
     preferences: new DrizzleUserPreferences(db),
   });
   const getMovement = new GetMovement({ movements });
+  const updateMovement = new UpdateMovement({
+    movements,
+    accounts: new DrizzleAccountLookup(db),
+    categories: new DrizzleCategoryLookup(db),
+    rates: new DrizzleRateLookup(db),
+    preferences: new DrizzleUserPreferences(db),
+    clock,
+  });
+  const deleteMovement = new DeleteMovement({ movements });
 
   return ({ requireSession }) => {
     const router = Router();
@@ -193,6 +244,37 @@ export function createMovementRoutes({
           res.json(presentMovement(await getMovement.execute(scope, params.id)));
         },
       ),
+    );
+
+    router.put(
+      '/movements/:id',
+      validate(
+        {
+          params: movementIdParamsSchema,
+          body: updateMovementRequestSchema,
+          response: movementResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const updated = await updateMovement.execute(scope, params.id, toEditInput(body));
+          // Ids only: never the amount, the note, the tags or the rate.
+          logger.info(
+            { requestId, userId: auth?.userId, movementId: updated.id },
+            'movement updated',
+          );
+          res.json(presentMovement(updated));
+        },
+      ),
+    );
+
+    router.delete(
+      '/movements/:id',
+      validate({ params: movementIdParamsSchema }, async ({ params }, { res, auth, requestId }) => {
+        const scope = await scopeOf(policy, auth, 'write');
+        await deleteMovement.execute(scope, params.id);
+        logger.info({ requestId, userId: auth?.userId, movementId: params.id }, 'movement deleted');
+        res.sendStatus(204);
+      }),
     );
 
     return router;
