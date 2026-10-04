@@ -199,6 +199,19 @@ All notable changes to this project are documented in this file. The format foll
   account select. Migration `0017_tags` adds the `tags` and `movement_tags` tables (a database
   cap of 10 tags per movement) and the indexes behind the filters; its rollback script drops
   every tag and tag link, and touches no movement.
+- DISC-001-03e Edit and delete movements: `PUT /movements/:id` replaces any of the user's
+  movements (an expense, an income, a transfer or an exchange) and `DELETE /movements/:id`
+  removes one; account balances are summed from the movements, so both follow at once. An edit
+  applies the same rules as a creation (no date after today, no amount of 0 or below), keeps the
+  frozen rate unless the rate itself is edited, may keep an archived account or category the
+  movement already uses, and cannot change the type of the movement. A movement that is not the
+  user's answers 404 on both routes. No migration.
+- DISC-001-03e An edit screen at `/movements/<id>/edit` (the entry form filled in, with the type
+  locked) and, on every row of the movements list, an edit link and a delete button with an
+  inline confirmation, in Spanish and English.
+- DISC-001-03e The project `README.md`, with a status section that tells what is built from what
+  is planned and the commands to run the project locally; a test checks that every script and
+  path it names exists.
 
 ### Changed
 
