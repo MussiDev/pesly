@@ -14,5 +14,13 @@ export interface MovementRepository {
     scope: AccessScope<'read'>,
     options: { limit: number; offset: number; filters: MovementFilters },
   ): Promise<{ items: Movement[]; total: number }>;
-  findById(scope: AccessScope<'read'>, id: string): Promise<Movement | null>;
+  /** Any action's scope: the write path reads the current row before it replaces it. */
+  findById(scope: AccessScope, id: string): Promise<Movement | null>;
+  /**
+   * Replaces the movement of that id and type in the scope with `data` (the full editable state;
+   * `id`, owner and `createdAt` never change) and re-links its tags. `null` when none matches.
+   */
+  update(scope: AccessScope<'write'>, id: string, data: NewMovement): Promise<Movement | null>;
+  /** Removes the movement and its tag links; `false` when none matches in the scope. */
+  delete(scope: AccessScope<'write'>, id: string): Promise<boolean>;
 }

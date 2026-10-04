@@ -69,3 +69,10 @@ export class ImpliedRateOutOfRange extends AppError {
     super('IMPLIED_RATE_OUT_OF_RANGE');
   }
 }
+
+/** A movement cannot change its type: an expense edited as a transfer is a delete plus a create. */
+export class MovementTypeImmutable extends AppError {
+  constructor() {
+    super('MOVEMENT_TYPE_IMMUTABLE');
+  }
+}
