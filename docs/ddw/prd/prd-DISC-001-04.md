@@ -48,7 +48,7 @@ merged)
 
 ## Added while splitting (not in the original text)
 Each addition is derived from an obligation or decision already on record in the original PRD;
-none changes an original requirement. **They are waiting for the user's acceptance.**
+none changes an original requirement. They were ACCEPTED by the human on 2026-10-04.
 
 | New ID | What | Why |
 |---|---|---|
