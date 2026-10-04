@@ -62,6 +62,7 @@ function categorizedInput(body: ExpenseOrIncomeBody): CategorizedMovementInput {
     accountId: body.accountId,
     categoryId: body.categoryId,
     amount: BigInt(body.amount),
+    ...(body.tags === undefined ? {} : { tags: body.tags }),
     occurredAt: new Date(body.occurredAt),
     ...(body.note === undefined ? {} : { note: body.note }),
     rate:
@@ -145,7 +146,10 @@ export function createMovementRoutes({
     },
     writeLimit,
   );
-  const listMovements = new ListMovements({ movements });
+  const listMovements = new ListMovements({
+    movements,
+    preferences: new DrizzleUserPreferences(db),
+  });
   const getMovement = new GetMovement({ movements });
 
   return ({ requireSession }) => {

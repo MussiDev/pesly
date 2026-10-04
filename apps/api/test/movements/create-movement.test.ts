@@ -63,6 +63,31 @@ async function run(data: CategorizedMovementInput, userId = ALICE) {
 }
 
 describe('CreateMovement', () => {
+  it('passes the tags to the repository, and an empty list when there are none', async () => {
+    const account = accounts.seed(ALICE);
+    const category = categories.seed(ALICE, 'expense');
+
+    const tagged = await run(
+      input({ accountId: account, categoryId: category, tags: ['Viaje', 'comida'] }),
+    );
+    const untagged = await run(input({ accountId: account, categoryId: category }));
+
+    expect(tagged.tags).toEqual(['Viaje', 'comida']);
+    expect(untagged.tags).toEqual([]);
+    expect(movements.rows.map((row) => row.tags)).toEqual([['Viaje', 'comida'], []]);
+  });
+
+  it('propagates a repository failure on insert unchanged', async () => {
+    const account = accounts.seed(ALICE);
+    const category = categories.seed(ALICE, 'expense');
+    const failure = new Error('db down');
+    movements.insertError = failure;
+
+    await expect(
+      run(input({ accountId: account, categoryId: category, tags: ['a'] })),
+    ).rejects.toBe(failure);
+  });
+
   it('stores a valid expense and income with the owner of the scope', async () => {
     const account = accounts.seed(ALICE);
     const expenseCat = categories.seed(ALICE, 'expense');

@@ -88,6 +88,41 @@ describe('hexagonal import boundaries in the movements module', () => {
     ]);
   });
 
+  it.each([
+    [
+      'apps/api/src/movements/application/suggest-tags.ts',
+      "import { tags } from '../infrastructure/db/tags-schema';",
+    ],
+    [
+      'apps/api/src/movements/application/ports/tag-repository.ts',
+      "import { x } from '../../infrastructure/db/drizzle-tag-repository';",
+    ],
+    [
+      'apps/api/src/movements/application/list-movements.ts',
+      "import { movementConditions } from '../infrastructure/db/drizzle-movement-filters';",
+    ],
+    [
+      'apps/api/src/movements/application/local-day-range.ts',
+      "import { x } from '../infrastructure/http/tag-routes';",
+    ],
+    [
+      'apps/api/src/movements/domain/movement.ts',
+      "import { tags } from '../infrastructure/db/tags-schema';",
+    ],
+    ['apps/api/src/movements/domain/movement.ts', "import { sql } from 'drizzle-orm';"],
+  ])(
+    'rejects infrastructure and runtime imports in the tags and filters file %s: %s',
+    async (file, source) => {
+      expect(
+        await restrictedImports(
+          file,
+          `${source}
+`,
+        ),
+      ).toEqual(['no-restricted-imports']);
+    },
+  );
+
   it('allows movements domain and application to import shared code, ports and the access port', async () => {
     expect(
       await restrictedImports(

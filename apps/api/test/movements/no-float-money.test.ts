@@ -5,7 +5,25 @@ import { describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 const SCANNED_DIRS = ['apps/api/src/movements', 'packages/shared/src/movements'];
-const SCANNED_FILES = ['apps/web/src/features/movements/format-rate.ts'];
+const SCANNED_FILES = [
+  'apps/web/src/features/movements/format-rate.ts',
+  'apps/web/src/features/movements/movement-filters-state.ts',
+  'apps/web/src/features/movements/components/movement-filters.tsx',
+  'apps/web/src/features/movements/components/tag-input.tsx',
+  'apps/web/src/features/movements/containers/tag-input-container.tsx',
+];
+// The tags and filters files (DISC-001-03d) must be inside the scan, wherever they live.
+const TAG_FILTER_FILES = [
+  'apps/api/src/movements/application/suggest-tags.ts',
+  'apps/api/src/movements/application/ports/tag-repository.ts',
+  'apps/api/src/movements/infrastructure/db/drizzle-movement-filters.ts',
+  'apps/api/src/movements/infrastructure/db/drizzle-tag-repository.ts',
+  'apps/api/src/movements/infrastructure/db/tags-schema.ts',
+  'apps/api/src/movements/infrastructure/http/tag-routes.ts',
+  'packages/shared/src/movements/movement-filters.ts',
+  'packages/shared/src/movements/tag.ts',
+  ...SCANNED_FILES.slice(1),
+];
 
 // The age helpers (`rateAgeMs`, `RATE_AGE_WARNING_MS`) measure time, so they are not matched: only
 // identifiers named exactly amount, rate, buy or sell are flagged when typed as numbers.
@@ -93,6 +111,21 @@ describe('no floating point in the movements sources (NFR-01, NFR-02)', () => {
 ${probe}
 `),
     ).not.toEqual([]);
+  });
+
+  it.each(TAG_FILTER_FILES)('scans the tags and filters file %s', (name) => {
+    expect(
+      files.map((file) => file.slice(repoRoot.length).replaceAll(String.fromCharCode(92), '/')),
+    ).toContain(name);
+  });
+
+  it.each(TAG_FILTER_FILES)('flags a float probe appended to %s', (name) => {
+    const source = readFileSync(join(repoRoot, name), 'utf8');
+    expect(
+      floatFindings(`${source}
+const probe = Math.round(Number(x).toFixed(2));
+`),
+    ).toEqual(expect.arrayContaining(['Math.round', 'Number(', '.toFixed']));
   });
 
   it.each(files.map((file) => [file.slice(repoRoot.length).replaceAll('\\', '/'), file]))(

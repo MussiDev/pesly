@@ -1,4 +1,9 @@
-import type { CategorizedMovementType, MovementRateSource, RateType } from '@pesly/shared';
+import type {
+  CategorizedMovementType,
+  MovementRateSource,
+  MovementType,
+  RateType,
+} from '@pesly/shared';
 
 export type { MovementRateSource };
 
@@ -11,6 +16,8 @@ interface MovementBase {
   amount: bigint;
   occurredAt: Date;
   note: string | null;
+  /** Stored spellings in the order given; never null, empty when untagged and for transfers and exchanges. */
+  tags: string[];
   createdAt: Date;
 }
 
@@ -50,5 +57,18 @@ export type Movement = CategorizedMovement | Transfer | Exchange;
 /** A plain `Omit` over a union collapses it; this one keeps each member. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
+/** Every field is optional; `occurredFrom` is inclusive and `occurredBefore` exclusive. */
+export interface MovementFilters {
+  accountId?: string;
+  categoryId?: string;
+  type?: MovementType;
+  tag?: string;
+  occurredFrom?: Date;
+  occurredBefore?: Date;
+}
+
 /** What the repository stores; the owner comes from the scope, the id and timestamp from storage. */
-export type NewMovement = DistributiveOmit<Movement, 'id' | 'ownerId' | 'createdAt'>;
+export type NewMovement = DistributiveOmit<Movement, 'id' | 'ownerId' | 'createdAt' | 'tags'> & {
+  /** Only expenses and income are tagged; absent means none. */
+  tags?: string[];
+};

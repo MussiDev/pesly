@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { AccountCurrency, CategoryKind, RateType } from '@pesly/shared';
-import type { CategorizedMovement, Movement } from '../../src/movements/domain/movement';
+import type {
+  CategorizedMovement,
+  Movement,
+  MovementFilters,
+} from '../../src/movements/domain/movement';
 import type { Clock } from '../../src/movements/application/ports/clock';
 import type {
   MovementRepository,
@@ -14,6 +18,7 @@ import type {
   CategoryLookup,
   CategoryReference,
 } from '../../src/movements/application/ports/category-lookup';
+import type { TagRepository } from '../../src/movements/application/ports/tag-repository';
 import type { RateLookup } from '../../src/movements/application/ports/rate-lookup';
 import type {
   UserPreferenceValues,
@@ -34,6 +39,13 @@ export class InMemoryMovementRepository implements MovementRepository {
   readonly rows: Movement[] = [];
   /** When set, `insert` throws it. */
   insertError: Error | null = null;
+  /** When set, `list` throws it. */
+  listError: Error | null = null;
+  /** Every `list` call, so tests can assert what reached the port. */
+  readonly listCalls: {
+    scope: AccessScope;
+    options: { limit: number; offset: number; filters: MovementFilters };
+  }[] = [];
 
   async insert(scope: AccessScope<'write'>, data: NewMovement): Promise<Movement> {
     await Promise.resolve();
@@ -43,6 +55,7 @@ export class InMemoryMovementRepository implements MovementRepository {
       ownerId: scope.userId,
       createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, this.rows.length)),
       ...data,
+      tags: data.tags ?? [],
     };
     this.rows.push(movement);
     return movement;
@@ -50,11 +63,36 @@ export class InMemoryMovementRepository implements MovementRepository {
 
   async list(
     scope: AccessScope,
-    options: { limit: number; offset: number },
+    options: { limit: number; offset: number; filters: MovementFilters },
   ): Promise<{ items: Movement[]; total: number }> {
     await Promise.resolve();
+    this.listCalls.push({ scope, options });
+    if (this.listError) throw this.listError;
+    const { filters } = options;
+    // A parent category is not modelled here: the category filter is an exact match.
     const own = this.rows
       .filter((row) => row.ownerId === scope.userId)
+      .filter(
+        (row) =>
+          filters.accountId === undefined ||
+          row.accountId === filters.accountId ||
+          ('destinationAccountId' in row && row.destinationAccountId === filters.accountId),
+      )
+      .filter(
+        (row) =>
+          filters.categoryId === undefined ||
+          ('categoryId' in row && row.categoryId === filters.categoryId),
+      )
+      .filter((row) => filters.type === undefined || row.type === filters.type)
+      .filter(
+        (row) =>
+          filters.tag === undefined ||
+          row.tags.some((tag) => tag.toLowerCase() === filters.tag?.toLowerCase()),
+      )
+      .filter((row) => filters.occurredFrom === undefined || row.occurredAt >= filters.occurredFrom)
+      .filter(
+        (row) => filters.occurredBefore === undefined || row.occurredAt < filters.occurredBefore,
+      )
       .sort(
         (a, b) =>
           b.occurredAt.getTime() - a.occurredAt.getTime() ||
@@ -82,11 +120,34 @@ export class InMemoryMovementRepository implements MovementRepository {
       rate: 14_000_000n,
       rateSource: 'automatic',
       rateType: 'blue',
+      tags: [],
       createdAt: new Date('2026-10-01T12:00:00.000Z'),
       ...data,
     };
     this.rows.push(movement);
     return movement;
+  }
+}
+
+export class InMemoryTagRepository implements TagRepository {
+  readonly calls: { scope: AccessScope; prefix: string; limit: number }[] = [];
+  /** When set, `suggest` throws it. */
+  suggestError: Error | null = null;
+  private readonly names = new Map<string, string[]>();
+
+  seed(ownerId: string, ...names: string[]): void {
+    this.names.set(ownerId, [...(this.names.get(ownerId) ?? []), ...names]);
+  }
+
+  async suggest(scope: AccessScope, prefix: string, limit: number): Promise<string[]> {
+    await Promise.resolve();
+    this.calls.push({ scope, prefix, limit });
+    if (this.suggestError) throw this.suggestError;
+    const lowered = prefix.toLowerCase();
+    return (this.names.get(scope.userId) ?? [])
+      .filter((name) => name.toLowerCase().startsWith(lowered))
+      .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+      .slice(0, limit);
   }
 }
 
@@ -160,8 +221,14 @@ export class FakeUserPreferences implements UserPreferences {
     defaultRateType: 'blue',
   };
 
+  /** When set, `find` throws it. */
+  findError: Error | null = null;
+  findCalls = 0;
+
   async find(): Promise<UserPreferenceValues> {
     await Promise.resolve();
+    this.findCalls += 1;
+    if (this.findError) throw this.findError;
     return this.values;
   }
 }

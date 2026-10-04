@@ -367,7 +367,24 @@
       "unknownAccount": "Unknown account",
       "transferTitle": "Transfer",
       "exchangeTitle": "Exchange",
-      "unknownCategory": "Unknown category"
+      "unknownCategory": "Unknown category",
+      "tags": "Tags"
+    },
+    "filters": {
+      "title": "Filters",
+      "account": "Account",
+      "category": "Category",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "allAccounts": "All accounts",
+      "allCategories": "All categories",
+      "allTypes": "All types",
+      "archived": "{name} (archived)",
+      "clear": "Clear filters",
+      "showAll": "Show all movements",
+      "noMatch": "No movements match these filters.",
+      "invalidRange": "The From date cannot be after the To date."
     },
     "new": {
       "title": "New movement",
@@ -434,6 +451,19 @@
       "rateLimitedGeneric": "You are saving movements too fast. Try again in a moment.",
       "destinationRequired": "Choose a destination account.",
       "typeInvalid": "Choose a movement type."
+    },
+    "tags": {
+      "label": "Tags (optional)",
+      "placeholder": "Type a tag",
+      "hint": "Press Enter or comma to add it. Up to {limit} tags.",
+      "remove": "Remove tag {tag}",
+      "suggestions": "Suggested tags",
+      "chips": "Chosen tags",
+      "errors": {
+        "empty": "A tag cannot be empty.",
+        "tooLong": "A tag can be at most {max} characters long.",
+        "limit": "You can add up to {limit} tags."
+      }
     }
   },
   "categories": {

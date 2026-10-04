@@ -68,6 +68,7 @@ function movement(n: number, type: 'expense' | 'income' = 'expense', accountId =
     rateSource: 'automatic',
     rateType: null,
     createdAt: `2026-10-0${String(n)}T12:00:00.000Z`,
+    tags: [] as string[],
   };
 }
 

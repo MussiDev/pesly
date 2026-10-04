@@ -8,6 +8,7 @@ import {
   createAccountMovements,
   createCategoryUsage,
   createMovementRoutes,
+  createTagRoutes,
   eraseUserMovements,
 } from './movements';
 import { parseEnv } from './shared/config/env';
@@ -31,6 +32,7 @@ const app = createApp({
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
+    createTagRoutes({ db }),
   ],
 });
 

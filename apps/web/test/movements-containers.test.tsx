@@ -104,6 +104,7 @@ const SAVED = {
   rateSource: 'automatic',
   rateType: 'blue',
   createdAt: NOW,
+  tags: [],
 };
 
 function routes(overrides: Record<string, Parameters<typeof stubApi>[0][string]> = {}) {
@@ -1000,5 +1001,217 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
       expect(posts(calls)).toHaveLength(2);
     });
     expect(await screen.findByText(es.movements.saved.title)).toBeDefined();
+  });
+});
+
+describe('CreateMovementContainer: tags (DISC-001-03d AC-03 to AC-06)', () => {
+  const tagBox = () => screen.getByLabelText<HTMLInputElement>(es.movements.tags.label);
+  const SUGGEST_VI = 'GET /tags?prefix=vi&limit=10';
+
+  async function addTag(user: ReturnType<typeof userEvent.setup>, text: string) {
+    await user.type(tagBox(), `${text}{Enter}`);
+  }
+
+  it('adds a chip on Enter and saves the chips in tags (AC-03)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await addTag(user, '  Viaje ');
+    await addTag(user, 'Auto');
+
+    expect(screen.getByText('Viaje')).toBeDefined();
+    expect(tagBox().value).toBe('');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toMatchObject({ tags: ['Viaje', 'Auto'] });
+  });
+
+  it('does not submit the form when Enter is pressed in the tag box (AC-03)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await addTag(user, 'Viaje');
+
+    expect(posts(calls)).toHaveLength(0);
+  });
+
+  it('sends no tags key when none was chosen (AC-03)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).not.toHaveProperty('tags');
+  });
+
+  it('adds a chip on a comma too (AC-03)', async () => {
+    await open();
+    const user = userEvent.setup();
+    await user.type(tagBox(), 'Viaje,');
+
+    expect(screen.getByText('Viaje')).toBeDefined();
+    expect(tagBox().value).toBe('');
+  });
+
+  it('does not add a tag equal to a chosen one in another case (AC-03)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await addTag(user, 'Viaje');
+    await addTag(user, 'viaje');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toMatchObject({ tags: ['Viaje'] });
+  });
+
+  it('refuses an 11th tag with the limit message and does not send it (invalid input) (AC-04)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    for (let i = 1; i <= 10; i += 1) await addTag(user, `t${i}`);
+    await addTag(user, 'once');
+
+    expect(screen.getByText(es.movements.tags.errors.limit.replace('{limit}', '10'))).toBeDefined();
+    expect(screen.queryByText('once')).toBeNull();
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    const sent = (posts(calls)[0]?.body as { tags: string[] }).tags;
+    expect(sent).toHaveLength(10);
+    expect(sent).not.toContain('once');
+  });
+
+  it('refuses an empty tag and a 31-character tag in the field (invalid input) (AC-06)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await user.type(tagBox(), '   {Enter}');
+    expect(screen.getByText(es.movements.tags.errors.empty)).toBeDefined();
+    expect(tagBox().getAttribute('aria-invalid')).toBe('true');
+
+    fireEvent.change(tagBox(), { target: { value: 'x'.repeat(31) } });
+    await user.type(tagBox(), '{Enter}');
+    expect(screen.getByText(es.movements.tags.errors.tooLong.replace('{max}', '30'))).toBeDefined();
+
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).not.toHaveProperty('tags');
+  });
+
+  it('accepts a tag of exactly 30 characters (AC-06)', async () => {
+    await open();
+    const user = userEvent.setup();
+    fireEvent.change(tagBox(), { target: { value: 'x'.repeat(30) } });
+    await user.type(tagBox(), '{Enter}');
+
+    expect(screen.getByText('x'.repeat(30))).toBeDefined();
+  });
+
+  it('removes a chip with its button (AC-03)', async () => {
+    const { calls } = await open();
+    const user = await fill('100');
+    await addTag(user, 'Viaje');
+    await user.click(
+      screen.getByRole('button', { name: es.movements.tags.remove.replace('{tag}', 'Viaje') }),
+    );
+
+    expect(screen.queryByText('Viaje')).toBeNull();
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).not.toHaveProperty('tags');
+  });
+
+  it('shows the stored tags for the typed prefix and chooses one with its stored spelling (AC-05)', async () => {
+    const { calls } = await open(
+      routes({ [SUGGEST_VI]: { status: 200, body: { items: ['Viaje', 'Vivero'] } } }),
+    );
+    const user = await fill('100');
+    await user.type(tagBox(), 'vi');
+
+    const list = await screen.findByRole('list', { name: es.movements.tags.suggestions });
+    expect(list.textContent).toContain('Vivero');
+    await user.click(screen.getByRole('button', { name: 'Viaje' }));
+
+    expect(tagBox().value).toBe('');
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toMatchObject({ tags: ['Viaje'] });
+  });
+
+  it('shows no banner when the suggestion request fails and saving still works (error path) (AC-05)', async () => {
+    const { calls } = await open(
+      routes({ [SUGGEST_VI]: { status: 500, body: { code: 'INTERNAL' } } }),
+    );
+    const user = await fill('100');
+    await user.type(tagBox(), 'vi');
+    await waitFor(() => {
+      expect(calls.some((call) => call.path.startsWith('/tags'))).toBe(true);
+    });
+
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(es.errors.unexpected)).toBeNull();
+    await user.type(tagBox(), '{Enter}');
+    await user.click(submit());
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toMatchObject({ tags: ['vi'] });
+  });
+
+  it('shows the generic form error for VALIDATION_FAILED and keeps the typed data (error path) (AC-04)', async () => {
+    await open(routes({ [POST]: { status: 400, body: { code: 'VALIDATION_FAILED' } } }));
+    const user = await fill('100');
+    await addTag(user, 'Viaje');
+    await user.click(submit());
+
+    expect(await screen.findByText(es.errors.validationFailed)).toBeDefined();
+    expect(field(es.movements.fields.amount).value).toBe('100');
+    expect(screen.getByText('Viaje')).toBeDefined();
+  });
+
+  it('redirects to sign in when saving with tags answers 401 (error path) (AC-03)', async () => {
+    const stub = await open(
+      routes({
+        [POST]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+        'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      }),
+    );
+    const user = await fill('100');
+    await addTag(user, 'Viaje');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(stub.router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+  });
+
+  it('reaches the tag box by keyboard from the note and adds a tag without a mouse (AC-03)', async () => {
+    await open();
+    const user = userEvent.setup();
+    field(es.movements.fields.note).focus();
+    await user.tab();
+
+    expect(document.activeElement).toBe(tagBox());
+    await user.keyboard('Viaje{Enter}');
+    await user.tab();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: es.movements.tags.remove.replace('{tag}', 'Viaje') }),
+    );
+  });
+
+  it('labels the tag field in English too (AC-03)', async () => {
+    await open(routes(), 'en');
+
+    expect(screen.getByLabelText(en.movements.tags.label)).toBeDefined();
   });
 });

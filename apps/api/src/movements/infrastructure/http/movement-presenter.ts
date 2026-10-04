@@ -14,6 +14,7 @@ export function presentMovement(movement: Movement): MovementResponse {
     amount: formatMinorUnitsString(movement.amount),
     occurredAt: movement.occurredAt.toISOString(),
     note: movement.note,
+    tags: movement.tags,
     createdAt: movement.createdAt.toISOString(),
   };
   switch (movement.type) {

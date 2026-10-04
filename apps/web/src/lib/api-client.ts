@@ -9,6 +9,7 @@ import {
   latestRatesResponseSchema,
   listMovementsResponseSchema,
   movementResponseSchema,
+  tagSuggestionsResponseSchema,
   portfolioListResponseSchema,
   portfolioResponseSchema,
   passwordResetConfirmResponseSchema,
@@ -32,6 +33,8 @@ import {
   type LatestRatesResponse,
   type ListMovementsQuery,
   type ListMovementsResponse,
+  type TagSuggestionsQuery,
+  type TagSuggestionsResponse,
   type MovementResponse,
   type CreateCategoryRequest,
   type DeleteUserRequest,
@@ -211,7 +214,27 @@ export type ListCategoriesParams = Partial<
 /** What the entry screen sends to create a movement: the body of `POST /movements`. */
 export type CreateMovementInput = z.input<typeof createMovementRequestSchema>;
 
-export type ListMovementsParams = Partial<Pick<ListMovementsQuery, 'limit' | 'offset'>>;
+/** Paging and the optional filters of `GET /movements`; whatever is undefined is not sent. */
+export type ListMovementsParams = Partial<
+  Pick<
+    ListMovementsQuery,
+    'limit' | 'offset' | 'accountId' | 'categoryId' | 'from' | 'to' | 'type' | 'tag'
+  >
+>;
+
+export type ListTagsParams = Pick<TagSuggestionsQuery, 'prefix'> &
+  Partial<Pick<TagSuggestionsQuery, 'limit'>>;
+
+const LIST_MOVEMENTS_QUERY_KEYS = [
+  'limit',
+  'offset',
+  'accountId',
+  'categoryId',
+  'from',
+  'to',
+  'type',
+  'tag',
+] as const satisfies readonly (keyof ListMovementsParams)[];
 
 /** Only a positive whole number of seconds is a usable wait; HTTP dates and junk are ignored. */
 function readRetryAfterSeconds(response: Response): number | undefined {
@@ -286,6 +309,8 @@ export interface ApiClient {
   deleteHolding(holdingId: string): Promise<ApiResult<undefined>>;
   createMovement(body: CreateMovementInput): Promise<ApiResult<MovementResponse>>;
   listMovements(query: ListMovementsParams): Promise<ApiResult<ListMovementsResponse>>;
+  /** The caller's stored tags that start with `prefix`, for suggestions. */
+  listTags(query: ListTagsParams): Promise<ApiResult<TagSuggestionsResponse>>;
   /** The stored rates only: the API never reaches the external source for this call. */
   getLatestRates(): Promise<ApiResult<LatestRatesResponse>>;
 }
@@ -724,15 +749,27 @@ export function createApiClient({
         response: movementResponseSchema,
         refreshOnUnauthenticated: true,
       }),
-    listMovements: ({ limit, offset }) => {
+    listMovements: (params) => {
       const query = new URLSearchParams();
-      if (limit !== undefined) query.set('limit', String(limit));
-      if (offset !== undefined) query.set('offset', String(offset));
+      for (const key of LIST_MOVEMENTS_QUERY_KEYS) {
+        const value = params[key];
+        if (value !== undefined) query.set(key, String(value));
+      }
       const queryString = query.toString();
       return request({
         method: 'GET',
         path: queryString ? `/movements?${queryString}` : '/movements',
         response: listMovementsResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    listTags: ({ prefix, limit }) => {
+      const query = new URLSearchParams({ prefix });
+      if (limit !== undefined) query.set('limit', String(limit));
+      return request({
+        method: 'GET',
+        path: `/tags?${query.toString()}`,
+        response: tagSuggestionsResponseSchema,
         refreshOnUnauthenticated: true,
       });
     },

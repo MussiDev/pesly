@@ -126,3 +126,23 @@ export async function newExchange(
     ],
   );
 }
+
+/** A tag row of the owner, bypassing the repositories. */
+export async function newTag(pool: pg.Pool, ownerId: string, name: string): Promise<string> {
+  const result = await pool.query<{ id: string }>(
+    'insert into tags (owner_id, name) values ($1, $2) returning id',
+    [ownerId, name],
+  );
+  return firstId(result.rows);
+}
+
+/** Links a movement to a tag of the same owner at `position`, bypassing the repositories. */
+export async function linkTag(
+  pool: pg.Pool,
+  link: { movementId: string; tagId: string; ownerId: string; position: number },
+): Promise<void> {
+  await pool.query(
+    'insert into movement_tags (movement_id, tag_id, owner_id, position) values ($1, $2, $3, $4)',
+    [link.movementId, link.tagId, link.ownerId, link.position],
+  );
+}

@@ -367,7 +367,24 @@
       "unknownAccount": "Cuenta desconocida",
       "transferTitle": "Transferencia",
       "exchangeTitle": "Cambio de moneda",
-      "unknownCategory": "Categoría desconocida"
+      "unknownCategory": "Categoría desconocida",
+      "tags": "Etiquetas"
+    },
+    "filters": {
+      "title": "Filtros",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "type": "Tipo",
+      "from": "Desde",
+      "to": "Hasta",
+      "allAccounts": "Todas las cuentas",
+      "allCategories": "Todas las categorías",
+      "allTypes": "Todos los tipos",
+      "archived": "{name} (archivada)",
+      "clear": "Limpiar filtros",
+      "showAll": "Ver todos los movimientos",
+      "noMatch": "Ningún movimiento coincide con estos filtros.",
+      "invalidRange": "La fecha «Desde» no puede ser posterior a «Hasta»."
     },
     "new": {
       "title": "Nuevo movimiento",
@@ -434,6 +451,19 @@
       "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en un momento.",
       "destinationRequired": "Elige una cuenta de destino.",
       "typeInvalid": "Elige un tipo de movimiento."
+    },
+    "tags": {
+      "label": "Etiquetas (opcional)",
+      "placeholder": "Escribe una etiqueta",
+      "hint": "Presiona Enter o coma para agregarla. Hasta {limit} etiquetas.",
+      "remove": "Quitar la etiqueta {tag}",
+      "suggestions": "Etiquetas sugeridas",
+      "chips": "Etiquetas elegidas",
+      "errors": {
+        "empty": "La etiqueta no puede estar vacía.",
+        "tooLong": "La etiqueta puede tener hasta {max} caracteres.",
+        "limit": "Puedes agregar hasta {limit} etiquetas."
+      }
     }
   },
   "categories": {

@@ -273,6 +273,58 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'tags',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(context, "insert into tags (owner_id, name) values ($1, 'Trip')", [
+        context.userId,
+      ]);
+    },
+  },
+  {
+    table: 'movement_tags',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after movements and tags: its own movement and tag, under the same owner.
+    seed: async (context) => {
+      const account = await query(
+        context,
+        "insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available) values ($1, 'Tags account', 'cash', 'ARS', 0, true) returning id",
+        [context.userId],
+      );
+      const category = await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Tags category', 'tag', 'blue') returning id",
+        [context.userId],
+      );
+      const movement = await query(
+        context,
+        "insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source) values ($1, 'expense', $2, $3, 1000, $4, 10000, 'manual') returning id",
+        [
+          context.userId,
+          (account.rows[0] as { id: string }).id,
+          (category.rows[0] as { id: string }).id,
+          NOW,
+        ],
+      );
+      const tag = await query(
+        context,
+        "insert into tags (owner_id, name) values ($1, 'Linked') returning id",
+        [context.userId],
+      );
+      await query(
+        context,
+        'insert into movement_tags (movement_id, tag_id, owner_id, position) values ($1, $2, $3, 0)',
+        [
+          (movement.rows[0] as { id: string }).id,
+          (tag.rows[0] as { id: string }).id,
+          context.userId,
+        ],
+      );
+    },
+  },
+  {
     table: 'portfolios',
     userColumn: 'owner_id',
     policy: 'cascade',

@@ -4,6 +4,7 @@ import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@p
 import { ArrowLeftRight } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
+import { Badge } from '@/components/ui/badge';
 import { ListRow } from '@/components/ui/list-row';
 import { CategoryVisual } from '@/features/categories/components/category-visual';
 import type { Locale } from '@/i18n/routing';
@@ -161,6 +162,13 @@ export function MovementRow({
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}
+      {movement.tags.length > 0 ? (
+        <div role="group" aria-label={t('tags')} className="flex flex-wrap gap-1 px-1">
+          {movement.tags.map((tag) => (
+            <Badge key={tag}>{tag}</Badge>
+          ))}
+        </div>
+      ) : null}
       {movement.rate !== null &&
       (movement.type === 'exchange' || (currency === USD_CURRENCY && !moving)) ? (
         <p className="px-1 text-caption text-muted-foreground">

@@ -9,6 +9,7 @@ import es from '../messages/es.json';
 import { formatRate } from '../src/features/movements/format-rate';
 import {
   movementFailureErrors,
+  tagErrorMessage,
   type MovementFormErrors,
 } from '../src/features/movements/movement-form-errors';
 import {
@@ -128,7 +129,34 @@ describe('MovementForm', () => {
       rate: '1250,5',
       rateEdited: false,
       note: 'Almuerzo',
+      tags: [],
     });
+  });
+
+  it('renders the tag slot and submits the tags it holds (AC-03)', async () => {
+    const { onSubmit } = form({
+      renderTagField: ({ value, onChange, error }) => (
+        <div>
+          <span data-testid="tag-error">{error}</span>
+          <button
+            type="button"
+            onClick={() => {
+              onChange([...value, 'Viaje']);
+            }}
+          >
+            add-tag
+          </button>
+        </div>
+      ),
+      errors: { fields: { tags: 'movements.tags.errors.limit' } },
+    });
+    const user = userEvent.setup();
+
+    expect(screen.getByTestId('tag-error').textContent).toBe('movements.tags.errors.limit');
+    await user.click(screen.getByRole('button', { name: 'add-tag' }));
+    await user.click(screen.getByRole('button', { name: es.movements.form.submit }));
+
+    expect(onSubmit.mock.calls[0]?.[0].tags).toEqual(['Viaje']);
   });
 
   it('flags the rate as edited once the user types in it, even to the same value (AC-08)', async () => {
@@ -267,6 +295,16 @@ describe('formatRate', () => {
   });
 });
 
+describe('tagErrorMessage', () => {
+  it.each([
+    ['empty', 'movements.tags.errors.empty'],
+    ['tooLong', 'movements.tags.errors.tooLong'],
+    ['limit', 'movements.tags.errors.limit'],
+  ] as const)('maps %s to %s', (kind, key) => {
+    expect(tagErrorMessage(kind)).toBe(key);
+  });
+});
+
 describe('movementFailureErrors', () => {
   function failure(code: ApiFailure['code'], extra: Partial<ApiFailure> = {}): ApiFailure {
     return { ok: false, code, messageKey: 'unexpected', ...extra };
@@ -354,6 +392,7 @@ function listItem(
       rateSource: 'automatic',
       rateType: 'blue',
       createdAt: occurredAt,
+      tags: [],
     },
     accountName: 'Caja',
     currency: 'ARS',
@@ -775,5 +814,53 @@ describe('movementFailureErrors: transfers and exchanges (DISC-001-03c)', () => 
     ['IMPLIED_RATE_OUT_OF_RANGE', 'destinationAmount', 'errors.impliedRateOutOfRange'],
   ] as const)('puts %s on the %s field (AC-02, AC-04, AC-15)', (code, field, message) => {
     expect(movementFailureErrors(failure(code))).toEqual({ fields: { [field]: message } });
+  });
+});
+
+describe('tags are rendered as text, never as markup (R-07)', () => {
+  it.each(['<b>x</b>', '<img src=x onerror=alert(1)>'])(
+    'a movement row shows the tag %s literally',
+    (payload) => {
+      const { container } = list([
+        listItem('m1', 'expense', '2026-10-02T15:30:00.000Z', {
+          movement: {
+            ...listItem('m1', 'expense', '2026-10-02T15:30:00.000Z').movement,
+            tags: [payload],
+          },
+        }),
+      ]);
+
+      const group = within(container).getByRole('group', { name: es.movements.list.tags });
+      expect(group.textContent).toBe(payload);
+      expect(container.querySelector('img, b')).toBeNull();
+      expect(group.children).toHaveLength(1);
+    },
+  );
+});
+
+describe('rows without tags (DISC-001-03d with 03c types)', () => {
+  it.each([
+    ['transfer', es.movements.list.transferTitle],
+    ['exchange', es.movements.list.exchangeTitle],
+  ] as const)('a %s row renders its title and no tag group', (type, title) => {
+    const base = listItem('m1', 'expense', '2026-10-02T15:30:00.000Z');
+    const { container } = list([
+      {
+        ...base,
+        movement: {
+          ...base.movement,
+          type,
+          categoryId: null,
+          destinationAccountId: 'a2',
+          destinationAmount: '150050',
+        },
+        categoryName: undefined,
+        destinationAccountName: 'Dolares',
+        destinationCurrency: 'ARS',
+      },
+    ]);
+
+    expect(within(container).getByText(title)).toBeDefined();
+    expect(within(container).queryByRole('group', { name: es.movements.list.tags })).toBeNull();
   });
 });

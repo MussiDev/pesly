@@ -17,6 +17,7 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
@@ -122,7 +123,21 @@ export const movements = pgTable(
       'movements_rate_source_type_check',
       sql`(${table.rateSource} = 'automatic') = (${table.rateType} is not null)`,
     ),
+    // The target of the composite key of movement_tags.
+    unique('movements_id_owner_unique').on(table.id, table.ownerId),
     index('movements_owner_date_idx').on(table.ownerId, table.occurredAt.desc(), table.id.desc()),
+    index('movements_owner_account_date_idx').on(
+      table.ownerId,
+      table.accountId,
+      table.occurredAt.desc(),
+      table.id.desc(),
+    ),
+    index('movements_owner_category_date_idx').on(
+      table.ownerId,
+      table.categoryId,
+      table.occurredAt.desc(),
+      table.id.desc(),
+    ),
     index('movements_account_idx').on(table.accountId),
     index('movements_category_idx').on(table.categoryId),
     index('movements_destination_idx').on(table.destinationAccountId),
@@ -144,3 +159,6 @@ export const movementRateLimits = pgTable(
     check('movement_rate_limits_count_check', sql`${table.count} >= 0`),
   ],
 );
+
+// drizzle.config.ts only globs this file, so the tag relations are re-exported from here.
+export { movementTags, tags } from './tags-schema';

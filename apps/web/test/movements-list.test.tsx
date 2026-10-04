@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 import { formatMoney, type AccountResponse, type CategoryResponse } from '@pesly/shared';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MovementsContainer } from '../src/features/movements/containers/movements-container';
 import { formatRate } from '../src/features/movements/format-rate';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
@@ -76,6 +76,7 @@ function movement(overrides: Record<string, unknown> = {}) {
     rateSource: 'automatic',
     rateType: 'blue',
     createdAt: '2026-10-02T15:31:00.000Z',
+    tags: [],
     ...overrides,
   };
 }
@@ -513,7 +514,7 @@ describe('MovementsContainer', () => {
       stubApi(withAccounts([exchange(), transfer(), expense]));
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.exchangeTitle);
+      await screen.findByText(es.movements.list.exchangeTitle, { selector: 'div' });
       const [first, second, third] = rows();
       if (first === undefined || second === undefined || third === undefined) {
         throw new Error('Expected three rows');
@@ -538,7 +539,7 @@ describe('MovementsContainer', () => {
       stubApi(withAccounts([exchange(), movement({ id: uuid(604) })]));
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.exchangeTitle);
+      await screen.findByText(es.movements.list.exchangeTitle, { selector: 'div' });
       const [first, second] = rows();
       if (first === undefined || second === undefined) throw new Error('Expected two rows');
       expect(
@@ -558,7 +559,7 @@ describe('MovementsContainer', () => {
       );
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.transferTitle);
+      await screen.findByText(es.movements.list.transferTitle, { selector: 'div' });
       const [row] = rows();
       if (row === undefined) throw new Error('Expected a row');
       expect(within(row).getByText('Dolares viejos')).toBeDefined();
@@ -570,7 +571,7 @@ describe('MovementsContainer', () => {
       );
       renderApp(<MovementsContainer />);
 
-      await screen.findByText(es.movements.list.transferTitle);
+      await screen.findByText(es.movements.list.transferTitle, { selector: 'div' });
       const [row] = rows();
       if (row === undefined) throw new Error('Expected a row');
       expect(within(row).getByText(es.movements.list.unknownAccount)).toBeDefined();
@@ -609,5 +610,362 @@ describe('MovementsContainer', () => {
         [SECOND_PAGE]: second,
       });
     }
+  });
+});
+
+const FIRST_PAGE_PATH = '/movements?limit=100';
+const TREE_PARENT_ID = uuid(21);
+const TREE_CHILD_ID = uuid(22);
+const SIGN_IN = '/es/sign-in';
+
+/** The URL the list asks for with these filters, in the order the API client writes them. */
+function listPath(query = '') {
+  return `/movements?limit=100${query === '' ? '' : `&${query}`}`;
+}
+
+const listCalls = (calls: { method: string; path: string }[]) =>
+  calls.filter((call) => call.path.startsWith('/movements')).map((call) => call.path);
+
+const filterField = (name: string) => screen.getByLabelText<HTMLSelectElement>(name);
+
+describe('MovementsContainer filters (DISC-001-03d)', () => {
+  const filteredRoutes = (extra: Record<string, Parameters<typeof stubApi>[0][string]> = {}) =>
+    routes({
+      [ACTIVE_CATEGORIES]: categoryPage([
+        categoryFixture({ id: COMIDA_ID, kind: 'expense', name: 'Comida', icon: 'utensils' }),
+        categoryFixture({ id: TREE_PARENT_ID, kind: 'expense', name: 'Hogar', icon: 'utensils' }),
+        categoryFixture({
+          id: TREE_CHILD_ID,
+          kind: 'expense',
+          parentId: TREE_PARENT_ID,
+          name: 'Alquiler',
+          icon: 'utensils',
+        }),
+      ]),
+      ...Object.fromEntries(
+        Object.entries(extra).map(([key, answer]) => [
+          key.startsWith('/') ? `GET ${key}` : key,
+          answer,
+        ]),
+      ),
+    });
+
+  it('sends account, category, dates, type and tag together and shows only the returned rows (AC-01)', async () => {
+    const full = listPath(
+      `accountId=${CAJA_ID}&categoryId=${COMIDA_ID}&from=2026-10-01&to=2026-10-31&type=expense&tag=Viaje`,
+    );
+    const { calls } = stubApi(
+      filteredRoutes({
+        [FIRST_PAGE]: movementPage([movement({ id: uuid(601), note: 'Sin filtro' })]),
+        [full]: movementPage([movement({ id: uuid(602), note: 'Con filtro' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Sin filtro');
+    await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
+    await user.selectOptions(filterField(es.movements.filters.category), COMIDA_ID);
+    fireEvent.change(filterField(es.movements.filters.from), { target: { value: '2026-10-01' } });
+    fireEvent.change(filterField(es.movements.filters.to), { target: { value: '2026-10-31' } });
+    await user.selectOptions(filterField(es.movements.filters.type), 'expense');
+    await user.type(screen.getByLabelText(es.movements.tags.label), 'Viaje{Enter}');
+
+    expect(await screen.findByText('Con filtro')).toBeDefined();
+    expect(screen.queryByText('Sin filtro')).toBeNull();
+    expect(listCalls(calls).at(-1)).toBe(full);
+  });
+
+  it('a parent category is sent once by its id and the subcategory rows that come back are shown (AC-02)', async () => {
+    const byParent = listPath(`categoryId=${TREE_PARENT_ID}`);
+    const { calls } = stubApi(
+      filteredRoutes({
+        [byParent]: movementPage([movement({ categoryId: TREE_CHILD_ID, note: 'Julio' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+
+    await screen.findByText(es.movements.list.empty);
+    const options = within(filterField(es.movements.filters.category)).getAllByRole('option');
+    const labels = options.map((option) => option.textContent.trim());
+    // A parent is offered as such, with its subcategory right under it.
+    expect(labels.indexOf('Alquiler')).toBe(labels.indexOf('Hogar') + 1);
+    await userEvent
+      .setup()
+      .selectOptions(filterField(es.movements.filters.category), TREE_PARENT_ID);
+
+    const row = (await screen.findByText('Julio')).closest('li');
+    if (row === null) throw new Error('Expected a row');
+    expect(within(row).getByText('Alquiler')).toBeDefined();
+    expect(listCalls(calls).filter((path) => path.includes('categoryId'))).toEqual([byParent]);
+  });
+
+  it('"show more" keeps the filters and clearing them reloads the unfiltered list (AC-01)', async () => {
+    const filtered = listPath(`accountId=${CAJA_ID}`);
+    // The client writes the paging keys before the filters.
+    const moreFiltered = `/movements?limit=100&offset=100&accountId=${CAJA_ID}`;
+    const page = (start: number, count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        movement({ id: uuid(9000 + start + index), note: `Fila ${start + index}` }),
+      );
+    const { calls } = stubApi(
+      filteredRoutes({
+        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [filtered]: movementPage(page(0, 100), 150),
+        [moreFiltered]: movementPage(page(100, 50), 150, 100),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Todo');
+    await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
+    await screen.findByText('Fila 0');
+    await user.click(screen.getByRole('button', { name: es.movements.list.showMore }));
+    await screen.findByText('Fila 149');
+    expect(listCalls(calls).slice(-2)).toEqual([filtered, moreFiltered]);
+
+    await user.click(screen.getByRole('button', { name: es.movements.filters.clear }));
+
+    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(listCalls(calls).at(-1)).toBe(FIRST_PAGE_PATH);
+    expect(filterField(es.movements.filters.account).value).toBe('');
+  });
+
+  it('an empty filtered result shows the no-matches message and a way back, not the empty-history message (AC-07)', async () => {
+    stubApi(
+      filteredRoutes({
+        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [listPath('type=income')]: movementPage([]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Todo');
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+
+    expect(await screen.findByText(es.movements.filters.noMatch)).toBeDefined();
+    expect(screen.queryByText(es.movements.list.empty)).toBeNull();
+    await user.click(screen.getByRole('button', { name: es.movements.filters.showAll }));
+    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(screen.queryByText(es.movements.filters.noMatch)).toBeNull();
+  });
+
+  it('refuses a from after the to and sends no request (invalid input, AC-01)', async () => {
+    const { calls } = stubApi(filteredRoutes());
+    renderApp(<MovementsContainer />);
+    await screen.findByText(es.movements.list.empty);
+    const before = listCalls(calls).length;
+
+    fireEvent.change(filterField(es.movements.filters.from), { target: { value: '2026-10-10' } });
+    fireEvent.change(filterField(es.movements.filters.to), { target: { value: '2026-10-01' } });
+
+    expect(await screen.findByText(es.movements.filters.invalidRange)).toBeDefined();
+    // The first change (from alone) is a valid range and loads; the invalid pair adds nothing.
+    expect(listCalls(calls).slice(before)).toEqual([listPath('from=2026-10-10')]);
+    expect(listCalls(calls).some((path) => path.includes('to='))).toBe(false);
+
+    fireEvent.change(filterField(es.movements.filters.to), { target: { value: '2026-10-20' } });
+    await waitFor(() => {
+      expect(screen.queryByText(es.movements.filters.invalidRange)).toBeNull();
+    });
+    expect(listCalls(calls).at(-1)).toBe(listPath('from=2026-10-10&to=2026-10-20'));
+  });
+
+  it('a failed filtered request shows the retry state, keeps the filters and recovers (error path, AC-01)', async () => {
+    const filtered = listPath(`accountId=${CAJA_ID}`);
+    const { calls } = stubApi(
+      filteredRoutes({
+        [filtered]: [{ status: 500 }, movementPage([movement({ note: 'Recuperada' })])],
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText(es.movements.list.empty);
+    await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
+
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(filterField(es.movements.filters.account).value).toBe(CAJA_ID);
+    await user.click(screen.getByRole('button', { name: es.app.retry }));
+
+    expect(await screen.findByText('Recuperada')).toBeDefined();
+    expect(listCalls(calls).filter((path) => path === filtered)).toHaveLength(2);
+    expect(filterField(es.movements.filters.account).value).toBe(CAJA_ID);
+  });
+
+  it('discards an answer for older filters that arrives late (error path, AC-01)', async () => {
+    const slow = listPath(`accountId=${CAJA_ID}`);
+    const fast = listPath(`accountId=${CAJA_ID}&type=income`);
+    stubApi(
+      filteredRoutes({
+        [slow]: movementPage([movement({ id: uuid(701), note: 'Vieja respuesta' })]),
+        [fast]: movementPage([movement({ id: uuid(702), note: 'Respuesta nueva' })]),
+      }),
+    );
+    // Hold the first filtered answer until the second one has been shown.
+    const real = globalThis.fetch;
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      url.endsWith(slow) ? gate.then(() => real(url, init)) : real(url, init),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText(es.movements.list.empty);
+    await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    expect(await screen.findByText('Respuesta nueva')).toBeDefined();
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(screen.queryByText('Vieja respuesta')).toBeNull();
+    expect(screen.getByText('Respuesta nueva')).toBeDefined();
+  });
+
+  it('sends the user to sign-in when a filtered request says the session is gone (error path, AC-07)', async () => {
+    stubApi(
+      filteredRoutes({
+        [listPath('type=income')]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      }),
+    );
+    const { router } = renderApp(<MovementsContainer />);
+
+    await screen.findByText(es.movements.list.empty);
+    await userEvent.setup().selectOptions(filterField(es.movements.filters.type), 'income');
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(SIGN_IN);
+    });
+  });
+
+  it('starts from the filters in the URL and ignores a malformed value (invalid input, AC-01)', async () => {
+    const { calls } = stubApi(
+      filteredRoutes({
+        [listPath(`accountId=${CAJA_ID}&from=2026-10-01`)]: movementPage([
+          movement({ note: 'Filtrada' }),
+        ]),
+      }),
+    );
+    renderApp(<MovementsContainer />, {
+      search: `accountId=${CAJA_ID}&categoryId=nope&from=2026-10-01&to=2026-02-30&type=refund`,
+    });
+
+    expect(await screen.findByText('Filtrada')).toBeDefined();
+    expect(listCalls(calls)).toEqual([listPath(`accountId=${CAJA_ID}&from=2026-10-01`)]);
+    expect(filterField(es.movements.filters.account).value).toBe(CAJA_ID);
+    expect(filterField(es.movements.filters.category).value).toBe('');
+    expect(filterField(es.movements.filters.type).value).toBe('');
+  });
+
+  it('writes the filters to the URL so a reload or the back button keeps them', async () => {
+    stubApi(filteredRoutes());
+    const { router } = renderApp(<MovementsContainer />);
+
+    await screen.findByText(es.movements.list.empty);
+    await userEvent.setup().selectOptions(filterField(es.movements.filters.account), CAJA_ID);
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith(
+        `/es/movements?accountId=${CAJA_ID}`,
+        expect.anything(),
+      );
+    });
+  });
+
+  it('loads the reference data once: changing a filter reloads only the list and the bar keeps its focus', async () => {
+    const { calls } = stubApi(
+      filteredRoutes({
+        [listPath('type=income')]: movementPage([movement({ note: 'Nota de ingreso' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText(es.movements.list.empty);
+    const type = filterField(es.movements.filters.type);
+    type.focus();
+    await user.selectOptions(type, 'income');
+    await screen.findByText('Nota de ingreso');
+
+    expect(filterField(es.movements.filters.type)).toBe(type);
+    expect(document.activeElement).toBe(type);
+    const reference = calls.filter((call) => !call.path.startsWith('/movements'));
+    expect(reference).toHaveLength(5);
+    expect(calls.filter((call) => call.path === '/profile')).toHaveLength(1);
+  });
+
+  it('moves focus to the account select after "Clear filters" unmounts the button', async () => {
+    stubApi(filteredRoutes());
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText(es.movements.list.empty);
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(await screen.findByRole('button', { name: es.movements.filters.clear }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: es.movements.filters.clear })).toBeNull();
+    });
+    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+  });
+
+  it('moves focus to the account select after "Show all movements" unmounts the action', async () => {
+    stubApi(
+      filteredRoutes({
+        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [listPath('type=income')]: movementPage([]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Todo');
+    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(await screen.findByRole('button', { name: es.movements.filters.showAll }));
+
+    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(screen.queryByRole('button', { name: es.movements.filters.showAll })).toBeNull();
+    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+  });
+
+  it('does not take focus on first load or on an ordinary filter change (guard)', async () => {
+    stubApi(
+      filteredRoutes({
+        [listPath('type=income')]: movementPage([movement({ note: 'Nota recibida' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+
+    await screen.findByText(es.movements.list.empty);
+    expect(document.activeElement).toBe(document.body);
+
+    await userEvent.setup().selectOptions(filterField(es.movements.filters.type), 'income');
+    await screen.findByText('Nota recibida');
+    expect(document.activeElement).toBe(filterField(es.movements.filters.type));
+  });
+
+  it('each row shows its tags as chips (AC-03)', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([
+          movement({ id: uuid(801), note: 'Con tags', tags: ['Viaje', 'Auto'] }),
+          movement({ id: uuid(802), note: 'Sin tags', tags: [] }),
+        ]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+
+    await screen.findByText('Con tags');
+    const [first, second] = rows();
+    if (first === undefined || second === undefined) throw new Error('Expected two rows');
+    const group = within(first).getByRole('group', { name: es.movements.list.tags });
+    expect(within(group).getByText('Viaje')).toBeDefined();
+    expect(within(group).getByText('Auto')).toBeDefined();
+    expect(within(second).queryByRole('group')).toBeNull();
   });
 });

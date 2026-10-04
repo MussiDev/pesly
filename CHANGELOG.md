@@ -190,6 +190,15 @@ All notable changes to this project are documented in this file. The format foll
   `portfolio_value_snapshots` tables; its rollback script is destructive. The optional
   `COINGECKO_API_KEY` is a worker-only secret (the worker starts without it); deploy the API before the web
   app because the holding response gained four fields.
+- DISC-001-03d Tags and filters: a movement can carry up to 10 free-form tags, entered when it is
+  recorded; a tag keeps the spelling of its first use for the user, and repeated tags in one
+  movement collapse into one. `GET /tags?prefix=` suggests the user's existing tags while typing.
+- DISC-001-03d The movements list filters by account, category, type, tag and a from and to date;
+  filters combine, and an account, category or tag that is not the user's answers an empty page
+  instead of 404. After "Clear filters" or "Show all movements" the keyboard focus moves to the
+  account select. Migration `0017_tags` adds the `tags` and `movement_tags` tables (a database
+  cap of 10 tags per movement) and the indexes behind the filters; its rollback script drops
+  every tag and tag link, and touches no movement.
 
 ### Changed
 
