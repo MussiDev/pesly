@@ -14,7 +14,7 @@
 | DISC-001-03b | Expense and Income | prd-DISC-001-03b.md | depends on a (merged, #18); DISC-001-02b is merged into main (#15), so that condition is met (decision 2, resolved) | done: draft PR #20, migration 0014 `0014_movements`, journal `when` 1790966184307 must stay greater than main's maximum at merge time; next: 03c and 03d |
 | DISC-001-03c | Transfers and Currency Exchange | prd-DISC-001-03c.md | depends on b (merged, #20) | done: draft PR #25, migration `0016_transfers_exchanges` (journal idx 16, `when` 1790991879498) on top of main's `0015_price_snapshots` (07b merged); 03d takes 0017 after it and must keep its `when` above this one; its rollback is destructive for transfer and exchange rows; next: 03d and 03e |
 | DISC-001-03d | Tags and Filters | prd-DISC-001-03d.md | depends on b; DISC-001-02b merged | done: draft PR #26 (merges when the PR merges), migration `0017_tags` (journal idx 17, `when` 1790992572883) on top of main's `0016_transfers_exchanges`; keep its `when` above main's maximum at merge; its rollback drops every tag and tag link; next: 03e |
-| DISC-001-03e | Edit and Delete Movements | prd-DISC-001-03e.md | depends on b, c and d | pending |
+| DISC-001-03e | Edit and Delete Movements | prd-DISC-001-03e.md | depends on b, c and d (all merged: #20, #25, #26) | done: draft PR #27 (merges when the PR merges), no migration, so there is no journal `when` to keep above main's maximum; adds the project `README.md` as a user-requested extra outside the PRD; this was the last sub-ticket of DISC-001-03 |
 
 ## Suggested implementation order
 a → b → (c and d, independent of each other) → e
