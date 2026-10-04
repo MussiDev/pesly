@@ -82,6 +82,17 @@ export default defineConfig(
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
     },
   },
+  // The service worker runs in a worker scope, so it is excluded from the app tsconfig and has its own.
+  {
+    files: ['apps/web/src/app/sw.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ['apps/web/tsconfig.sw.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
   {
     files: ['**/*.{js,mjs,cjs}'],
     extends: [tseslint.configs.disableTypeChecked],

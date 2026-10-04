@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
 import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
@@ -304,5 +304,50 @@ describe('AuthenticatedShellContainer without connectivity (DISC-001-04a)', () =
       expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
     });
     expect(readSessionPointer()).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer service worker warm-up (DISC-001-04a)', () => {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+
+  function setServiceWorker(value: unknown): void {
+    Object.defineProperty(navigator, 'serviceWorker', { value, configurable: true });
+  }
+
+  afterEach(() => {
+    if (original) Object.defineProperty(navigator, 'serviceWorker', original);
+    else Reflect.deleteProperty(navigator, 'serviceWorker');
+    localStorage.clear();
+  });
+
+  it('asks the worker to cache the two offline screens once, after the shell is ready (FR-04)', async () => {
+    const postMessage = vi.fn();
+    setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'PESLY_CACHE_URLS',
+      urls: ['/es/movements', '/es/movements/new'],
+    });
+  });
+
+  it('asks nothing of the worker while the session is not confirmed (FR-04)', async () => {
+    const postMessage = vi.fn();
+    setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
+    stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+
+    renderShell();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(postMessage).not.toHaveBeenCalled();
   });
 });

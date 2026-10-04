@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 import { Inter } from 'next/font/google';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
+import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar';
 import { ThemeProvider } from '@/components/theme-provider';
 import { routing } from '@/i18n/routing';
 import { ApiClientProvider } from '@/lib/api-client-provider';
@@ -57,6 +58,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
             <ApiClientProvider apiOrigin={apiOrigin}>{children}</ApiClientProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
+        <ServiceWorkerRegistrar />
       </body>
     </html>
   );

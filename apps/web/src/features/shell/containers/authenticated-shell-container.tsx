@@ -1,10 +1,12 @@
 'use client';
 
+import { useLocale } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
 import { readSessionPointer, writeSessionPointer } from '@/lib/local-store/session-pointer';
+import { requestShellWarmup } from '@/lib/service-worker/warmup';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
 import { useSignOut } from '../use-sign-out';
 
@@ -19,6 +21,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   // Outside Next.js (unit tests) there is no pathname; nothing is marked as current then.
   const pathname = usePathname() as string | null;
   const online = useOnlineStatus();
+  const locale = useLocale();
   const [state, setState] = useState<ShellState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const { signingOut, signOutError, signOut } = useSignOut();
@@ -55,6 +58,12 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
       active = false;
     };
   }, [api, router, attempt, online]);
+
+  // Once the session is confirmed and there is a connection, the worker is asked to keep the two
+  // screens the offline flow needs. Nothing happens, and nothing breaks, without a worker.
+  useEffect(() => {
+    if (state.kind === 'ready' && online) void requestShellWarmup(locale);
+  }, [state.kind, online, locale]);
 
   return (
     <AuthenticatedShell
