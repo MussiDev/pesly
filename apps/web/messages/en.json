@@ -41,6 +41,7 @@
     "retry": "Try again",
     "brand": "Pesly",
     "skipToContent": "Skip to content",
+    "storageWarning": "Your browser may delete the data saved on this device when it runs low on space. Keep some storage free and reconnect often so nothing is lost.",
     "nav": {
       "label": "Main navigation",
       "home": "Home",

@@ -351,3 +351,84 @@ describe('AuthenticatedShellContainer service worker warm-up (DISC-001-04a)', ()
     expect(postMessage).not.toHaveBeenCalled();
   });
 });
+
+describe('AuthenticatedShellContainer persistent storage (DISC-001-04a)', () => {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'storage');
+
+  function setStorage(value: unknown): void {
+    Object.defineProperty(navigator, 'storage', { value, configurable: true });
+  }
+
+  afterEach(() => {
+    if (original) Object.defineProperty(navigator, 'storage', original);
+    else Reflect.deleteProperty(navigator, 'storage');
+    localStorage.clear();
+  });
+
+  it('requests persistent storage once the shell is ready and shows no warning when granted (AC-05)', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    setStorage({ persisted: vi.fn().mockResolvedValue(false), persist });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(persist).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+  });
+
+  it('makes no second request when the storage is already persistent (AC-05)', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    const persisted = vi.fn().mockResolvedValue(true);
+    setStorage({ persisted, persist });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(persisted).toHaveBeenCalled();
+    });
+    expect(persist).not.toHaveBeenCalled();
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+  });
+
+  it('shows the warning when the browser denies persistent storage (AC-06)', async () => {
+    setStorage({
+      persisted: vi.fn().mockResolvedValue(false),
+      persist: vi.fn().mockResolvedValue(false),
+    });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+
+    expect(await screen.findByText(es.app.storageWarning)).toBeDefined();
+    expect(screen.getByText('private content')).toBeDefined();
+  });
+
+  it('shows the warning, and throws nothing, when the request fails with an error (AC-06)', async () => {
+    setStorage({
+      persisted: vi.fn().mockResolvedValue(false),
+      persist: vi.fn().mockRejectedValue(new Error('blocked')),
+    });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+
+    expect(await screen.findByText(es.app.storageWarning)).toBeDefined();
+  });
+
+  it('shows neither a warning nor an error without the Storage API (FR-05)', async () => {
+    setStorage(undefined);
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
