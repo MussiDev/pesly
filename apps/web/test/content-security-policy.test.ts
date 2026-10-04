@@ -28,6 +28,33 @@ describe('content security policy (R-20)', () => {
     expect(production.get('connect-src')).toBe(`'self' https://api.argent.test`);
   });
 
+  it('lets a worker load from the same origin only, in production and in development (FR-04)', () => {
+    const development = directives(
+      contentSecurityPolicy({ nonce: 'abc123', apiOrigin: 'http://localhost:4000', isDev: true }),
+    );
+    expect(production.get('worker-src')).toBe(`'self'`);
+    expect(development.get('worker-src')).toBe(`'self'`);
+  });
+
+  it('keeps every earlier directive when the worker one is added (FR-04)', () => {
+    for (const name of [
+      'default-src',
+      'script-src',
+      'style-src',
+      'style-src-attr',
+      'img-src',
+      'font-src',
+      'connect-src',
+      'object-src',
+      'base-uri',
+      'form-action',
+      'frame-ancestors',
+      'upgrade-insecure-requests',
+    ]) {
+      expect(production.has(name), name).toBe(true);
+    }
+  });
+
   it('forbids framing, plugins and base-uri changes', () => {
     expect(production.get('frame-ancestors')).toBe(`'none'`);
     expect(production.get('object-src')).toBe(`'none'`);
