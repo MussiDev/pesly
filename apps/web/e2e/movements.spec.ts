@@ -622,3 +622,91 @@ test('an account of another user sent by API on a transfer answers 404 and the b
   await expect(namedAccountRow(page, CASH)).toContainText(money(100_000n));
   await expect(namedAccountRow(page, BANK)).toContainText(money(50_000n));
 });
+
+test('edits an expense from the list, the balance follows, and deletes it after the confirmation (AC-01, AC-02)', async ({
+  page,
+}) => {
+  const email = await signedInUser(page, 'movements-edit-flow');
+  await createArsAccount(page, '1.000,00');
+  await fillMovement(page, {
+    type: 'expense',
+    category: EXPENSE_CATEGORY,
+    amount: '100,00',
+    occurredAt: FIRST_OF_SEPTEMBER,
+  });
+  await submit(page).click();
+  await expect(page.getByRole('status').filter({ hasText: t.saved.title })).toBeVisible();
+
+  // Edit: the screen opens filled in and the type cannot be changed.
+  await page.goto('/es/movements');
+  await page
+    .getByRole('link', { name: `${t.list.actions.edit} ${EXPENSE_CATEGORY}`, exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/es\/movements\/[0-9a-f-]{36}\/edit$/);
+  await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveValue('100,00');
+  await expect(page.getByLabel(t.fields.type, { exact: true })).toBeDisabled();
+  await page.getByLabel(t.fields.amount, { exact: true }).fill('40,00');
+  await page.getByRole('button', { name: t.form.save }).click();
+
+  await expect(page).toHaveURL(/\/es\/movements$/);
+  const row = page.getByRole('listitem').filter({ hasText: ACCOUNT_NAME });
+  await expect(row.locator('[data-slot="amount"]')).toContainText(money(4_000n));
+  expect((await movementsOf(email)).map((movement) => movement.amount)).toEqual(['4000']);
+  // 1.000,00 - 40,00.
+  await page.goto('/es/accounts');
+  await expect(accountRow(page)).toContainText(money(96_000n));
+
+  // Delete: nothing happens until the confirmation, then the row and its effect are gone.
+  await page.goto('/es/movements');
+  await page
+    .getByRole('button', { name: `${t.list.actions.delete} ${EXPENSE_CATEGORY}`, exact: true })
+    .click();
+  await expect(page.getByText(t.list.actions.confirmDelete)).toBeVisible();
+  expect(await movementsOf(email)).toHaveLength(1);
+  await page.getByRole('button', { name: t.list.actions.confirmDeleteYes }).click();
+  await expect(page.getByRole('listitem').filter({ hasText: ACCOUNT_NAME })).toHaveCount(0);
+  expect(await movementsOf(email)).toEqual([]);
+  await page.goto('/es/accounts');
+  await expect(accountRow(page)).toContainText(money(100_000n));
+});
+
+test('the edit route of a movement of another user shows the not-found state, a 404 (AC-03)', async ({
+  page,
+  browser,
+}) => {
+  await signedInUser(page, 'movements-edit-owner');
+
+  const otherContext = await browser.newContext({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
+  const other = await otherContext.newPage();
+  guard(other);
+  let foreignMovementId: string;
+  try {
+    await signedInUser(other, 'movements-edit-stranger');
+    await createNamedAccount(other, 'Ajena', 'ARS', '300,00');
+    const accountId = idOf(await accountIds(other), 'Ajena');
+    const categories = await other.request.get(`${API_URL}/categories?kind=expense&limit=100`);
+    expect(categories.status()).toBe(200);
+    const categoryId = ((await categories.json()) as { items: { id: string }[] }).items[0]?.id;
+    if (categoryId === undefined) throw new Error('The stranger has no expense category');
+    const created = await other.request.post(`${API_URL}/movements`, {
+      headers: apiHeaders(),
+      data: {
+        type: 'expense',
+        accountId,
+        categoryId,
+        amount: '1000',
+        occurredAt: new Date(Date.now() - 3_600_000).toISOString(),
+        rate: { source: 'manual', value: '14000000' },
+      },
+    });
+    expect(created.status()).toBe(201);
+    foreignMovementId = ((await created.json()) as { id: string }).id;
+  } finally {
+    await otherContext.close();
+  }
+
+  allowedStatuses = [404];
+  await page.goto(`/es/movements/${foreignMovementId}/edit`);
+  await expect(page.getByText(t.edit.notFound)).toBeVisible();
+  await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveCount(0);
+});

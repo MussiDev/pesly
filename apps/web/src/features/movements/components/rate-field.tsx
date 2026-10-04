@@ -15,22 +15,33 @@ export interface RateFieldProps {
   /** Whole hours since the stored rate was fetched, only when it is old enough to warn about. */
   ageHours: number | undefined;
   error: MovementFieldMessage | undefined;
+  /** An edit: the field shows the rate the movement has frozen, kept until the user changes it. */
+  kept?: boolean;
   onEdited: () => void;
 }
 
 /** The exchange-rate input: prefilled from the stored rate, or empty and required without one. */
-export function RateField({ defaultValue, rateType, ageHours, error, onEdited }: RateFieldProps) {
+export function RateField({
+  defaultValue,
+  rateType,
+  ageHours,
+  error,
+  kept = false,
+  onEdited,
+}: RateFieldProps) {
   const t = useTranslations();
   const required = defaultValue === '';
 
   const hint = (
     <>
       <p>
-        {required || rateType === undefined
-          ? t('movements.rate.missing')
-          : t('movements.rate.automatic', { rateType: t(`profile.rateTypes.${rateType}`) })}
+        {kept
+          ? t('movements.rate.kept')
+          : required || rateType === undefined
+            ? t('movements.rate.missing')
+            : t('movements.rate.automatic', { rateType: t(`profile.rateTypes.${rateType}`) })}
       </p>
-      {ageHours === undefined ? null : (
+      {kept || ageHours === undefined ? null : (
         <p role="status" className="flex items-center gap-1">
           <Clock className="size-4" aria-hidden />
           {t('movements.rate.age', { hours: ageHours })}

@@ -1,14 +1,28 @@
 'use client';
 
 import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, Pencil, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { Badge } from '@/components/ui/badge';
+import { Button, buttonVariants } from '@/components/ui/button';
+import { IconAction } from '@/components/ui/icon-action';
 import { ListRow } from '@/components/ui/list-row';
 import { CategoryVisual } from '@/features/categories/components/category-visual';
+import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatRate } from '../format-rate';
+
+/** What a row offers to do with its movement; absent, the row only shows it. */
+export interface MovementRowActions {
+  /** A delete (or any other action) is in flight: the buttons wait. */
+  pending: boolean;
+  /** The inline confirmation of a delete is open for this row. */
+  confirmingDelete: boolean;
+  onAskDelete: () => void;
+  onConfirmDelete: () => void;
+  onCancelDelete: () => void;
+}
 
 export interface MovementRowProps {
   movement: MovementResponse;
@@ -23,6 +37,7 @@ export interface MovementRowProps {
   destinationAccountName: string | undefined;
   destinationCurrency: string | undefined;
   timeZone: string;
+  actions?: MovementRowActions;
 }
 
 /** ISO 4217's "no currency" code: it formats the amount with a neutral sign. */
@@ -82,8 +97,10 @@ export function MovementRow({
   destinationAccountName,
   destinationCurrency,
   timeZone,
+  actions,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
+  const tActions = useTranslations('movements.list.actions');
   const tTypes = useTranslations('movements.types');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const amount = exactIntegerStringSchema.safeParse(movement.amount);
@@ -177,6 +194,51 @@ export function MovementRow({
           })}
         </p>
       ) : null}
+      {actions === undefined ? null : actions.confirmingDelete ? (
+        <div className="grid gap-2 pb-2">
+          <p role="status" className="px-1 text-small">
+            {tActions('confirmDelete')}
+          </p>
+          <div className="flex gap-2 px-1">
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={actions.pending}
+              onClick={actions.onConfirmDelete}
+            >
+              {tActions('confirmDeleteYes')}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={actions.pending}
+              onClick={actions.onCancelDelete}
+            >
+              {tActions('cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-end">
+          <Link
+            href={`/movements/${movement.id}/edit`}
+            title={tActions('edit')}
+            className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+          >
+            <Pencil aria-hidden />
+            <span className="sr-only">
+              {tActions('edit')} {title}
+            </span>
+          </Link>
+          <IconAction
+            label={tActions('delete')}
+            subject={title}
+            icon={<Trash2 aria-hidden />}
+            disabled={actions.pending}
+            onClick={actions.onAskDelete}
+          />
+        </div>
+      )}
     </li>
   );
 }

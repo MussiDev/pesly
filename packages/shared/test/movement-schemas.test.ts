@@ -9,6 +9,7 @@ import {
   createMovementRequestSchema,
   listMovementsQuerySchema,
   movementResponseSchema,
+  updateMovementRequestSchema,
 } from '../src';
 
 const ACCOUNT_ID = '0b9d1f6e-5a3c-4c8e-9a43-2f1d7a6b8c90';
@@ -312,5 +313,89 @@ describe('new error codes and RetryableError', () => {
     for (const bad of [0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
       expect(() => new RetryableError('RATE_LIMITED', bad), String(bad)).toThrow(RangeError);
     }
+  });
+});
+
+function updateFieldsOf(input: unknown): string[] {
+  const result = updateMovementRequestSchema.safeParse(input);
+  if (result.success) return [];
+  return result.error.issues.map((issue) => issue.path.join('.'));
+}
+
+describe('update movement request', () => {
+  it('accepts a valid body of each of the four types (FR-01)', () => {
+    for (const body of [base, { ...base, type: 'income' }, transfer, exchange]) {
+      expect(updateMovementRequestSchema.safeParse(body).success, body.type).toBe(true);
+    }
+  });
+
+  it('accepts keep, automatic and manual rates on an expense and an income (FR-01)', () => {
+    for (const type of ['expense', 'income']) {
+      for (const rate of [
+        { source: 'keep' },
+        { source: 'automatic' },
+        { source: 'manual', value: '16233000' },
+      ]) {
+        expect(updateMovementRequestSchema.safeParse({ ...base, type, rate }).success).toBe(true);
+      }
+    }
+  });
+
+  it('does not accept keep when creating: only an edit has a stored rate to keep (FR-01)', () => {
+    expect(fieldsOf({ ...base, rate: { source: 'keep' } })).toContain('rate.source');
+  });
+
+  it('strips a rate from a transfer and keys of other types, like the create request (FR-01)', () => {
+    const parsed = updateMovementRequestSchema.parse({
+      ...transfer,
+      categoryId: CATEGORY_ID,
+      rate: { source: 'keep' },
+      destinationAmount: '5',
+    });
+    expect(parsed).toEqual(transfer);
+  });
+
+  it('strips ownerId, id and createdAt instead of carrying them (FR-03)', () => {
+    const parsed = updateMovementRequestSchema.parse({
+      ...base,
+      ownerId: ACCOUNT_ID,
+      id: ACCOUNT_ID,
+      createdAt: '2020-01-01T00:00:00Z',
+    });
+    expect(parsed).toEqual(base);
+  });
+
+  it('rejects an amount of 0 or below, malformed, or above 10^15 on every amount field (AC-05)', () => {
+    for (const amount of ['0', '-5', '12.5', '1000000000000001', '', 'abc', '007']) {
+      expect(updateFieldsOf({ ...base, amount }), amount).toContain('amount');
+      expect(updateFieldsOf({ ...transfer, amount }), amount).toContain('amount');
+      expect(updateFieldsOf({ ...exchange, amount }), amount).toContain('amount');
+      expect(updateFieldsOf({ ...exchange, destinationAmount: amount }), amount).toContain(
+        'destinationAmount',
+      );
+    }
+  });
+
+  it('rejects a missing category, an unknown type and a malformed id or date (FR-01)', () => {
+    const noCategory = Object.fromEntries(
+      Object.entries(base).filter(([key]) => key !== 'categoryId'),
+    );
+    expect(updateFieldsOf(noCategory)).toContain('categoryId');
+    expect(updateFieldsOf({ ...base, type: 'refund' })).toContain('type');
+    expect(updateFieldsOf({ ...base, accountId: 'nope' })).toContain('accountId');
+    expect(updateFieldsOf({ ...base, occurredAt: 'yesterday' })).toContain('occurredAt');
+  });
+
+  it('rejects a manual rate of 0 or below and a note with a control character (FR-01)', () => {
+    for (const value of ['0', '-1', 'abc', '']) {
+      expect(updateFieldsOf({ ...base, rate: { source: 'manual', value } }), value).toContain(
+        'rate.value',
+      );
+    }
+    expect(updateFieldsOf({ ...base, note: 'a\u0000b' })).toContain('note');
+  });
+
+  it('lists the immutable type error code (FR-01)', () => {
+    expect(ERROR_CODES as readonly string[]).toContain('MOVEMENT_TYPE_IMMUTABLE');
   });
 });

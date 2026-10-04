@@ -261,6 +261,61 @@ export class DrizzleMovementRepository implements MovementRepository {
     }
   }
 
+  async update(
+    scope: AccessScope<'write'>,
+    id: string,
+    data: NewMovement,
+  ): Promise<Movement | null> {
+    const note = data.note === null || data.note.trim() === '' ? null : data.note;
+    try {
+      return await this.db.transaction(async (tx) => {
+        const [row] = await tx
+          .update(movements)
+          // Same fields as insert, picked one by one; the type is part of the match, never set.
+          .set({
+            accountId: data.accountId,
+            categoryId: 'categoryId' in data ? data.categoryId : null,
+            amount: data.amount,
+            occurredAt: data.occurredAt,
+            note,
+            rate: 'rate' in data ? data.rate : null,
+            rateSource: 'rateSource' in data ? data.rateSource : null,
+            rateType: 'rateType' in data ? data.rateType : null,
+            destinationAccountId: 'destinationAccountId' in data ? data.destinationAccountId : null,
+            destinationAmount: 'destinationAmount' in data ? data.destinationAmount : null,
+            updatedAt: sql`now()`,
+          })
+          .where(
+            and(
+              eq(movements.id, id),
+              eq(movements.type, data.type),
+              scopedTo(scope, { owner: movements.ownerId }),
+            ),
+          )
+          .returning(columns);
+        if (!row) return null;
+        await tx
+          .delete(movementTags)
+          .where(
+            and(eq(movementTags.movementId, id), scopedTo(scope, { owner: movementTags.ownerId })),
+          );
+        const stored = await linkTags(tx, scope.userId, id, data.tags ?? []);
+        return toMovement(row, stored);
+      });
+    } catch (error) {
+      throw asNotFound(error);
+    }
+  }
+
+  async delete(scope: AccessScope<'write'>, id: string): Promise<boolean> {
+    // The tag links go with the row through their cascading key.
+    const removed = await this.db
+      .delete(movements)
+      .where(and(eq(movements.id, id), scopedTo(scope, { owner: movements.ownerId })))
+      .returning({ id: movements.id });
+    return removed.length > 0;
+  }
+
   async list(
     scope: AccessScope,
     options: { limit: number; offset: number; filters: MovementFilters },

@@ -106,6 +106,47 @@ export class InMemoryMovementRepository implements MovementRepository {
     return this.rows.find((row) => row.id === id && row.ownerId === scope.userId) ?? null;
   }
 
+  /** When set, `update` throws it. */
+  updateError: Error | null = null;
+  /** When set, `delete` throws it. */
+  deleteError: Error | null = null;
+  readonly updateCalls: { scope: AccessScope; id: string; data: NewMovement }[] = [];
+  readonly deleteCalls: { scope: AccessScope; id: string }[] = [];
+
+  async update(
+    scope: AccessScope<'write'>,
+    id: string,
+    data: NewMovement,
+  ): Promise<Movement | null> {
+    await Promise.resolve();
+    this.updateCalls.push({ scope, id, data });
+    if (this.updateError) throw this.updateError;
+    const index = this.rows.findIndex(
+      (row) => row.id === id && row.ownerId === scope.userId && row.type === data.type,
+    );
+    const current = this.rows[index];
+    if (current === undefined) return null;
+    const replaced: Movement = {
+      id: current.id,
+      ownerId: current.ownerId,
+      createdAt: current.createdAt,
+      ...data,
+      tags: data.tags ?? [],
+    };
+    this.rows[index] = replaced;
+    return replaced;
+  }
+
+  async delete(scope: AccessScope<'write'>, id: string): Promise<boolean> {
+    await Promise.resolve();
+    this.deleteCalls.push({ scope, id });
+    if (this.deleteError) throw this.deleteError;
+    const index = this.rows.findIndex((row) => row.id === id && row.ownerId === scope.userId);
+    if (index === -1) return false;
+    this.rows.splice(index, 1);
+    return true;
+  }
+
   /** Test helper: stores a movement for any owner. */
   seed(ownerId: string, data: Partial<CategorizedMovement> = {}): Movement {
     const movement: CategorizedMovement = {

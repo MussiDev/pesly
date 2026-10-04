@@ -49,6 +49,9 @@ function buildApp(env: Env, lines: string[] = []) {
   router.get('/movement-future', () => {
     throw new AppError('MOVEMENT_DATE_IN_FUTURE');
   });
+  router.get('/movement-type-immutable', () => {
+    throw new AppError('MOVEMENT_TYPE_IMMUTABLE');
+  });
   router.get('/rate-required', () => {
     throw new AppError('RATE_REQUIRED');
   });
@@ -164,6 +167,7 @@ describe('error handler', () => {
 
   it.each([
     ['/movement-future', 400, 'MOVEMENT_DATE_IN_FUTURE'],
+    ['/movement-type-immutable', 409, 'MOVEMENT_TYPE_IMMUTABLE'],
     ['/rate-required', 400, 'RATE_REQUIRED'],
     ['/movement-kind', 400, 'MOVEMENT_CATEGORY_KIND_MISMATCH'],
     ['/category-archived', 409, 'CATEGORY_ARCHIVED'],

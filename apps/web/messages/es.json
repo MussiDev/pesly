@@ -281,6 +281,7 @@
     "movementCurrencyMismatch": "Una transferencia necesita dos cuentas de la misma moneda.",
     "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
+    "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
     "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
   },
@@ -368,7 +369,14 @@
       "transferTitle": "Transferencia",
       "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida",
-      "tags": "Etiquetas"
+      "tags": "Etiquetas",
+      "actions": {
+        "edit": "Editar",
+        "delete": "Eliminar",
+        "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
+        "confirmDeleteYes": "Sí, eliminar",
+        "cancel": "Cancelar"
+      }
     },
     "filters": {
       "title": "Filtros",
@@ -389,6 +397,11 @@
     "new": {
       "title": "Nuevo movimiento",
       "description": "Registra un gasto, un ingreso, una transferencia o un cambio de moneda."
+    },
+    "edit": {
+      "title": "Editar movimiento",
+      "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
+      "notFound": "Este movimiento no existe o ya no está."
     },
     "fields": {
       "type": "Tipo",
@@ -416,6 +429,7 @@
     "rate": {
       "automatic": "Cotización {rateType} guardada. Edítala para usar la tuya.",
       "missing": "No hay una cotización guardada. Ingresa los ARS por USD de este movimiento.",
+      "kept": "Este movimiento conserva su propia cotización guardada. Edítala solo para usar otra.",
       "age": "Cotización de hace {hours} h"
     },
     "exchange": {
@@ -425,6 +439,7 @@
     },
     "form": {
       "submit": "Guardar movimiento",
+      "save": "Guardar cambios",
       "pending": "Guardando…",
       "back": "Volver a movimientos"
     },

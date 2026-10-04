@@ -114,6 +114,34 @@ export const createMovementRequestSchema = z.discriminatedUnion('type', [
 ]);
 export type CreateMovementRequest = z.infer<typeof createMovementRequestSchema>;
 
+/**
+ * What an edit may do with the rate of an expense or income: `keep` leaves the stored rate, its
+ * source and its rate type untouched; `automatic` and `manual` freeze a new one.
+ */
+export const movementRateUpdateSchema = z.discriminatedUnion('source', [
+  z.object({ source: z.literal('keep') }),
+  z.object({ source: z.literal('automatic') }),
+  z.object({ source: z.literal('manual'), value: scaledRateStringSchema }),
+]);
+export type MovementRateUpdate = z.infer<typeof movementRateUpdateSchema>;
+
+const updateCategorizedMovementSchema = createCategorizedMovementSchema.extend({
+  rate: movementRateUpdateSchema,
+});
+
+/**
+ * `PUT /movements/:id`: a full replacement with the shape of a creation, so an omitted note or tags
+ * clears them. The type must match the stored one. Only the rate of an expense or income differs
+ * from `createMovementRequestSchema` (it may be `keep`).
+ */
+export const updateMovementRequestSchema = z.discriminatedUnion('type', [
+  updateCategorizedMovementSchema.extend({ type: z.literal('expense') }),
+  updateCategorizedMovementSchema.extend({ type: z.literal('income') }),
+  createTransferSchema,
+  createExchangeSchema,
+]);
+export type UpdateMovementRequest = z.infer<typeof updateMovementRequestSchema>;
+
 export const movementIdParamsSchema = z.object({
   id: z.uuid(),
 });

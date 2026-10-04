@@ -281,6 +281,7 @@
     "movementCurrencyMismatch": "A transfer needs two accounts in the same currency.",
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
+    "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
@@ -368,7 +369,14 @@
       "transferTitle": "Transfer",
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
-      "tags": "Tags"
+      "tags": "Tags",
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "confirmDelete": "Delete this movement? Your balances will update.",
+        "confirmDeleteYes": "Yes, delete",
+        "cancel": "Cancel"
+      }
     },
     "filters": {
       "title": "Filters",
@@ -389,6 +397,11 @@
     "new": {
       "title": "New movement",
       "description": "Record an expense, an income, a transfer or a currency exchange."
+    },
+    "edit": {
+      "title": "Edit movement",
+      "description": "Change what you need. Your balances update on their own.",
+      "notFound": "This movement does not exist or is no longer there."
     },
     "fields": {
       "type": "Type",
@@ -416,6 +429,7 @@
     "rate": {
       "automatic": "Stored {rateType} rate. Edit it to use your own.",
       "missing": "There is no stored rate. Enter the ARS per USD rate for this movement.",
+      "kept": "This movement keeps its own stored rate. Edit it only to use a different one.",
       "age": "Rate from {hours} h ago"
     },
     "exchange": {
@@ -425,6 +439,7 @@
     },
     "form": {
       "submit": "Save movement",
+      "save": "Save changes",
       "pending": "Saving…",
       "back": "Back to movements"
     },
