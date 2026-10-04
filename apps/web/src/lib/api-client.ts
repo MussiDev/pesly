@@ -8,6 +8,7 @@ import {
   holdingResponseSchema,
   latestRatesResponseSchema,
   listMovementsResponseSchema,
+  listTagsResponseSchema,
   movementResponseSchema,
   tagSuggestionsResponseSchema,
   portfolioListResponseSchema,
@@ -34,6 +35,8 @@ import {
   type LatestRatesResponse,
   type ListMovementsQuery,
   type ListMovementsResponse,
+  type ListTagsQuery,
+  type ListTagsResponse,
   type TagSuggestionsQuery,
   type TagSuggestionsResponse,
   type MovementResponse,
@@ -114,7 +117,8 @@ export type ApiErrorKey =
   | 'movementCurrencyMismatch'
   | 'exchangeSameCurrency'
   | 'impliedRateOutOfRange'
-  | 'movementTypeImmutable';
+  | 'movementTypeImmutable'
+  | 'offlineNoCopy';
 
 /** `NETWORK`: the request never got an HTTP answer (offline, DNS, CORS, aborted). */
 export type ApiFailureCode = ErrorCode | 'NETWORK';
@@ -231,6 +235,9 @@ export type ListMovementsParams = Partial<
 export type ListTagsParams = Pick<TagSuggestionsQuery, 'prefix'> &
   Partial<Pick<TagSuggestionsQuery, 'limit'>>;
 
+/** One page of `GET /tags/all`; whatever is undefined is not sent. */
+export type ListAllTagsParams = Partial<ListTagsQuery>;
+
 const LIST_MOVEMENTS_QUERY_KEYS = [
   'limit',
   'offset',
@@ -321,6 +328,8 @@ export interface ApiClient {
   listMovements(query: ListMovementsParams): Promise<ApiResult<ListMovementsResponse>>;
   /** The caller's stored tags that start with `prefix`, for suggestions. */
   listTags(query: ListTagsParams): Promise<ApiResult<TagSuggestionsResponse>>;
+  /** Every tag of the caller, a page at a time: what the device keeps for offline suggestions. */
+  listAllTags(query: ListAllTagsParams): Promise<ApiResult<ListTagsResponse>>;
   /** The stored rates only: the API never reaches the external source for this call. */
   getLatestRates(): Promise<ApiResult<LatestRatesResponse>>;
 }
@@ -816,6 +825,18 @@ export function createApiClient({
         method: 'GET',
         path: `/tags?${query.toString()}`,
         response: tagSuggestionsResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    listAllTags: ({ limit, offset }) => {
+      const query = new URLSearchParams();
+      if (limit !== undefined) query.set('limit', String(limit));
+      if (offset !== undefined && offset > 0) query.set('offset', String(offset));
+      const queryString = query.toString();
+      return request({
+        method: 'GET',
+        path: queryString ? `/tags/all?${queryString}` : '/tags/all',
+        response: listTagsResponseSchema,
         refreshOnUnauthenticated: true,
       });
     },

@@ -426,3 +426,35 @@ describe('api client: edit and delete movements (DISC-001-03e Block 6)', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('api client: list every tag (DISC-001-04a Block 6)', () => {
+  it('listAllTags gets /tags/all with the page and parses the answer (FR-01)', async () => {
+    const page = { items: ['Viaje', 'comida'], total: 2, limit: 100, offset: 0 };
+    const { client, fetch } = clientWith(jsonResponse(200, page));
+
+    const result = await client.listAllTags({ limit: 100, offset: 0 });
+
+    expect(result).toEqual({ ok: true, data: page });
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/tags/all?limit=100`);
+    expect(requestAt(fetch, 0).init.method).toBe('GET');
+  });
+
+  it('listAllTags sends the offset only when it is above 0 and the limit only when given (FR-01)', async () => {
+    const page = { items: [], total: 0, limit: 50, offset: 200 };
+    const { client, fetch } = clientWith(jsonResponse(200, page), jsonResponse(200, page));
+
+    await client.listAllTags({ limit: 100, offset: 200 });
+    await client.listAllTags({});
+
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/tags/all?limit=100&offset=200`);
+    expect(requestAt(fetch, 1).url).toBe(`${BASE_URL}/tags/all`);
+  });
+
+  it('listAllTags answers a failed result, not an exception, on an error status (FR-01)', async () => {
+    const { client } = clientWith(jsonResponse(400, { code: 'VALIDATION_FAILED' }));
+
+    const result = await client.listAllTags({ limit: 0 });
+
+    expect(result).toMatchObject({ ok: false, code: 'VALIDATION_FAILED' });
+  });
+});

@@ -282,6 +282,7 @@
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
+    "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
