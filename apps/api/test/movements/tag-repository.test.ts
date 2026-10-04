@@ -64,3 +64,42 @@ describe('DrizzleTagRepository.suggest', () => {
     expect(await suggest(await newUserId(connection.db), 'vi')).toEqual([]);
   });
 });
+
+async function listAll(ownerId: string, limit = 50, offset = 0) {
+  return repository.listAll(await readScope(ownerId), { limit, offset });
+}
+
+describe('DrizzleTagRepository.listAll', () => {
+  it('lists the tags alphabetically ignoring case, with the stored spelling (FR-01)', async () => {
+    // ASCII names only: how accented letters sort is the database collation, as for suggestions.
+    const ownerId = await seeded(['viaje', 'Auto', 'casa', 'Zeta', 'bar']);
+
+    const page = await listAll(ownerId);
+
+    expect(page).toEqual({ items: ['Auto', 'bar', 'casa', 'viaje', 'Zeta'], total: 5 });
+  });
+
+  it('pages with limit and offset and reports the total of every tag (FR-01)', async () => {
+    const ownerId = await seeded(['a', 'b', 'c', 'd', 'e']);
+
+    const first = await listAll(ownerId, 2, 0);
+    const second = await listAll(ownerId, 2, 2);
+    const third = await listAll(ownerId, 2, 4);
+    const beyond = await listAll(ownerId, 2, 10);
+
+    expect(first).toEqual({ items: ['a', 'b'], total: 5 });
+    expect(second).toEqual({ items: ['c', 'd'], total: 5 });
+    expect(third).toEqual({ items: ['e'], total: 5 });
+    expect(beyond).toEqual({ items: [], total: 5 });
+  });
+
+  it('never returns the tags of another user, and a user without tags gets an empty page (FR-01)', async () => {
+    const mine = await seeded(['viaje']);
+    const theirs = await seeded(['vino', 'video']);
+    const nobody = await seeded([]);
+
+    expect(await listAll(mine)).toEqual({ items: ['viaje'], total: 1 });
+    expect(await listAll(theirs)).toMatchObject({ total: 2 });
+    expect(await listAll(nobody)).toEqual({ items: [], total: 0 });
+  });
+});
