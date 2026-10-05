@@ -54,7 +54,7 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
     <nav
       data-slot="top-nav"
       aria-label={tNav('label')}
-      className="sticky top-4 z-40 mx-4 mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs md:flex"
+      className="mx-4 mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs md:flex"
     >
       <p className="flex items-center gap-2.5 text-heading">
         <span

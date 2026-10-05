@@ -176,6 +176,14 @@ describe('TopNav (AC-11, AC-12)', () => {
     expect(nav.classList.contains('bg-card')).toBe(true);
   });
 
+  it('scrolls away with the page, so it never covers a focused or scrolled-to element (AC-40)', () => {
+    const { container } = renderTop();
+
+    const nav = navOf(container, 'top-nav');
+    expect(nav.classList.contains('sticky')).toBe(false);
+    expect(nav.classList.contains('fixed')).toBe(false);
+  });
+
   it('links to the destinations plus categories, profile and security as pills', () => {
     const { container } = renderTop({ locale: 'en' });
 
