@@ -57,6 +57,8 @@ function colour(theme: Map<string, string>, token: string): Oklch {
   return parsed;
 }
 
+const CHART_TOKENS = ['chart-1', 'chart-2', 'chart-3', 'chart-4', 'chart-5'];
+
 const SEMANTIC_TOKENS = [
   'background',
   'foreground',
@@ -86,6 +88,12 @@ const SEMANTIC_TOKENS = [
   'info-foreground',
   'income',
   'expense',
+  'hero-from',
+  'hero-to',
+  'hero-foreground',
+  'hero-muted',
+  'logo-surface',
+  ...CHART_TOKENS,
 ];
 
 const CATEGORY_TOKENS = [
@@ -134,6 +142,11 @@ const TEXT_PAIRS: [string, string][] = [
   ['income', 'card'],
   ['expense', 'background'],
   ['expense', 'card'],
+  // The navy balance card: both ends of its gradient carry its text.
+  ['hero-foreground', 'hero-from'],
+  ['hero-foreground', 'hero-to'],
+  ['hero-muted', 'hero-from'],
+  ['hero-muted', 'hero-to'],
 ];
 
 /** Control borders, focus rings, category icons: 3:1 (WCAG 1.4.11). */
@@ -142,6 +155,11 @@ const NON_TEXT_PAIRS: [string, string][] = [
   ['input', 'card'],
   ['ring', 'background'],
   ['ring', 'card'],
+  // Donut segments sit on the card and on the canvas.
+  ...CHART_TOKENS.flatMap((token): [string, string][] => [
+    [token, 'background'],
+    [token, 'card'],
+  ]),
   ...CATEGORY_TOKENS.flatMap((token): [string, string][] => [
     [token, 'background'],
     [token, 'card'],
@@ -174,9 +192,9 @@ describe('design tokens (AC-01)', () => {
     }
   });
 
-  it('anchors the palette: indigo at hue 275, cool neutrals at hue 250-290 with low chroma', () => {
+  it('anchors the palette: navy at hue 265, cool neutrals at hue 250-290 with low chroma', () => {
     for (const theme of [light, dark]) {
-      expect(colour(theme, 'primary').h).toBe(275);
+      expect(colour(theme, 'primary').h).toBe(265);
       expect(colour(theme, 'income').h).toBe(160);
       for (const token of ['background', 'surface', 'foreground', 'muted', 'secondary']) {
         const { c, h } = colour(theme, token);
@@ -196,10 +214,36 @@ describe('design tokens (AC-01)', () => {
     }
     expect(css).toMatch(/--font-sans:\s*var\(--font-sans\)|--font-sans:/);
     expect(css).toMatch(/--radius:\s*1rem;/);
+    expect(css).toMatch(/--radius-card:\s*1\.5rem;/);
+    expect(css).toMatch(/--radius-pill:\s*9999px;/);
+    expect(css).toMatch(/--spacing-circle-action:\s*3\.25rem;/);
     expect(css).toMatch(/--elevation-1:/);
     expect(css).toMatch(/--elevation-2:/);
     expect(css).toMatch(/--duration-base:/);
     expect(css).toMatch(/--ease-standard:/);
+  });
+});
+
+describe('typeface (AC-03)', () => {
+  it('points the font stack at the Plus Jakarta Sans variable and no longer at Inter', () => {
+    expect(css).toContain('var(--font-plus-jakarta)');
+    expect(css).not.toMatch(/font-inter/);
+  });
+});
+
+describe('theme parity (AC-01)', () => {
+  function missingFrom(theme: Map<string, string>, tokens: readonly string[]): string[] {
+    return tokens.filter((token) => !theme.has(token));
+  }
+
+  it('declares every semantic token in both themes', () => {
+    expect(missingFrom(light, SEMANTIC_TOKENS)).toEqual([]);
+    expect(missingFrom(dark, SEMANTIC_TOKENS)).toEqual([]);
+  });
+
+  it('error: a token without a dark value is reported by name', () => {
+    const partial = new Map([['primary', 'oklch(0.5 0.1 265)']]);
+    expect(missingFrom(partial, ['primary', 'card'])).toEqual(['card']);
   });
 });
 
