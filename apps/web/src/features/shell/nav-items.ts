@@ -42,7 +42,7 @@ export const INVESTMENTS_ITEM: NavItem = {
 };
 export const MORE_ITEM: NavItem = { href: '/more', labelKey: 'more', icon: Ellipsis };
 
-/** The destinations of the side navigation; the bottom bar shows them too, followed by "More". */
+/** The main destinations of the top navigation; the bottom bar keeps three of them plus "More". */
 export const PRIMARY_ITEMS: readonly NavItem[] = [
   HOME_ITEM,
   ACCOUNTS_ITEM,
@@ -50,15 +50,15 @@ export const PRIMARY_ITEMS: readonly NavItem[] = [
   INVESTMENTS_ITEM,
 ];
 
-/** What "More" holds on small screens and the side navigation shows directly. */
+/** What "More" holds on small screens and the top navigation shows directly. */
 export const SECONDARY_ITEMS: readonly NavItem[] = [
   { href: '/categories', labelKey: 'categories', icon: Tags },
   { href: '/settings/profile', labelKey: 'profile', icon: UserRound },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
 ];
 
-/** What the More page lists: Investments has no room in the bottom bar, then the secondary ones. */
-export const MORE_LIST_ITEMS: readonly NavItem[] = [INVESTMENTS_ITEM, ...SECONDARY_ITEMS];
+/** What the More page lists: Accounts has no room in the bottom bar, then the secondary ones. */
+export const MORE_LIST_ITEMS: readonly NavItem[] = [ACCOUNTS_ITEM, ...SECONDARY_ITEMS];
 
 export const ADD_MOVEMENT_HREF = '/movements/new';
 

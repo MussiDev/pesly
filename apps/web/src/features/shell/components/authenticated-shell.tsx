@@ -6,8 +6,8 @@ import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { BottomNav } from './bottom-nav';
-import { SideNav } from './side-nav';
 import { SignOutAlert } from './sign-out-alert';
+import { TopNav } from './top-nav';
 
 export type ShellState =
   { kind: 'loading' } | { kind: 'ready' } | { kind: 'failed'; error: ApiErrorKey };
@@ -51,39 +51,42 @@ export function AuthenticatedShell({
   }
 
   return (
-    <div className="flex min-h-dvh">
+    <div className="flex min-h-dvh flex-col">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-small focus:font-medium focus:text-primary-foreground"
       >
         {t('skipToContent')}
       </a>
-      <SideNav currentPath={currentPath} signingOut={signingOut} onSignOut={onSignOut} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* The pages bring their own <main>; this wrapper is only the skip link's target. */}
-        <div id="main-content" tabIndex={-1} className="flex flex-1 flex-col outline-none">
-          {state.kind === 'loading' ? (
-            <div className="mx-auto grid w-full max-w-md content-start gap-4 p-4">
-              <p role="status" className="sr-only">
-                {t('loading')}
-              </p>
-              <Skeleton className="h-8 w-1/2" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : (
-            <>
-              {signOutError ? (
-                <div className="px-4 pt-4">
-                  <SignOutAlert error={signOutError} />
-                </div>
-              ) : null}
-              {children}
-            </>
-          )}
-        </div>
-        <BottomNav currentPath={currentPath} />
+      <TopNav currentPath={currentPath} signingOut={signingOut} onSignOut={onSignOut} />
+      {/* The pages bring their own <main>; this wrapper is only the skip link's target. The bottom
+          padding keeps the last element clear of the floating bar below md. */}
+      <div
+        id="main-content"
+        tabIndex={-1}
+        className="flex min-w-0 flex-1 flex-col pb-28 outline-none md:pb-0"
+      >
+        {state.kind === 'loading' ? (
+          <div className="mx-auto grid w-full max-w-md content-start gap-4 p-4">
+            <p role="status" className="sr-only">
+              {t('loading')}
+            </p>
+            <Skeleton className="h-8 w-1/2" />
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-24 w-full" />
+          </div>
+        ) : (
+          <>
+            {signOutError ? (
+              <div className="px-4 pt-4">
+                <SignOutAlert error={signOutError} />
+              </div>
+            ) : null}
+            {children}
+          </>
+        )}
       </div>
+      <BottomNav currentPath={currentPath} />
     </div>
   );
 }

@@ -15,15 +15,17 @@ import {
 } from '../nav-items';
 import { SignOutButton } from './sign-out-button';
 
-export interface SideNavProps {
+export interface TopNavProps {
   /** The current path without the locale; marks its destination. */
   currentPath?: string;
   signingOut: boolean;
   onSignOut: () => void;
 }
 
-/** The side navigation from `md`; below it the bottom bar and the More page take over. */
-export function SideNav({ currentPath, signingOut, onSignOut }: SideNavProps) {
+const DESTINATIONS: readonly NavItem[] = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS];
+
+/** The top navigation card from `md`; below it the floating bottom bar and the More page take over. */
+export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
 
@@ -36,9 +38,9 @@ export function SideNav({ currentPath, signingOut, onSignOut }: SideNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex min-h-11 items-center gap-3 rounded-lg px-3 text-small font-medium text-muted-foreground transition-colors outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
+            'inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-small font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
             active &&
-              'bg-primary text-primary-foreground shadow-sm hover:bg-primary hover:text-primary-foreground',
+              'bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground',
           )}
         >
           <Icon aria-hidden className="size-4" />
@@ -50,27 +52,26 @@ export function SideNav({ currentPath, signingOut, onSignOut }: SideNavProps) {
 
   return (
     <nav
-      data-slot="side-nav"
+      data-slot="top-nav"
       aria-label={tNav('label')}
-      className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col gap-4 overflow-y-auto border-r bg-card p-4 md:flex"
+      className="sticky top-4 z-40 mx-4 mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs md:flex"
     >
-      <p className="flex items-center gap-2.5 px-2 text-heading">
+      <p className="flex items-center gap-2.5 text-heading">
         <span
           aria-hidden
-          className="inline-flex size-9 items-center justify-center rounded-lg bg-primary text-small font-semibold text-primary-foreground"
+          className="inline-flex size-9 items-center justify-center rounded-xl bg-primary text-small font-semibold text-primary-foreground"
         >
           {t('brand').charAt(0)}
         </span>
         {t('brand')}
       </p>
-      <Link href={ADD_MOVEMENT_HREF} className={buttonVariants({ variant: 'default' })}>
-        <Plus aria-hidden />
-        {tNav('addMovement')}
-      </Link>
-      <ul className="grid gap-1">{PRIMARY_ITEMS.map(destination)}</ul>
-      <ul className="grid gap-1 border-t pt-4">{SECONDARY_ITEMS.map(destination)}</ul>
-      <div className="mt-auto grid gap-2">
-        <ThemeToggle size="compact" />
+      <ul className="flex flex-1 flex-wrap items-center gap-1">{DESTINATIONS.map(destination)}</ul>
+      <div className="flex items-center gap-2">
+        <Link href={ADD_MOVEMENT_HREF} className={buttonVariants({ variant: 'default' })}>
+          <Plus aria-hidden />
+          {tNav('addMovement')}
+        </Link>
+        <ThemeToggle />
         <SignOutButton pending={signingOut} onSignOut={onSignOut} />
       </div>
     </nav>

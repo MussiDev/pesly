@@ -31,7 +31,7 @@ async function signedIn(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/es$/);
 }
 
-test.describe('navigation by viewport (AC-12, AC-13)', () => {
+test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
   /** Both landmarks share one accessible name; the hidden one is out of the accessibility tree. */
   function navigations(page: Page) {
     return page.getByRole('navigation', { name: es.app.nav.label, includeHidden: true });
@@ -46,27 +46,45 @@ test.describe('navigation by viewport (AC-12, AC-13)', () => {
     return boxes;
   }
 
-  test('at 360 px the bottom navigation is visible and the side navigation is hidden', async ({
+  test('at 360 px the floating bottom bar is visible, inset from the edges, and the top navigation is hidden', async ({
     page,
   }) => {
     await page.setViewportSize(PHONE);
     await signedIn(page);
 
     await expect(navigations(page)).toHaveCount(2);
-    await expect(page.getByRole('navigation', { name: es.app.nav.label })).toHaveCount(1);
-    const [box, ...others] = await visibleBoxes(page);
+    const nav = page.getByRole('navigation', { name: es.app.nav.label });
+    await expect(nav).toHaveCount(1);
+    const [, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The bar spans the viewport width and sits in its lower half.
-    expect(box?.width).toBeGreaterThanOrEqual(PHONE.width - 1);
-    expect(box?.y).toBeGreaterThan(PHONE.height / 2);
-    await expect(
-      page.getByRole('navigation', { name: es.app.nav.label }).getByRole('link', {
-        name: es.app.nav.addMovement,
-      }),
-    ).toBeVisible();
+    // The pill floats: inset from both edges and in the lower half of the viewport.
+    const pill = await nav.locator('ul').boundingBox();
+    expect(pill?.x).toBeGreaterThan(0);
+    expect((pill?.x ?? 0) + (pill?.width ?? 0)).toBeLessThan(PHONE.width);
+    expect(pill?.y).toBeGreaterThan(PHONE.height / 2);
+    await expect(nav.getByRole('link', { name: es.app.nav.addMovement })).toBeVisible();
   });
 
-  test('at 1280 px the side navigation is visible and the bottom navigation is hidden', async ({
+  test('at 360 px the last element of the page stays above the bar when scrolled to the end', async ({
+    page,
+  }) => {
+    await page.setViewportSize(PHONE);
+    await signedIn(page);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    });
+
+    const pill = await page
+      .getByRole('navigation', { name: es.app.nav.label })
+      .locator('ul')
+      .boundingBox();
+    const last = await page.locator('#main-content > :last-child').boundingBox();
+    expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThanOrEqual((pill?.y ?? 0) + 1);
+  });
+
+  test('at 1280 px the top navigation card is visible and the bottom bar is hidden', async ({
     page,
   }) => {
     await page.setViewportSize(DESKTOP);
@@ -76,10 +94,10 @@ test.describe('navigation by viewport (AC-12, AC-13)', () => {
     await expect(page.getByRole('navigation', { name: es.app.nav.label })).toHaveCount(1);
     const [box, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The side navigation is a narrow column on the left edge, as tall as the viewport.
-    expect(box?.x).toBe(0);
-    expect(box?.width).toBeLessThan(DESKTOP.width / 2);
-    expect(box?.height).toBeGreaterThanOrEqual(DESKTOP.height - 1);
+    // The top navigation is a card across the top of the page, inset from the edges.
+    expect(box?.y).toBeLessThan(DESKTOP.height / 4);
+    expect(box?.x).toBeGreaterThan(0);
+    expect(box?.width).toBeGreaterThan(DESKTOP.width / 2);
   });
 });
 

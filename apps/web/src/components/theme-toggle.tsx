@@ -11,7 +11,7 @@ const ICONS = { light: Sun, dark: Moon, system: Monitor } as const satisfies Rec
 
 /**
  * Segmented control for light, dark and system. Native radios give keyboard support for free.
- * `compact` fills a narrow container (the side navigation) with equal icon-only options; the
+ * `compact` fills a narrow container (a sidebar or a drawer) with equal icon-only options; the
  * accessible name and a tooltip still carry the label.
  */
 export function ThemeToggle({
