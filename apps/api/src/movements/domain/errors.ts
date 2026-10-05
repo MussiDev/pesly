@@ -76,3 +76,14 @@ export class MovementTypeImmutable extends AppError {
     super('MOVEMENT_TYPE_IMMUTABLE');
   }
 }
+
+/**
+ * A movement with this id is already stored, for this owner or another. Never reaches a response:
+ * the use case that passed the id turns it into a replay or a not found.
+ */
+export class DuplicateMovementId extends Error {
+  constructor() {
+    super('A movement with this id already exists');
+    this.name = 'DuplicateMovementId';
+  }
+}

@@ -8,8 +8,12 @@ export type { MovementFilters, NewMovement };
  * (`null`). Lists are ordered newest first (`occurredAt`, then `id`, both descending).
  */
 export interface MovementRepository {
-  /** The owner is the scope's user; stores `data.tags` with the movement or not at all. */
-  insert(scope: AccessScope<'write'>, data: NewMovement): Promise<Movement>;
+  /**
+   * The owner is the scope's user; stores `data.tags` with the movement or not at all. With an `id`
+   * the movement is stored under it, and an id that is already taken, by this owner or another,
+   * throws `DuplicateMovementId` and stores nothing.
+   */
+  insert(scope: AccessScope<'write'>, data: NewMovement, id?: string): Promise<Movement>;
   list(
     scope: AccessScope<'read'>,
     options: { limit: number; offset: number; filters: MovementFilters },

@@ -6,6 +6,7 @@ import {
 } from '../../src/movements/application/create-movement';
 import {
   CategoryArchived,
+  DuplicateMovementId,
   MovementAccountArchived,
   MovementCategoryKindMismatch,
   MovementDateInFuture,
@@ -86,6 +87,36 @@ describe('CreateMovement', () => {
     await expect(
       run(input({ accountId: account, categoryId: category, tags: ['a'] })),
     ).rejects.toBe(failure);
+  });
+
+  it('stores the movement under the id it is given, and under a generated one without it (FR-02)', async () => {
+    const account = accounts.seed(ALICE);
+    const category = categories.seed(ALICE, 'expense');
+    const given = '4c1d7e2a-8b3f-4a60-9d15-6e0f2a7b9c34';
+
+    const withId = await create.execute(
+      await writeScopeFor(ALICE),
+      input({ accountId: account, categoryId: category }),
+      given,
+    );
+    const withoutId = await run(input({ accountId: account, categoryId: category }));
+
+    expect(withId.id).toBe(given);
+    expect(withoutId.id).not.toBe(given);
+    expect(movements.insertIds).toEqual([given, undefined]);
+  });
+
+  it('lets a duplicate id from the repository reach the caller unchanged (invalid input)', async () => {
+    const account = accounts.seed(ALICE);
+    const category = categories.seed(ALICE, 'expense');
+    const given = '4c1d7e2a-8b3f-4a60-9d15-6e0f2a7b9c34';
+    const scope = await writeScopeFor(ALICE);
+    await create.execute(scope, input({ accountId: account, categoryId: category }), given);
+
+    await expect(
+      create.execute(scope, input({ accountId: account, categoryId: category }), given),
+    ).rejects.toBeInstanceOf(DuplicateMovementId);
+    expect(movements.rows).toHaveLength(1);
   });
 
   it('stores a valid expense and income with the owner of the scope', async () => {
