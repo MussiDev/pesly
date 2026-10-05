@@ -10,7 +10,7 @@
 
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
-| DISC-001-04a | Local Store, App Shell and Reference Cache | prd-DISC-001-04a.md | PRD 01, 02 and 03 (all merged) | active |
+| DISC-001-04a | Local Store, App Shell and Reference Cache | prd-DISC-001-04a.md | PRD 01, 02 and 03 (all merged) | done: branch `feat/DISC-001-04a-local-store-app-shell`, no migration; must ship together with 04d, because the copy on the device is not wiped on sign-out until then (threat R-03); next: 04b |
 | DISC-001-04b | Offline Entry and Sync of New Movements | prd-DISC-001-04b.md | depends on a | pending |
 | DISC-001-04c | Offline Edit and Delete, Sync States, Failures and Retries | prd-DISC-001-04c.md | depends on a and b; DISC-001-03e is merged (#27), so editing and deleting exist | pending |
 | DISC-001-04d | Session, Sign Out and Local Data | prd-DISC-001-04d.md | depends on a and b | pending |
