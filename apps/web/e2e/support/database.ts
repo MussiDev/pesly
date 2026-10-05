@@ -275,3 +275,16 @@ export async function seedMovements(email: string, count: number): Promise<void>
   );
   if (inserted.rows.length !== count) throw new Error(`Seeded ${inserted.rows.length} of ${count}`);
 }
+
+/** The ids of every movement stored for `email`, sorted. */
+export async function movementRowIds(email: string): Promise<string[]> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select m.id::text as id from movements m join users u on u.id = m.owner_id
+        where u.email = $1
+        order by m.id`,
+      [email],
+    ),
+  );
+  return rows.map((row) => String(row.id));
+}
