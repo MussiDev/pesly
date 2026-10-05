@@ -145,7 +145,7 @@ export function MovementList({
               {/* An explicit role: list-style reset classes can drop the implicit one in Safari. */}
               <ul
                 role="list"
-                className="divide-y divide-border rounded-xl border bg-card px-3 shadow-xs"
+                className="divide-y divide-border/70 rounded-card bg-card px-4 shadow-xs"
               >
                 {group.items.map((item) => (
                   <MovementRow
