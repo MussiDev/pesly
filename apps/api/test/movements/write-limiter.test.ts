@@ -20,7 +20,8 @@ import { MutableClock } from './fakes';
 
 let connection: DatabaseConnection;
 
-const POLICY: WritePolicy = { limit: 3, windowSeconds: 60 };
+const POLICY: WritePolicy = { limit: 3, windowSeconds: 60, bucket: 'manual' };
+const DEVICE_POLICY: WritePolicy = { limit: 3, windowSeconds: 60, bucket: 'device' };
 const T0 = new Date('2026-10-02T12:00:10.000Z');
 const WINDOW_0 = new Date('2026-10-02T12:00:00.000Z');
 const WINDOW_1 = new Date('2026-10-02T12:01:00.000Z');
@@ -43,6 +44,16 @@ async function rowsOf(ownerId: string): Promise<Map<number, number>> {
     [ownerId],
   );
   return new Map(result.rows.map((row) => [row.window_start.getTime(), row.count]));
+}
+
+async function bucketRowsOf(ownerId: string): Promise<Map<string, number>> {
+  const result = await connection.pool.query<{ bucket: string; window_start: Date; count: number }>(
+    'select bucket, window_start, count from movement_rate_limits where owner_id = $1',
+    [ownerId],
+  );
+  return new Map(
+    result.rows.map((row) => [`${row.bucket}|${row.window_start.getTime()}`, row.count]),
+  );
 }
 
 describe('DrizzleMovementWriteLimiter', () => {
@@ -68,7 +79,7 @@ describe('DrizzleMovementWriteLimiter', () => {
     const one = limiterAt(clock);
     const two = limiterAt(clock);
     const owner = await newUserId(connection.db);
-    const policy = { limit: 1000, windowSeconds: 60 };
+    const policy: WritePolicy = { limit: 1000, windowSeconds: 60, bucket: 'manual' };
     const reservations = await Promise.all(
       Array.from({ length: 50 }, (_, i) => (i % 2 === 0 ? one : two).record(owner, policy)),
     );
@@ -128,6 +139,84 @@ describe('DrizzleMovementWriteLimiter', () => {
     const rows = await rowsOf(owner);
     expect(rows.get(WINDOW_0.getTime())).toBe(0);
     expect(rows.get(WINDOW_1.getTime())).toBe(5);
+  });
+
+  it('counts the manual and device buckets of one owner independently in the same window (NFR-02)', async () => {
+    const clock = new MutableClock(T0);
+    const limiter = limiterAt(clock);
+    const owner = await newUserId(connection.db);
+    for (let i = 0; i < 4; i += 1) await limiter.record(owner, POLICY);
+    const device = [];
+    for (let i = 0; i < 4; i += 1) device.push(await limiter.record(owner, DEVICE_POLICY));
+    expect(device.map((r) => [r.count, r.allowed])).toEqual([
+      [1, true],
+      [2, true],
+      [3, true],
+      [4, false],
+    ]);
+    expect(await bucketRowsOf(owner)).toEqual(
+      new Map([
+        [`manual|${WINDOW_0.getTime()}`, 4],
+        [`device|${WINDOW_0.getTime()}`, 4],
+      ]),
+    );
+  });
+
+  it('removes the older windows of the same bucket only (NFR-02)', async () => {
+    const clock = new MutableClock(T0);
+    const limiter = limiterAt(clock);
+    const owner = await newUserId(connection.db);
+    await limiter.record(owner, POLICY);
+    await limiter.record(owner, DEVICE_POLICY);
+    clock.current = new Date('2026-10-02T12:01:05.000Z');
+    await limiter.record(owner, DEVICE_POLICY);
+    expect(await bucketRowsOf(owner)).toEqual(
+      new Map([
+        [`manual|${WINDOW_0.getTime()}`, 1],
+        [`device|${WINDOW_1.getTime()}`, 1],
+      ]),
+    );
+  });
+
+  it('release refunds the bucket it was recorded in and never goes below zero (invalid input)', async () => {
+    const clock = new MutableClock(T0);
+    const limiter = limiterAt(clock);
+    const owner = await newUserId(connection.db);
+    await limiter.record(owner, POLICY);
+    await limiter.record(owner, POLICY);
+    const device = await limiter.record(owner, DEVICE_POLICY);
+    await limiter.release(owner, DEVICE_POLICY, device.windowStart);
+    await limiter.release(owner, DEVICE_POLICY, device.windowStart);
+    await limiter.release(owner, DEVICE_POLICY, device.windowStart);
+    expect(await bucketRowsOf(owner)).toEqual(
+      new Map([
+        [`manual|${WINDOW_0.getTime()}`, 2],
+        [`device|${WINDOW_0.getTime()}`, 0],
+      ]),
+    );
+  });
+
+  it('reads a row inserted without a bucket as manual, so existing counters keep working (FR-05)', async () => {
+    const clock = new MutableClock(T0);
+    const limiter = limiterAt(clock);
+    const owner = await newUserId(connection.db);
+    await connection.pool.query(
+      'insert into movement_rate_limits (owner_id, window_start, count) values ($1, $2, 2)',
+      [owner, WINDOW_0],
+    );
+    expect(await limiter.record(owner, POLICY)).toMatchObject({ count: 3, allowed: true });
+    expect(await limiter.record(owner, POLICY)).toMatchObject({ count: 4, allowed: false });
+    expect(await limiter.record(owner, DEVICE_POLICY)).toMatchObject({ count: 1, allowed: true });
+  });
+
+  it('refuses an invalid bucket value with the check constraint (invalid input)', async () => {
+    const owner = await newUserId(connection.db);
+    await expect(
+      connection.pool.query(
+        "insert into movement_rate_limits (owner_id, bucket, window_start, count) values ($1, 'bulk', $2, 1)",
+        [owner, WINDOW_0],
+      ),
+    ).rejects.toMatchObject({ code: '23514' });
   });
 });
 

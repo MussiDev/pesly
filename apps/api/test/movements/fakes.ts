@@ -308,7 +308,7 @@ export class InMemoryMovementWriteLimiter implements MovementWriteLimiter {
     this.recordCalls.push(ownerId);
     const windowMs = policy.windowSeconds * 1000;
     const windowStart = new Date(Math.floor(this.now().getTime() / windowMs) * windowMs);
-    const key = `${ownerId}|${windowStart.toISOString()}`;
+    const key = `${ownerId}|${policy.bucket}|${windowStart.toISOString()}`;
     const count = (this.counts.get(key) ?? 0) + 1;
     this.counts.set(key, count);
     return { count, allowed: count <= policy.limit, windowStart };
@@ -321,17 +321,17 @@ export class InMemoryMovementWriteLimiter implements MovementWriteLimiter {
 
   private async releaseAsync(
     ownerId: string,
-    _policy: WritePolicy,
+    policy: WritePolicy,
     windowStart: Date,
   ): Promise<void> {
     await Promise.resolve();
     this.releaseCalls.push(windowStart);
     if (this.releaseError) throw this.releaseError;
-    const key = `${ownerId}|${windowStart.toISOString()}`;
+    const key = `${ownerId}|${policy.bucket}|${windowStart.toISOString()}`;
     this.counts.set(key, Math.max(0, (this.counts.get(key) ?? 0) - 1));
   }
 
-  countFor(ownerId: string, windowStart: Date): number {
-    return this.counts.get(`${ownerId}|${windowStart.toISOString()}`) ?? 0;
+  countFor(ownerId: string, windowStart: Date, bucket: WritePolicy['bucket'] = 'manual'): number {
+    return this.counts.get(`${ownerId}|${bucket}|${windowStart.toISOString()}`) ?? 0;
   }
 }

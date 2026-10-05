@@ -24,8 +24,9 @@ export class DrizzleMovementWriteLimiter implements MovementWriteLimiter {
   ) {}
 
   /**
-   * Drops the owner's older windows (keeping the table at about one row per user), then one
-   * atomic upsert, so concurrent calls from several instances never lose an increment.
+   * Drops the owner's older windows of the policy's bucket (keeping the table at about one row per
+   * user and bucket), then one atomic upsert, so concurrent calls from several instances never lose
+   * an increment.
    */
   async record(ownerId: string, policy: WritePolicy): Promise<WriteReservation> {
     const windowStart = windowStartOf(this.clock.now(), policy.windowSeconds);
@@ -35,14 +36,19 @@ export class DrizzleMovementWriteLimiter implements MovementWriteLimiter {
         .where(
           and(
             eq(movementRateLimits.ownerId, ownerId),
+            eq(movementRateLimits.bucket, policy.bucket),
             lt(movementRateLimits.windowStart, windowStart),
           ),
         );
       const [row] = await tx
         .insert(movementRateLimits)
-        .values({ ownerId, windowStart, count: 1 })
+        .values({ ownerId, bucket: policy.bucket, windowStart, count: 1 })
         .onConflictDoUpdate({
-          target: [movementRateLimits.ownerId, movementRateLimits.windowStart],
+          target: [
+            movementRateLimits.ownerId,
+            movementRateLimits.bucket,
+            movementRateLimits.windowStart,
+          ],
           set: { count: sql`${movementRateLimits.count} + 1` },
         })
         .returning({ count: movementRateLimits.count });
@@ -51,14 +57,15 @@ export class DrizzleMovementWriteLimiter implements MovementWriteLimiter {
     });
   }
 
-  /** Decrements the given window's row only: a late refund never touches a newer window. */
-  async release(ownerId: string, _policy: WritePolicy, windowStart: Date): Promise<void> {
+  /** Decrements the given window's row of the policy's bucket only: a late refund never touches a newer window. */
+  async release(ownerId: string, policy: WritePolicy, windowStart: Date): Promise<void> {
     await this.db
       .update(movementRateLimits)
       .set({ count: sql`greatest(${movementRateLimits.count} - 1, 0)` })
       .where(
         and(
           eq(movementRateLimits.ownerId, ownerId),
+          eq(movementRateLimits.bucket, policy.bucket),
           eq(movementRateLimits.windowStart, windowStart),
         ),
       );

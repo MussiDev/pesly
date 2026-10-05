@@ -21,6 +21,7 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
+import { WRITE_LIMIT_BUCKETS } from '../../application/ports/movement-write-limiter';
 import { accounts, categories, users } from './foreign-relations';
 
 /**
@@ -144,19 +145,24 @@ export const movements = pgTable(
   ],
 );
 
-/** Fixed-window counters of manual creations per user; at most two rows per user (D8). */
+/**
+ * Fixed-window counters of creations per user and bucket (manual, or carrying a device id); at most
+ * two rows per user and bucket (D8). A row written before buckets existed reads as `manual`.
+ */
 export const movementRateLimits = pgTable(
   'movement_rate_limits',
   {
     ownerId: uuid('owner_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
+    bucket: text('bucket', { enum: WRITE_LIMIT_BUCKETS }).notNull().default('manual'),
     windowStart: timestamptz('window_start').notNull(),
     count: integer('count').notNull(),
   },
   (table) => [
-    primaryKey({ columns: [table.ownerId, table.windowStart] }),
+    primaryKey({ columns: [table.ownerId, table.bucket, table.windowStart] }),
     check('movement_rate_limits_count_check', sql`${table.count} >= 0`),
+    check('movement_rate_limits_bucket_check', oneOf(table.bucket, WRITE_LIMIT_BUCKETS)),
   ],
 );
 
