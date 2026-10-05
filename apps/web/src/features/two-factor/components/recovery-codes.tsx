@@ -50,10 +50,10 @@ export function RecoveryCodes({
         {/* Explicit role: preflight removes the bullets and Safari then drops the list semantics. */}
         <ol
           role="list"
-          className="grid grid-cols-2 gap-2 rounded-lg border bg-muted p-3 font-mono text-small"
+          className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-3 font-mono text-small"
         >
           {codes.map((code) => (
-            <li key={code} className="rounded-md bg-card px-2 py-2 text-center select-all">
+            <li key={code} className="rounded-lg bg-card px-2 py-2 text-center select-all">
               {code}
             </li>
           ))}

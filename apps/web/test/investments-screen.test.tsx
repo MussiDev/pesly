@@ -48,6 +48,12 @@ function props(overrides: Partial<InvestmentsScreenProps> = {}): InvestmentsScre
 }
 
 describe('InvestmentsScreen with the design system (FEAT-004)', () => {
+  it('draws its loading skeleton with the card radius (AC-35)', () => {
+    const { container } = renderApp(<InvestmentsScreen {...props({ state: 'loading' })} />);
+
+    expect(container.querySelector('[data-slot="skeleton"].rounded-card')).not.toBeNull();
+  });
+
   it('AC-21: shows a skeleton and announces the loading state while loading', () => {
     const { container } = renderApp(<InvestmentsScreen {...props({ state: 'loading' })} />);
 

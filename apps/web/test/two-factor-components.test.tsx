@@ -220,6 +220,17 @@ describe('TwoFactorSetup', () => {
   });
 });
 
+describe('RecoveryCodes soft shapes (AC-34)', () => {
+  it('shows the codes in a rounded tray without a border and rounded chips', () => {
+    renderApp(<RecoveryCodes codes={CODES} copyStatus="idle" onCopy={vi.fn()} onDone={vi.fn()} />);
+
+    const tray = document.querySelector('ol.grid-cols-2');
+    expect(tray?.className).toMatch(/rounded-xl/);
+    expect(tray?.className).not.toMatch(/(^|\s)border(\s|$)/);
+    expect(screen.getAllByRole('listitem')[0]?.className).toMatch(/rounded-lg/);
+  });
+});
+
 describe('RecoveryCodes', () => {
   it('lists the 10 codes, copies them and confirms only after "I saved them"', async () => {
     const onCopy = vi.fn();
