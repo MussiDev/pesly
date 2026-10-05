@@ -24,6 +24,11 @@ describe('content security policy (R-20)', () => {
     expect(production.get('style-src-attr')).toBe(`'unsafe-inline'`);
   });
 
+  it('serves images only from the app itself, with no third-party image host (AC-26)', () => {
+    expect(production.get('img-src')).toBe(`'self' blob: data:`);
+    expect(production.get('img-src')).not.toMatch(/https?:|\*/);
+  });
+
   it('lets the web app call the API origin', () => {
     expect(production.get('connect-src')).toBe(`'self' https://api.argent.test`);
   });
