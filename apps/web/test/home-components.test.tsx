@@ -3,7 +3,9 @@ import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { formatMoney } from '@pesly/shared';
 import { BalanceSummary } from '../src/features/home/components/balance-summary';
+import { HomeAccounts } from '../src/features/home/components/home-accounts';
 import { HomeScreen, HomeSkeleton } from '../src/features/home/components/home-screen';
+import { QuickActions } from '../src/features/home/components/quick-actions';
 import {
   RecentMovements,
   type RecentMovementItem,
@@ -138,6 +140,119 @@ describe('RecentMovements', () => {
   });
 });
 
+describe('QuickActions (AC-13, AC-14)', () => {
+  it('renders four circular actions, each linking to the new-movement screen with its type', () => {
+    renderApp(<QuickActions />);
+
+    const list = screen.getByRole('list', { name: es.home.quickActions.label });
+    const links = within(list).getAllByRole('link');
+    expect(links.map((link) => link.getAttribute('href'))).toEqual([
+      '/es/movements/new?type=expense',
+      '/es/movements/new?type=income',
+      '/es/movements/new?type=transfer',
+      '/es/movements/new?type=exchange',
+    ]);
+    expect(links.map((link) => link.textContent)).toEqual([
+      es.home.quickActions.expense,
+      es.home.quickActions.income,
+      es.home.quickActions.transfer,
+      es.home.quickActions.exchange,
+    ]);
+    for (const link of links) {
+      expect(link.querySelector('[data-slot="circular-action-circle"]')).not.toBeNull();
+    }
+  });
+
+  it('names the actions in English', () => {
+    renderApp(<QuickActions />, { locale: 'en' });
+
+    expect(
+      screen.getByRole('link', { name: en.home.quickActions.exchange }).getAttribute('href'),
+    ).toBe('/en/movements/new?type=exchange');
+  });
+});
+
+describe('HomeAccounts', () => {
+  const ACCOUNTS = [
+    { id: 'a1', name: 'Caja', currency: 'ARS', balance: '123450' },
+    { id: 'a2', name: 'Dólares', currency: 'USD', balance: '25000' },
+  ];
+
+  it('lists each account with its currency and balance, and links to see them all', () => {
+    renderApp(<HomeAccounts locale="es" accounts={ACCOUNTS} />);
+
+    const list = screen.getByRole('list', { name: es.home.accounts.title });
+    const rows = within(list).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.textContent).toContain('Caja');
+    expect(rows[0]?.textContent.replace(/\s+/g, ' ')).toContain(money(123450n, 'ARS', 'es'));
+    expect(rows[1]?.textContent).toContain('Dólares');
+    expect(screen.getByRole('link', { name: es.home.accounts.seeAll }).getAttribute('href')).toBe(
+      '/es/accounts',
+    );
+  });
+
+  it('error: a balance that is not an exact integer shows a placeholder and does not throw', () => {
+    renderApp(
+      <HomeAccounts
+        locale="es"
+        accounts={[{ id: 'a1', name: 'Rota', currency: 'ARS', balance: '12.5' }]}
+      />,
+    );
+
+    expect(screen.getByRole('listitem').textContent).toContain('—');
+  });
+
+  it('error: with no accounts it renders nothing, because the home shows its empty state instead', () => {
+    const { container } = renderApp(<HomeAccounts locale="es" accounts={[]} />);
+
+    expect(container.textContent).toBe('');
+  });
+});
+
+describe('RecentMovements logos (AC-21, AC-22, AC-23)', () => {
+  it('shows the merchant logo of an expense whose note names a catalog merchant', () => {
+    const { container } = renderApp(
+      <RecentMovements
+        locale="es"
+        timeZone="UTC"
+        items={[{ ...ROW, id: 'e1', type: 'expense', note: 'Spotify premium' }]}
+      />,
+    );
+
+    expect(container.querySelector('img')?.getAttribute('src')).toBe('/logos/spotify.svg');
+  });
+
+  it('keeps the category icon when the note names no catalog merchant', () => {
+    const { container } = renderApp(
+      <RecentMovements
+        locale="es"
+        timeZone="UTC"
+        items={[
+          { ...ROW, note: 'almuerzo con amigos' },
+          { ...ROW, id: 'm2', note: null },
+        ]}
+      />,
+    );
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelectorAll('[data-icon="banknote"]')).toHaveLength(2);
+  });
+
+  it('shows the movement-type icon for a transfer and never a logo, even if the note names a merchant', () => {
+    const { container } = renderApp(
+      <RecentMovements
+        locale="es"
+        timeZone="UTC"
+        items={[{ ...ROW, id: 't1', type: 'transfer', note: 'Netflix' }]}
+      />,
+    );
+
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('[data-slot="avatar"] svg')).not.toBeNull();
+  });
+});
+
 describe('malformed API values', () => {
   it('a malformed balance total shows a placeholder and does not throw', () => {
     renderApp(
@@ -167,7 +282,7 @@ describe('HomeScreen and HomeSkeleton', () => {
     expect(document.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(2);
   });
 
-  it('the screen has one level-one heading and composes balance and movements', () => {
+  it('the screen has one level-one heading and composes balance, quick actions, accounts and movements', () => {
     renderApp(
       <HomeScreen
         locale="es"
@@ -175,11 +290,14 @@ describe('HomeScreen and HomeSkeleton', () => {
         currencies={['ARS']}
         availableTotals={{ ARS: '100' }}
         netWorthTotals={{ ARS: '100' }}
+        accounts={[{ id: 'a1', name: 'Caja', currency: 'ARS', balance: '100' }]}
         movements={[ROW]}
       />,
     );
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByRole('group', { name: es.home.balance.currencies.ARS })).toBeDefined();
+    expect(screen.getByRole('list', { name: es.home.quickActions.label })).toBeDefined();
+    expect(screen.getByRole('list', { name: es.home.accounts.title })).toBeDefined();
     expect(screen.getByRole('list', { name: es.home.recent.title })).toBeDefined();
     // Adding a movement lives in the shell's navigation: the home does not repeat it.
     expect(screen.queryByRole('link', { name: es.home.recent.empty.action })).toBeNull();

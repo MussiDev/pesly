@@ -34,6 +34,17 @@
       "title": "Create your first account",
       "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
       "action": "Create account"
+    },
+    "quickActions": {
+      "label": "Quick actions",
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer",
+      "exchange": "Exchange"
+    },
+    "accounts": {
+      "title": "Accounts",
+      "seeAll": "See all"
     }
   },
   "app": {

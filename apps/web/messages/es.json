@@ -34,6 +34,17 @@
       "title": "Crea tu primera cuenta",
       "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
       "action": "Crear cuenta"
+    },
+    "quickActions": {
+      "label": "Acciones rápidas",
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferir",
+      "exchange": "Cambio"
+    },
+    "accounts": {
+      "title": "Cuentas",
+      "seeAll": "Ver todas"
     }
   },
   "app": {
