@@ -196,7 +196,7 @@ describe('/design-system outside production (AC-10)', () => {
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe(
       CATALOGS[locale].ui.designSystem.title,
     );
-    expect(screen.getByRole('radio', { name: CATALOGS[locale].theme.dark })).toBeTruthy();
+    expect(screen.getByRole('switch', { name: CATALOGS[locale].theme.darkMode })).toBeTruthy();
   });
 
   it('uses no float conversion for money', () => {

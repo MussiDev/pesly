@@ -103,7 +103,8 @@ describe('InvestmentsScreen with the design system (FEAT-004)', () => {
 
     const heading = screen.getByRole('heading', { name: inv.forms.addHolding.title });
     expect(heading.closest('[data-slot="card"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(2);
+    // The portfolio is laid out on the canvas; only the open form is a card.
+    expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(1);
     expect(document.activeElement).toBe(heading);
   });
 

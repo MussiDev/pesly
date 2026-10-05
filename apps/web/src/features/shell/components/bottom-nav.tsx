@@ -24,7 +24,7 @@ const BEFORE_ADD: readonly NavItem[] = [HOME_ITEM, MOVEMENTS_ITEM];
 const AFTER_ADD: readonly NavItem[] = [INVESTMENTS_ITEM, MORE_ITEM];
 
 /**
- * The floating pill bar below `md`; the top navigation takes over from `md`. The landmark spans
+ * The floating pill bar below `lg`; the top navigation takes over from `lg`. The landmark spans
  * the width and lets taps through, so only the pill itself catches them.
  */
 export function BottomNav({ currentPath }: BottomNavProps) {
@@ -39,7 +39,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill py-1.5 text-caption font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill py-1.5 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
             active && 'bg-accent text-accent-foreground',
           )}
         >
@@ -54,11 +54,11 @@ export function BottomNav({ currentPath }: BottomNavProps) {
     <nav
       data-slot="bottom-nav"
       aria-label={t('label')}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe lg:hidden"
     >
       <ul className="pointer-events-auto mx-4 mb-4 flex items-center rounded-pill bg-card px-2 py-1.5 shadow-md sm:mx-auto sm:max-w-md">
         {BEFORE_ADD.map(destination)}
-        <li className="flex shrink-0 justify-center px-1">
+        <li className="flex shrink-0 justify-center">
           <Link
             href={ADD_MOVEMENT_HREF}
             aria-label={t('addMovement')}

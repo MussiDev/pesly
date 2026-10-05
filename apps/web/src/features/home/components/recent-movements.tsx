@@ -116,32 +116,37 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
               }
               title={hasNote ? item.note : category}
               description={
-                <>
-                  {hasNote ? `${category} · ` : ''}
-                  {item.accountName ?? t('unknownAccount')} ·{' '}
-                  <time dateTime={item.occurredAt}>{when}</time>
-                </>
+                hasNote
+                  ? `${category} · ${item.accountName ?? t('unknownAccount')}`
+                  : (item.accountName ?? t('unknownAccount'))
               }
               trailing={
-                !parsed.success ? (
-                  <span className="text-muted-foreground">—</span>
-                ) : item.currency === undefined ? (
-                  <PlainAmount
-                    value={BigInt(parsed.data)}
-                    locale={locale}
-                    type={item.type}
-                    directionLabel={t(item.type)}
-                  />
-                ) : (
-                  <Amount
-                    value={BigInt(parsed.data)}
-                    currency={item.currency}
-                    locale={locale}
-                    kind={item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'}
-                    directionLabel={t(item.type)}
-                    className="font-semibold"
-                  />
-                )
+                <span className="grid justify-items-end gap-0.5">
+                  {!parsed.success ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : item.currency === undefined ? (
+                    <PlainAmount
+                      value={BigInt(parsed.data)}
+                      locale={locale}
+                      type={item.type}
+                      directionLabel={t(item.type)}
+                    />
+                  ) : (
+                    <Amount
+                      value={BigInt(parsed.data)}
+                      currency={item.currency}
+                      locale={locale}
+                      kind={
+                        item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'
+                      }
+                      directionLabel={t(item.type)}
+                      className="font-semibold"
+                    />
+                  )}
+                  <time dateTime={item.occurredAt} className="text-caption text-muted-foreground">
+                    {when}
+                  </time>
+                </span>
               }
             />
           );

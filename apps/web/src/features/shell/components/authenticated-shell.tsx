@@ -64,16 +64,21 @@ export function AuthenticatedShell({
       <div
         id="main-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col pb-28 outline-none md:pb-0"
+        className="flex min-w-0 flex-1 flex-col pb-28 outline-none lg:pb-0"
       >
         {state.kind === 'loading' ? (
-          <div className="mx-auto grid w-full max-w-md content-start gap-4 p-4">
+          <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 lg:p-8">
             <p role="status" className="sr-only">
               {t('loading')}
             </p>
-            <Skeleton className="h-8 w-1/2" />
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-8 w-1/2 max-w-xs" />
+            <Skeleton className="h-40 w-full rounded-card" />
+            <div className="grid grid-cols-4 gap-3">
+              {[0, 1, 2, 3].map((index) => (
+                <Skeleton key={index} className="h-20 rounded-card" />
+              ))}
+            </div>
+            <Skeleton className="h-48 w-full rounded-card" />
           </div>
         ) : (
           <>

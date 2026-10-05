@@ -129,11 +129,10 @@ describe('PortfolioCard', () => {
     expect(screen.getByText('500.00 USD')).toBeTruthy();
   });
 
-  it('FEAT-004: is a card with the totals as a labelled list, one entry per currency', () => {
+  it('FEAT-004: heads the portfolio with its totals as a labelled list, one entry per currency', () => {
     renderCard();
 
-    const card = screen.getByRole('heading', { name: 'Balanz' }).closest('[data-slot="card"]');
-    expect(card).not.toBeNull();
+    expect(screen.getByRole('heading', { name: 'Balanz' })).toBeTruthy();
     const totals = screen.getByRole('list', { name: en.investments.portfolio.totalsLabel });
     expect(totals.querySelectorAll('li')).toHaveLength(2);
   });

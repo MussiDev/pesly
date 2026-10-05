@@ -260,7 +260,7 @@ describe('Skeleton (AC-21)', () => {
 
     const sk = screen.getByTestId('sk');
     expect(sk.className).toMatch(/animate-pulse/);
-    expect(sk.className).toMatch(/bg-muted/);
+    expect(sk.className).toMatch(/bg-foreground\/10/);
     expect(sk.className).toContain('h-4');
     expect(sk.getAttribute('aria-hidden')).toBe('true');
   });

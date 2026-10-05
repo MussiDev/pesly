@@ -442,8 +442,7 @@ test.describe('theme persistence (AC-06, AC-07)', () => {
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
     await page.goto('/es/more');
-    await expect(page.getByRole('radio', { name: es.theme.dark })).toBeChecked();
-    await expect(page.getByRole('radio', { name: es.theme.light })).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).toBeChecked();
   });
 
   test('choosing light on /more removes the dark class and survives a reload', async ({ page }) => {
@@ -454,15 +453,15 @@ test.describe('theme persistence (AC-06, AC-07)', () => {
     await page.goto('/es/more');
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
-    // Hydration proof: storage says dark, so the controlled radio only reads checked once the
+    // Hydration proof: storage says dark, so the controlled switch only reads checked once the
     // provider's state is applied; clicking earlier would be reverted by React.
-    await expect(page.getByRole('radio', { name: es.theme.dark })).toBeChecked();
-    await page.getByRole('radio', { name: es.theme.light }).check();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).toBeChecked();
+    await page.getByRole('switch', { name: es.theme.darkMode }).click();
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
-    await expect(page.getByRole('radio', { name: es.theme.light })).toBeChecked();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).not.toBeChecked();
     expect(await page.evaluate(() => localStorage.getItem('pesly-theme'))).toBe('light');
   });
 });

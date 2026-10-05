@@ -43,7 +43,7 @@ export function ListRow({
     >
       {leading ? <div className="shrink-0">{leading}</div> : null}
       <div className="grid min-w-0 flex-1 gap-0.5">
-        <div className="truncate text-body font-medium">{title}</div>
+        <div className="line-clamp-2 text-body font-medium break-words">{title}</div>
         {description ? (
           <div className="truncate text-small text-muted-foreground">{description}</div>
         ) : null}

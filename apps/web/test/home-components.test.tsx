@@ -32,7 +32,7 @@ const ROW: RecentMovementItem = {
 };
 
 describe('BalanceSummary', () => {
-  it('shows the available total and net worth per currency of the user accounts only', () => {
+  it('shows net worth as the headline and the available total per currency of the user accounts only', () => {
     renderApp(
       <BalanceSummary
         locale="es"
@@ -42,13 +42,21 @@ describe('BalanceSummary', () => {
       />,
     );
 
-    const group = screen.getByRole('group', { name: es.home.balance.currencies.ARS });
-    // The headline figure dims its cents in a nested span, so it is matched by its whole text.
-    const figures = Array.from(group.querySelectorAll('[data-slot="amount"]')).map((el) =>
-      el.textContent.replace(/\s+/g, ' '),
-    );
-    expect(figures).toEqual([money(1234500n, 'ARS', 'es'), money(1000000n, 'ARS', 'es')]);
-    expect(within(group).getByText(es.home.balance.available)).toBeDefined();
+    const figuresOf = (root: HTMLElement) =>
+      Array.from(root.querySelectorAll('[data-slot="amount"]')).map((el) =>
+        // The headline figure dims its cents in a nested span, so it is matched by its whole text.
+        el.textContent.replace(/\s+/g, ' '),
+      );
+    const section = screen.getByRole('region', { name: es.home.balance.netWorth });
+    const tile = screen.getByRole('group', { name: es.home.balance.currencies.ARS });
+    expect(figuresOf(section)).toEqual([
+      money(1000000n, 'ARS', 'es'),
+      money(1234500n, 'ARS', 'es'),
+    ]);
+    expect(figuresOf(tile)).toEqual([money(1234500n, 'ARS', 'es')]);
+    expect(
+      within(tile).getByText(es.home.balance.tile.replace('{currency}', 'Pesos')),
+    ).toBeDefined();
     expect(screen.queryByRole('group', { name: es.home.balance.currencies.USD })).toBeNull();
   });
 
@@ -57,8 +65,8 @@ describe('BalanceSummary', () => {
       <BalanceSummary locale="en" currencies={['USD']} availableTotals={{}} netWorthTotals={{}} />,
       { locale: 'en' },
     );
-    const group = screen.getByRole('group', { name: en.home.balance.currencies.USD });
-    const figures = Array.from(group.querySelectorAll('[data-slot="amount"]')).map((el) =>
+    const section = screen.getByRole('region', { name: en.home.balance.netWorth });
+    const figures = Array.from(section.querySelectorAll('[data-slot="amount"]')).map((el) =>
       el.textContent.replace(/\s+/g, ' '),
     );
     expect(figures).toEqual([money(0n, 'USD', 'en'), money(0n, 'USD', 'en')]);
@@ -263,8 +271,8 @@ describe('malformed API values', () => {
         netWorthTotals={{ ARS: '1.5' }}
       />,
     );
-    const group = within(screen.getByRole('group', { name: es.home.balance.currencies.ARS }));
-    expect(group.getAllByText('—')).toHaveLength(2);
+    const section = within(screen.getByRole('region', { name: es.home.balance.netWorth }));
+    expect(section.getAllByText('—')).toHaveLength(2);
   });
 
   it('a malformed movement amount shows a placeholder and does not throw', () => {
