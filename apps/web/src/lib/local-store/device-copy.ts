@@ -6,6 +6,14 @@ import {
   saveReferenceData,
   type ReferenceData,
 } from './reference-cache';
+import {
+  enqueueMovement,
+  loadQueue,
+  markRejected,
+  removeQueued,
+  type QueuedMovement,
+  type QueuedRequest,
+} from './queue';
 import { openLocalStore, type LocalStore } from './stores';
 
 /**
@@ -59,6 +67,44 @@ export async function writeRecentMovementsCopy(
 ): Promise<void> {
   await withStore<true>(userId, true, async (store) => {
     await saveRecentMovements(store, movements);
+    return true;
+  });
+}
+
+/**
+ * Saves a movement in the queue of this user. `true` only when it is stored: no user known, no
+ * IndexedDB, a blocked upgrade or a request the contract refuses all answer `false`, and nothing is
+ * thrown, so the screen can tell the person that the save did not happen.
+ */
+export function writeQueuedMovement(
+  userId: string | undefined,
+  request: QueuedRequest,
+): Promise<boolean> {
+  return withStore<boolean>(userId, false, async (store) => {
+    await enqueueMovement(store, request);
+    return true;
+  });
+}
+
+/** The queued movements of this user, oldest first; empty when none, or when the device cannot say. */
+export function readQueuedMovements(userId: string | undefined): Promise<QueuedMovement[]> {
+  return withStore<QueuedMovement[]>(userId, [], (store) => loadQueue(store));
+}
+
+export async function removeQueuedMovement(userId: string | undefined, id: string): Promise<void> {
+  await withStore<true>(userId, true, async (store) => {
+    await removeQueued(store, id);
+    return true;
+  });
+}
+
+export async function rejectQueuedMovement(
+  userId: string | undefined,
+  id: string,
+  code: string,
+): Promise<void> {
+  await withStore<true>(userId, true, async (store) => {
+    await markRejected(store, id, code);
     return true;
   });
 }
