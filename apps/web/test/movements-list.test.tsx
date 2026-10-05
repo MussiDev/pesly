@@ -1,10 +1,19 @@
 // @vitest-environment happy-dom
-import { formatMoney, type AccountResponse, type CategoryResponse } from '@pesly/shared';
+import {
+  formatMoney,
+  type AccountResponse,
+  type CategoryResponse,
+  type MovementResponse,
+} from '@pesly/shared';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MovementsContainer } from '../src/features/movements/containers/movements-container';
 import { formatRate } from '../src/features/movements/format-rate';
+import { loadRecentMovements, saveReferenceData } from '../src/lib/local-store/reference-cache';
+import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
+import { openLocalStore, type LocalStore } from '../src/lib/local-store/stores';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
 
@@ -1076,5 +1085,139 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
     });
+  });
+});
+
+describe('MovementsContainer: without connectivity (DISC-001-04a)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+
+  const preferences = {
+    defaultRateType: 'blue',
+    displayCurrency: 'ARS',
+    timeZone: TIME_ZONE,
+    language: 'es',
+  } as const;
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  /** What an earlier online visit left on the device: the reference data and the movements. */
+  async function seedCopy(movements: unknown[]): Promise<void> {
+    const store = await openLocalStore(ANA);
+    await saveReferenceData(store, {
+      accounts: [account()],
+      categories: [
+        categoryFixture({ id: COMIDA_ID, kind: 'expense', name: 'Comida', icon: 'utensils' }),
+      ],
+      tags: [],
+      preferences,
+      rates: [],
+    });
+    await replaceMovements(store, movements);
+    store.close();
+  }
+
+  async function replaceMovements(store: LocalStore, movements: unknown[]): Promise<void> {
+    await store.replaceAll('movements', movements);
+  }
+
+  async function savedMovements(): Promise<MovementResponse[]> {
+    const store = await openLocalStore(ANA);
+    const saved = await loadRecentMovements(store);
+    store.close();
+    return saved;
+  }
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  const recent = (index: number, note: string) =>
+    movement({
+      id: uuid(600 + index),
+      note,
+      occurredAt: new Date(Date.UTC(2026, 9, 1, 12, index)).toISOString(),
+    });
+
+  it('offline, shows the saved movements with the offline notice and a disabled filter bar (AC-02)', async () => {
+    await seedCopy([recent(1, 'Almuerzo'), recent(2, 'Cena')]);
+    setOnline(false);
+    const { fetch } = stubApi({});
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Cena')).toBeDefined();
+    expect(screen.getByText('Almuerzo')).toBeDefined();
+    expect(screen.getByText(es.movements.list.offlineNotice)).toBeDefined();
+    expect(screen.getByLabelText<HTMLSelectElement>(es.movements.filters.account).disabled).toBe(
+      true,
+    );
+    expect(within(rows()[0] as HTMLElement).getByText('Comida')).toBeDefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('saves the movements of an online load that has no filter (FR-02)', async () => {
+    stubApi(routes({ [FIRST_PAGE]: movementPage([recent(1, 'Almuerzo'), recent(2, 'Cena')]) }));
+
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Cena');
+
+    await waitFor(async () => {
+      expect((await savedMovements()).map((item) => item.note)).toEqual(['Cena', 'Almuerzo']);
+    });
+  });
+
+  it('does not overwrite the saved movements with a filtered load (FR-02)', async () => {
+    await seedCopy([recent(1, 'Almuerzo'), recent(2, 'Cena'), recent(3, 'Merienda')]);
+    stubApi(
+      routes({ 'GET /movements?limit=100&tag=Viaje': movementPage([recent(4, 'Viaje a Salta')]) }),
+    );
+
+    renderApp(<MovementsContainer />, { search: 'tag=Viaje' });
+    await screen.findByText('Viaje a Salta');
+
+    expect((await savedMovements()).map((item) => item.note)).toEqual([
+      'Merienda',
+      'Cena',
+      'Almuerzo',
+    ]);
+  });
+
+  it('falls back to the saved movements when the first list request fails with a network error (FR-03)', async () => {
+    await seedCopy([recent(1, 'Almuerzo')]);
+    stubApi(routes({ [FIRST_PAGE]: 'network-error' }));
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Almuerzo')).toBeDefined();
+    expect(screen.getByText(es.movements.list.offlineNotice)).toBeDefined();
+  });
+
+  it('offline with nothing saved shows the empty state and the notice, not an error (FR-03)', async () => {
+    await seedCopy([]);
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText(es.movements.list.emptyTitle)).toBeDefined();
+    expect(screen.getByText(es.movements.list.offlineNotice)).toBeDefined();
+  });
+
+  it('offline with no copy at all shows the connect-once message, not a crash (FR-03)', async () => {
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
   });
 });

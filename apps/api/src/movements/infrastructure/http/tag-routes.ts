@@ -1,4 +1,9 @@
-import { tagSuggestionsQuerySchema, tagSuggestionsResponseSchema } from '@pesly/shared';
+import {
+  listTagsQuerySchema,
+  listTagsResponseSchema,
+  tagSuggestionsQuerySchema,
+  tagSuggestionsResponseSchema,
+} from '@pesly/shared';
 import { Router } from 'express';
 import type { RouterFactory } from '../../../app';
 import { OwnerOrGroupMemberAccessPolicy } from '../../../shared/access';
@@ -7,6 +12,7 @@ import type { Database } from '../../../shared/db/client';
 import { HttpError } from '../../../shared/http/error-handler';
 import { requireVerifiedEmail } from '../../../shared/http/require-verified-email';
 import { validate } from '../../../shared/http/validate';
+import { ListTags } from '../../application/list-tags';
 import { SuggestTags } from '../../application/suggest-tags';
 import { DrizzleTagRepository } from '../db/drizzle-tag-repository';
 
@@ -17,7 +23,9 @@ export interface TagRoutesOptions {
 /** `/tags`: requireSession, requireVerifiedEmail, then the caller's own tags only. */
 export function createTagRoutes({ db }: TagRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
-  const suggestTags = new SuggestTags({ tags: new DrizzleTagRepository(db) });
+  const tagRepository = new DrizzleTagRepository(db);
+  const suggestTags = new SuggestTags({ tags: tagRepository });
+  const listTags = new ListTags({ tags: tagRepository });
 
   return ({ requireSession }) => {
     const router = Router();
@@ -32,6 +40,19 @@ export function createTagRoutes({ db }: TagRoutesOptions): RouterFactory {
           if (!auth) throw new HttpError(401, 'UNAUTHENTICATED');
           const scope = await policy.scopeFor(auth, 'read');
           res.json({ items: await suggestTags.execute(scope, query) });
+        },
+      ),
+    );
+
+    router.get(
+      '/tags/all',
+      validate(
+        { query: listTagsQuerySchema, response: listTagsResponseSchema },
+        async ({ query }, { res, auth }) => {
+          if (!auth) throw new HttpError(401, 'UNAUTHENTICATED');
+          const scope = await policy.scopeFor(auth, 'read');
+          const page = await listTags.execute(scope, query);
+          res.json({ ...page, limit: query.limit, offset: query.offset });
         },
       ),
     );

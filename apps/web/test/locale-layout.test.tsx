@@ -28,6 +28,7 @@ const fontCalls = [...mocks.inter.mock.calls];
 const { ApiClientProvider } = await import('../src/lib/api-client-provider');
 const { ThemeProvider } = await import('../src/components/theme-provider');
 const { THEME_SCRIPT } = await import('../src/lib/theme');
+const { ServiceWorkerRegistrar } = await import('../src/components/service-worker-registrar');
 
 type Props = LayoutProps<'/[locale]'>;
 
@@ -92,6 +93,11 @@ describe('[locale] layout', () => {
     // Only the API origin reaches the browser, normalized.
     const provider = findElement(tree, ApiClientProvider) as ReactElement<{ apiOrigin: string }>;
     expect(provider.props.apiOrigin).toBe('https://api.argent.test');
+  });
+
+  it('mounts the service worker registrar once, outside the page (FR-04)', async () => {
+    const tree = await LocaleLayout(props('es'));
+    expect(findElement(tree, ServiceWorkerRegistrar)).toBeDefined();
   });
 
   it('answers 404 for an unsupported locale', async () => {

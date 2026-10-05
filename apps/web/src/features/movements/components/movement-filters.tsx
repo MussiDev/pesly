@@ -40,6 +40,8 @@ export interface MovementFiltersProps {
   firstControlRef?: Ref<HTMLSelectElement> | undefined;
   /** Renders the tag box; the container supplies it so the bar stays presentational. */
   renderTagField?: ((control: FilterTagFieldControl) => ReactNode) | undefined;
+  /** Every control is off: the list is a copy kept on the device and cannot be filtered. */
+  disabled?: boolean;
 }
 
 const INDENT = '   ';
@@ -63,6 +65,7 @@ export function MovementFilters({
   onClear,
   firstControlRef,
   renderTagField,
+  disabled = false,
 }: MovementFiltersProps) {
   const t = useTranslations('movements');
   const id = useId();
@@ -77,106 +80,113 @@ export function MovementFilters({
         event.preventDefault();
       }}
     >
-      <div className="grid gap-2">
-        <Label htmlFor={`${id}-account`}>{t('filters.account')}</Label>
-        <Select
-          ref={firstControlRef}
-          id={`${id}-account`}
-          value={filters.accountId ?? ''}
-          onChange={(event) => {
-            onChange(withValue(filters, 'accountId', event.currentTarget.value));
-          }}
-        >
-          <option value="">{t('filters.allAccounts')}</option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`${id}-category`}>{t('filters.category')}</Label>
-        <Select
-          id={`${id}-category`}
-          value={filters.categoryId ?? ''}
-          onChange={(event) => {
-            onChange(withValue(filters, 'categoryId', event.currentTarget.value));
-          }}
-        >
-          <option value="">{t('filters.allCategories')}</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.indent ? `${INDENT}${category.label}` : category.label}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`${id}-type`}>{t('filters.type')}</Label>
-        <Select
-          id={`${id}-type`}
-          value={filters.type ?? ''}
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            onChange(
-              withValue(filters, 'type', MOVEMENT_TYPES.find((type) => type === value) ?? ''),
-            );
-          }}
-        >
-          <option value="">{t('filters.allTypes')}</option>
-          {MOVEMENT_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {t(`types.${type}`)}
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+      <fieldset disabled={disabled} className="m-0 grid min-w-0 gap-3 border-0 p-0">
         <div className="grid gap-2">
-          <Label htmlFor={`${id}-from`}>{t('filters.from')}</Label>
-          <Input
-            id={`${id}-from`}
-            type="date"
-            value={filters.from ?? ''}
-            aria-invalid={rangeInvalid}
-            aria-describedby={rangeInvalid ? rangeMessageId : undefined}
+          <Label htmlFor={`${id}-account`}>{t('filters.account')}</Label>
+          <Select
+            ref={firstControlRef}
+            id={`${id}-account`}
+            disabled={disabled}
+            value={filters.accountId ?? ''}
             onChange={(event) => {
-              onChange(withValue(filters, 'from', event.currentTarget.value));
+              onChange(withValue(filters, 'accountId', event.currentTarget.value));
             }}
-          />
+          >
+            <option value="">{t('filters.allAccounts')}</option>
+            {accounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.label}
+              </option>
+            ))}
+          </Select>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor={`${id}-to`}>{t('filters.to')}</Label>
-          <Input
-            id={`${id}-to`}
-            type="date"
-            value={filters.to ?? ''}
-            aria-invalid={rangeInvalid}
-            aria-describedby={rangeInvalid ? rangeMessageId : undefined}
+          <Label htmlFor={`${id}-category`}>{t('filters.category')}</Label>
+          <Select
+            id={`${id}-category`}
+            disabled={disabled}
+            value={filters.categoryId ?? ''}
             onChange={(event) => {
-              onChange(withValue(filters, 'to', event.currentTarget.value));
+              onChange(withValue(filters, 'categoryId', event.currentTarget.value));
             }}
-          />
+          >
+            <option value="">{t('filters.allCategories')}</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.indent ? `${INDENT}${category.label}` : category.label}
+              </option>
+            ))}
+          </Select>
         </div>
-      </div>
-      {rangeInvalid ? (
-        <p id={rangeMessageId} role="alert" className="text-sm text-destructive">
-          {t('filters.invalidRange')}
-        </p>
-      ) : null}
-      {renderTagField?.({
-        value: filters.tag === undefined ? [] : [filters.tag],
-        onChange: (tags) => {
-          // One tag per filter: the newest choice replaces the previous one.
-          onChange(withValue(filters, 'tag', tags.at(-1) ?? ''));
-        },
-      })}
-      {hasActiveFilters(filters) ? (
-        <Button type="button" variant="outline" onClick={onClear}>
-          {t('filters.clear')}
-        </Button>
-      ) : null}
+        <div className="grid gap-2">
+          <Label htmlFor={`${id}-type`}>{t('filters.type')}</Label>
+          <Select
+            id={`${id}-type`}
+            disabled={disabled}
+            value={filters.type ?? ''}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              onChange(
+                withValue(filters, 'type', MOVEMENT_TYPES.find((type) => type === value) ?? ''),
+              );
+            }}
+          >
+            <option value="">{t('filters.allTypes')}</option>
+            {MOVEMENT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {t(`types.${type}`)}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-2">
+            <Label htmlFor={`${id}-from`}>{t('filters.from')}</Label>
+            <Input
+              id={`${id}-from`}
+              disabled={disabled}
+              type="date"
+              value={filters.from ?? ''}
+              aria-invalid={rangeInvalid}
+              aria-describedby={rangeInvalid ? rangeMessageId : undefined}
+              onChange={(event) => {
+                onChange(withValue(filters, 'from', event.currentTarget.value));
+              }}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`${id}-to`}>{t('filters.to')}</Label>
+            <Input
+              id={`${id}-to`}
+              disabled={disabled}
+              type="date"
+              value={filters.to ?? ''}
+              aria-invalid={rangeInvalid}
+              aria-describedby={rangeInvalid ? rangeMessageId : undefined}
+              onChange={(event) => {
+                onChange(withValue(filters, 'to', event.currentTarget.value));
+              }}
+            />
+          </div>
+        </div>
+        {rangeInvalid ? (
+          <p id={rangeMessageId} role="alert" className="text-sm text-destructive">
+            {t('filters.invalidRange')}
+          </p>
+        ) : null}
+        {renderTagField?.({
+          value: filters.tag === undefined ? [] : [filters.tag],
+          onChange: (tags) => {
+            // One tag per filter: the newest choice replaces the previous one.
+            onChange(withValue(filters, 'tag', tags.at(-1) ?? ''));
+          },
+        })}
+        {hasActiveFilters(filters) ? (
+          <Button type="button" variant="outline" disabled={disabled} onClick={onClear}>
+            {t('filters.clear')}
+          </Button>
+        ) : null}
+      </fieldset>
     </form>
   );
 }

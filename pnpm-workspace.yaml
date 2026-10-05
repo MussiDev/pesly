@@ -11,7 +11,9 @@ allowBuilds:
 
 # Security overrides for dev-only transitive dependencies (SAST F-SAST-16, DISC-001-01a):
 # esbuild <=0.24.2 (GHSA-67mh-4wv8-2f99) via drizzle-kit > @esbuild-kit/core-utils, and
-# uuid <11.1.1 (GHSA-w5hq-g745-h8pq) via autocannon > hyperid.
+# uuid <11.1.1 (GHSA-w5hq-g745-h8pq) via autocannon > hyperid. browserslist <=4.28.6
+# (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g) via the Serwist packages (DISC-001-04a).
 overrides:
   '@esbuild-kit/core-utils>esbuild': ^0.25.12
   'hyperid>uuid': ^11.1.1
+  browserslist: ^4.28.7

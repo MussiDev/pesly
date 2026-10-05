@@ -94,7 +94,12 @@ export function CreateMovementContainer() {
           impliedRatePreview(input, data.accounts, locale)
         }
         renderTagField={({ value, onChange, error }) => (
-          <TagInputContainer value={value} onChange={onChange} error={error} />
+          <TagInputContainer
+            value={value}
+            onChange={onChange}
+            error={error}
+            localTags={data.offline ? data.tags : undefined}
+          />
         )}
         onSubmit={(values) => {
           void create(values, data);

@@ -250,3 +250,28 @@ export async function movementIdsOf(
   if (row === undefined) throw new Error(`No movement stored for ${email}`);
   return { accountId: String(row.account_id), categoryId: String(row.category_id) };
 }
+
+/**
+ * Copies the oldest movement of `email` `count` times, each one an hour older than the last, so a
+ * list longer than the offline copy exists without a hundred trips through the form. The user must
+ * already have one movement; nothing but the email and the count reaches the database.
+ */
+export async function seedMovements(email: string, count: number): Promise<void> {
+  if (!Number.isInteger(count) || count <= 0) throw new Error(`Invalid movement count: ${count}`);
+  const inserted = await withE2eDatabase((client) =>
+    client.query(
+      `with source as (
+         select m.* from movements m join users u on u.id = m.owner_id
+          where u.email = $1 order by m.occurred_at limit 1
+       )
+       insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate,
+                              rate_source, rate_type)
+       select s.owner_id, s.type, s.account_id, s.category_id, s.amount,
+              s.occurred_at - make_interval(hours => g), s.rate, s.rate_source, s.rate_type
+         from source s cross join generate_series(1, $2::int) as g
+       returning id`,
+      [email, count],
+    ),
+  );
+  if (inserted.rows.length !== count) throw new Error(`Seeded ${inserted.rows.length} of ${count}`);
+}

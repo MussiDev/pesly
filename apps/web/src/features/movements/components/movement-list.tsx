@@ -40,6 +40,8 @@ export interface MovementListProps {
   filtersActive?: boolean;
   /** Clears every filter; offered with the no-matches message. */
   onClearFilters?: (() => void) | undefined;
+  /** The rows come from the copy kept on the device: say so, because the filters are off. */
+  offlineNotice?: boolean;
   /** While the rows (re)load or fail to load, this replaces them and the bar stays. */
   loadState?: MovementsLoadState | undefined;
   onRetry?: (() => void) | undefined;
@@ -86,6 +88,7 @@ export function MovementList({
   filterBar,
   filtersActive = false,
   onClearFilters,
+  offlineNotice = false,
   loadState,
   onRetry,
 }: MovementListProps) {
@@ -96,6 +99,11 @@ export function MovementList({
   return (
     <section className="grid gap-4">
       {filterBar}
+      {offlineNotice ? (
+        <p role="status" className="text-small text-muted-foreground">
+          {t('offlineNotice')}
+        </p>
+      ) : null}
       {loadState !== undefined ? (
         <MovementsLoadStateView state={loadState} onRetry={onRetry ?? (() => undefined)} />
       ) : items.length === 0 ? (

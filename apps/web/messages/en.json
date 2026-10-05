@@ -41,6 +41,7 @@
     "retry": "Try again",
     "brand": "Pesly",
     "skipToContent": "Skip to content",
+    "storageWarning": "Your browser may delete the data saved on this device when it runs low on space. Keep some storage free and reconnect often so nothing is lost.",
     "nav": {
       "label": "Main navigation",
       "home": "Home",
@@ -282,6 +283,7 @@
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
+    "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
@@ -370,6 +372,7 @@
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
       "tags": "Tags",
+      "offlineNotice": "You are offline: showing your 100 most recent movements. Filters are off until you reconnect.",
       "actions": {
         "edit": "Edit",
         "delete": "Delete",

@@ -1,170 +1,127 @@
-# PRD DISC-001-04: Offline Entry & Sync
+# Parent PRD: Offline Entry & Sync
 
-| Field | Value |
-|-------|-------|
-| Ticket | DISC-001 |
-| Tracker | none |
-| Date | 2026-09-25 |
-| PRD loops | 2 |
-| Loops since last human decision | 0 |
+| Metric | Value |
+|--------|-------|
+| Ticket | DISC-001-04 |
+| Date | 2026-10-04 |
+| Status | Split |
 
-## Context and Problem
-The core use case of the finance PWA (see `docs/ddw/discovery/concept-DISC-001.md`) is writing
-down an expense at the moment of paying — on the subway, on a trip, in a basement bar. If the app
-needs connectivity for that, the entry is forgotten and the data stops being trustworthy. The
-app must therefore accept movements without connectivity and sync them later, without duplicating
-them and without silently losing anyone's changes, including changes to movements that other
-group members share.
+## Sub-tickets
 
-## Goals
-- Record movements (PRD 03) with no connectivity, with the same form as online.
-- Sync automatically when connectivity returns, with no duplicates.
-- Resolve edit conflicts: last change wins for personal movements, explicit choice for group
-  movements (decision 2026-09-25: mixed strategy).
-- Make the sync state visible so the user always knows what is not yet on the server.
+| Sub-ticket | Title | PRD | Dependencies | Status |
+|---|---|---|---|---|
+| DISC-001-04a | Local Store, App Shell and Reference Cache | prd-DISC-001-04a.md | PRD 01, 02 and 03 (all merged) | done: branch `feat/DISC-001-04a-local-store-app-shell`, no migration; must ship together with 04d, because the copy on the device is not wiped on sign-out until then (threat R-03); next: 04b |
+| DISC-001-04b | Offline Entry and Sync of New Movements | prd-DISC-001-04b.md | depends on a | pending |
+| DISC-001-04c | Offline Edit and Delete, Sync States, Failures and Retries | prd-DISC-001-04c.md | depends on a and b; DISC-001-03e is merged (#27), so editing and deleting exist | pending |
+| DISC-001-04d | Session, Sign Out and Local Data | prd-DISC-001-04d.md | depends on a and b | pending |
+| DISC-001-04e | Conflicts on Group Movements | prd-DISC-001-04e.md | depends on c; blocked by PRD 05 (Groups & Expense Splitting), which is not built | blocked — needs PRD 05 |
 
-## Functional Requirements
-- FR-01: The system must allow a signed-in user to record expenses, incomes, transfers and
-  currency exchanges (PRD 03) while the device has no connectivity.
-- FR-02: The system must assign every movement created on the device a globally unique
-  identifier generated on the device.
-- FR-03: The system must keep movements recorded without connectivity in a local queue that
-  survives closing the app and restarting the device.
-- FR-04: The system must send the queued changes to the server automatically when connectivity
-  returns.
-- FR-05: The system must store each change only once on the server, even when the device sends
-  it more than once.
-- FR-06: The system must keep on the device a copy of the user's active accounts, active
-  categories, tags, default rate type and latest stored rates, to fill the entry form without
-  connectivity.
-- FR-07: The system must keep on the device the user's 100 most recent movements, so they can be
-  viewed, edited and deleted without connectivity.
-- FR-08: The system must require a manual rate on an expense or income recorded without
-  connectivity when the device has no stored rate.
-- FR-09: The system must show the sync state of every movement: pending, synced, conflict or
-  failed.
-- FR-10: The system must show the number of changes waiting to be synced.
-- FR-11: The system must apply the last change received by the server when two changes to the
-  same personal movement conflict.
-- FR-12: The system must not apply a change to a group movement made on a version older than the
-  one on the server, and must mark it as a conflict.
-- FR-13: The system must show the user both versions of a group movement in conflict (theirs and
-  the server's) and let them keep one of the two.
-- FR-14: The system must keep the server version of a group movement in conflict until the user
-  resolves the conflict.
-- FR-15: The system must mark as failed a queued change that the server rejects on validation
-  (for example, an archived account), and let the user edit it and retry, or discard it.
-- FR-16: The system must retry sending queued changes that failed because of network or server
-  errors.
-- FR-17: The system must keep the local queue when the session expires while offline, and sync it
-  after the same user signs in again.
-- FR-18: The system must warn a user who signs out with changes pending sync.
-- FR-19: The system must delete all local data of a user from the device when they confirm the
-  sign out.
+## Suggested implementation order
+a → b → c → d → e (d only needs a and b, so it can also go before c; e starts when PRD 05 is
+merged)
 
-## Non-Functional Requirements
-- NFR-01: The entry form must open in < 1 s without connectivity on a mid-range phone (reference:
-  4 GB RAM, 2021 hardware).
-- NFR-02: The local queue must hold at least 1,000 pending movements.
-- NFR-03: Syncing 100 pending movements must finish in < 10 s on a 4G connection (reference: 10
-  Mbps down, 5 Mbps up, 50 ms latency).
-- NFR-04: Retries must use exponential backoff starting at 5 s and capped at 5 minutes between
-  attempts.
-- NFR-05: Sync must lose 0 changes and create 0 duplicates in a test that cuts connectivity at a
-  random point during 1,000 sync runs.
-- NFR-06: 100% of a user's local data (queue, cached entities, recent movements) must be removed
-  from the device after a confirmed sign out.
-- NFR-07: The app shell (HTML, JS, CSS, icons) must be cached by a service worker so the app
-  starts with 0 network requests when offline.
+## Pending decisions (not resolved in the sub-PRDs)
+1. **Release unit of b and c** (found while splitting; for the user). DISC-001-04b queues new
+   movements and sends them, but a change the server rejects stays unseen until DISC-001-04c adds
+   the failed state. Recommended: 04b and 04c are merged to `main` together, or 04b is not
+   deployed alone; the PRD of 04b says so. Alternative: ship 04b alone and accept that a rejected
+   queued movement is retried silently.
+2. **When the device cache refreshes** (for DISC-001-04a's PLAN). The original FR-06 and FR-07 keep
+   a copy of the reference data and of the 100 most recent movements, and do not say when it is
+   refreshed. Recommended: on app start, when connectivity returns and after every successful
+   sync, keeping the last copy while offline.
+3. **Service worker update strategy** (for DISC-001-04a's PLAN). The original NFR-07 caches the
+   application shell and does not say how a new deploy reaches a device. Recommended: install the
+   new version in the background and use it from the next start, with no forced reload.
+4. **The create contract with an identifier from the device** (for DISC-001-04b's PLAN). FR-02 and
+   FR-05 need `POST /movements` to accept the id. Recommended: the same owner sending an id that
+   exists gets the stored movement back and no second row; an id that belongs to another user is
+   answered without revealing it. The exact status codes are a PLAN decision with its threat
+   model.
+5. **Data of the previous user when a different user signs in** (for DISC-001-04d's PLAN). The
+   original AC-21 only forbids sending the first user's changes under the new user. Recommended:
+   the local store is scoped per user, and the previous user's data stays until a confirmed sign
+   out wipes it.
+6. **Version of a group movement** (for DISC-001-04e's PLAN). "A change made on an older version"
+   needs a version on the movement that changes with every edit, so the schema gains a column.
+   Counter or timestamp is open.
 
-## Acceptance Criteria
-- AC-01 (FR-01): WHILE the device has no connectivity, WHEN a user saves a valid expense, THE
-  system SHALL store it in the local queue and show it in the movement list as pending.
-- AC-02 (FR-01): WHILE the device has no connectivity, WHEN a user saves a valid transfer or
-  currency exchange, THE system SHALL store it in the local queue as pending.
-- AC-03 (FR-02): WHEN a movement is created on the device, THE system SHALL assign it a UUID
-  before storing it, with or without connectivity.
-- AC-04 (FR-03): WHEN a user closes the app with 5 pending movements and opens it again, THE
-  system SHALL still show those 5 movements as pending.
-- AC-05 (FR-04): WHEN connectivity returns with pending changes, THE system SHALL start sending
-  them without any user action.
-- AC-06 (FR-05): IF the device sends the same change twice (for example, the connection dropped
-  before the response arrived), THEN THE system SHALL store it only once on the server.
-- AC-07 (FR-06): WHILE the device has no connectivity, WHEN a user opens the entry form, THE
-  system SHALL offer their active accounts, active categories and tags, and prefill the rate
-  with the latest stored rate of their default rate type.
-- AC-08 (FR-07): WHILE the device has no connectivity, WHEN a user opens the movement list, THE
-  system SHALL show their 100 most recent movements plus the pending ones.
-- AC-09 (FR-07): WHILE the device has no connectivity, WHEN a user edits or deletes one of their
-  cached movements, THE system SHALL apply it on the device and queue the change as pending.
-- AC-10 (FR-08): IF a user records an expense or income without connectivity and the device has
-  no stored rate, THEN THE system SHALL require a manual rate before saving.
-- AC-11 (FR-09): WHEN a movement changes sync state, THE system SHALL show its current state:
-  pending, synced, conflict or failed.
-- AC-12 (FR-10): WHILE there are changes waiting to be synced, THE system SHALL show their count.
-- AC-13 (FR-11): WHEN two changes to the same personal movement reach the server, THE system
-  SHALL keep the one received last and mark both devices' copies as synced with that version.
-- AC-14 (FR-12): IF a change to a group movement arrives based on a version older than the
-  server's, THEN THE system SHALL not apply it and SHALL mark it as a conflict.
-- AC-15 (FR-13): WHEN a user opens a group movement in conflict, THE system SHALL show their
-  version and the server version side by side and offer "keep mine" and "keep server's".
-- AC-16 (FR-13): WHEN a user chooses "keep mine" in a conflict, THE system SHALL apply their
-  version on the server as a new version and mark the movement as synced.
-- AC-17 (FR-14): WHILE a group movement is in conflict, THE system SHALL show the server version
-  to the other group members.
-- AC-18 (FR-15): IF the server rejects a queued change on validation, THEN THE system SHALL mark
-  it as failed, show the reason, and offer to edit and retry or discard it.
-- AC-19 (FR-16): IF sending a queued change fails because of a network or server error, THEN THE
-  system SHALL keep it pending and retry it.
-- AC-20 (FR-17): IF the session expires while there are pending changes, THEN THE system SHALL
-  keep them and sync them after the same user signs in again.
-- AC-21 (FR-17): IF a different user signs in on the device while another user's changes are
-  pending, THEN THE system SHALL not send those changes under the new user.
-- AC-22 (FR-18): WHEN a user with pending changes chooses to sign out, THE system SHALL warn that
-  the pending changes will be lost and ask for confirmation.
-- AC-23 (FR-19): WHEN a user confirms the sign out, THE system SHALL delete their queue, cached
-  entities and cached movements from the device.
+## Added while splitting (not in the original text)
+Each addition is derived from an obligation or decision already on record in the original PRD;
+none changes an original requirement. They were ACCEPTED by the human on 2026-10-04.
 
-## Out of Scope
-- Full offline browsing of history beyond the 100 most recent movements.
-- Offline creation or editing of accounts, categories, groups, goals, budgets, investments and
-  recurring payments (only movements work offline).
-- Offline sign-in or registration.
-- Automatic merging of conflicting fields (field-by-field merge).
-- Conflict resolution for personal movements by user choice.
-- Background sync while the app is closed (Background Sync API support varies by browser;
-  sync runs when the app is open).
-- Encryption of local data beyond what the browser and operating system provide.
+| New ID | What | Why |
+|---|---|---|
+| 04a FR-04, AC-04 | Cache the application shell with a service worker | the original NFR-07 asked for it as a metric only; a requirement without an action cannot be built or tested |
+| 04a FR-05, FR-06, AC-05, AC-06 | Request persistent storage and warn when it is denied | the Decision Log of 2026-09-25 approved it and the Risks section relies on it, but no FR or AC carried it |
+| 04a AC-03 | Keep only the 100 most recent movements on the device | splits the original FR-07 (keep) from its view and edit parts |
+| 04c FR-07, AC-07 | Send the queued edits and deletions automatically | the original FR-04 and AC-05 sent "the queued changes"; 04b sends the new movements, so 04c sends the rest |
+| 04c FR-02 (three states) | The sync state has pending, synced and failed here | the fourth state, conflict, exists only for group movements and is added by 04e |
+| 04d FR-01, FR-02 | The original FR-17 held two behaviors | each gets its own requirement so each criterion names one |
+| 04e FR-04, AC-05 | The sync state conflict | the original FR-09 listed it; 04c leaves it out |
+| 04e NFR-01 | Resolving a conflict deletes 0 versions before the user chooses | turns the original FR-14 into a measurable number |
 
-## Risks and Mitigations
-- **Silent overwrite of personal edits (last change wins)** → accepted by decision: the same person
-  on two devices; conflicts are rare and low-impact.
-- **Group members lose each other's changes** → explicit conflicts for group movements (FR-12 to
-  FR-14).
-- **Queued changes become invalid by the time they sync** (archived account, deleted category) →
-  failed state with edit-and-retry (FR-15).
-- **Financial data left on a shared or lost device** → local data wiped on sign out (FR-19,
-  NFR-06); stronger device-level protection is out of scope.
-- **Browsers evict local storage under pressure (notably iOS Safari)** → request persistent
-  storage where supported, keep the queue small by syncing as soon as possible, and warn the
-  user when persistent storage is denied.
-- **Duplicates from retries** → client-generated UUIDs and idempotent writes (FR-02, FR-05,
-  NFR-05).
+## Original context
+PRD 04 of discovery DISC-001 defined recording movements without connectivity and syncing them
+later. With 19 functional requirements, 7 non-functional requirements and 23 acceptance criteria,
+three modules (web, API, shared), a browser platform that does not exist in the code yet (no
+service worker, no local database) and a dependency on a PRD that is not built, it was too large
+for one ticket, so it was split on 2026-10-04 (user decision). The full original text is in git
+history (file `docs/ddw/prd/prd-DISC-001-04.md` before the split).
 
-## Dependencies
-- PRD 01 (Identity & Access) — sessions and sign out (FR-17, FR-18, FR-19).
-- PRD 02 (Accounts & Categories) — accounts and categories cached on the device (FR-06, FR-15).
-- PRD 03 (Movements & Exchange Rates) — movement types, validation and stored rates (FR-01,
-  FR-06, FR-08).
-- PRD 05 (Groups & Expense Splitting) — which movements are group movements (FR-12 to FR-14).
-- Browser platform: Service Worker, IndexedDB and the Storage API (`navigator.storage.persist`)
-  — NFR-07, FR-03.
+## Traceability: original ID → sub-ticket ID
 
-## Decision Log
-- 2026-09-25: Offline entry with later sync; full offline browsing out of scope (concept).
-- 2026-09-25: Conflict strategy is mixed: last change wins for personal movements, explicit
-  user choice for group movements.
-- 2026-09-25: User approved: 100 most recent movements cached for offline view/edit, only
-  movements work offline, manual rate when none is stored, pending changes lost on confirmed
-  sign out, sync only while the app is open, persistent storage requested with a warning if
-  denied.
+Other PRDs of DISC-001 reference this PRD as "PRD 04, FR-xx"; use this table to resolve them. A row
+with two entries means the original requirement was divided.
+
+| Original | Now |
+|---|---|
+| FR-01 | DISC-001-04b FR-01 |
+| FR-02 | DISC-001-04b FR-02 |
+| FR-03 | DISC-001-04b FR-03 |
+| FR-04 | DISC-001-04b FR-04 (new movements) and DISC-001-04c FR-07 (edits and deletions) |
+| FR-05 | DISC-001-04b FR-05 |
+| FR-06 | DISC-001-04a FR-01 |
+| FR-07 | DISC-001-04a FR-02 and FR-03 (keep, view) and DISC-001-04c FR-01 (edit, delete) |
+| FR-08 | DISC-001-04b FR-06 |
+| FR-09 | DISC-001-04c FR-02 (pending, synced, failed) and DISC-001-04e FR-04 (conflict) |
+| FR-10 | DISC-001-04c FR-03 |
+| FR-11 | DISC-001-04c FR-04 |
+| FR-12 | DISC-001-04e FR-01 |
+| FR-13 | DISC-001-04e FR-02 |
+| FR-14 | DISC-001-04e FR-03 |
+| FR-15 | DISC-001-04c FR-05 |
+| FR-16 | DISC-001-04c FR-06 |
+| FR-17 | DISC-001-04d FR-01 and FR-02 |
+| FR-18 | DISC-001-04d FR-03 |
+| FR-19 | DISC-001-04d FR-04 |
+| NFR-01 | DISC-001-04a NFR-01 |
+| NFR-02 | DISC-001-04b NFR-01 |
+| NFR-03 | DISC-001-04b NFR-02 |
+| NFR-04 | DISC-001-04c NFR-01 |
+| NFR-05 | DISC-001-04b NFR-03 |
+| NFR-06 | DISC-001-04d NFR-01 |
+| NFR-07 | DISC-001-04a NFR-02 |
+| AC-01 | DISC-001-04b AC-01 |
+| AC-02 | DISC-001-04b AC-02 |
+| AC-03 | DISC-001-04b AC-03 |
+| AC-04 | DISC-001-04b AC-04 |
+| AC-05 | DISC-001-04b AC-05 (copied to DISC-001-04c AC-07 for edits and deletions) |
+| AC-06 | DISC-001-04b AC-06 |
+| AC-07 | DISC-001-04a AC-01 |
+| AC-08 | DISC-001-04a AC-02 |
+| AC-09 | DISC-001-04c AC-01 |
+| AC-10 | DISC-001-04b AC-07 |
+| AC-11 | DISC-001-04c AC-02 (pending, synced, failed) and DISC-001-04e AC-05 (conflict) |
+| AC-12 | DISC-001-04c AC-03 |
+| AC-13 | DISC-001-04c AC-04 |
+| AC-14 | DISC-001-04e AC-01 |
+| AC-15 | DISC-001-04e AC-02 |
+| AC-16 | DISC-001-04e AC-03 |
+| AC-17 | DISC-001-04e AC-04 |
+| AC-18 | DISC-001-04c AC-05 |
+| AC-19 | DISC-001-04c AC-06 |
+| AC-20 | DISC-001-04d AC-01 |
+| AC-21 | DISC-001-04d AC-02 |
+| AC-22 | DISC-001-04d AC-03 |
+| AC-23 | DISC-001-04d AC-04 |

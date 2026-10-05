@@ -180,6 +180,20 @@ export class InMemoryTagRepository implements TagRepository {
     this.names.set(ownerId, [...(this.names.get(ownerId) ?? []), ...names]);
   }
 
+  readonly listCalls: { scope: AccessScope; limit: number; offset: number }[] = [];
+
+  async listAll(
+    scope: AccessScope,
+    page: { limit: number; offset: number },
+  ): Promise<{ items: string[]; total: number }> {
+    await Promise.resolve();
+    this.listCalls.push({ scope, ...page });
+    const all = [...(this.names.get(scope.userId) ?? [])].sort((a, b) =>
+      a.toLowerCase().localeCompare(b.toLowerCase()),
+    );
+    return { items: all.slice(page.offset, page.offset + page.limit), total: all.length };
+  }
+
   async suggest(scope: AccessScope, prefix: string, limit: number): Promise<string[]> {
     await Promise.resolve();
     this.calls.push({ scope, prefix, limit });

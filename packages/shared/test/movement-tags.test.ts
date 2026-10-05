@@ -4,6 +4,8 @@ import {
   MOVEMENT_TAG_MAX_LENGTH,
   TAG_SUGGESTIONS_MAX_LIMIT,
   createMovementRequestSchema,
+  listTagsQuerySchema,
+  listTagsResponseSchema,
   movementTagSchema,
   movementTagsSchema,
   tagSuggestionsQuerySchema,
@@ -114,5 +116,40 @@ describe('tag suggestions query', () => {
   it('validates the response shape', () => {
     expect(tagSuggestionsResponseSchema.safeParse({ items: ['a', 'b'] }).success).toBe(true);
     expect(tagSuggestionsResponseSchema.safeParse({ items: [1] }).success).toBe(false);
+  });
+});
+
+describe('list all tags', () => {
+  it('defaults to limit 50 and offset 0 and accepts limit 100 (FR-01)', () => {
+    expect(listTagsQuerySchema.parse({})).toEqual({ limit: 50, offset: 0 });
+    expect(listTagsQuerySchema.parse({ limit: '100', offset: '10' })).toEqual({
+      limit: 100,
+      offset: 10,
+    });
+  });
+
+  it('rejects a limit of 0, 101, blank or not an integer as invalid (FR-01)', () => {
+    for (const limit of ['0', '101', '', ' ', '1.5', 'abc']) {
+      expect(listTagsQuerySchema.safeParse({ limit }).success, JSON.stringify(limit)).toBe(false);
+    }
+  });
+
+  it('rejects a negative, blank or fractional offset as invalid (FR-01)', () => {
+    for (const offset of ['-1', '', ' ', '2.5', 'abc']) {
+      expect(listTagsQuerySchema.safeParse({ offset }).success, JSON.stringify(offset)).toBe(false);
+    }
+  });
+
+  it('strips unknown keys, so the owner can never come from the query (FR-01)', () => {
+    expect(listTagsQuerySchema.parse({ ownerId: 'x' })).not.toHaveProperty('ownerId');
+  });
+
+  it('accepts a page of tags and refuses a missing total (FR-01)', () => {
+    const page = { items: ['Viaje', 'comida'], total: 2, limit: 50, offset: 0 };
+    expect(listTagsResponseSchema.safeParse(page).success).toBe(true);
+    expect(listTagsResponseSchema.safeParse({ items: ['a'], limit: 50, offset: 0 }).success).toBe(
+      false,
+    );
+    expect(listTagsResponseSchema.safeParse({ ...page, items: [1] }).success).toBe(false);
   });
 });

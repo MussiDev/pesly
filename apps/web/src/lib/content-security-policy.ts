@@ -19,6 +19,8 @@ export function contentSecurityPolicy({ nonce, apiOrigin, isDev }: CspOptions): 
     `font-src 'self'`,
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''}`,
     `object-src 'none'`,
+    // `strict-dynamic` makes `script-src` ignore 'self' for scripts, so a worker needs its own say.
+    `worker-src 'self'`,
     `base-uri 'self'`,
     `form-action 'self'`,
     `frame-ancestors 'none'`,

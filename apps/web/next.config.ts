@@ -1,3 +1,4 @@
+import { withSerwist } from '@serwist/turbopack';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
@@ -18,8 +19,19 @@ const nextConfig: NextConfig = {
   agentRules: false,
   transpilePackages: ['@pesly/shared'],
   headers() {
-    return Promise.resolve([{ source: '/:path*', headers: securityHeaders }]);
+    return Promise.resolve([
+      { source: '/:path*', headers: securityHeaders },
+      // The worker script lives under /serwist/ but must control the whole origin, and the browser
+      // must revalidate it on every load so a new version is noticed.
+      {
+        source: '/serwist/:path*',
+        headers: [
+          { key: 'Service-Worker-Allowed', value: '/' },
+          { key: 'Cache-Control', value: 'no-cache' },
+        ],
+      },
+    ]);
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSerwist(withNextIntl(nextConfig));

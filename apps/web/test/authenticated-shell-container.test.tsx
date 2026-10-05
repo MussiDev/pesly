@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
+import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -212,5 +213,222 @@ describe('AuthenticatedShellContainer', () => {
     expect(
       screen.getByRole('link', { name: es.app.nav.security }).getAttribute('aria-current'),
     ).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer without connectivity (DISC-001-04a)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('renders ready from the pointer and makes no request while offline (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    setOnline(false);
+    const { fetch } = stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText('private content')).toBeDefined();
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('shows the failed state with a retry when offline and nobody signed in on this device (FR-03)', async () => {
+    setOnline(false);
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+    expect(screen.getByRole('button', { name: es.app.retry })).toBeDefined();
+  });
+
+  it('does not trust a pointer of an unverified user while offline (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: false });
+    setOnline(false);
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+  });
+
+  it('opens from the pointer when the session request fails with a network error (FR-03)', async () => {
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    stubApi({ 'GET /auth/session': 'network-error' });
+
+    renderShell();
+
+    expect(await screen.findByText('private content')).toBeDefined();
+  });
+
+  it('keeps the failed state on a network error when no pointer exists (FR-03)', async () => {
+    stubApi({ 'GET /auth/session': 'network-error' });
+
+    renderShell();
+
+    expect(await screen.findByText(es.errors.network)).toBeDefined();
+    expect(screen.queryByText('private content')).toBeNull();
+  });
+
+  it('writes the pointer only after a successful online session check (FR-03)', async () => {
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    expect(readSessionPointer()).toEqual({ userId: 'u1', emailVerified: true });
+  });
+
+  it('writes no pointer and still redirects to sign in on a 401 (FR-03)', async () => {
+    stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+
+    const { router } = renderShell();
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(readSessionPointer()).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer service worker warm-up (DISC-001-04a)', () => {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+
+  function setServiceWorker(value: unknown): void {
+    Object.defineProperty(navigator, 'serviceWorker', { value, configurable: true });
+  }
+
+  afterEach(() => {
+    if (original) Object.defineProperty(navigator, 'serviceWorker', original);
+    else Reflect.deleteProperty(navigator, 'serviceWorker');
+    localStorage.clear();
+  });
+
+  it('asks the worker to cache the two offline screens once, after the shell is ready (FR-04)', async () => {
+    const postMessage = vi.fn();
+    setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(postMessage).toHaveBeenCalledTimes(1);
+    });
+    expect(postMessage).toHaveBeenCalledWith({
+      type: 'PESLY_CACHE_URLS',
+      urls: ['/es/movements', '/es/movements/new'],
+    });
+  });
+
+  it('asks nothing of the worker while the session is not confirmed (FR-04)', async () => {
+    const postMessage = vi.fn();
+    setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
+    stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+
+    renderShell();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(postMessage).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthenticatedShellContainer persistent storage (DISC-001-04a)', () => {
+  const original = Object.getOwnPropertyDescriptor(navigator, 'storage');
+
+  function setStorage(value: unknown): void {
+    Object.defineProperty(navigator, 'storage', { value, configurable: true });
+  }
+
+  afterEach(() => {
+    if (original) Object.defineProperty(navigator, 'storage', original);
+    else Reflect.deleteProperty(navigator, 'storage');
+    localStorage.clear();
+  });
+
+  it('requests persistent storage once the shell is ready and shows no warning when granted (AC-05)', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    setStorage({ persisted: vi.fn().mockResolvedValue(false), persist });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(persist).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+  });
+
+  it('makes no second request when the storage is already persistent (AC-05)', async () => {
+    const persist = vi.fn().mockResolvedValue(true);
+    const persisted = vi.fn().mockResolvedValue(true);
+    setStorage({ persisted, persist });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+
+    await waitFor(() => {
+      expect(persisted).toHaveBeenCalled();
+    });
+    expect(persist).not.toHaveBeenCalled();
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+  });
+
+  it('shows the warning when the browser denies persistent storage (AC-06)', async () => {
+    setStorage({
+      persisted: vi.fn().mockResolvedValue(false),
+      persist: vi.fn().mockResolvedValue(false),
+    });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+
+    expect(await screen.findByText(es.app.storageWarning)).toBeDefined();
+    expect(screen.getByText('private content')).toBeDefined();
+  });
+
+  it('shows the warning, and throws nothing, when the request fails with an error (AC-06)', async () => {
+    setStorage({
+      persisted: vi.fn().mockResolvedValue(false),
+      persist: vi.fn().mockRejectedValue(new Error('blocked')),
+    });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+
+    expect(await screen.findByText(es.app.storageWarning)).toBeDefined();
+  });
+
+  it('shows neither a warning nor an error without the Storage API (FR-05)', async () => {
+    setStorage(undefined);
+    stubApi({ 'GET /auth/session': session(true) });
+
+    renderShell();
+    await screen.findByText('private content');
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

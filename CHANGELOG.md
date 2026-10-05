@@ -212,6 +212,16 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-03e The project `README.md`, with a status section that tells what is built from what
   is planned and the commands to run the project locally; a test checks that every script and
   path it names exists.
+- DISC-001-04a Offline reference data on the device: a per-user IndexedDB keeps the active
+  accounts, categories, tags, preferences, exchange rates and the 100 most recent movements,
+  refreshed on every online visit; the entry form and the movement list open from it without a
+  connection and make no request. `GET /tags/all` (paged, 100 at most) feeds the tags.
+- DISC-001-04a A service worker (Serwist) caches the application shell, so the app starts offline
+  after one online visit: build assets and same-origin pages only, never the API origin; the worker
+  waits for the next start before taking over and drops the framework's offline prefetches.
+- DISC-001-04a Persistent storage is requested after sign-in and the user is warned, in Spanish
+  and English, when the browser denies it. The copy on the device is not wiped on sign-out yet;
+  that comes with DISC-001-04d. No migration.
 
 ### Changed
 
