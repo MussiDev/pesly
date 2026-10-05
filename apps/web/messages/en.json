@@ -775,7 +775,8 @@
       "addHolding": "Add holding",
       "addHoldingFor": "Add holding to {name}",
       "delete": "Delete portfolio",
-      "deleteFor": "Delete portfolio {name}"
+      "deleteFor": "Delete portfolio {name}",
+      "compositionLabel": "Composition by instrument type in {currency}"
     },
     "holding": {
       "quantity": "Quantity: {quantity}",

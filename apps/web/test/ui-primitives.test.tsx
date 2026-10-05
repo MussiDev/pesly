@@ -64,7 +64,7 @@ describe('Avatar (AC-27, AC-28, AC-29)', () => {
 });
 
 describe('DonutChart (AC-06)', () => {
-  const percent = (basisPoints: number) => `${(basisPoints / 100).toFixed(0)}%`;
+  const percent = (basisPoints: bigint | number) => `${(Number(basisPoints) / 100).toFixed(0)}%`;
   const segments = [
     { key: 'stock', label: 'Stocks', basisPoints: 6000 },
     { key: 'bond', label: 'Bonds', basisPoints: 3000 },
@@ -82,6 +82,27 @@ describe('DonutChart (AC-06)', () => {
     expect(items[0]?.textContent).toContain('Stocks');
     expect(items[0]?.textContent).toContain('60%');
     expect(screen.getByRole('img', { name: 'Portfolio composition' })).toBeDefined();
+  });
+
+  it('accepts bigint weights and prints them to the formatter as given', () => {
+    const seen: (bigint | number)[] = [];
+    const { container } = render(
+      <DonutChart
+        label="Portfolio composition"
+        segments={[
+          { key: 'a', label: 'A', basisPoints: 7000n },
+          { key: 'b', label: 'B', basisPoints: 3000n },
+          { key: 'c', label: 'Zero', basisPoints: 0n },
+        ]}
+        formatPercent={(basisPoints) => {
+          seen.push(basisPoints);
+          return `${basisPoints}`;
+        }}
+      />,
+    );
+
+    expect(container.querySelectorAll('circle[data-segment]')).toHaveLength(2);
+    expect(seen).toEqual([7000n, 3000n]);
   });
 
   it('colours the arcs from the chart tokens only', () => {

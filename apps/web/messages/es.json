@@ -775,7 +775,8 @@
       "addHolding": "Agregar posición",
       "addHoldingFor": "Agregar posición a {name}",
       "delete": "Eliminar cartera",
-      "deleteFor": "Eliminar cartera {name}"
+      "deleteFor": "Eliminar cartera {name}",
+      "compositionLabel": "Composición por tipo de instrumento en {currency}"
     },
     "holding": {
       "quantity": "Cantidad: {quantity}",

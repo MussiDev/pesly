@@ -26,6 +26,76 @@ function renderRow(holding: Partial<HoldingResponse> = {}, locale: TestLocale = 
   return handlers;
 }
 
+describe('HoldingRow logos and gain markers (AC-24, AC-25, AC-33)', () => {
+  it('shows the catalog logo of the ticker as its leading avatar', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow holding={HOLDING} language="en" timeZone="UTC" />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    expect(container.querySelector('li img')?.getAttribute('src')).toBe('/logos/apple.svg');
+  });
+
+  it('error: a ticker with no logo shows an avatar with its first two characters', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow
+          holding={{ ...HOLDING, ticker: 'GGAL', instrumentName: 'Grupo Galicia' }}
+          language="en"
+          timeZone="UTC"
+        />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    expect(container.querySelector('li img')).toBeNull();
+    expect(container.querySelector('[data-slot="avatar"]')?.textContent).toBe('GG');
+  });
+
+  it('marks a gain with an up arrow and a plus sign, not by colour alone', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow holding={HOLDING} language="en" timeZone="UTC" />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    expect(container.querySelector('[data-gain="up"]')).not.toBeNull();
+    expect(container.querySelector('[data-gain="down"]')).toBeNull();
+    expect(container.textContent.replace(/\s/g, ' ')).toContain('Gain +35,000.00 ARS');
+  });
+
+  it('marks a loss with a down arrow and a minus sign', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow
+          holding={{ ...HOLDING, gain: { amount: '-500000', basisPoints: '-333' } }}
+          language="en"
+          timeZone="UTC"
+        />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    expect(container.querySelector('[data-gain="down"]')).not.toBeNull();
+    expect(container.querySelector('[data-gain="up"]')).toBeNull();
+    expect(container.textContent.replace(/\s/g, ' ')).toContain('Loss -5,000.00 ARS');
+  });
+
+  it('error: a holding without a gain shows no arrow', () => {
+    const { container } = renderApp(
+      <ul>
+        <HoldingRow holding={{ ...HOLDING, gain: null }} language="en" timeZone="UTC" />
+      </ul>,
+      { locale: 'en' },
+    );
+
+    expect(container.querySelector('[data-gain]')).toBeNull();
+  });
+});
+
 describe('HoldingRow', () => {
   it('AC-10: shows the value of a priced holding with its currency', () => {
     renderRow();

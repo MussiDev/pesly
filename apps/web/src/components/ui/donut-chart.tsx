@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 export interface DonutSegment {
   key: string;
   label: string;
-  /** Integer share in basis points; the legend prints it as given. */
-  basisPoints: number;
+  /** Integer share in basis points, as a number or a bigint; the legend prints it as given. */
+  basisPoints: bigint | number;
 }
 
 interface DonutChartProps {
@@ -13,7 +13,7 @@ interface DonutChartProps {
   label: string;
   segments: readonly DonutSegment[];
   /** Locale-aware percentage text for a share in basis points. */
-  formatPercent: (basisPoints: number) => string;
+  formatPercent: (basisPoints: bigint | number) => string;
   /** Shown in the hole of the ring. */
   centre?: ReactNode;
   className?: string;
@@ -35,8 +35,8 @@ const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 const GAP = 2;
 
 /** Only positive integers draw: zero, negative, fractional and non-finite weights are dropped. */
-function isWeight(value: number): boolean {
-  return Number.isInteger(value) && value > 0;
+function isWeight(value: bigint | number): boolean {
+  return typeof value === 'bigint' ? value > 0n : Number.isInteger(value) && value > 0;
 }
 
 /**
@@ -48,10 +48,12 @@ export function DonutChart({ label, segments, formatPercent, centre, className }
   const positive = segments.filter((segment) => isWeight(segment.basisPoints));
   if (positive.length === 0) return null;
 
-  const total = positive.reduce((sum, segment) => sum + segment.basisPoints, 0);
+  // Drawing geometry only: the shares are small integers, so the conversion is exact.
+  const weights = positive.map((segment) => Number(segment.basisPoints));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
   let offset = 0;
   const arcs = positive.map((segment, index) => {
-    const length = (CIRCUMFERENCE * segment.basisPoints) / total;
+    const length = (CIRCUMFERENCE * (weights[index] ?? 0)) / total;
     const visible = positive.length > 1 ? Math.max(length - GAP, 0.5) : length;
     const arc = { segment, index, dash: `${visible} ${CIRCUMFERENCE - visible}`, offset: -offset };
     offset += length;

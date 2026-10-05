@@ -4,8 +4,10 @@ import type { PortfolioResponse } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { DonutChart } from '@/components/ui/donut-chart';
 import type { Locale } from '@/i18n/routing';
-import { formatMoney } from '@/lib/format-amount';
+import { formatMoney, formatPercentage } from '@/lib/format-amount';
+import { composeByInstrumentType } from '../composition';
 import { HoldingRow } from './holding-row';
 
 export interface PortfolioCardProps {
@@ -34,6 +36,11 @@ export function PortfolioCard({
   onUseAutomaticPrice,
 }: PortfolioCardProps) {
   const t = useTranslations('investments');
+  const compositions = composeByInstrumentType(portfolio.holdings);
+
+  // A newer API may send a type this build does not know; show its raw key.
+  const typeLabel = (type: string) =>
+    t.has(`instrumentTypes.${type}`) ? t(`instrumentTypes.${type}`) : type;
 
   return (
     <Card>
@@ -58,6 +65,27 @@ export function PortfolioCard({
         )}
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {compositions.length > 0 && (
+          <div className="grid gap-4 pb-2 sm:grid-cols-2">
+            {compositions.map(({ currency, segments }) => (
+              <DonutChart
+                key={currency}
+                label={t('portfolio.compositionLabel', { currency })}
+                segments={segments.map((segment) => ({
+                  key: segment.instrumentType,
+                  label: typeLabel(segment.instrumentType),
+                  basisPoints: segment.basisPoints,
+                }))}
+                formatPercent={(basisPoints) => formatPercentage(BigInt(basisPoints), language)}
+                centre={
+                  <span className="text-caption font-semibold text-muted-foreground">
+                    {currency}
+                  </span>
+                }
+              />
+            ))}
+          </div>
+        )}
         {portfolio.holdings.length === 0 ? (
           <p className="text-small text-muted-foreground">{t('portfolio.noHoldings')}</p>
         ) : (
