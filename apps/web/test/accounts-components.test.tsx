@@ -344,6 +344,21 @@ describe('accounts error copy', () => {
   });
 });
 
+describe('AccountList soft-card shapes (AC-34)', () => {
+  it('draws each account as a rounded card without a border, with a circular type icon', () => {
+    renderIntl(
+      <AccountList
+        {...listProps({ accounts: [account({ id: 'a1', name: 'Caja', currency: 'ARS' })] })}
+      />,
+    );
+
+    const card = screen.getByRole('listitem', { name: 'Caja' });
+    expect(card.className).toMatch(/rounded-card/);
+    expect(card.className).not.toMatch(/(^|\s)border(\s|$)/);
+    expect(card.querySelector('.rounded-pill')).not.toBeNull();
+  });
+});
+
 describe('AccountList', () => {
   it('shows each balance and the headline totals formatted for the active locale (AC-14, AC-16)', () => {
     const accounts = [
@@ -937,6 +952,14 @@ describe('AccountForm include in available setting', () => {
 });
 
 describe('AccountsLoadStateView (FEAT-004 AC-21)', () => {
+  it('draws its card skeletons with the card radius so the swap keeps the shape (AC-35)', () => {
+    const { container } = renderIntl(
+      <AccountsLoadStateView state={{ kind: 'loading' }} onRetry={noop} />,
+    );
+
+    expect(container.querySelectorAll('[data-slot="skeleton"].rounded-card').length).toBe(2);
+  });
+
   it('shows skeletons inside a labelled busy status while loading, with no list yet', () => {
     const { container } = renderIntl(
       <AccountsLoadStateView state={{ kind: 'loading' }} onRetry={noop} />,
