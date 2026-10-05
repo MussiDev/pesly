@@ -7,7 +7,7 @@ export const listRowVariants = cva('flex min-h-11 items-center gap-3 px-1 py-3',
   variants: {
     interactive: {
       // Hover and focus-within only: for rows whose child is a link or button, which owns the focus ring.
-      true: 'cursor-pointer rounded-md transition-colors hover:bg-surface focus-within:bg-surface',
+      true: 'cursor-pointer rounded-xl transition-colors hover:bg-surface focus-within:bg-surface',
       false: '',
     },
   },
