@@ -217,5 +217,8 @@ describe('Chip, PillTabs and CircularAction (AC-06, AC-40)', () => {
 
     const link = screen.getByRole('link', { name: 'Income' });
     expect(link.className).toMatch(/focus-visible:ring-2/);
+    // Like every other control: colours may fade, the focus ring never waits for a transition.
+    expect(link.className).toMatch(/transition-colors/);
+    expect(link.className).toMatch(/motion-reduce:transition-none/);
   });
 });

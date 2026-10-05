@@ -188,7 +188,9 @@
         "badges": "Badges",
         "amounts": "Amounts",
         "states": "Loading, empty and error states",
-        "rows": "Lists"
+        "rows": "Lists",
+        "primitives": "Soft-card components",
+        "balance": "Balance card"
       },
       "type": {
         "display": "Display",
@@ -245,12 +247,35 @@
       "shape": {
         "radius": "Radius",
         "elevation": "Elevation",
-        "spacing": "Spacing"
+        "spacing": "Spacing",
+        "card": "Card",
+        "pill": "Pill",
+        "circle": "Circular action"
       },
       "rows": {
         "title": "Salary",
         "description": "Main account",
         "trailing": "Detail"
+      },
+      "primitives": {
+        "avatars": "Avatars",
+        "tabsLabel": "Range",
+        "range1m": "1M",
+        "range3m": "3M",
+        "range1y": "1Y",
+        "chipAll": "All",
+        "chipMine": "Mine",
+        "circular": "Expense",
+        "donutLabel": "Composition by type",
+        "stock": "Stocks",
+        "bond": "Bonds",
+        "crypto": "Crypto",
+        "donutCentre": "Total"
+      },
+      "balance": {
+        "label": "Pesos",
+        "available": "Available",
+        "netWorth": "Net worth"
       }
     }
   },

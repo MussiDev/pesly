@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
  * `<Link className={circularActionVariants()}><CircularActionFace .../></Link>`.
  */
 export const circularActionVariants = cva(
-  'group flex min-w-circle-action flex-col items-center gap-1.5 rounded-lg text-caption font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+  'group flex min-w-circle-action flex-col items-center gap-1.5 rounded-lg text-caption font-medium text-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
 );
 
 const TONES = {

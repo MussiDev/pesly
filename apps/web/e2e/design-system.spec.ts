@@ -282,6 +282,87 @@ test('keyboard tabbing across the sign-in page shows a focus indicator on every 
   expect(unindicated).toEqual([]);
 });
 
+test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
+  test.use({ viewport: PHONE });
+
+  test('keyboard tabbing across the shell and the quick actions shows a focus indicator on every stop (AC-40)', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await signedIn(page);
+    // Without an account the home shows its empty state, so the quick actions need one.
+    const accounts = es.accounts;
+    await page.goto('/es/accounts/new');
+    await page.getByLabel(accounts.fields.name).fill('Caja e2e');
+    await page.getByLabel(accounts.fields.type).selectOption({ label: accounts.types.cash });
+    await page
+      .getByLabel(accounts.fields.currency)
+      .selectOption({ label: accounts.currencies.ARS });
+    await page.getByRole('button', { name: accounts.form.submit }).click();
+    await expect(page).toHaveURL(/\/es\/accounts$/);
+    await page.goto('/es');
+    await expect(page.getByRole('link', { name: es.home.quickActions.expense })).toBeVisible();
+
+    const stops: string[] = [];
+    const unindicated: string[] = [];
+    for (let press = 0; press < 40; press += 1) {
+      await page.keyboard.press('Tab');
+      const stop = await page.evaluate(inspectFocusedStop);
+      if (stop === 'overlay') continue;
+      if (stop === null || stop.wrapped) break;
+      const id = `${stops.length}:${stop.tag} "${stop.label}"`;
+      stops.push(id);
+      if (!stop.indicated) unindicated.push(id);
+    }
+
+    expect(stops.some((stop) => stop.includes(es.home.quickActions.expense))).toBe(true);
+    expect(stops.some((stop) => stop.includes(es.app.nav.addMovement))).toBe(true);
+    expect(stops.length).toBeGreaterThanOrEqual(8);
+    expect(unindicated).toEqual([]);
+  });
+
+  test('with reduced motion no element keeps a transition or an animation of any length (AC-41)', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await signedIn(page);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    const longest = await page.evaluate(() => {
+      const seconds = (value: string) =>
+        Math.max(...value.split(',').map((part) => Number.parseFloat(part) || 0));
+      let max = 0;
+      for (const element of document.querySelectorAll('*')) {
+        const style = getComputedStyle(element);
+        max = Math.max(max, seconds(style.transitionDuration), seconds(style.animationDuration));
+      }
+      return max;
+    });
+
+    // The app's rule shortens everything to 0.01 ms; a real transition would be 0.12 s or more.
+    expect(longest).toBeLessThan(0.001);
+  });
+
+  test('the home shows its skeleton while the data is still loading (NFR-07)', async ({ page }) => {
+    await signedIn(page);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(/\/accounts\?/, async (route) => {
+      await gate;
+      await route.continue();
+    });
+
+    await page.goto('/es');
+
+    await expect(page.getByRole('status', { name: es.ui.loading })).toBeVisible();
+    release();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('status', { name: es.ui.loading })).toHaveCount(0);
+  });
+});
+
 test.describe('layout shift at 360 px (NFR-03)', () => {
   test.use({ viewport: PHONE });
 
@@ -321,6 +402,14 @@ test.describe('layout shift at 360 px (NFR-03)', () => {
       await signedIn(page);
 
       expect(await layoutShiftOf(page, '/es/movements', theme)).toBeLessThanOrEqual(
+        MAX_LAYOUT_SHIFT,
+      );
+    });
+
+    test(`the investments page shifts at most 0.1 in ${theme}`, async ({ page }) => {
+      await signedIn(page);
+
+      expect(await layoutShiftOf(page, '/es/investments', theme)).toBeLessThanOrEqual(
         MAX_LAYOUT_SHIFT,
       );
     });
