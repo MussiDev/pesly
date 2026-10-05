@@ -13,11 +13,16 @@
       "currencies": {
         "ARS": "Argentine pesos (ARS)",
         "USD": "US dollars (USD)"
-      }
+      },
+      "currenciesShort": {
+        "ARS": "Pesos",
+        "USD": "Dollars"
+      },
+      "tile": "{currency} · available"
     },
     "recent": {
       "title": "Latest movements",
-      "seeAll": "See all movements",
+      "seeAll": "View all",
       "income": "Income",
       "expense": "Expense",
       "transfer": "Transfer",
@@ -156,7 +161,7 @@
     "label": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "darkMode": "Dark mode"
   },
   "ui": {
     "loading": "Loading…",

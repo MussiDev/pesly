@@ -13,11 +13,16 @@
       "currencies": {
         "ARS": "Pesos argentinos (ARS)",
         "USD": "Dólares estadounidenses (USD)"
-      }
+      },
+      "currenciesShort": {
+        "ARS": "Pesos",
+        "USD": "Dólares"
+      },
+      "tile": "{currency} · disponible"
     },
     "recent": {
       "title": "Últimos movimientos",
-      "seeAll": "Ver todos los movimientos",
+      "seeAll": "Ver todos",
       "income": "Ingreso",
       "expense": "Gasto",
       "transfer": "Transferencia",
@@ -156,7 +161,7 @@
     "label": "Tema",
     "light": "Claro",
     "dark": "Oscuro",
-    "system": "Sistema"
+    "darkMode": "Modo oscuro"
   },
   "ui": {
     "loading": "Cargando…",

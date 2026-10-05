@@ -24,7 +24,7 @@ export interface TopNavProps {
 
 const DESTINATIONS: readonly NavItem[] = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS];
 
-/** The top navigation card from `md`; below it the floating bottom bar and the More page take over. */
+/** The top navigation card from `lg`; below it the floating bottom bar and the More page take over. */
 export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
@@ -43,7 +43,7 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
               'bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground',
           )}
         >
-          <Icon aria-hidden className="size-4" />
+          <Icon aria-hidden className="hidden size-4 2xl:block" />
           {tNav(item.labelKey)}
         </Link>
       </li>
@@ -54,7 +54,7 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
     <nav
       data-slot="top-nav"
       aria-label={tNav('label')}
-      className="mx-4 mt-4 hidden flex-wrap items-center gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs md:flex"
+      className="mx-4 mt-4 hidden flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs lg:flex"
     >
       <p className="flex items-center gap-2.5 text-heading">
         <span
@@ -65,14 +65,16 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
         </span>
         {t('brand')}
       </p>
-      <ul className="flex flex-1 flex-wrap items-center gap-1">{DESTINATIONS.map(destination)}</ul>
-      <div className="flex items-center gap-2">
+      <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+        {DESTINATIONS.map(destination)}
+      </ul>
+      <div className="flex shrink-0 items-center gap-2">
         <Link href={ADD_MOVEMENT_HREF} className={buttonVariants({ variant: 'default' })}>
           <Plus aria-hidden />
           {tNav('addMovement')}
         </Link>
         <ThemeToggle />
-        <SignOutButton pending={signingOut} onSignOut={onSignOut} />
+        <SignOutButton pending={signingOut} onSignOut={onSignOut} iconOnly />
       </div>
     </nav>
   );

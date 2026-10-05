@@ -77,12 +77,11 @@ export function HoldingRow({
       <ListRow
         className="items-start"
         leading={<AssetAvatar ticker={holding.ticker} />}
-        title={holding.ticker}
+        title={holding.instrumentName}
         description={
           <>
-            <span className="block truncate">{holding.instrumentName}</span>
-            <span className="block">{typeLabel}</span>
-            <span className="block">
+            <span>{holding.ticker}</span> ·{' '}
+            <span>
               {t('holding.quantity', {
                 quantity: formatQuantity(BigInt(holding.quantity), language),
               })}
@@ -107,13 +106,19 @@ export function HoldingRow({
                 ) : gainTone === 'loss' ? (
                   <ArrowDown aria-hidden data-gain="down" className="size-3 shrink-0" />
                 ) : null}
-                {t(isLoss ? 'holding.loss' : 'holding.gain', {
-                  amount: signed(formatMoney(gainAmount, currency, language), gainAmount),
-                  percent: signed(
-                    formatPercentage(BigInt(holding.gain.basisPoints), language),
-                    gainAmount,
-                  ),
-                })}
+                {/* The full sentence stays for assistive technology; a phone shows only the share. */}
+                <span className={cn('sr-only sm:not-sr-only', GAIN_TONE[gainTone])}>
+                  {t(isLoss ? 'holding.loss' : 'holding.gain', {
+                    amount: signed(formatMoney(gainAmount, currency, language), gainAmount),
+                    percent: signed(
+                      formatPercentage(BigInt(holding.gain.basisPoints), language),
+                      gainAmount,
+                    ),
+                  })}
+                </span>
+                <span aria-hidden className="sm:hidden">
+                  {signed(formatPercentage(BigInt(holding.gain.basisPoints), language), gainAmount)}
+                </span>
               </span>
             )}
             {holding.priceStale && pricedAt !== null && (
@@ -178,6 +183,7 @@ export function HoldingRow({
           id={detailsId}
           className="flex flex-col gap-3 rounded-md border bg-surface p-3 text-small"
         >
+          <p className="text-muted-foreground">{typeLabel}</p>
           {holding.unitPrice === null ? (
             <p className="text-muted-foreground">{t('holding.noPrice')}</p>
           ) : (

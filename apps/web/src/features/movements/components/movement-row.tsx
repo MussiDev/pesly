@@ -215,7 +215,7 @@ export function MovementRow({
           </div>
         </div>
       ) : (
-        <div className="flex justify-end">
+        <div className="-mt-2 flex justify-end">
           <Link
             href={`/movements/${movement.id}/edit`}
             title={tActions('edit')}

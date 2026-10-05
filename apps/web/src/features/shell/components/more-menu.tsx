@@ -22,6 +22,7 @@ export interface MoreMenuProps {
 export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
+  const tTheme = useTranslations('theme');
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
@@ -45,7 +46,8 @@ export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps)
             </li>
           );
         })}
-        <li className="py-3">
+        <li className="flex min-h-14 items-center justify-between gap-4 py-3">
+          <span className="text-body">{tTheme('darkMode')}</span>
           <ThemeToggle />
         </li>
       </ul>

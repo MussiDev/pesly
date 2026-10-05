@@ -97,19 +97,23 @@ describe('HoldingRow logos and gain markers (AC-24, AC-25, AC-33)', () => {
 });
 
 describe('HoldingRow', () => {
-  it('AC-10: shows the value of a priced holding with its currency', () => {
+  it('AC-10: shows the value of a priced holding with its currency', async () => {
     renderRow();
 
     expect(screen.getByText('AAPL')).toBeTruthy();
     expect(screen.getByText('Apple Inc.')).toBeTruthy();
+    // The instrument type lives in the details, so the row stays as short as the design's.
+    expect(screen.queryByText(en.investments.instrumentTypes.cedear)).toBeNull();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Show details for AAPL' }));
     expect(screen.getByText(en.investments.instrumentTypes.cedear)).toBeTruthy();
     expect(screen.getByText('185,000.00 ARS')).toBeTruthy();
   });
 
-  it('AC-10: formats the value with Spanish separators in Spanish', () => {
+  it('AC-10: formats the value with Spanish separators in Spanish', async () => {
     renderRow({}, 'es');
 
     expect(screen.getByText('185.000,00 ARS')).toBeTruthy();
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Ver detalle de AAPL' }));
     expect(screen.getByText(es.investments.instrumentTypes.cedear)).toBeTruthy();
   });
 
@@ -282,8 +286,8 @@ describe('HoldingRow', () => {
       priceSource: 'oracle' as HoldingResponse['priceSource'],
     });
 
-    expect(screen.getByText('future_thing')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Show details for AAPL' }));
+    expect(screen.getByText('future_thing')).toBeTruthy();
     expect(screen.getByText('oracle')).toBeTruthy();
   });
 });

@@ -46,12 +46,12 @@ describe('SignOutButton', () => {
 });
 
 describe('BottomNav (AC-07, AC-08)', () => {
-  it('carries the md:hidden class contract', () => {
+  it('carries the lg:hidden class contract', () => {
     const { container } = renderApp(<BottomNav />);
 
     const nav = navOf(container, 'bottom-nav');
     expect(nav.tagName).toBe('NAV');
-    expect(nav.classList.contains('md:hidden')).toBe(true);
+    expect(nav.classList.contains('lg:hidden')).toBe(true);
     expect(nav.classList.contains('hidden')).toBe(false);
   });
 
@@ -158,14 +158,14 @@ describe('TopNav (AC-11, AC-12)', () => {
     return { ...result, onSignOut };
   }
 
-  it('carries the hidden md:flex class contract', () => {
+  it('carries the hidden lg:flex class contract', () => {
     const { container } = renderTop();
 
     const nav = navOf(container, 'top-nav');
     expect(nav.tagName).toBe('NAV');
     expect(nav.classList.contains('hidden')).toBe(true);
-    expect(nav.classList.contains('md:flex')).toBe(true);
-    expect(nav.classList.contains('md:hidden')).toBe(false);
+    expect(nav.classList.contains('lg:flex')).toBe(true);
+    expect(nav.classList.contains('lg:hidden')).toBe(false);
   });
 
   it('is a rounded card at the top of the page', () => {
@@ -217,7 +217,7 @@ describe('TopNav (AC-11, AC-12)', () => {
     const { container, onSignOut } = renderTop();
 
     const nav = within(navOf(container, 'top-nav'));
-    expect(nav.getByRole('radio', { name: es.theme.dark })).toBeDefined();
+    expect(nav.getByRole('switch', { name: es.theme.darkMode })).toBeDefined();
     await userEvent.setup().click(nav.getByRole('button', { name: es.auth.signOut.label }));
     expect(onSignOut).toHaveBeenCalledOnce();
   });
@@ -355,7 +355,7 @@ describe('MoreMenu (FR-07)', () => {
     expect(screen.getByRole('link', { name: en.app.nav.security }).getAttribute('href')).toBe(
       '/en/settings/security',
     );
-    expect(screen.getByRole('group', { name: en.theme.label })).toBeDefined();
+    expect(screen.getByRole('switch', { name: en.theme.darkMode })).toBeDefined();
     await userEvent.setup().click(screen.getByRole('button', { name: en.auth.signOut.label }));
     expect(onSignOut).toHaveBeenCalledOnce();
   });
@@ -465,7 +465,7 @@ describe('AuthenticatedShell session states', () => {
     expect(screen.getByRole('alert').textContent).toBe(es.errors.network);
   });
 
-  it('keeps the bottom bar out of the content and reserves room for it below md only', () => {
+  it('keeps the bottom bar out of the content and reserves room for it below lg only', () => {
     const { container } = renderApp(
       <ThemeProvider>
         <AuthenticatedShell state={{ kind: 'ready' }} onRetry={vi.fn()} {...idle}>
@@ -478,7 +478,7 @@ describe('AuthenticatedShell session states', () => {
     expect(content?.contains(navOf(container, 'bottom-nav'))).toBe(false);
     const classes = Array.from(content?.classList ?? []);
     expect(classes.some((name) => /^pb-\d+$/.test(name))).toBe(true);
-    expect(classes).toContain('md:pb-0');
+    expect(classes).toContain('lg:pb-0');
   });
 });
 

@@ -1,16 +1,16 @@
-export const THEMES = ['light', 'dark', 'system'] as const;
+export const THEMES = ['light', 'dark'] as const;
 export type Theme = (typeof THEMES)[number];
 
 export const THEME_STORAGE_KEY = 'pesly-theme';
 
-/** Anything outside the three known values (tampered or missing storage) means `system`. */
-export function parseTheme(value: unknown): Theme {
-  return THEMES.find((theme) => theme === value) ?? 'system';
+/** Anything outside the two known values (tampered, missing or the legacy `system`) means "unset". */
+export function parseTheme(value: unknown): Theme | null {
+  return THEMES.find((theme) => theme === value) ?? null;
 }
 
-export function resolveTheme(theme: Theme, prefersDark: boolean): 'light' | 'dark' {
-  if (theme === 'system') return prefersDark ? 'dark' : 'light';
-  return theme;
+/** With no stored choice the interface follows the operating system. */
+export function resolveTheme(stored: Theme | null, prefersDark: boolean): Theme {
+  return stored ?? (prefersDark ? 'dark' : 'light');
 }
 
 /**
