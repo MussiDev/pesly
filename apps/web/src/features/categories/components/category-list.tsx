@@ -319,7 +319,7 @@ export function CategoryList(props: CategoryListProps) {
               {rows.length === 0 ? (
                 <p className="text-small text-muted-foreground">{t('list.emptySection')}</p>
               ) : (
-                <ul className="grid divide-y divide-border/70 rounded-2xl border border-border/70 bg-card px-4 shadow-xs">
+                <ul className="grid divide-y divide-border/70 rounded-card bg-card px-4 shadow-xs">
                   {rows.map((item) => renderRow(item, false))}
                 </ul>
               )}

@@ -54,6 +54,76 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
+describe('/design-system new tokens and components (AC-37)', () => {
+  it.each([
+    'hero-from',
+    'hero-to',
+    'logo-surface',
+    'chart-1',
+    'chart-2',
+    'chart-3',
+    'chart-4',
+    'chart-5',
+  ])('lists --%s in both themes', (token) => {
+    vi.stubEnv('NODE_ENV', 'development');
+    renderPage();
+
+    for (const theme of ['light', 'dark'] as const) {
+      expect(within(preview(theme)).getByText(`--${token}`)).toBeTruthy();
+    }
+  });
+
+  it.each(['light', 'dark'] as const)(
+    'shows the avatar, pill tabs, chip, circular action, donut chart and balance card in the %s preview',
+    (theme) => {
+      vi.stubEnv('NODE_ENV', 'development');
+      renderPage();
+      const scope = preview(theme);
+
+      for (const slot of [
+        'avatar',
+        'pill-tabs',
+        'chip',
+        'circular-action',
+        'donut-chart',
+        'balance-card',
+      ]) {
+        expect(scope.querySelector(`[data-slot="${slot}"]`), slot).not.toBeNull();
+      }
+    },
+  );
+
+  it('shows a logo avatar and a fallback avatar side by side', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    renderPage();
+
+    const avatars = [...preview('light').querySelectorAll('[data-slot="avatar"]')];
+    expect(avatars.some((avatar) => avatar.querySelector('img') !== null)).toBe(true);
+    expect(avatars.some((avatar) => avatar.querySelector('img') === null)).toBe(true);
+  });
+
+  it('draws the card, pill and circular-action shapes from their tokens', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    renderPage();
+
+    const scope = preview('light');
+    expect(scope.querySelector('.rounded-card')).not.toBeNull();
+    expect(scope.querySelector('.rounded-pill')).not.toBeNull();
+    expect(scope.querySelector('.size-circle-action')).not.toBeNull();
+  });
+
+  it('lists the new sections by name', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    renderPage('es');
+
+    const { sections } = CATALOGS.es.ui.designSystem;
+    expect(
+      within(preview('light')).getByRole('heading', { name: sections.primitives }),
+    ).toBeTruthy();
+    expect(within(preview('dark')).getByRole('heading', { name: sections.balance })).toBeTruthy();
+  });
+});
+
 describe('/design-system outside production (AC-10)', () => {
   it('renders the page in a light and a dark preview', () => {
     vi.stubEnv('NODE_ENV', 'development');

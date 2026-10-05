@@ -26,7 +26,7 @@ export function CategoriesLoadStateView({
         <p role="status" className="sr-only">
           {t('loading')}
         </p>
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-card" />
         <div className="grid gap-3">
           <Skeleton className="h-6 w-40" />
           <Skeleton className="h-14" />

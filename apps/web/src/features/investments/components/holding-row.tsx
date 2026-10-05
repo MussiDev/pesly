@@ -1,7 +1,7 @@
 'use client';
 
 import type { HoldingResponse } from '@pesly/shared';
-import { ChevronDown, TriangleAlert } from 'lucide-react';
+import { ArrowDown, ArrowUp, ChevronDown, TriangleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ListRow } from '@/components/ui/list-row';
 import type { Locale } from '@/i18n/routing';
 import { formatDateTime, formatMoney, formatPercentage, formatQuantity } from '@/lib/format-amount';
 import { cn } from '@/lib/utils';
+import { AssetAvatar } from './asset-avatar';
 
 export interface HoldingRowProps {
   holding: HoldingResponse;
@@ -75,6 +76,7 @@ export function HoldingRow({
     <li className="flex flex-col gap-1 py-1">
       <ListRow
         className="items-start"
+        leading={<AssetAvatar ticker={holding.ticker} />}
         title={holding.ticker}
         description={
           <>
@@ -97,7 +99,14 @@ export function HoldingRow({
               </span>
             )}
             {holding.gain !== null && (
-              <span className={cn('text-caption', GAIN_TONE[gainTone])}>
+              <span
+                className={cn('inline-flex items-center gap-1 text-caption', GAIN_TONE[gainTone])}
+              >
+                {gainTone === 'gain' ? (
+                  <ArrowUp aria-hidden data-gain="up" className="size-3 shrink-0" />
+                ) : gainTone === 'loss' ? (
+                  <ArrowDown aria-hidden data-gain="down" className="size-3 shrink-0" />
+                ) : null}
                 {t(isLoss ? 'holding.loss' : 'holding.gain', {
                   amount: signed(formatMoney(gainAmount, currency, language), gainAmount),
                   percent: signed(

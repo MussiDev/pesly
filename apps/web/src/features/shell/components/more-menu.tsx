@@ -18,7 +18,7 @@ export interface MoreMenuProps {
   onSignOut: () => void;
 }
 
-/** What the bottom bar has no room for: categories, profile, security, theme and sign out. */
+/** What the bottom bar has no room for: accounts, categories, profile, security, theme and sign out. */
 export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
@@ -26,7 +26,7 @@ export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps)
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
       <PageHeader title={t('more.title')} description={t('more.description')} />
-      <ul className="divide-y rounded-lg border bg-card px-3">
+      <ul className="divide-y rounded-card bg-card px-4 shadow-xs">
         {MORE_LIST_ITEMS.map((item) => {
           const Icon = item.icon;
           return (

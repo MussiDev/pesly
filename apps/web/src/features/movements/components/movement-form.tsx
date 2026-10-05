@@ -83,6 +83,8 @@ export interface MovementFormProps {
   renderTagField?: (control: TagFieldControl) => ReactNode;
   /** `edit` fills the form from `initialValues`, locks the type and keeps the stored rate until edited. */
   mode?: 'create' | 'edit';
+  /** The type a new movement opens on, e.g. from a quick action; edit mode keeps the stored type. */
+  initialType?: MovementType;
   initialValues?: MovementFormInitialValues;
   onSubmit: (values: MovementFormValues) => void;
 }
@@ -103,12 +105,15 @@ export function MovementForm({
   previewRate,
   renderTagField,
   mode = 'create',
+  initialType,
   initialValues,
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
   const formRef = useRef<HTMLFormElement>(null);
-  const [type, setType] = useState<MovementType>(toMovementType(initialValues?.type ?? 'expense'));
+  const [type, setType] = useState<MovementType>(
+    toMovementType(initialValues?.type ?? initialType ?? 'expense'),
+  );
   const [rateEdited, setRateEdited] = useState(false);
   const [sourceId, setSourceId] = useState(initialValues?.accountId ?? '');
   const [destinationId, setDestinationId] = useState(initialValues?.destinationAccountId ?? '');

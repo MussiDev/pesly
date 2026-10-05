@@ -4,6 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PortfolioCard } from '../src/features/investments/components/portfolio-card';
+import { formatPercentage } from '../src/lib/format-amount';
 import { HOLDING } from './support/holding-fixture';
 import { CATALOGS, renderApp, type TestLocale } from './support/render-app';
 
@@ -40,6 +41,84 @@ function renderCard(portfolio: Partial<PortfolioResponse> = {}, locale: TestLoca
   );
   return handlers;
 }
+
+function holdingOf(id: string, overrides: Partial<HoldingResponse>): HoldingResponse {
+  return { ...HOLDING, id, ticker: id.toUpperCase(), ...overrides };
+}
+
+describe('PortfolioCard composition (AC-30, AC-31, AC-32)', () => {
+  it('shows a donut of the priced holdings by instrument type with a legend of name and percentage', () => {
+    renderCard({
+      holdings: [
+        holdingOf('a1', { instrumentType: 'stock', value: '60000' }),
+        holdingOf('a2', { instrumentType: 'bond', value: '30000' }),
+        holdingOf('a3', { instrumentType: 'crypto', value: '10000' }),
+      ],
+    });
+
+    const chart = screen.getByRole('img', { name: /Composition by instrument type in ARS/ });
+    const legend = chart.closest('figure')?.querySelectorAll('li');
+    expect(legend).toHaveLength(3);
+    expect(legend?.[0]?.textContent).toContain(en.investments.instrumentTypes.stock);
+    expect(legend?.[0]?.textContent).toContain(formatPercentage(6000n, 'en'));
+    expect(legend?.[2]?.textContent).toContain(en.investments.instrumentTypes.crypto);
+  });
+
+  it('draws one donut per valuation currency and never adds currencies together', () => {
+    renderCard({
+      holdings: [
+        holdingOf('a1', { instrumentType: 'stock', value: '1000', valuationCurrency: 'ARS' }),
+        holdingOf('a2', { instrumentType: 'stock', value: '9000', valuationCurrency: 'USD' }),
+      ],
+    });
+
+    expect(screen.getByRole('img', { name: /in ARS/ })).toBeTruthy();
+    expect(screen.getByRole('img', { name: /in USD/ })).toBeTruthy();
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+
+  it('labels the chart in Spanish', () => {
+    renderCard({ holdings: [holdingOf('a1', { instrumentType: 'bond', value: '5000' })] }, 'es');
+
+    expect(
+      screen.getByRole('img', {
+        name: new RegExp(es.investments.portfolio.compositionLabel.split('{')[0] ?? ''),
+      }),
+    ).toBeTruthy();
+  });
+
+  it('error: with no priced holding there is no donut and the notice about missing prices stays', () => {
+    renderCard({
+      holdings: [holdingOf('a1', { value: null, gain: null, unitPrice: null })],
+      holdingsWithoutPrice: 1,
+    });
+
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByText('1 holding without price')).toBeTruthy();
+  });
+
+  it('error: a zero or negative value is left out of the chart', () => {
+    renderCard({
+      holdings: [
+        holdingOf('a1', { instrumentType: 'stock', value: '0' }),
+        holdingOf('a2', { instrumentType: 'stock', value: '-100' }),
+        holdingOf('a3', { instrumentType: 'bond', value: '2000' }),
+      ],
+    });
+
+    const legend = screen.getByRole('img').closest('figure')?.querySelectorAll('li');
+    expect(legend).toHaveLength(1);
+    expect(legend?.[0]?.textContent).toContain(en.investments.instrumentTypes.bond);
+  });
+
+  it('error: an instrument type this build does not know shows its raw key', () => {
+    renderCard({
+      holdings: [holdingOf('a1', { instrumentType: 'future_type' as never, value: '100' })],
+    });
+
+    expect(screen.getByRole('img').closest('figure')?.textContent).toContain('future_type');
+  });
+});
 
 describe('PortfolioCard', () => {
   it('AC-13/AC-20: shows the name and the totals per currency', () => {
@@ -112,7 +191,8 @@ describe('PortfolioCard', () => {
       holdings: [{ ...HOLDING, instrumentType: 'warrant' as HoldingResponse['instrumentType'] }],
     });
 
-    expect(screen.getByText('warrant')).toBeTruthy();
+    // The row and the chart legend both show the raw key.
+    expect(screen.getAllByText('warrant').length).toBeGreaterThan(0);
   });
 
   it('wires the add, delete and holding callbacks', async () => {

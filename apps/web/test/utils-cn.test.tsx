@@ -53,12 +53,15 @@ describe('a component built with cn keeps its type size', () => {
 
     const links = Array.from(container.querySelectorAll('nav li a'));
     expect(links.length).toBeGreaterThan(0);
-    for (const link of links.filter((a) => !a.getAttribute('class')?.includes('rounded-full'))) {
+    // The circular add button has no label, so only the destinations are checked.
+    for (const link of links.filter(
+      (a) => !a.getAttribute('class')?.includes('size-circle-action'),
+    )) {
       expect(link.className).toContain('text-caption');
     }
     const active = container.querySelector('a[aria-current="page"]');
     expect(active?.className).toContain('text-caption');
-    expect(active?.className).toContain('text-primary');
+    expect(active?.className).toContain('text-accent-foreground');
     expect(active?.className).not.toContain('text-muted-foreground');
   });
 });

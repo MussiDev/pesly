@@ -6,7 +6,7 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
     <div
       data-slot="card"
       className={cn(
-        'flex flex-col gap-5 rounded-2xl border border-border/70 bg-card py-5 text-card-foreground shadow-xs',
+        'flex flex-col gap-5 rounded-card bg-card py-5 text-card-foreground shadow-xs',
         className,
       )}
       {...props}

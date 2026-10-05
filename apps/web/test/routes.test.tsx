@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { screen } from '@testing-library/react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactElement } from 'react';
 import { describe, expect, it } from 'vitest';
 import AccountsPage from '../src/app/[locale]/(app)/accounts/page';
 import NewAccountPage from '../src/app/[locale]/(app)/accounts/new/page';
@@ -246,17 +246,36 @@ describe('routes', () => {
       },
       'GET /exchange-rates/latest': { status: 200, body: { rates: [] } },
     });
-    renderApp(
-      <AppLayout>
-        <NewMovementPage />
-      </AppLayout>,
-    );
+    const page = await NewMovementPage({ searchParams: Promise.resolve({}) });
+    renderApp(<AppLayout>{page}</AppLayout>);
 
     expect(screen.queryByRole('heading', { name: es.movements.new.title })).toBeNull();
     expect(
       await screen.findByRole('heading', { level: 1, name: es.movements.new.title }),
     ).toBeDefined();
     expect(screen.getByLabelText(es.movements.fields.amount)).toBeDefined();
+  });
+
+  describe('new-movement page: preselected type (AC-14)', () => {
+    type Page = ReactElement<{ children: ReactElement<{ initialType: string }> }>;
+    const typeOf = async (type: string | string[] | undefined) => {
+      const page = (await NewMovementPage({ searchParams: Promise.resolve({ type }) })) as Page;
+      return page.props.children.props.initialType;
+    };
+
+    it.each(['expense', 'income', 'transfer', 'exchange'])(
+      'passes %s from the URL to the screen',
+      async (type) => {
+        expect(await typeOf(type)).toBe(type);
+      },
+    );
+
+    it.each([undefined, '', 'nope', 'INCOME', ['income', 'expense']])(
+      'error: an absent, unknown or repeated type (%j) starts on expense',
+      async (type) => {
+        expect(await typeOf(type)).toBe('expense');
+      },
+    );
   });
 
   it('renders both accounts screens in English', async () => {

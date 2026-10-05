@@ -3,6 +3,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { PreferencesForm } from '../src/features/profile/components/preferences-form';
+import { ProfileLoadStateView } from '../src/features/profile/components/profile-load-state';
 import { ProfileForm } from '../src/features/profile/components/profile-form';
 import { CATALOGS, renderApp } from './support/render-app';
 
@@ -218,5 +219,15 @@ describe('PreferencesForm', () => {
     renderPreferencesForm({ saved: true });
 
     expect(screen.getByRole('status').className).toContain('border-success/40');
+  });
+});
+
+describe('ProfileLoadStateView soft shapes (AC-35)', () => {
+  it('draws one skeleton per card with the card radius', () => {
+    const { container } = renderApp(
+      <ProfileLoadStateView state={{ kind: 'loading' }} cards={2} onRetry={vi.fn()} />,
+    );
+
+    expect(container.querySelectorAll('[data-slot="skeleton"].rounded-card')).toHaveLength(2);
   });
 });

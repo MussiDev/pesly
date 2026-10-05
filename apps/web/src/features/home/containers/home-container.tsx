@@ -27,6 +27,9 @@ const PAGE_SIZE = 100;
 /** The home shows only the latest few movements; the full list lives at /movements. */
 const RECENT_LIMIT = 5;
 
+/** The home lists only the first few accounts; the full list lives at /accounts. */
+const HOME_ACCOUNTS_LIMIT = 5;
+
 type HomeState =
   | { kind: 'loading' }
   | { kind: 'failed'; retrying: boolean }
@@ -176,6 +179,9 @@ export function HomeContainer() {
       )}
       availableTotals={state.availableTotals}
       netWorthTotals={state.netWorthTotals}
+      accounts={state.accounts
+        .slice(0, HOME_ACCOUNTS_LIMIT)
+        .map(({ id, name, currency, balance }) => ({ id, name, currency, balance }))}
       movements={movements}
     />
   );

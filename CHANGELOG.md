@@ -222,6 +222,22 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-04a Persistent storage is requested after sign-in and the user is warned, in Spanish
   and English, when the browser denies it. The copy on the device is not wiped on sign-out yet;
   that comes with DISC-001-04d. No migration.
+- FEAT-005 Merchant logos: an income or expense whose note names a merchant of a bundled catalog
+  (40 services and stores, matched by whole words ignoring case and accents, the longest keyword
+  first) shows its logo; any other movement keeps its category icon, and a transfer or an exchange
+  shows its type icon. The 62 logos are CC0 single-colour SVGs from Simple Icons 16.34.0 served from
+  the app's own origin, with a sandboxing policy on `/logos/*`; source, license and colour of each
+  are in `apps/web/public/logos/NOTICE.md`. Mercado Libre, Rappi, Cabify and PedidosYa have no logo
+  in that set.
+- FEAT-005 Asset logos and composition: a holding shows the logo of its ticker (32 tickers, US
+  equities and crypto) or its first two letters, a gain or a loss carries an arrow as well as its
+  sign, and each portfolio shows one donut per valuation currency by instrument type, in integer
+  basis points that always sum to exactly 10000.
+- FEAT-005 Home: four circular quick actions (expense, income, transfer, exchange) open the new
+  movement screen already on that type through `?type=`, and an accounts section lists the first
+  five accounts with their balance. The home still makes the same six requests.
+- FEAT-005 New components in `components/ui/`: avatar with a logo fallback, pill tabs, chip,
+  circular action and donut chart, shown with the new hero and chart tokens on the reference page.
 
 ### Changed
 
@@ -241,6 +257,18 @@ All notable changes to this project are documented in this file. The format foll
   categories of each list; the performance budget of NFR-06 (skeleton within 100 ms, data within
   2 s at p75 on 4G) has only a structural test; the 44px target and layout shift checks run against
   `next dev`; `features/accounts/format-amount.ts` is unused and can be deleted.
+- FEAT-005 Visual redesign of every screen: a deep navy accent on a cool-grey canvas with white
+  cards of 24px radius, pill buttons and a navy balance card, in light and in dark (navy-black),
+  set in Plus Jakarta Sans instead of Inter. No API, schema or dependency changed.
+- FEAT-005 Navigation: below 768px a floating pill bar with Home, Movements, a central circular add
+  button, Investments and More (Accounts moved into More); from 768px a top navigation card replaces
+  the side navigation. This reverses the FEAT-004 order of the bottom bar. The page keeps clear of
+  the bar at the end of its content.
+- FEAT-005 The category icon is now a 40px circle so it matches the logos.
+- FEAT-005 Known limitations: the concept elements that need data no API returns (month-over-month
+  variation, balance history, monthly flow bars) are not drawn and belong to PRD 10; the top
+  navigation scrolls away with the page on purpose, because a sticky one covered scrolled-to
+  controls; a merchant is recognized only from the note, with no per-movement override.
 
 ### Fixed
 
