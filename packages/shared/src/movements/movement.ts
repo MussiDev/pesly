@@ -102,15 +102,23 @@ const createExchangeSchema = z.object({
 });
 
 /**
+ * The identifier a device picks before it knows whether it is online. Only a creation takes it: an
+ * edit names its movement in the path, so the update schemas leave it out and strip it.
+ */
+const deviceIdField = { id: z.uuid().optional() };
+
+/**
  * `POST /movements`, discriminated on `type`. For expense and income the client picks the rate
  * source and the automatic value is resolved on the server; transfers and exchanges carry no
  * category and no rate (an exchange's rate is implied by its two amounts). Foreign keys are stripped.
+ * An optional `id` makes the creation idempotent: the same owner sending it again gets the stored
+ * movement back instead of a second row.
  */
 export const createMovementRequestSchema = z.discriminatedUnion('type', [
-  createCategorizedMovementSchema.extend({ type: z.literal('expense') }),
-  createCategorizedMovementSchema.extend({ type: z.literal('income') }),
-  createTransferSchema,
-  createExchangeSchema,
+  createCategorizedMovementSchema.extend({ type: z.literal('expense'), ...deviceIdField }),
+  createCategorizedMovementSchema.extend({ type: z.literal('income'), ...deviceIdField }),
+  createTransferSchema.extend(deviceIdField),
+  createExchangeSchema.extend(deviceIdField),
 ]);
 export type CreateMovementRequest = z.infer<typeof createMovementRequestSchema>;
 

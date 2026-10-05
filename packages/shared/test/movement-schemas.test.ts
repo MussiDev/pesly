@@ -201,6 +201,41 @@ describe('transfer and exchange create requests', () => {
   });
 });
 
+describe('device id on create requests', () => {
+  const DEVICE_ID = '3f2b8c14-6d7e-4a90-b1c2-5e8f0a9d7c61';
+  const withoutId = (body: Record<string, unknown>) =>
+    Object.fromEntries(Object.entries(body).filter(([key]) => key !== 'id'));
+
+  it('keeps a valid UUID on each of the four types (AC-03)', () => {
+    for (const body of [base, { ...base, type: 'income' }, transfer, exchange]) {
+      const parsed = createMovementRequestSchema.parse({ ...body, id: DEVICE_ID });
+      expect(parsed, body.type).toHaveProperty('id', DEVICE_ID);
+    }
+  });
+
+  it('still parses a request without an id, and stays without one (FR-05)', () => {
+    for (const body of [base, { ...base, type: 'income' }, transfer, exchange]) {
+      const parsed = createMovementRequestSchema.parse(body);
+      expect(parsed, body.type).not.toHaveProperty('id');
+    }
+  });
+
+  it('rejects an id that is not a UUID: text, empty or a number (AC-03)', () => {
+    for (const id of ['nope', '', 42]) {
+      for (const body of [base, transfer, exchange]) {
+        expect(fieldsOf({ ...body, id }), `${body.type} ${String(id)}`).toContain('id');
+      }
+    }
+  });
+
+  it('does not carry an id into an edit: the update request strips it (FR-05)', () => {
+    for (const body of [base, transfer, exchange]) {
+      const parsed = updateMovementRequestSchema.parse({ ...body, id: DEVICE_ID });
+      expect(parsed, body.type).toEqual(withoutId(body));
+    }
+  });
+});
+
 describe('list movements query', () => {
   it('defaults to limit 50 and offset 0 and accepts 100 (AC-14)', () => {
     expect(listMovementsQuerySchema.parse({})).toEqual({ limit: 50, offset: 0 });
