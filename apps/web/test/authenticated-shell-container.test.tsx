@@ -1,10 +1,14 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
+import { enqueueMovement, loadQueue, type QueuedRequest } from '../src/lib/local-store/queue';
 import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
+import { openLocalStore } from '../src/lib/local-store/stores';
+import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -430,5 +434,167 @@ describe('AuthenticatedShellContainer persistent storage (DISC-001-04a)', () => 
 
     expect(screen.queryByText(es.app.storageWarning)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
+  const USER = 'u1';
+  const ACCOUNT = '00000000-0000-4000-8000-000000000900';
+  const CATEGORY = '00000000-0000-4000-8000-000000000901';
+  const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+  const created = {
+    status: 201,
+    body: {
+      id: id(1),
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      destinationAccountId: null,
+      amount: '150050',
+      destinationAmount: null,
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      note: null,
+      rate: '14000000',
+      rateSource: 'manual',
+      rateType: null,
+      createdAt: '2026-10-02T15:31:00.000Z',
+      tags: [],
+    },
+  };
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  function request(n: number): QueuedRequest {
+    return {
+      id: id(n),
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      amount: '150050',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'manual', value: '14000000' },
+    };
+  }
+
+  async function queue(...numbers: number[]): Promise<void> {
+    const store = await openLocalStore(USER);
+    for (const n of numbers) {
+      await enqueueMovement(store, request(n), new Date(Date.UTC(2026, 9, 2, 12, 0, n)));
+    }
+    store.close();
+  }
+
+  async function queued(): Promise<number> {
+    const store = await openLocalStore(USER);
+    const items = await loadQueue(store);
+    store.close();
+    return items.length;
+  }
+
+  const postCount = (calls: { method: string; path: string }[]): number =>
+    calls.filter((call) => call.method === 'POST' && call.path === '/movements').length;
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('sends the queue without any user action once the shell is ready (AC-05)', async () => {
+    await queue(1, 2);
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+
+    renderShell();
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(postCount(calls)).toBe(2);
+  });
+
+  it('starts a pass when the connection returns, after checking the session (AC-05)', async () => {
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+    renderShell();
+    expect(await screen.findByText('private content')).toBeDefined();
+    await queue(1);
+    expect(calls).toEqual([]);
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /auth/session',
+      'POST /movements',
+    ]);
+  });
+
+  it('starts a pass when a save fell back to the queue while online, and not while offline (FR-04)', async () => {
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+    renderShell();
+    await screen.findByText('private content');
+    expect(postCount(calls)).toBe(0);
+
+    await queue(1);
+    window.dispatchEvent(new Event(MOVEMENT_QUEUED_EVENT));
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(postCount(calls)).toBe(1);
+
+    setOnline(false);
+    await queue(2);
+    window.dispatchEvent(new Event(MOVEMENT_QUEUED_EVENT));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(postCount(calls)).toBe(1);
+    expect(await queued()).toBe(1);
+  });
+
+  it('sends nothing for an unverified account or a visitor without a session (invalid input)', async () => {
+    await queue(1);
+    const unverified = stubApi({ 'GET /auth/session': session(false) });
+    const first = renderShell();
+    await waitFor(() => {
+      expect(first.router.replace).toHaveBeenCalledWith('/es/check-your-email');
+    });
+    first.unmount();
+
+    const visitor = stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+    const second = renderShell();
+    await waitFor(() => {
+      expect(second.router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+
+    expect(postCount(unverified.calls)).toBe(0);
+    expect(postCount(visitor.calls)).toBe(0);
+    expect(await queued()).toBe(1);
+  });
+
+  it('sends nothing without a connection: the pointer alone does not start a pass (FR-04)', async () => {
+    await queue(1);
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { fetch } = stubApi({ 'POST /movements': created });
+
+    renderShell();
+    await screen.findByText('private content');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await queued()).toBe(1);
   });
 });
