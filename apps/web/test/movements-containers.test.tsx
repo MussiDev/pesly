@@ -139,6 +139,13 @@ const field = (name: string) => screen.getByLabelText<HTMLInputElement>(name);
 const submit = () => screen.getByRole('button', { name: es.movements.form.submit });
 const posts = (calls: ApiCall[]) => calls.filter((call) => call.method === 'POST');
 
+/** Every save carries an id the device chose: it is checked on its own and taken out of the body. */
+function withoutId(body: unknown): unknown {
+  const { id, ...rest } = body as { id: string } & Record<string, unknown>;
+  expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  return rest;
+}
+
 async function open(answers = routes(), locale: 'es' | 'en' = 'es') {
   const stub = stubApi(answers);
   const view = renderApp(<CreateMovementContainer />, { locale });
@@ -222,7 +229,7 @@ describe('CreateMovementContainer: rate (AC-06 to AC-11, AC-20, AC-21)', () => {
     await waitFor(() => {
       expect(posts(calls)).toHaveLength(1);
     });
-    expect(posts(calls)[0]?.body).toEqual({
+    expect(withoutId(posts(calls)[0]?.body)).toEqual({
       type: 'expense',
       accountId: CAJA_ID,
       categoryId: COMIDA_ID,
@@ -759,7 +766,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
     await waitFor(() => {
       expect(posts(calls)).toHaveLength(1);
     });
-    expect(posts(calls)[0]?.body).toEqual({
+    expect(withoutId(posts(calls)[0]?.body)).toEqual({
       type: 'transfer',
       accountId: CAJA_ID,
       destinationAccountId: BANCO_ID,
@@ -786,7 +793,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
     await waitFor(() => {
       expect(posts(calls)).toHaveLength(1);
     });
-    const body = posts(calls)[0]?.body;
+    const body = withoutId(posts(calls)[0]?.body);
     expect(body).toEqual({
       type: 'exchange',
       accountId: CAJA_ID,

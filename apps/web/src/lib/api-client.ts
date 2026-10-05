@@ -118,7 +118,8 @@ export type ApiErrorKey =
   | 'exchangeSameCurrency'
   | 'impliedRateOutOfRange'
   | 'movementTypeImmutable'
-  | 'offlineNoCopy';
+  | 'offlineNoCopy'
+  | 'offlineSaveFailed';
 
 /** `NETWORK`: the request never got an HTTP answer (offline, DNS, CORS, aborted). */
 export type ApiFailureCode = ErrorCode | 'NETWORK';

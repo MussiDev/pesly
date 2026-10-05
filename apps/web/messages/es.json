@@ -284,6 +284,7 @@
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
     "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
+    "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
     "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
   },
@@ -372,6 +373,7 @@
       "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida",
       "tags": "Etiquetas",
+      "pending": "Pendiente",
       "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
       "actions": {
         "edit": "Editar",
@@ -450,7 +452,9 @@
       "title": "Movimiento guardado",
       "rate": "Cotización usada: {rate} ARS por USD",
       "back": "Volver a movimientos",
-      "impliedRate": "Cotización implícita: {rate} ARS por USD"
+      "impliedRate": "Cotización implícita: {rate} ARS por USD",
+      "titleOffline": "Guardado en este dispositivo",
+      "pendingBody": "Se enviará cuando vuelvas a tener conexión."
     },
     "errors": {
       "accountRequired": "Elige una cuenta.",

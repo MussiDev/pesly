@@ -284,6 +284,7 @@
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
+    "offlineSaveFailed": "We could not save this movement on your device. Check that it has free space and try again.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
@@ -372,6 +373,7 @@
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
       "tags": "Tags",
+      "pending": "Pending",
       "offlineNotice": "You are offline: showing your 100 most recent movements. Filters are off until you reconnect.",
       "actions": {
         "edit": "Edit",
@@ -450,7 +452,9 @@
       "title": "Movement saved",
       "rate": "Rate used: {rate} ARS per USD",
       "back": "Back to movements",
-      "impliedRate": "Implied rate: {rate} ARS per USD"
+      "impliedRate": "Implied rate: {rate} ARS per USD",
+      "titleOffline": "Saved on this device",
+      "pendingBody": "It will be sent when you are back online."
     },
     "errors": {
       "accountRequired": "Choose an account.",

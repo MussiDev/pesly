@@ -38,6 +38,8 @@ export interface MovementRowProps {
   destinationCurrency: string | undefined;
   timeZone: string;
   actions?: MovementRowActions;
+  /** Kept on this device and not sent yet: the row says so. */
+  pending?: boolean;
 }
 
 /** ISO 4217's "no currency" code: it formats the amount with a neutral sign. */
@@ -98,6 +100,7 @@ export function MovementRow({
   destinationCurrency,
   timeZone,
   actions,
+  pending = false,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
   const tActions = useTranslations('movements.list.actions');
@@ -176,6 +179,11 @@ export function MovementRow({
           )
         }
       />
+      {pending ? (
+        <div className="px-1">
+          <Badge variant="warning">{t('pending')}</Badge>
+        </div>
+      ) : null}
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}

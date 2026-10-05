@@ -22,6 +22,8 @@ export interface MovementListItem {
   categoryColor?: string;
   destinationAccountName: string | undefined;
   destinationCurrency: string | undefined;
+  /** Kept on this device and not sent yet: it shows a badge and cannot be edited or deleted. */
+  pending?: boolean;
 }
 
 export interface MovementListProps {
@@ -159,8 +161,9 @@ export function MovementList({
                     destinationAccountName={item.destinationAccountName}
                     destinationCurrency={item.destinationCurrency}
                     timeZone={timeZone}
+                    pending={item.pending === true}
                     actions={
-                      rowActions === undefined
+                      rowActions === undefined || item.pending === true
                         ? undefined
                         : {
                             pending: rowActions.pending,

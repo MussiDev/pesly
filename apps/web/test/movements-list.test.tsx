@@ -11,6 +11,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MovementsContainer } from '../src/features/movements/containers/movements-container';
 import { formatRate } from '../src/features/movements/format-rate';
+import { enqueueMovement, markRejected, type QueuedRequest } from '../src/lib/local-store/queue';
 import { loadRecentMovements, saveReferenceData } from '../src/lib/local-store/reference-cache';
 import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { openLocalStore, type LocalStore } from '../src/lib/local-store/stores';
@@ -1219,5 +1220,204 @@ describe('MovementsContainer: without connectivity (DISC-001-04a)', () => {
     renderApp(<MovementsContainer />);
 
     expect(await screen.findByText(es.errors.offlineNoCopy)).toBeDefined();
+  });
+});
+
+describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+  const TAXI_ID = uuid(700);
+
+  const preferences = {
+    defaultRateType: 'blue',
+    displayCurrency: 'ARS',
+    timeZone: TIME_ZONE,
+    language: 'es',
+  } as const;
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  async function seedCopy(movements: unknown[]): Promise<void> {
+    const store = await openLocalStore(ANA);
+    await saveReferenceData(store, {
+      accounts: [account()],
+      categories: [
+        categoryFixture({ id: COMIDA_ID, kind: 'expense', name: 'Comida', icon: 'utensils' }),
+      ],
+      tags: [],
+      preferences,
+      rates: [],
+    });
+    await store.replaceAll('movements', movements);
+    store.close();
+  }
+
+  function taxi(id = TAXI_ID): QueuedRequest {
+    return {
+      id,
+      type: 'expense',
+      accountId: CAJA_ID,
+      categoryId: COMIDA_ID,
+      amount: '250000',
+      occurredAt: '2026-10-03T12:00:00.000Z',
+      note: 'Taxi',
+      rate: { source: 'manual', value: '12505000' },
+    };
+  }
+
+  async function queue(request: QueuedRequest, rejectedWith?: string): Promise<void> {
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(store, request, new Date('2026-10-03T12:01:00.000Z'));
+    if (rejectedWith !== undefined) await markRejected(store, request.id, rejectedWith);
+    store.close();
+  }
+
+  const recent = (index: number, note: string) =>
+    movement({
+      id: uuid(600 + index),
+      note,
+      occurredAt: new Date(Date.UTC(2026, 9, 1, 12, index)).toISOString(),
+    });
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('shows a movement saved offline as pending, ahead of the cached ones (AC-01)', async () => {
+    await seedCopy([recent(1, 'Almuerzo')]);
+    await queue(taxi());
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Taxi')).toBeDefined();
+    const [first, second] = rows();
+    expect(within(first as HTMLElement).getByText('Taxi')).toBeDefined();
+    expect(within(first as HTMLElement).getByText(es.movements.list.pending)).toBeDefined();
+    expect(within(second as HTMLElement).getByText('Almuerzo')).toBeDefined();
+    expect(within(second as HTMLElement).queryByText(es.movements.list.pending)).toBeNull();
+  });
+
+  it('offers no edit or delete on a pending row (AC-01)', async () => {
+    await seedCopy([recent(1, 'Almuerzo')]);
+    await queue(taxi());
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Taxi');
+
+    const { edit, delete: remove } = es.movements.list.actions;
+    const [pending, cached] = rows() as [HTMLElement, HTMLElement];
+    expect(within(pending).queryByRole('button', { name: `${remove} Comida` })).toBeNull();
+    expect(within(pending).queryByRole('link', { name: `${edit} Comida` })).toBeNull();
+    expect(within(cached).getByRole('button', { name: `${remove} Comida` })).toBeDefined();
+    expect(within(cached).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
+  });
+
+  it('shows the movement as pending again after the screen is mounted again (AC-04)', async () => {
+    await seedCopy([]);
+    await queue(taxi());
+    setOnline(false);
+    stubApi({});
+
+    const first = renderApp(<MovementsContainer />);
+    await screen.findByText('Taxi');
+    first.unmount();
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Taxi')).toBeDefined();
+    expect(screen.getByText(es.movements.list.pending)).toBeDefined();
+  });
+
+  it('does not show a queued movement twice once the loaded page already has it (FR-05)', async () => {
+    await queue(taxi());
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([
+          movement({ id: TAXI_ID, note: 'Taxi', occurredAt: '2026-10-03T12:00:00.000Z' }),
+        ]),
+      }),
+    );
+
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Taxi');
+
+    expect(screen.getAllByText('Taxi')).toHaveLength(1);
+    expect(screen.queryByText(es.movements.list.pending)).toBeNull();
+  });
+
+  it('shows the pending movement next to the loaded page online while it has not been sent (FR-04)', async () => {
+    await queue(taxi());
+    stubApi(routes({ [FIRST_PAGE]: movementPage([recent(1, 'Almuerzo')]) }));
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Almuerzo')).toBeDefined();
+    expect(await screen.findByText('Taxi')).toBeDefined();
+    expect(screen.getAllByText(es.movements.list.pending)).toHaveLength(1);
+  });
+
+  it('does not show a movement the server refused: it stays queued for DISC-001-04c (FR-04)', async () => {
+    await seedCopy([recent(1, 'Almuerzo')]);
+    await queue(taxi(), 'ACCOUNT_ARCHIVED');
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Almuerzo');
+
+    expect(screen.queryByText('Taxi')).toBeNull();
+    expect(screen.queryByText(es.movements.list.pending)).toBeNull();
+  });
+
+  it('does not mix queued movements into a filtered page (AC-01)', async () => {
+    await queue(taxi());
+    stubApi(
+      routes({
+        'GET /movements?limit=100&tag=Viaje': movementPage([recent(4, 'Viaje a Salta')]),
+      }),
+    );
+
+    renderApp(<MovementsContainer />, { search: 'tag=Viaje' });
+    await screen.findByText('Viaje a Salta');
+
+    expect(screen.queryByText('Taxi')).toBeNull();
+    expect(screen.queryByText(es.movements.list.pending)).toBeNull();
+  });
+
+  it('leaves the list without pending rows and shows no error when the queue cannot be read (invalid input)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem('queue', { id: TAXI_ID, createdAt: 'not a date', request: { junk: true } });
+    store.close();
+    stubApi(routes({ [FIRST_PAGE]: movementPage([recent(1, 'Almuerzo')]) }));
+
+    renderApp(<MovementsContainer />);
+
+    expect(await screen.findByText('Almuerzo')).toBeDefined();
+    expect(screen.queryByText(es.movements.list.pending)).toBeNull();
+    expect(screen.queryByText(es.errors.unexpected)).toBeNull();
+  });
+
+  it('loads the list again when a pass has sent movements (FR-04)', async () => {
+    const { fetch } = stubApi(routes({ [FIRST_PAGE]: movementPage([recent(1, 'Almuerzo')]) }));
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Almuerzo');
+    const before = fetch.mock.calls.length;
+
+    window.dispatchEvent(new Event('pesly:sync-finished'));
+
+    await waitFor(() => {
+      expect(fetch.mock.calls.length).toBeGreaterThan(before);
+    });
   });
 });

@@ -16,11 +16,14 @@ import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
 import {
+  readQueuedMovements,
   readRecentMovementsCopy,
   readReferenceCopy,
   writeRecentMovementsCopy,
 } from '@/lib/local-store/device-copy';
+import { queuedToMovement, type QueuedMovement } from '@/lib/local-store/queue';
 import { readSessionPointer } from '@/lib/local-store/session-pointer';
+import { onSyncFinished } from '@/lib/sync/sync-events';
 import {
   MovementFilters,
   type FilterAccountOption,
@@ -143,6 +146,8 @@ export function MovementsContainer() {
   const rangeInvalid = isRangeInvalid(filters);
   const [list, setList] = useState<ListState>({ kind: 'loading' });
   const [listAttempt, setListAttempt] = useState(0);
+  // What was saved on this device and has not been sent: shown next to the list as pending.
+  const [queue, setQueue] = useState<QueuedMovement[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<ErrorMessageKey | undefined>();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
@@ -172,6 +177,27 @@ export function MovementsContainer() {
   useEffect(() => {
     if (focusRequest > 0) firstFilterRef.current?.focus();
   }, [focusRequest]);
+
+  // A pass that sent movements changed the list on the server: load it again.
+  useEffect(
+    () =>
+      onSyncFinished(() => {
+        setListAttempt((value) => value + 1);
+      }),
+    [],
+  );
+
+  // The queue is read every time the list settles; a queue that cannot be read is an empty one.
+  useEffect(() => {
+    if (list.kind !== 'ready') return;
+    let live = true;
+    void readQueuedMovements(readSessionPointer()?.userId).then((items) => {
+      if (live) setQueue(items.filter((item) => item.rejection === undefined));
+    });
+    return () => {
+      live = false;
+    };
+  }, [list]);
 
   function clearFilters() {
     applyFilters({});
@@ -444,9 +470,30 @@ export function MovementsContainer() {
     accounts: indexById(reference.data.accounts),
     categories: indexById(reference.data.categories),
   };
+  // Pending movements go in with the page by date, unless a filter is on (they were never matched
+  // against it). One the loaded page already has was sent in the meantime and shows once.
+  const shownIds = new Set(list.kind === 'ready' ? list.movements.map((item) => item.id) : []);
+  const pendingMovements =
+    list.kind === 'ready' && (viewingCopy || !hasActiveFilters(filters))
+      ? queue
+          .filter((item) => !shownIds.has(item.id))
+          .map((item) =>
+            queuedToMovement(
+              item,
+              new Map(reference.data.accounts.map((entry) => [entry.id, entry.currency])),
+            ),
+          )
+      : [];
+  const pendingIds = new Set(pendingMovements.map((item) => item.id));
+  const shownMovements =
+    list.kind === 'ready'
+      ? [...pendingMovements, ...list.movements].sort(
+          (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+        )
+      : [];
   const items: MovementListItem[] =
     list.kind === 'ready'
-      ? list.movements.map((movement) => {
+      ? shownMovements.map((movement) => {
           const account = lookups.accounts.get(movement.accountId);
           const category =
             movement.categoryId === null ? undefined : lookups.categories.get(movement.categoryId);
@@ -463,6 +510,7 @@ export function MovementsContainer() {
             categoryName: category === undefined ? undefined : categoryLabel(category, language),
             categoryIcon: category?.icon,
             categoryColor: category?.color,
+            pending: pendingIds.has(movement.id),
           };
         })
       : [];

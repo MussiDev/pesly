@@ -8,8 +8,8 @@ import { z } from 'zod';
 import { QUEUE_STORE } from './database';
 import type { LocalStore } from './stores';
 
-/** A creation request that already carries the id the device chose for it. */
-export type QueuedRequest = CreateMovementRequest & { id: string };
+/** A creation request, as the form builds it, that already carries the id the device chose for it. */
+export type QueuedRequest = z.input<typeof createMovementRequestSchema> & { id: string };
 
 /** The longest error code kept on a rejected item: a short code, never a message. */
 const REJECTION_CODE_MAX_LENGTH = 64;
