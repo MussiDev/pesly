@@ -29,6 +29,7 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
     closingDate: '2026-10-24',
     dueDate: '2026-11-05',
     status: 'open',
+    totals: { ARS: '0', USD: '0' },
     ...overrides,
   };
 }

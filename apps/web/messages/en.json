@@ -414,6 +414,11 @@
     }
   },
   "creditCards": {
+    "expense": {
+      "errors": {
+        "currencyRequired": "The currency must be ARS or USD."
+      }
+    },
     "title": "Credit cards",
     "new": "New card",
     "list": {

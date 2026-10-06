@@ -81,7 +81,7 @@ function toMovementType(value: string): MovementType | undefined {
 }
 
 /** Positive, up to 2 decimals (the parser), at most 10^15 minor units: the message or the amount. */
-function parseAmountField(
+export function parseAmountField(
   text: string,
   locale: string,
 ): { amount: bigint; message?: undefined } | { amount?: undefined; message: MovementFieldMessage } {
