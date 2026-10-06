@@ -996,7 +996,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     await open({ [FIRST_PAGE]: movementPage([stored]) });
 
     const link = screen.getByRole('link', { name: `${actions.edit} Comida` });
-    expect(link.getAttribute('href')).toBe(`/es/movements/${uuid(500)}/edit`);
+    expect(link.getAttribute('href')).toBe(`/es/movements/edit?id=${uuid(500)}`);
     expect(screen.getByRole('button', { name: `${actions.delete} Comida` })).toBeDefined();
   });
 

@@ -3,8 +3,15 @@ import type { AccountResponse, CategoryResponse, MovementResponse } from '@pesly
 import { formatRateInput } from '@pesly/shared';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EditMovementContainer } from '../src/features/movements/containers/edit-movement-container';
+import { EditMovementRouteContainer } from '../src/features/movements/containers/edit-movement-route-container';
+import { enqueueMovement, loadQueue, queueEdit } from '../src/lib/local-store/queue';
+import { saveRecentMovements, saveReferenceData } from '../src/lib/local-store/reference-cache';
+import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
+import { openLocalStore } from '../src/lib/local-store/stores';
+import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
 
@@ -339,5 +346,200 @@ describe('EditMovementContainer: loading failures', () => {
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
     });
+  });
+});
+
+describe('EditMovementContainer: offline and the queue (DISC-001-04c)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  async function seed({ movements = [STORED] }: { movements?: MovementResponse[] } = {}) {
+    const store = await openLocalStore(ANA);
+    await saveReferenceData(store, {
+      accounts: [account(), account({ id: BANCO_ID, name: 'Banco' })],
+      categories: [category({ id: COMIDA_ID, kind: 'expense', name: 'Comida' })],
+      tags: [],
+      preferences: PROFILE.body.preferences as never,
+      rates: RATES.body.rates as never,
+    });
+    await saveRecentMovements(store, movements);
+    store.close();
+  }
+
+  async function queue() {
+    const store = await openLocalStore(ANA);
+    const items = await loadQueue(store);
+    store.close();
+    return items;
+  }
+
+  async function changeAmountAndSave(amount: string) {
+    const user = userEvent.setup();
+    await user.clear(field(es.movements.fields.amount));
+    await user.type(field(es.movements.fields.amount), amount);
+    await user.click(save());
+  }
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('offline, opens a movement from the device copy with no request (AC-01)', async () => {
+    await seed();
+    setOnline(false);
+    const { calls } = stubApi({});
+
+    renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+
+    expect(await screen.findByRole('heading', { name: es.movements.edit.title })).toBeDefined();
+    expect(field(es.movements.fields.amount).value).toBe('1.500,50');
+    expect(calls).toEqual([]);
+  });
+
+  it('offline, queues the edit, sends nothing and goes back to the list (AC-01)', async () => {
+    await seed();
+    setOnline(false);
+    const { calls } = stubApi({});
+    const { router } = renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+    await screen.findByRole('heading', { name: es.movements.edit.title });
+
+    await changeAmountAndSave('90');
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/es/movements');
+    });
+    expect(calls).toEqual([]);
+    expect(await queue()).toMatchObject([
+      {
+        id: MOVEMENT_ID,
+        operation: 'update',
+        request: { amount: '9000', rate: { source: 'keep' } },
+      },
+    ]);
+  });
+
+  it('opens a movement with a queued create with its queued values, and folds the edit into it (AC-01)', async () => {
+    await seed({ movements: [] });
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(store, {
+      id: MOVEMENT_ID,
+      type: 'expense',
+      accountId: CAJA_ID,
+      categoryId: COMIDA_ID,
+      amount: '4200',
+      occurredAt: NOW,
+      rate: { source: 'manual', value: '9000000' },
+    });
+    store.close();
+    setOnline(false);
+    stubApi({});
+    renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+    await screen.findByRole('heading', { name: es.movements.edit.title });
+    expect(field(es.movements.fields.amount).value).toBe('42,00');
+
+    await changeAmountAndSave('50');
+
+    await waitFor(async () => {
+      expect(await queue()).toMatchObject([
+        { operation: 'create', request: { id: MOVEMENT_ID, amount: '5000' } },
+      ]);
+    });
+  });
+
+  it('online with no queued change, a network failure of PUT queues the same edit and announces it (FR-01)', async () => {
+    await seed();
+    const heard = vi.fn();
+    window.addEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    const { calls, router } = await open(routes(STORED, { [PUT_MOVEMENT]: 'network-error' }));
+
+    await changeAmountAndSave('90');
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/es/movements');
+    });
+    window.removeEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    expect(puts(calls)).toHaveLength(1);
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(await queue()).toMatchObject([{ operation: 'update', request: { amount: '9000' } }]);
+  });
+
+  it('online with a queued change, saving queues it and announces it instead of sending PUT (FR-04)', async () => {
+    await seed();
+    const store = await openLocalStore(ANA);
+    await queueEdit(store, STORED, {
+      type: 'expense',
+      accountId: CAJA_ID,
+      categoryId: COMIDA_ID,
+      amount: '7000',
+      occurredAt: NOW,
+      rate: { source: 'keep' },
+    });
+    store.close();
+    const heard = vi.fn();
+    window.addEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    const { calls, router } = await open();
+    expect(field(es.movements.fields.amount).value).toBe('70,00');
+
+    await changeAmountAndSave('80');
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith('/es/movements');
+    });
+    window.removeEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    expect(puts(calls)).toEqual([]);
+    expect(calls.some((call) => call.path === `/movements/${MOVEMENT_ID}`)).toBe(false);
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(await queue()).toMatchObject([{ revision: 2, request: { amount: '8000' } }]);
+  });
+
+  it('offline, says the movement is not available when neither the queue nor the copy has it (invalid input)', async () => {
+    await seed({ movements: [] });
+    setOnline(false);
+    stubApi({});
+
+    renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+
+    expect(await screen.findByText(es.movements.edit.notAvailableOffline)).toBeDefined();
+  });
+
+  it('keeps the form and shows the save failure when the queued edit cannot be stored (invalid input)', async () => {
+    await seed();
+    setOnline(false);
+    stubApi({});
+    const { router } = renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+    await screen.findByRole('heading', { name: es.movements.edit.title });
+    // The device forgets who is signed in: there is no queue to write to.
+    localStorage.clear();
+
+    await changeAmountAndSave('90');
+
+    expect(await screen.findByText(es.errors.offlineSaveFailed)).toBeDefined();
+    expect(field(es.movements.fields.amount).value).toBe('90');
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
+  it('opens the movement named by the query, and shows not found for a malformed or missing id (invalid input)', async () => {
+    stubApi(routes());
+    const first = renderApp(<EditMovementRouteContainer />, { search: `id=${MOVEMENT_ID}` });
+    expect(await screen.findByRole('heading', { name: es.movements.edit.title })).toBeDefined();
+    first.unmount();
+
+    const { calls } = stubApi(routes());
+    const second = renderApp(<EditMovementRouteContainer />, { search: 'id=not-a-uuid' });
+    expect(await screen.findByText(es.movements.edit.notFound)).toBeDefined();
+    second.unmount();
+
+    renderApp(<EditMovementRouteContainer />);
+    expect(await screen.findByText(es.movements.edit.notFound)).toBeDefined();
+    expect(calls.some((call) => call.path.startsWith('/movements/'))).toBe(false);
   });
 });

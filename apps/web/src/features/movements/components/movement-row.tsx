@@ -229,7 +229,7 @@ export function MovementRow({
       ) : (
         <div className="flex justify-end">
           <Link
-            href={`/movements/${movement.id}/edit`}
+            href={`/movements/edit?id=${movement.id}`}
             title={tActions('edit')}
             className={buttonVariants({ size: 'icon', variant: 'ghost' })}
           >

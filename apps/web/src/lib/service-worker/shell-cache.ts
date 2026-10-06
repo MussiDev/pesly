@@ -73,9 +73,13 @@ export function isCacheableDocument(response: DocumentResponse, origin: string):
   }
 }
 
-/** The two screens the offline flow needs, cached after sign-in: the list and the entry screen. */
+/**
+ * The screens the offline flow needs, cached after sign-in: the list, the entry screen and the edit
+ * screen. The edit screen takes its movement from the query string, so one cached page serves every
+ * movement (the pages cache ignores the query).
+ */
 export function warmUrls(locale: string): string[] {
-  return [`/${locale}/movements`, `/${locale}/movements/new`];
+  return [`/${locale}/movements`, `/${locale}/movements/new`, `/${locale}/movements/edit`];
 }
 
 /**

@@ -406,7 +406,8 @@
     "edit": {
       "title": "Edit movement",
       "description": "Change what you need. Your balances update on their own.",
-      "notFound": "This movement does not exist or is no longer there."
+      "notFound": "This movement does not exist or is no longer there.",
+      "notAvailableOffline": "This movement is not available without a connection. Try again when you are back online."
     },
     "fields": {
       "type": "Type",

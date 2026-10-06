@@ -406,7 +406,8 @@
     "edit": {
       "title": "Editar movimiento",
       "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
-      "notFound": "Este movimiento no existe o ya no está."
+      "notFound": "Este movimiento no existe o ya no está.",
+      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión."
     },
     "fields": {
       "type": "Tipo",
