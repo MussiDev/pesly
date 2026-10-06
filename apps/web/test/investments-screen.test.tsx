@@ -48,6 +48,12 @@ function props(overrides: Partial<InvestmentsScreenProps> = {}): InvestmentsScre
 }
 
 describe('InvestmentsScreen with the design system (FEAT-004)', () => {
+  it('draws its loading skeleton with the card radius (AC-35)', () => {
+    const { container } = renderApp(<InvestmentsScreen {...props({ state: 'loading' })} />);
+
+    expect(container.querySelector('[data-slot="skeleton"].rounded-card')).not.toBeNull();
+  });
+
   it('AC-21: shows a skeleton and announces the loading state while loading', () => {
     const { container } = renderApp(<InvestmentsScreen {...props({ state: 'loading' })} />);
 
@@ -97,7 +103,8 @@ describe('InvestmentsScreen with the design system (FEAT-004)', () => {
 
     const heading = screen.getByRole('heading', { name: inv.forms.addHolding.title });
     expect(heading.closest('[data-slot="card"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(2);
+    // The portfolio is laid out on the canvas; only the open form is a card.
+    expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(1);
     expect(document.activeElement).toBe(heading);
   });
 

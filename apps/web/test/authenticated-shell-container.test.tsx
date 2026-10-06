@@ -47,7 +47,7 @@ describe('AuthenticatedShellContainer', () => {
 
     expect(screen.getByRole('status').textContent).toBe(es.app.loading);
     expect(document.querySelector('[data-slot="skeleton"]')).not.toBeNull();
-    expect(document.querySelector('[data-slot="side-nav"]')).not.toBeNull();
+    expect(document.querySelector('[data-slot="top-nav"]')).not.toBeNull();
     expect(screen.queryByText('private content')).toBeNull();
 
     expect(await screen.findByText('private content')).toBeDefined();
@@ -157,7 +157,7 @@ describe('AuthenticatedShellContainer', () => {
     const link = await screen.findByRole('link', { name: es.app.nav.security });
     expect(link.getAttribute('aria-current')).toBe('page');
     expect(currents(es.app.nav.home)).toEqual([null, null]);
-    expect(currents(es.app.nav.investments)).toEqual([null]);
+    expect(currents(es.app.nav.investments)).toEqual([null, null]);
   });
 
   it('marks the investments link as the current page on /investments', async () => {
@@ -172,7 +172,7 @@ describe('AuthenticatedShellContainer', () => {
     );
 
     await screen.findByText('private content');
-    expect(currents(es.app.nav.investments)).toEqual(['page']);
+    expect(currents(es.app.nav.investments)).toEqual(['page', 'page']);
     for (const link of screen.getAllByRole('link', { name: es.app.nav.investments })) {
       expect(link.getAttribute('href')).toBe('/es/investments');
     }

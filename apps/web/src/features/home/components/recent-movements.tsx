@@ -4,7 +4,7 @@ import { Amount } from '@/components/ui/amount';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListRow } from '@/components/ui/list-row';
-import { CategoryVisual } from '@/features/categories/components/category-visual';
+import { MovementAvatar } from '@/features/movements/components/movement-avatar';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatDay } from '../time-zone';
@@ -92,7 +92,7 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
       </div>
       <ul
         aria-labelledby="home-recent-title"
-        className="divide-y divide-border/70 rounded-2xl border border-border/70 bg-card px-4 shadow-xs"
+        className="divide-y divide-border/70 rounded-card bg-card px-4 shadow-xs"
       >
         {items.map((item) => {
           const category =
@@ -107,36 +107,46 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
               key={item.id}
               as="li"
               leading={
-                <CategoryVisual icon={item.categoryIcon ?? ''} color={item.categoryColor ?? ''} />
+                <MovementAvatar
+                  type={item.type}
+                  note={item.note}
+                  categoryIcon={item.categoryIcon}
+                  categoryColor={item.categoryColor}
+                />
               }
               title={hasNote ? item.note : category}
               description={
-                <>
-                  {hasNote ? `${category} · ` : ''}
-                  {item.accountName ?? t('unknownAccount')} ·{' '}
-                  <time dateTime={item.occurredAt}>{when}</time>
-                </>
+                hasNote
+                  ? `${category} · ${item.accountName ?? t('unknownAccount')}`
+                  : (item.accountName ?? t('unknownAccount'))
               }
               trailing={
-                !parsed.success ? (
-                  <span className="text-muted-foreground">—</span>
-                ) : item.currency === undefined ? (
-                  <PlainAmount
-                    value={BigInt(parsed.data)}
-                    locale={locale}
-                    type={item.type}
-                    directionLabel={t(item.type)}
-                  />
-                ) : (
-                  <Amount
-                    value={BigInt(parsed.data)}
-                    currency={item.currency}
-                    locale={locale}
-                    kind={item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'}
-                    directionLabel={t(item.type)}
-                    className="font-semibold"
-                  />
-                )
+                <span className="grid justify-items-end gap-0.5">
+                  {!parsed.success ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : item.currency === undefined ? (
+                    <PlainAmount
+                      value={BigInt(parsed.data)}
+                      locale={locale}
+                      type={item.type}
+                      directionLabel={t(item.type)}
+                    />
+                  ) : (
+                    <Amount
+                      value={BigInt(parsed.data)}
+                      currency={item.currency}
+                      locale={locale}
+                      kind={
+                        item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'
+                      }
+                      directionLabel={t(item.type)}
+                      className="font-semibold"
+                    />
+                  )}
+                  <time dateTime={item.occurredAt} className="text-caption text-muted-foreground">
+                    {when}
+                  </time>
+                </span>
               }
             />
           );

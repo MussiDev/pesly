@@ -13,6 +13,16 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
 ];
 
+// The proxy, and the per-request policy it sets, skips every path that contains a dot, so a logo
+// opened directly as a document would get none. This one allows no source and sandboxes the
+// document, so an SVG can never run a script in the app's origin.
+const logoHeaders = [
+  {
+    key: 'Content-Security-Policy',
+    value: "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+  },
+];
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The repository keeps its own AGENTS.md; do not let `next dev` generate one inside apps/web.
@@ -30,6 +40,7 @@ const nextConfig: NextConfig = {
           { key: 'Cache-Control', value: 'no-cache' },
         ],
       },
+      { source: '/logos/:path*', headers: logoHeaders },
     ]);
   },
 };

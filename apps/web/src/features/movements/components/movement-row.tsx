@@ -1,14 +1,14 @@
 'use client';
 
 import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
-import { ArrowLeftRight, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { IconAction } from '@/components/ui/icon-action';
 import { ListRow } from '@/components/ui/list-row';
-import { CategoryVisual } from '@/features/categories/components/category-visual';
+import { MovementAvatar } from './movement-avatar';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatRate } from '../format-rate';
@@ -123,16 +123,12 @@ export function MovementRow({
     <li className="grid gap-1 text-card-foreground">
       <ListRow
         leading={
-          moving ? (
-            <span
-              aria-hidden="true"
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground [&>svg]:size-5"
-            >
-              <ArrowLeftRight />
-            </span>
-          ) : (
-            <CategoryVisual icon={categoryIcon ?? ''} color={categoryColor ?? ''} />
-          )
+          <MovementAvatar
+            type={movement.type}
+            note={movement.note}
+            categoryIcon={categoryIcon}
+            categoryColor={categoryColor}
+          />
         }
         title={title}
         description={
@@ -227,7 +223,7 @@ export function MovementRow({
           </div>
         </div>
       ) : (
-        <div className="flex justify-end">
+        <div className="-mt-2 flex justify-end">
           <Link
             href={`/movements/${movement.id}/edit`}
             title={tActions('edit')}

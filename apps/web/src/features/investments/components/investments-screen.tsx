@@ -239,7 +239,7 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
           {tApp('loading')}
         </p>
         <Skeleton className="h-11 w-40" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-64 rounded-card" />
       </div>
     );
   }

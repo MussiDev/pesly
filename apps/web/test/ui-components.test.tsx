@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Alert, AlertDescription, AlertTitle } from '../src/components/ui/alert';
 import { Amount } from '../src/components/ui/amount';
 import { Badge } from '../src/components/ui/badge';
+import { BalanceCard } from '../src/components/ui/balance-card';
 import { Button, buttonVariants } from '../src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../src/components/ui/card';
 import { Checkbox } from '../src/components/ui/checkbox';
@@ -28,6 +29,64 @@ import { Select } from '../src/components/ui/select';
 import { Skeleton } from '../src/components/ui/skeleton';
 
 afterEach(cleanup);
+
+describe('soft-card shapes from tokens (AC-05, AC-34)', () => {
+  it('Card is a large-radius surface without a border', () => {
+    render(<Card data-testid="card">content</Card>);
+
+    const classes = screen.getByTestId('card').className;
+    expect(classes).toMatch(/rounded-card/);
+    expect(classes).not.toMatch(/(^|\s)border(\s|$)/);
+  });
+
+  it('BalanceCard is a navy hero surface with the card radius and keeps its group name', () => {
+    render(
+      <BalanceCard
+        label="Pesos"
+        primaryLabel="Available"
+        primary="1"
+        secondaryLabel="Net worth"
+        secondary="2"
+      />,
+    );
+
+    const card = screen.getByRole('group', { name: 'Pesos' });
+    expect(card.className).toMatch(/rounded-card/);
+    expect(card.className).toMatch(/bg-hero/);
+  });
+
+  it('Button and Badge are pills, fields and alerts are rounded-xl', () => {
+    render(
+      <>
+        <Button>Go</Button>
+        <Badge>Tag</Badge>
+        <Input aria-label="field" />
+        <Select aria-label="choice" />
+        <Alert role="alert">Notice</Alert>
+      </>,
+    );
+
+    expect(screen.getByRole('button', { name: 'Go' }).className).toMatch(/rounded-pill/);
+    expect(screen.getByText('Tag').className).toMatch(/rounded-pill/);
+    expect(screen.getByLabelText('field').className).toMatch(/rounded-xl/);
+    expect(screen.getByLabelText('choice').className).toMatch(/rounded-xl/);
+    expect(screen.getByRole('alert').className).toMatch(/rounded-xl/);
+  });
+
+  it('EmptyState uses the card radius and an interactive ListRow is rounded-xl', () => {
+    render(
+      <>
+        <EmptyState title="Nothing here" />
+        <ListRow interactive title="Row" data-testid="row" />
+      </>,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Nothing here' }).parentElement?.className).toMatch(
+      /rounded-card/,
+    );
+    expect(screen.getByTestId('row').className).toMatch(/rounded-xl/);
+  });
+});
 
 describe('Button', () => {
   it.each(['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] as const)(
@@ -149,7 +208,7 @@ describe('form controls', () => {
 });
 
 describe('Card', () => {
-  it('composes header, title and content on the card token with a hairline border', () => {
+  it('composes header, title and content on the card token with a soft elevation and no border', () => {
     render(
       <Card data-testid="card">
         <CardHeader>
@@ -160,7 +219,8 @@ describe('Card', () => {
     );
 
     expect(screen.getByTestId('card').className).toMatch(/bg-card/);
-    expect(screen.getByTestId('card').className).toMatch(/\bborder\b/);
+    expect(screen.getByTestId('card').className).toMatch(/shadow-xs/);
+    expect(screen.getByTestId('card').className).not.toMatch(/\bborder\b/);
     expect(screen.getByRole('heading', { level: 2, name: 'Title' })).toBeTruthy();
   });
 });
@@ -200,7 +260,7 @@ describe('Skeleton (AC-21)', () => {
 
     const sk = screen.getByTestId('sk');
     expect(sk.className).toMatch(/animate-pulse/);
-    expect(sk.className).toMatch(/bg-muted/);
+    expect(sk.className).toMatch(/bg-foreground\/10/);
     expect(sk.className).toContain('h-4');
     expect(sk.getAttribute('aria-hidden')).toBe('true');
   });

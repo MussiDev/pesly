@@ -54,7 +54,7 @@ export function TwoFactorSetup({
       <CardContent className="grid gap-4">
         {/* The SVG carries its own light background and quiet zone, so it scans in dark mode too. */}
         {/* data-slot is a styling and test contract hook, like the ui components' slots. */}
-        <div data-slot="qr-tile" className="mx-auto rounded-lg border p-2">
+        <div data-slot="qr-tile" className="mx-auto rounded-xl border p-2">
           <img
             src={qrDataUrl}
             alt={t('qrAlt')}

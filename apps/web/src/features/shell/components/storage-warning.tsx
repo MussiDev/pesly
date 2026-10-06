@@ -8,9 +8,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 export function StorageWarning() {
   const t = useTranslations('app');
   return (
-    <Alert>
-      <TriangleAlert aria-hidden />
-      <AlertDescription>{t('storageWarning')}</AlertDescription>
-    </Alert>
+    <div className="mx-auto w-full max-w-2xl px-4 pb-4 lg:px-8">
+      <Alert>
+        <TriangleAlert aria-hidden />
+        <AlertDescription>{t('storageWarning')}</AlertDescription>
+      </Alert>
+    </div>
   );
 }

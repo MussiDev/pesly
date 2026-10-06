@@ -13,11 +13,16 @@
       "currencies": {
         "ARS": "Argentine pesos (ARS)",
         "USD": "US dollars (USD)"
-      }
+      },
+      "currenciesShort": {
+        "ARS": "Pesos",
+        "USD": "Dollars"
+      },
+      "tile": "{currency} · available"
     },
     "recent": {
       "title": "Latest movements",
-      "seeAll": "See all movements",
+      "seeAll": "View all",
       "income": "Income",
       "expense": "Expense",
       "transfer": "Transfer",
@@ -34,6 +39,17 @@
       "title": "Create your first account",
       "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
       "action": "Create account"
+    },
+    "quickActions": {
+      "label": "Quick actions",
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer",
+      "exchange": "Exchange"
+    },
+    "accounts": {
+      "title": "Accounts",
+      "seeAll": "See all"
     }
   },
   "app": {
@@ -56,7 +72,7 @@
     },
     "more": {
       "title": "More",
-      "description": "Categories, profile, security and appearance."
+      "description": "Accounts, categories, profile, security and appearance."
     }
   },
   "auth": {
@@ -145,7 +161,7 @@
     "label": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "system": "System"
+    "darkMode": "Dark mode"
   },
   "ui": {
     "loading": "Loading…",
@@ -177,7 +193,9 @@
         "badges": "Badges",
         "amounts": "Amounts",
         "states": "Loading, empty and error states",
-        "rows": "Lists"
+        "rows": "Lists",
+        "primitives": "Soft-card components",
+        "balance": "Balance card"
       },
       "type": {
         "display": "Display",
@@ -234,12 +252,35 @@
       "shape": {
         "radius": "Radius",
         "elevation": "Elevation",
-        "spacing": "Spacing"
+        "spacing": "Spacing",
+        "card": "Card",
+        "pill": "Pill",
+        "circle": "Circular action"
       },
       "rows": {
         "title": "Salary",
         "description": "Main account",
         "trailing": "Detail"
+      },
+      "primitives": {
+        "avatars": "Avatars",
+        "tabsLabel": "Range",
+        "range1m": "1M",
+        "range3m": "3M",
+        "range1y": "1Y",
+        "chipAll": "All",
+        "chipMine": "Mine",
+        "circular": "Expense",
+        "donutLabel": "Composition by type",
+        "stock": "Stocks",
+        "bond": "Bonds",
+        "crypto": "Crypto",
+        "donutCentre": "Total"
+      },
+      "balance": {
+        "label": "Pesos",
+        "available": "Available",
+        "netWorth": "Net worth"
       }
     }
   },
@@ -768,7 +809,8 @@
       "addHolding": "Add holding",
       "addHoldingFor": "Add holding to {name}",
       "delete": "Delete portfolio",
-      "deleteFor": "Delete portfolio {name}"
+      "deleteFor": "Delete portfolio {name}",
+      "compositionLabel": "Composition by instrument type in {currency}"
     },
     "holding": {
       "quantity": "Quantity: {quantity}",

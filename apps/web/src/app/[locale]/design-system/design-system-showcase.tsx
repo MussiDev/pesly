@@ -2,13 +2,18 @@
 
 import { CircleAlert, Inbox, Plus } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Amount } from '@/components/ui/amount';
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { BalanceCard } from '@/components/ui/balance-card';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Chip } from '@/components/ui/chip';
+import { CircularAction } from '@/components/ui/circular-action';
+import { DonutChart } from '@/components/ui/donut-chart';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/ui/error-state';
 import {
@@ -22,8 +27,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { ListRow } from '@/components/ui/list-row';
 import { PageHeader } from '@/components/ui/page-header';
+import { PillTabs } from '@/components/ui/pill-tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/i18n/routing';
+import { formatPercentage } from '@/lib/format-amount';
 import { cn } from '@/lib/utils';
 
 // Tailwind needs every class name written out, so each token carries its own utility.
@@ -44,6 +51,14 @@ const COLOR_TOKENS = [
   ['info', 'bg-info'],
   ['income', 'bg-income'],
   ['expense', 'bg-expense'],
+  ['hero-from', 'bg-hero-from'],
+  ['hero-to', 'bg-hero-to'],
+  ['logo-surface', 'bg-logo-surface'],
+  ['chart-1', 'bg-chart-1'],
+  ['chart-2', 'bg-chart-2'],
+  ['chart-3', 'bg-chart-3'],
+  ['chart-4', 'bg-chart-4'],
+  ['chart-5', 'bg-chart-5'],
   ['category-red', 'bg-category-red'],
   ['category-orange', 'bg-category-orange'],
   ['category-amber', 'bg-category-amber'],
@@ -82,6 +97,68 @@ const BADGE_VARIANTS = ['default', 'outline', 'success', 'warning', 'info', 'des
 const SALARY = 185000000n;
 const GROCERIES = 4250050n;
 const SAVINGS = 120000n;
+
+type Range = '1m' | '3m' | '1y';
+
+/** The soft-card components in use. Their handlers only move local state: nothing is saved. */
+function PrimitivesDemo({ language }: { language: Locale }) {
+  const t = useTranslations('ui.designSystem.primitives');
+  const [range, setRange] = useState<Range>('3m');
+  const [showAll, setShowAll] = useState(true);
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-small text-muted-foreground">{t('avatars')}</span>
+        <Avatar src="/logos/spotify.svg" fallback="S" size="sm" />
+        <Avatar src="/logos/netflix.svg" fallback="N" />
+        <Avatar src="/logos/apple.svg" fallback="A" size="lg" />
+        <Avatar fallback="GG" />
+      </div>
+      <PillTabs
+        label={t('tabsLabel')}
+        value={range}
+        onChange={setRange}
+        options={[
+          { value: '1m', label: t('range1m') },
+          { value: '3m', label: t('range3m') },
+          { value: '1y', label: t('range1y') },
+        ]}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <Chip
+          pressed={showAll}
+          onClick={() => {
+            setShowAll(true);
+          }}
+        >
+          {t('chipAll')}
+        </Chip>
+        <Chip
+          pressed={!showAll}
+          onClick={() => {
+            setShowAll(false);
+          }}
+        >
+          {t('chipMine')}
+        </Chip>
+      </div>
+      <div className="flex flex-wrap items-start gap-6">
+        <CircularAction icon={<Plus />} label={t('circular')} tone="primary" />
+        <DonutChart
+          label={t('donutLabel')}
+          segments={[
+            { key: 'stock', label: t('stock'), basisPoints: 6000n },
+            { key: 'bond', label: t('bond'), basisPoints: 3000n },
+            { key: 'crypto', label: t('crypto'), basisPoints: 1000n },
+          ]}
+          formatPercent={(basisPoints) => formatPercentage(BigInt(basisPoints), language)}
+          centre={<span className="text-caption text-muted-foreground">{t('donutCentre')}</span>}
+        />
+      </div>
+    </div>
+  );
+}
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -136,6 +213,12 @@ function Preview({ theme }: { theme: 'light' | 'dark' }) {
             <div className="size-12 rounded-md border bg-card" />
             <div className="size-12 rounded-lg border bg-card" />
             <div className="size-12 rounded-xl border bg-card" />
+            <div className="size-12 rounded-card border bg-card" />
+            <div className="size-12 rounded-pill border bg-card" />
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-small text-muted-foreground">{t('shape.circle')}</span>
+            <div className="size-circle-action rounded-pill bg-primary" />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="text-small text-muted-foreground">{t('shape.elevation')}</span>
@@ -152,6 +235,20 @@ function Preview({ theme }: { theme: 'light' | 'dark' }) {
             <div className="h-3 w-section bg-primary" />
           </div>
         </div>
+      </Section>
+
+      <Section title={t('sections.primitives')}>
+        <PrimitivesDemo language={language} />
+      </Section>
+
+      <Section title={t('sections.balance')}>
+        <BalanceCard
+          label={t('balance.label')}
+          primaryLabel={t('balance.available')}
+          primary={<Amount value={SALARY} currency="ARS" locale={language} softDecimals />}
+          secondaryLabel={t('balance.netWorth')}
+          secondary={<Amount value={SAVINGS} currency="ARS" locale={language} />}
+        />
       </Section>
 
       <Section title={t('sections.motion')}>

@@ -5,9 +5,9 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import {
-  ACCOUNTS_ITEM,
   ADD_MOVEMENT_HREF,
   HOME_ITEM,
+  INVESTMENTS_ITEM,
   isActiveInBottomNav,
   MORE_ITEM,
   MOVEMENTS_ITEM,
@@ -20,10 +20,13 @@ export interface BottomNavProps {
 }
 
 // The add action sits between the two halves so it stays centered and reachable by thumb.
-const BEFORE_ADD: readonly NavItem[] = [HOME_ITEM, ACCOUNTS_ITEM];
-const AFTER_ADD: readonly NavItem[] = [MOVEMENTS_ITEM, MORE_ITEM];
+const BEFORE_ADD: readonly NavItem[] = [HOME_ITEM, MOVEMENTS_ITEM];
+const AFTER_ADD: readonly NavItem[] = [INVESTMENTS_ITEM, MORE_ITEM];
 
-/** The bottom bar below `md`; the side navigation takes over from `md`. */
+/**
+ * The floating pill bar below `lg`; the top navigation takes over from `lg`. The landmark spans
+ * the width and lets taps through, so only the pill itself catches them.
+ */
 export function BottomNav({ currentPath }: BottomNavProps) {
   const t = useTranslations('app.nav');
 
@@ -36,8 +39,8 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg py-1.5 text-caption font-medium text-muted-foreground transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            active && 'bg-accent text-primary',
+            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill py-1.5 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+            active && 'bg-accent text-accent-foreground',
           )}
         >
           <Icon aria-hidden className="size-5 shrink-0" />
@@ -51,15 +54,15 @@ export function BottomNav({ currentPath }: BottomNavProps) {
     <nav
       data-slot="bottom-nav"
       aria-label={t('label')}
-      className="sticky bottom-0 z-40 border-t bg-card px-2 pb-safe md:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe lg:hidden"
     >
-      <ul className="mx-auto flex max-w-md items-center pt-1.5">
+      <ul className="pointer-events-auto mx-4 mb-4 flex items-center rounded-pill bg-card px-2 py-1.5 shadow-md sm:mx-auto sm:max-w-md">
         {BEFORE_ADD.map(destination)}
         <li className="flex shrink-0 justify-center">
           <Link
             href={ADD_MOVEMENT_HREF}
             aria-label={t('addMovement')}
-            className="inline-flex size-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-colors outline-none hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="inline-flex size-circle-action items-center justify-center rounded-pill bg-primary text-primary-foreground shadow-md transition-colors outline-none hover:bg-primary/90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
             <Plus aria-hidden className="size-6" />
           </Link>

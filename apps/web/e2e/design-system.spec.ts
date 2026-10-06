@@ -31,7 +31,7 @@ async function signedIn(page: Page): Promise<void> {
   await expect(page).toHaveURL(/\/es$/);
 }
 
-test.describe('navigation by viewport (AC-12, AC-13)', () => {
+test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
   /** Both landmarks share one accessible name; the hidden one is out of the accessibility tree. */
   function navigations(page: Page) {
     return page.getByRole('navigation', { name: es.app.nav.label, includeHidden: true });
@@ -46,27 +46,45 @@ test.describe('navigation by viewport (AC-12, AC-13)', () => {
     return boxes;
   }
 
-  test('at 360 px the bottom navigation is visible and the side navigation is hidden', async ({
+  test('at 360 px the floating bottom bar is visible, inset from the edges, and the top navigation is hidden', async ({
     page,
   }) => {
     await page.setViewportSize(PHONE);
     await signedIn(page);
 
     await expect(navigations(page)).toHaveCount(2);
-    await expect(page.getByRole('navigation', { name: es.app.nav.label })).toHaveCount(1);
-    const [box, ...others] = await visibleBoxes(page);
+    const nav = page.getByRole('navigation', { name: es.app.nav.label });
+    await expect(nav).toHaveCount(1);
+    const [, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The bar spans the viewport width and sits in its lower half.
-    expect(box?.width).toBeGreaterThanOrEqual(PHONE.width - 1);
-    expect(box?.y).toBeGreaterThan(PHONE.height / 2);
-    await expect(
-      page.getByRole('navigation', { name: es.app.nav.label }).getByRole('link', {
-        name: es.app.nav.addMovement,
-      }),
-    ).toBeVisible();
+    // The pill floats: inset from both edges and in the lower half of the viewport.
+    const pill = await nav.locator('ul').boundingBox();
+    expect(pill?.x).toBeGreaterThan(0);
+    expect((pill?.x ?? 0) + (pill?.width ?? 0)).toBeLessThan(PHONE.width);
+    expect(pill?.y).toBeGreaterThan(PHONE.height / 2);
+    await expect(nav.getByRole('link', { name: es.app.nav.addMovement })).toBeVisible();
   });
 
-  test('at 1280 px the side navigation is visible and the bottom navigation is hidden', async ({
+  test('at 360 px the last element of the page stays above the bar when scrolled to the end', async ({
+    page,
+  }) => {
+    await page.setViewportSize(PHONE);
+    await signedIn(page);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    await page.evaluate(() => {
+      window.scrollTo(0, document.documentElement.scrollHeight);
+    });
+
+    const pill = await page
+      .getByRole('navigation', { name: es.app.nav.label })
+      .locator('ul')
+      .boundingBox();
+    const last = await page.locator('#main-content > :last-child').boundingBox();
+    expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThanOrEqual((pill?.y ?? 0) + 1);
+  });
+
+  test('at 1280 px the top navigation card is visible and the bottom bar is hidden', async ({
     page,
   }) => {
     await page.setViewportSize(DESKTOP);
@@ -76,10 +94,10 @@ test.describe('navigation by viewport (AC-12, AC-13)', () => {
     await expect(page.getByRole('navigation', { name: es.app.nav.label })).toHaveCount(1);
     const [box, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The side navigation is a narrow column on the left edge, as tall as the viewport.
-    expect(box?.x).toBe(0);
-    expect(box?.width).toBeLessThan(DESKTOP.width / 2);
-    expect(box?.height).toBeGreaterThanOrEqual(DESKTOP.height - 1);
+    // The top navigation is a card across the top of the page, inset from the edges.
+    expect(box?.y).toBeLessThan(DESKTOP.height / 4);
+    expect(box?.x).toBeGreaterThan(0);
+    expect(box?.width).toBeGreaterThan(DESKTOP.width / 2);
   });
 });
 
@@ -264,6 +282,87 @@ test('keyboard tabbing across the sign-in page shows a focus indicator on every 
   expect(unindicated).toEqual([]);
 });
 
+test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
+  test.use({ viewport: PHONE });
+
+  test('keyboard tabbing across the shell and the quick actions shows a focus indicator on every stop (AC-40)', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await signedIn(page);
+    // Without an account the home shows its empty state, so the quick actions need one.
+    const accounts = es.accounts;
+    await page.goto('/es/accounts/new');
+    await page.getByLabel(accounts.fields.name).fill('Caja e2e');
+    await page.getByLabel(accounts.fields.type).selectOption({ label: accounts.types.cash });
+    await page
+      .getByLabel(accounts.fields.currency)
+      .selectOption({ label: accounts.currencies.ARS });
+    await page.getByRole('button', { name: accounts.form.submit }).click();
+    await expect(page).toHaveURL(/\/es\/accounts$/);
+    await page.goto('/es');
+    await expect(page.getByRole('link', { name: es.home.quickActions.expense })).toBeVisible();
+
+    const stops: string[] = [];
+    const unindicated: string[] = [];
+    for (let press = 0; press < 40; press += 1) {
+      await page.keyboard.press('Tab');
+      const stop = await page.evaluate(inspectFocusedStop);
+      if (stop === 'overlay') continue;
+      if (stop === null || stop.wrapped) break;
+      const id = `${stops.length}:${stop.tag} "${stop.label}"`;
+      stops.push(id);
+      if (!stop.indicated) unindicated.push(id);
+    }
+
+    expect(stops.some((stop) => stop.includes(es.home.quickActions.expense))).toBe(true);
+    expect(stops.some((stop) => stop.includes(es.app.nav.addMovement))).toBe(true);
+    expect(stops.length).toBeGreaterThanOrEqual(8);
+    expect(unindicated).toEqual([]);
+  });
+
+  test('with reduced motion no element keeps a transition or an animation of any length (AC-41)', async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await signedIn(page);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+    const longest = await page.evaluate(() => {
+      const seconds = (value: string) =>
+        Math.max(...value.split(',').map((part) => Number.parseFloat(part) || 0));
+      let max = 0;
+      for (const element of document.querySelectorAll('*')) {
+        const style = getComputedStyle(element);
+        max = Math.max(max, seconds(style.transitionDuration), seconds(style.animationDuration));
+      }
+      return max;
+    });
+
+    // The app's rule shortens everything to 0.01 ms; a real transition would be 0.12 s or more.
+    expect(longest).toBeLessThan(0.001);
+  });
+
+  test('the home shows its skeleton while the data is still loading (NFR-07)', async ({ page }) => {
+    await signedIn(page);
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route(/\/accounts\?/, async (route) => {
+      await gate;
+      await route.continue();
+    });
+
+    await page.goto('/es');
+
+    await expect(page.getByRole('status', { name: es.ui.loading })).toBeVisible();
+    release();
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expect(page.getByRole('status', { name: es.ui.loading })).toHaveCount(0);
+  });
+});
+
 test.describe('layout shift at 360 px (NFR-03)', () => {
   test.use({ viewport: PHONE });
 
@@ -306,6 +405,14 @@ test.describe('layout shift at 360 px (NFR-03)', () => {
         MAX_LAYOUT_SHIFT,
       );
     });
+
+    test(`the investments page shifts at most 0.1 in ${theme}`, async ({ page }) => {
+      await signedIn(page);
+
+      expect(await layoutShiftOf(page, '/es/investments', theme)).toBeLessThanOrEqual(
+        MAX_LAYOUT_SHIFT,
+      );
+    });
   }
 });
 
@@ -335,8 +442,7 @@ test.describe('theme persistence (AC-06, AC-07)', () => {
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
     await page.goto('/es/more');
-    await expect(page.getByRole('radio', { name: es.theme.dark })).toBeChecked();
-    await expect(page.getByRole('radio', { name: es.theme.light })).not.toBeChecked();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).toBeChecked();
   });
 
   test('choosing light on /more removes the dark class and survives a reload', async ({ page }) => {
@@ -347,15 +453,15 @@ test.describe('theme persistence (AC-06, AC-07)', () => {
     await page.goto('/es/more');
     await expect(page.locator('html')).toHaveClass(/\bdark\b/);
 
-    // Hydration proof: storage says dark, so the controlled radio only reads checked once the
+    // Hydration proof: storage says dark, so the controlled switch only reads checked once the
     // provider's state is applied; clicking earlier would be reverted by React.
-    await expect(page.getByRole('radio', { name: es.theme.dark })).toBeChecked();
-    await page.getByRole('radio', { name: es.theme.light }).check();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).toBeChecked();
+    await page.getByRole('switch', { name: es.theme.darkMode }).click();
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
 
     await page.reload();
     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
-    await expect(page.getByRole('radio', { name: es.theme.light })).toBeChecked();
+    await expect(page.getByRole('switch', { name: es.theme.darkMode })).not.toBeChecked();
     expect(await page.evaluate(() => localStorage.getItem('pesly-theme'))).toBe('light');
   });
 });

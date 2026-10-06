@@ -10,7 +10,7 @@ const twMerge = extendTailwindMerge({
     classGroups: {
       duration: [{ duration: ['fast', 'base'] }],
       ease: [{ ease: ['standard'] }],
-      'font-size': [{ text: ['display', 'title', 'heading', 'body', 'small', 'caption'] }],
+      'font-size': [{ text: ['display', 'title', 'heading', 'body', 'small', 'caption', 'nav'] }],
     },
   },
 });
