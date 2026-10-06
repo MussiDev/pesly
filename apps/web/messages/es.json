@@ -415,6 +415,22 @@
   },
   "creditCards": {
     "expense": {
+      "title": "Gasto con tarjeta",
+      "description": "Registra una compra con esta tarjeta. Se asigna al resumen que está abierto en la fecha de la compra.",
+      "fields": {
+        "currency": "Moneda",
+        "currencyPlaceholder": "Elige una moneda",
+        "amount": "Monto",
+        "category": "Categoría",
+        "categoryPlaceholder": "Elige una categoría",
+        "occurredAt": "Fecha y hora",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Guardar gasto",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar un gasto con tarjeta. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
       "errors": {
         "currencyRequired": "La moneda debe ser ARS o USD."
       }

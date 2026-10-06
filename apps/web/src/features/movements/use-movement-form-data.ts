@@ -43,7 +43,7 @@ export interface MovementFormData {
 export type MovementFormDataState = AccountsLoadState | { kind: 'ready'; data: MovementFormData };
 
 /** Reads every page of a list, 100 at a time; an empty page ends the loop even on a stale total. */
-async function loadAll<T>(
+export async function loadAll<T>(
   fetchPage: (offset: number) => Promise<ApiResult<{ items: T[]; total: number }>>,
 ): Promise<ApiResult<T[]>> {
   const items: T[] = [];

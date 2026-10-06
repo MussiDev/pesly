@@ -4,7 +4,6 @@ import { MOVEMENT_NOTE_MAX_LENGTH } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useId, type ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
-import type { MovementFieldMessage } from '../movement-form-errors';
 
 export interface MovementFieldControlProps {
   id: string;
@@ -15,7 +14,8 @@ export interface MovementFieldControlProps {
 interface MovementFieldProps {
   label: string;
   hint?: ReactNode;
-  error: MovementFieldMessage | undefined;
+  /** A full catalog path (a movement or a card expense message). */
+  error: string | undefined;
   /** Renders the control with the id and ARIA attributes that tie it to label, hint and message. */
   children: (control: MovementFieldControlProps) => ReactNode;
 }
