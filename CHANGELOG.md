@@ -300,6 +300,9 @@ All notable changes to this project are documented in this file. The format foll
 - Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
   denial of service reached through `next` and `postcss`), which clears the high advisory that
   failed the lint job of every pull request.
+- Security: `sharp` is overridden to 0.35.5 or later (GHSA-wq5f-xc86-pv6w, CVE-2026-96889, a
+  vulnerability in its librsvg dependency, reached through `next`), which clears the high advisory
+  reported by `pnpm audit --prod --audit-level high`.
 - FIX-001 A refresh that races a sign-out, sign-out-all or password reset is rejected without
   being logged as refresh token reuse or revoking the session family.
 - FIX-001 A rate-limited sign-in answers 429 even when refunding its reserved attempts fails.
