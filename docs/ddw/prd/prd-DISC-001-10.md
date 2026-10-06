@@ -10,8 +10,8 @@
 
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
-| DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | active |
-| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a | pending |
+| DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | done: branch `feat/DISC-001-10a-cards-statements` (main merged in, commit `9ab44ad`; not pushed, no PR), migration 0019 (journal `when` 1791246865297, above main's maximum 1791162359112 on 2026-10-06; check it again at merge); the `/cards` screen is in the navigation, so pending decision 4 decides whether it ships now or with 10b; the Playwright flow `credit-cards.spec.ts` is written and not yet run; next: 10b |
+| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a | active |
 | DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | pending |
 | DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | pending |
 | DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d; the scheduler is an open decision (PRD 08 is not built) | pending |

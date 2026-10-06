@@ -263,6 +263,19 @@ All notable changes to this project are documented in this file. The format foll
   five accounts with their balance. The home still makes the same six requests.
 - FEAT-005 New components in `components/ui/`: avatar with a logo fallback, pill tabs, chip,
   circular action and donut chart, shown with the new hero and chart tokens on the reference page.
+- DISC-001-10a Credit cards: a card has a name (up to 46 characters) and a default closing day and
+  due day (1 to 31). Creating it creates, in the same transaction, two linked credit card accounts,
+  "<name> ARS" and "<name> USD"; a taken account name refuses the card. New `/credit-cards` API
+  routes and a `/cards` screen with the list, a create form and a card page, in Spanish and English.
+- DISC-001-10a Statement cycles: each card has one statement per month whose closing date falls on
+  the default closing day and whose due date is the next occurrence of the due day, using the last
+  day of the month when the day does not exist. Statements are created when they are read, a
+  statement is closed once its closing date has ended in the user's time zone, the dates of an open
+  statement can be edited, and changing the default days moves every open statement.
+- DISC-001-10a Deleting a card deletes its statements and both linked accounts, and is refused while
+  either account has movements; a linked account cannot be deleted on its own from the accounts
+  screen (rename and archive still work). Erasing a user deletes their cards first. Migration 0019
+  adds `credit_cards` and `credit_card_statements`, with a rollback script.
 
 ### Changed
 
