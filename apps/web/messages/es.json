@@ -146,7 +146,11 @@
     },
     "signOut": {
       "label": "Cerrar sesión",
-      "pending": "Cerrando sesión…"
+      "pending": "Cerrando sesión…",
+      "confirmTitle": "Tienes cambios sin sincronizar",
+      "confirmBody": "{count, plural, one {# cambio todavía no se envió. Si cierras sesión ahora, se perderá.} other {# cambios todavía no se enviaron. Si cierras sesión ahora, se perderán.}}",
+      "confirm": "Cerrar sesión y descartar",
+      "cancel": "Cancelar"
     },
     "secondFactor": {
       "title": "Verificación en dos pasos",

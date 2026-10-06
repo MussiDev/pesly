@@ -1,3 +1,6 @@
+import { USER_ID_PATTERN } from './user-id';
+import { isWipePending } from './wipe-marker';
+
 /**
  * Version 1 had the two object stores and the index the list needs; version 2 adds the queue of
  * movements saved without a connection. The upgrade keeps everything that version 1 stored.
@@ -26,16 +29,20 @@ export class LocalStoreUnavailable extends Error {
   }
 }
 
-const USER_ID = /^[A-Za-z0-9-]+$/;
-
 /** One database per user: the id is part of the name, so it can only be letters, digits and hyphens. */
 export function databaseNameFor(userId: string): string {
-  if (!USER_ID.test(userId)) throw new TypeError('The user id is not valid for a database name');
+  if (!USER_ID_PATTERN.test(userId)) {
+    throw new TypeError('The user id is not valid for a database name');
+  }
   return `pesly-${userId}`;
 }
 
 export async function openLocalDatabase(userId: string): Promise<IDBDatabase> {
   const name = databaseNameFor(userId);
+  // Opening would recreate a database whose wipe has not been confirmed (a late writer, another tab).
+  if (isWipePending(userId)) {
+    throw new LocalStoreUnavailable('A wipe of the local store is pending');
+  }
   const factory: IDBFactory | undefined = typeof indexedDB === 'undefined' ? undefined : indexedDB;
   if (factory === undefined) throw new LocalStoreUnavailable();
 

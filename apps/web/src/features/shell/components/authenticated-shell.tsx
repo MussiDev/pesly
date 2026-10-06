@@ -22,6 +22,8 @@ export interface AuthenticatedShellProps {
   onSignOut: () => void;
   /** What waits to be synced, shown above the page once the shell is ready. */
   syncStatus?: ReactNode;
+  /** The warning before a sign out that would lose changes not yet synced. */
+  signOutConfirmation?: ReactNode;
   children: ReactNode;
 }
 
@@ -34,6 +36,7 @@ export function AuthenticatedShell({
   onRetry,
   onSignOut,
   syncStatus,
+  signOutConfirmation,
   children,
 }: AuthenticatedShellProps) {
   const t = useTranslations('app');
@@ -90,6 +93,7 @@ export function AuthenticatedShell({
                 <SignOutAlert error={signOutError} />
               </div>
             ) : null}
+            {signOutConfirmation ? <div className="px-4 pt-4">{signOutConfirmation}</div> : null}
             {syncStatus}
             {children}
           </>

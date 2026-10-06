@@ -247,6 +247,17 @@ All notable changes to this project are documented in this file. The format foll
   counts as done); the server keeps the change it receives last, and the device copy takes the
   server's answer. Network and server failures are retried with exponential backoff from 5 s,
   doubling, capped at 5 minutes. No API change, no migration.
+- DISC-001-04d Signing out removes the user's data from the device: once the API ends the session,
+  the whole per-user IndexedDB database (unsent changes, reference copy and recent movements) and
+  the session pointer are deleted. A wipe interrupted half way is finished on the next start, and
+  the app cannot reopen that user's data until they sign in again. Deleting the account wipes the
+  device the same way, and other open tabs go to sign-in.
+- DISC-001-04d Signing out with changes not yet synced shows how many will be lost and asks for
+  confirmation, in Spanish and English; cancelling keeps everything. A sign out that fails (for
+  example offline) keeps the session and the data.
+- DISC-001-04d A session that expires keeps the unsent changes, and they are sent once the same
+  user signs in again; another user signing in on the device never sends them. No API change, no
+  migration, no new dependency.
 - FEAT-005 Merchant logos: an income or expense whose note names a merchant of a bundled catalog
   (40 services and stores, matched by whole words ignoring case and accents, the longest keyword
   first) shows its logo; any other movement keeps its category icon, and a transfer or an exchange

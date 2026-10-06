@@ -8,11 +8,18 @@ import { useOnlineStatus } from '@/lib/connectivity';
 import { readQueueCounts } from '@/lib/local-store/device-copy';
 import { requestPersistentStorage } from '@/lib/local-store/persistence';
 import type { QueueCounts } from '@/lib/local-store/queue';
-import { readSessionPointer, writeSessionPointer } from '@/lib/local-store/session-pointer';
+import {
+  readSessionPointer,
+  SESSION_POINTER_KEY,
+  writeSessionPointer,
+} from '@/lib/local-store/session-pointer';
+import { resumePendingWipes } from '@/lib/local-store/wipe';
+import { removeFromWipeMarker } from '@/lib/local-store/wipe-marker';
 import { requestShellWarmup } from '@/lib/service-worker/warmup';
 import { onMovementQueued, onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
 import { cancelSyncRetry, syncMovementQueue } from '@/lib/sync/sync-queue';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
+import { SignOutConfirmation } from '../components/sign-out-confirmation';
 import { StorageWarning } from '../components/storage-warning';
 import { SyncStatus } from '../components/sync-status';
 import { useSignOut } from '../use-sign-out';
@@ -35,8 +42,25 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   // Who the API confirmed in this visit. The queue is only sent for this user, never for whoever the
   // pointer names, so one user's movements cannot leave under another user's session.
   const [confirmedUser, setConfirmedUser] = useState<string | undefined>();
-  const { signingOut, signOutError, signOut } = useSignOut();
+  const { signingOut, signOutError, confirming, requestSignOut, confirmSignOut, cancelSignOut } =
+    useSignOut();
   const [queueCounts, setQueueCounts] = useState<QueueCounts>({ pending: 0, failed: 0 });
+
+  // A wipe an earlier visit left half way is finished first; it never throws and keeps the marker.
+  useEffect(() => {
+    void resumePendingWipes();
+  }, []);
+
+  // Another tab signed out: its wipe removed the pointer, so this tab has no session either.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === SESSION_POINTER_KEY && event.newValue === null) router.replace('/sign-in');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+    };
+  }, [router]);
 
   useEffect(() => {
     // Without a connection the app opens from what the last online visit left: the pointer names
@@ -60,6 +84,8 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         else setState({ kind: 'failed', error: result.messageKey });
         return;
       }
+      // The API confirmed this user again: their database may be opened (empty) and filled again.
+      removeFromWipeMarker(result.data.user.id);
       writeSessionPointer({
         userId: result.data.user.id,
         emailVerified: result.data.user.emailVerified,
@@ -140,8 +166,20 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         setAttempt((value) => value + 1);
       }}
       onSignOut={() => {
-        void signOut();
+        void requestSignOut();
       }}
+      signOutConfirmation={
+        confirming !== undefined ? (
+          <SignOutConfirmation
+            count={confirming}
+            signingOut={signingOut}
+            onConfirm={() => {
+              void confirmSignOut();
+            }}
+            onCancel={cancelSignOut}
+          />
+        ) : null
+      }
       syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
       {children}

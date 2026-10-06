@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { existsSync } from 'node:fs';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MorePage from '../src/app/[locale]/(app)/more/page';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShell } from '../src/features/shell/components/authenticated-shell';
@@ -14,6 +15,9 @@ import { TopNav } from '../src/features/shell/components/top-nav';
 import { MoreContainer } from '../src/features/shell/containers/more-container';
 import { isActivePath } from '../src/features/shell/nav-items';
 import { useSignOut } from '../src/features/shell/use-sign-out';
+import { enqueueMovement } from '../src/lib/local-store/queue';
+import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
+import { openLocalStore } from '../src/lib/local-store/stores';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es, en } = CATALOGS;
@@ -373,6 +377,21 @@ describe('MoreMenu (FR-07)', () => {
 
     expect(screen.getByRole('alert').textContent).toBe(en.errors.network);
   });
+
+  it('renders the sign-out confirmation it is given (AC-03)', () => {
+    renderApp(
+      <ThemeProvider>
+        <MoreMenu
+          signingOut={false}
+          signOutError={undefined}
+          onSignOut={vi.fn()}
+          signOutConfirmation={<div role="alertdialog" aria-label="confirm slot" />}
+        />
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('alertdialog', { name: 'confirm slot' })).toBeDefined();
+  });
 });
 
 describe('AuthenticatedShell session states', () => {
@@ -465,6 +484,23 @@ describe('AuthenticatedShell session states', () => {
     expect(screen.getByRole('alert').textContent).toBe(es.errors.network);
   });
 
+  it('renders the sign-out confirmation it is given once ready (AC-03)', () => {
+    renderApp(
+      <ThemeProvider>
+        <AuthenticatedShell
+          state={{ kind: 'ready' }}
+          onRetry={vi.fn()}
+          {...idle}
+          signOutConfirmation={<div role="alertdialog" aria-label="confirm slot" />}
+        >
+          <p>private content</p>
+        </AuthenticatedShell>
+      </ThemeProvider>,
+    );
+
+    expect(screen.getByRole('alertdialog', { name: 'confirm slot' })).toBeDefined();
+  });
+
   it('keeps the bottom bar out of the content and reserves room for it below lg only', () => {
     const { container } = renderApp(
       <ThemeProvider>
@@ -544,13 +580,13 @@ describe('SignOutAlert', () => {
 
 describe('useSignOut', () => {
   function Probe() {
-    const { signingOut, signOutError, signOut } = useSignOut();
+    const { signingOut, signOutError, requestSignOut } = useSignOut();
     return (
       <>
         <button
           type="button"
           onClick={() => {
-            void signOut();
+            void requestSignOut();
           }}
         >
           go
@@ -588,6 +624,11 @@ describe('useSignOut', () => {
 });
 
 describe('MoreContainer and the /more page', () => {
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+  });
+
   it('renders the more menu from the page', () => {
     renderApp(
       <ThemeProvider>
@@ -630,5 +671,48 @@ describe('MoreContainer and the /more page', () => {
     expect(
       screen.getByRole('button', { name: es.auth.signOut.label }).hasAttribute('disabled'),
     ).toBe(false);
+  });
+
+  it('shows the same confirmation with pending changes and wipes on confirm (AC-03, AC-04)', async () => {
+    writeSessionPointer({ userId: 'u1', emailVerified: true });
+    const store = await openLocalStore('u1');
+    await enqueueMovement(store, {
+      id: '00000000-0000-4000-8000-000000000001',
+      type: 'expense',
+      accountId: '00000000-0000-4000-8000-000000000900',
+      categoryId: '00000000-0000-4000-8000-000000000901',
+      amount: '100',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'manual', value: '14000000' },
+    });
+    store.close();
+    const { calls } = stubApi({ 'POST /auth/sign-out': { status: 204 } });
+    const { router } = renderApp(
+      <ThemeProvider>
+        <MoreContainer />
+      </ThemeProvider>,
+      { locale: 'en' },
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: en.auth.signOut.label }));
+
+    const dialog = await screen.findByRole('alertdialog', { name: en.auth.signOut.confirmTitle });
+    expect(dialog.textContent).toContain(
+      '1 change has not been sent yet. If you sign out now, it will be lost.',
+    );
+    expect(calls).toEqual([]);
+
+    await user.click(within(dialog).getByRole('button', { name: en.auth.signOut.confirm }));
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(calls).toEqual([{ method: 'POST', path: '/auth/sign-out', body: {} }]);
+    expect(readSessionPointer()).toBeNull();
+    await waitFor(async () => {
+      const names = (await indexedDB.databases()).map((database) => database.name);
+      expect(names).not.toContain('pesly-u1');
+    });
   });
 });
