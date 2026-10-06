@@ -118,6 +118,9 @@ export type ApiErrorKey =
   | 'exchangeSameCurrency'
   | 'impliedRateOutOfRange'
   | 'movementTypeImmutable'
+  | 'accountLinkedToCard'
+  | 'cardHasMovements'
+  | 'statementClosed'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -173,6 +176,9 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   EXCHANGE_SAME_CURRENCY: 'exchangeSameCurrency',
   IMPLIED_RATE_OUT_OF_RANGE: 'impliedRateOutOfRange',
   MOVEMENT_TYPE_IMMUTABLE: 'movementTypeImmutable',
+  ACCOUNT_LINKED_TO_CARD: 'accountLinkedToCard',
+  CARD_HAS_MOVEMENTS: 'cardHasMovements',
+  STATEMENT_CLOSED: 'statementClosed',
 };
 
 /** `null` when the id is not a plain path segment: '.' and '..' survive encoding and would be normalized. */

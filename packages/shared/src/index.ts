@@ -30,3 +30,5 @@ export * from './movements/movement-filters';
 export * from './movements/rate-age';
 export * from './movements/rate-input';
 export * from './time/zoned-time';
+export * from './credit-cards/statement-cycle';
+export * from './credit-cards/credit-card';
