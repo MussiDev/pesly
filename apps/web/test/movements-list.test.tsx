@@ -11,10 +11,18 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MovementsContainer } from '../src/features/movements/containers/movements-container';
 import { formatRate } from '../src/features/movements/format-rate';
-import { enqueueMovement, markRejected, type QueuedRequest } from '../src/lib/local-store/queue';
+import {
+  enqueueMovement,
+  loadQueue,
+  markRejected,
+  queueDelete,
+  queueEdit,
+  type QueuedRequest,
+} from '../src/lib/local-store/queue';
 import { loadRecentMovements, saveReferenceData } from '../src/lib/local-store/reference-cache';
 import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { openLocalStore, type LocalStore } from '../src/lib/local-store/stores';
+import { MOVEMENT_QUEUED_EVENT, QUEUE_CHANGED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
 
@@ -1307,7 +1315,7 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     expect(within(second as HTMLElement).queryByText(es.movements.list.pending)).toBeNull();
   });
 
-  it('offers no edit or delete on a pending row (AC-01)', async () => {
+  it('offers edit and delete on a pending row too (DISC-001-04c AC-01)', async () => {
     await seedCopy([recent(1, 'Almuerzo')]);
     await queue(taxi());
     setOnline(false);
@@ -1318,8 +1326,8 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
 
     const { edit, delete: remove } = es.movements.list.actions;
     const [pending, cached] = rows() as [HTMLElement, HTMLElement];
-    expect(within(pending).queryByRole('button', { name: `${remove} Comida` })).toBeNull();
-    expect(within(pending).queryByRole('link', { name: `${edit} Comida` })).toBeNull();
+    expect(within(pending).getByRole('button', { name: `${remove} Comida` })).toBeDefined();
+    expect(within(pending).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
     expect(within(cached).getByRole('button', { name: `${remove} Comida` })).toBeDefined();
     expect(within(cached).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
   });
@@ -1339,7 +1347,7 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     expect(screen.getByText(es.movements.list.pending)).toBeDefined();
   });
 
-  it('does not show a queued movement twice once the loaded page already has it (FR-05)', async () => {
+  it('shows a queued movement once when the loaded page already has it, still pending (FR-05)', async () => {
     await queue(taxi());
     stubApi(
       routes({
@@ -1353,7 +1361,7 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     await screen.findByText('Taxi');
 
     expect(screen.getAllByText('Taxi')).toHaveLength(1);
-    expect(screen.queryByText(es.movements.list.pending)).toBeNull();
+    expect(screen.getAllByText(es.movements.list.pending)).toHaveLength(1);
   });
 
   it('shows the pending movement next to the loaded page online while it has not been sent (FR-04)', async () => {
@@ -1367,7 +1375,7 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     expect(screen.getAllByText(es.movements.list.pending)).toHaveLength(1);
   });
 
-  it('does not show a movement the server refused: it stays queued for DISC-001-04c (FR-04)', async () => {
+  it('shows a movement the server refused as failed, not as pending (DISC-001-04c AC-05)', async () => {
     await seedCopy([recent(1, 'Almuerzo')]);
     await queue(taxi(), 'ACCOUNT_ARCHIVED');
     setOnline(false);
@@ -1376,7 +1384,8 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     renderApp(<MovementsContainer />);
     await screen.findByText('Almuerzo');
 
-    expect(screen.queryByText('Taxi')).toBeNull();
+    expect(screen.getByText('Taxi')).toBeDefined();
+    expect(screen.getByText(es.movements.list.failed)).toBeDefined();
     expect(screen.queryByText(es.movements.list.pending)).toBeNull();
   });
 
@@ -1419,5 +1428,255 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     await waitFor(() => {
       expect(fetch.mock.calls.length).toBeGreaterThan(before);
     });
+  });
+});
+
+describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', () => {
+  const ANA = '11111111-1111-4111-8111-111111111111';
+  const { actions } = es.movements.list;
+  const preferences = {
+    defaultRateType: 'blue',
+    displayCurrency: 'ARS',
+    timeZone: TIME_ZONE,
+    language: 'es',
+  } as const;
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  const saved = (n: number, note: string) =>
+    movement({
+      id: uuid(800 + n),
+      note,
+      occurredAt: new Date(Date.UTC(2026, 9, 1, 12, n)).toISOString(),
+    }) as MovementResponse;
+
+  async function seedCopy(movements: MovementResponse[]): Promise<void> {
+    const store = await openLocalStore(ANA);
+    await saveReferenceData(store, {
+      accounts: [account()],
+      categories: [
+        categoryFixture({ id: COMIDA_ID, kind: 'expense', name: 'Comida', icon: 'utensils' }),
+      ],
+      tags: [],
+      preferences,
+      rates: [],
+    });
+    await store.replaceAll('movements', movements);
+    store.close();
+  }
+
+  async function withStore<T>(
+    work: (store: Awaited<ReturnType<typeof openLocalStore>>) => Promise<T>,
+  ) {
+    const store = await openLocalStore(ANA);
+    try {
+      return await work(store);
+    } finally {
+      store.close();
+    }
+  }
+
+  function editOf(base: MovementResponse, note: string) {
+    return {
+      type: 'expense' as const,
+      accountId: base.accountId,
+      categoryId: COMIDA_ID,
+      amount: base.amount,
+      occurredAt: base.occurredAt,
+      note,
+      rate: { source: 'keep' as const },
+    };
+  }
+
+  const rowOf = (text: string) => screen.getByText(text).closest('li') as HTMLElement;
+
+  /** Opens the list offline and waits until `shown` is on screen (the queue lands after the copy). */
+  async function openOffline(movements: MovementResponse[], shown = movements[0]?.note ?? '') {
+    await seedCopy(movements);
+    setOnline(false);
+    const stub = stubApi({});
+    renderApp(<MovementsContainer />);
+    await screen.findByText(shown);
+    return { ...stub, user: userEvent.setup() };
+  }
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    writeSessionPointer({ userId: ANA, emailVerified: true });
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('offline, deleting a cached movement after the confirmation queues it, sends nothing and hides the row (AC-01)', async () => {
+    const lunch = saved(1, 'Almuerzo');
+    const { calls, user } = await openOffline([lunch, saved(2, 'Cena')]);
+
+    await user.click(
+      within(rowOf('Almuerzo')).getByRole('button', { name: `${actions.delete} Comida` }),
+    );
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Almuerzo')).toBeNull();
+    });
+    expect(screen.getByText('Cena')).toBeDefined();
+    expect(calls).toEqual([]);
+    expect(await withStore((store) => loadQueue(store))).toMatchObject([
+      { id: lunch.id, operation: 'delete' },
+    ]);
+  });
+
+  it('online, a network failure of a delete queues it (FR-01)', async () => {
+    const lunch = saved(1, 'Almuerzo');
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([lunch]),
+        [`DELETE /movements/${lunch.id}`]: 'network-error',
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    await screen.findByText('Almuerzo');
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    await waitFor(async () => {
+      expect(await withStore((store) => loadQueue(store))).toMatchObject([
+        { id: lunch.id, operation: 'delete' },
+      ]);
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Almuerzo')).toBeNull();
+    });
+  });
+
+  it('shows the state of every row: synced, pending and failed (AC-02)', async () => {
+    const [a, b, c] = [saved(3, 'Uno'), saved(2, 'Dos'), saved(1, 'Tres')];
+    await withStore(async (store) => {
+      await queueEdit(store, b, editOf(b, 'Dos editado'));
+      await queueEdit(store, c, editOf(c, 'Tres editado'));
+      await markRejected(store, c.id, 'ACCOUNT_ARCHIVED', 1);
+    });
+    await openOffline([a, b, c], 'Tres editado');
+    await screen.findByText(es.movements.list.failed);
+
+    expect(within(rowOf('Uno')).getByRole('img', { name: es.movements.list.synced })).toBeDefined();
+    expect(within(rowOf('Dos editado')).getByText(es.movements.list.pending)).toBeDefined();
+    expect(within(rowOf('Tres editado')).getByText(es.movements.list.failed)).toBeDefined();
+    expect(
+      within(rowOf('Dos editado')).queryByRole('img', { name: es.movements.list.synced }),
+    ).toBeNull();
+  });
+
+  it('turns a pending row synced when the queue says its change settled (AC-02)', async () => {
+    const lunch = saved(1, 'Almuerzo');
+    await withStore((store) => queueEdit(store, lunch, editOf(lunch, 'Almuerzo')));
+    await openOffline([lunch]);
+    await screen.findByText(es.movements.list.pending);
+
+    await withStore((store) => store.deleteItem('queue', lunch.id));
+    window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+
+    await waitFor(() => {
+      expect(
+        within(rowOf('Almuerzo')).getByRole('img', { name: es.movements.list.synced }),
+      ).toBeDefined();
+    });
+  });
+
+  it('shows the reason of a failed change and offers edit, retry and discard (AC-05)', async () => {
+    const [a, b] = [saved(2, 'Uno'), saved(1, 'Dos')];
+    await withStore(async (store) => {
+      await queueEdit(store, a, editOf(a, 'Uno'));
+      await markRejected(store, a.id, 'ACCOUNT_ARCHIVED', 1);
+      await queueEdit(store, b, editOf(b, 'Dos'));
+      await markRejected(store, b.id, 'NOT_FOUND', 1);
+    });
+    await openOffline([a, b]);
+    await screen.findByText(es.movements.sync.deletedElsewhere);
+
+    const first = rowOf('Uno');
+    expect(within(first).getByText(es.errors.accountArchived)).toBeDefined();
+    expect(within(first).getByRole('link', { name: `${actions.edit} Comida` })).toBeDefined();
+    expect(within(first).getByRole('button', { name: `${actions.retry} Comida` })).toBeDefined();
+    expect(within(first).getByRole('button', { name: `${actions.discard} Comida` })).toBeDefined();
+    expect(within(rowOf('Dos')).getByText(es.movements.sync.deletedElsewhere)).toBeDefined();
+  });
+
+  it('retry clears the flag and starts a pass; discard drops the change and the saved row shows again (AC-05)', async () => {
+    const [a, b] = [saved(2, 'Uno'), saved(1, 'Dos')];
+    await withStore(async (store) => {
+      await queueEdit(store, a, editOf(a, 'Uno editado'));
+      await markRejected(store, a.id, 'ACCOUNT_ARCHIVED', 1);
+      await queueEdit(store, b, editOf(b, 'Dos editado'));
+      await markRejected(store, b.id, 'ACCOUNT_ARCHIVED', 1);
+    });
+    const heard = vi.fn();
+    window.addEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    const { user } = await openOffline([a, b], 'Uno editado');
+    await screen.findByText('Dos editado');
+
+    await user.click(
+      within(rowOf('Uno editado')).getByRole('button', { name: `${actions.retry} Comida` }),
+    );
+    await waitFor(() => {
+      expect(within(rowOf('Uno editado')).getByText(es.movements.list.pending)).toBeDefined();
+    });
+    expect(heard).toHaveBeenCalledTimes(1);
+
+    await user.click(
+      within(rowOf('Dos editado')).getByRole('button', { name: `${actions.discard} Comida` }),
+    );
+    await waitFor(() => {
+      expect(screen.getByText('Dos')).toBeDefined();
+    });
+    window.removeEventListener(MOVEMENT_QUEUED_EVENT, heard);
+    expect((await withStore((store) => loadQueue(store))).map((item) => item.id)).toEqual([a.id]);
+  });
+
+  it('offers retry and discard on a failed delete, and no edit (AC-05)', async () => {
+    const lunch = saved(1, 'Almuerzo');
+    await withStore(async (store) => {
+      await queueDelete(store, lunch);
+      await markRejected(store, lunch.id, 'INTERNAL_RULE', 1);
+    });
+    await openOffline([lunch]);
+    await screen.findByText(es.movements.list.failed);
+
+    const row = rowOf('Almuerzo');
+    expect(within(row).getByText(es.movements.list.failed)).toBeDefined();
+    expect(within(row).getByRole('button', { name: `${actions.retry} Comida` })).toBeDefined();
+    expect(within(row).getByRole('button', { name: `${actions.discard} Comida` })).toBeDefined();
+    expect(within(row).queryByRole('link', { name: `${actions.edit} Comida` })).toBeNull();
+  });
+
+  it('shows the generic message for an unknown rejection code and never the code (invalid input)', async () => {
+    const lunch = saved(1, 'Almuerzo');
+    await withStore(async (store) => {
+      await queueEdit(store, lunch, editOf(lunch, 'Almuerzo'));
+      await markRejected(store, lunch.id, 'WEIRD_CODE_X', 1);
+    });
+    await openOffline([lunch]);
+
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(screen.queryByText(/WEIRD_CODE_X/)).toBeNull();
+  });
+
+  it('keeps the row and shows the delete error when the queued delete cannot be stored (invalid input)', async () => {
+    const { user } = await openOffline([saved(1, 'Almuerzo')]);
+    localStorage.clear();
+
+    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    expect(await screen.findByText(es.errors.offlineSaveFailed)).toBeDefined();
+    expect(screen.getByText('Almuerzo')).toBeDefined();
   });
 });

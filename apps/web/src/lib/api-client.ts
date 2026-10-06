@@ -175,6 +175,16 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   MOVEMENT_TYPE_IMMUTABLE: 'movementTypeImmutable',
 };
 
+/**
+ * The message of an error code kept on the device (a rejected queued change). The code is read
+ * back from storage, so anything that is not a known code is the generic message.
+ */
+export function messageKeyOf(code: string): ApiErrorKey {
+  return Object.hasOwn(MESSAGE_KEY_BY_CODE, code)
+    ? MESSAGE_KEY_BY_CODE[code as ApiFailureCode]
+    : 'unexpected';
+}
+
 /** `null` when the id is not a plain path segment: '.' and '..' survive encoding and would be normalized. */
 function resourcePath(collection: string, id: string): string | null {
   if (id === '' || id === '.' || id === '..') return null;

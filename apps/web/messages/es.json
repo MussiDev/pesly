@@ -374,13 +374,17 @@
       "unknownCategory": "Categoría desconocida",
       "tags": "Etiquetas",
       "pending": "Pendiente",
+      "synced": "Sincronizado",
+      "failed": "No sincronizado",
       "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
       "actions": {
         "edit": "Editar",
         "delete": "Eliminar",
         "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
         "confirmDeleteYes": "Sí, eliminar",
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "retry": "Reintentar",
+        "discard": "Descartar"
       }
     },
     "filters": {
@@ -487,6 +491,9 @@
         "tooLong": "La etiqueta puede tener hasta {max} caracteres.",
         "limit": "Puedes agregar hasta {limit} etiquetas."
       }
+    },
+    "sync": {
+      "deletedElsewhere": "Este movimiento se eliminó en otro dispositivo."
     }
   },
   "categories": {
