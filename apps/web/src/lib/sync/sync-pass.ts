@@ -1,5 +1,5 @@
 import type { ApiResult } from '@/lib/api-client';
-import type { QueuedCreate, QueuedMovement } from '@/lib/local-store/queue';
+import type { QueuedMovement } from '@/lib/local-store/queue';
 
 /** How many movements are sent at the same time: enough for a long queue, gentle on the API. */
 export const SYNC_CONCURRENCY = 4;
@@ -26,10 +26,11 @@ export interface SyncPassOutcome {
 export interface SyncPassOptions {
   /** The queue, oldest first; the ones already flagged as rejected are skipped. */
   items: readonly QueuedMovement[];
-  send: (request: QueuedCreate['request']) => Promise<ApiResult<unknown>>;
-  /** The server has the movement, so the queue can drop it. */
-  onSent: (id: string) => void | Promise<void>;
-  /** The server refused this movement: flag it, do not delete it. */
+  /** Sends one queued change (a create, an edit or a delete) to the API. */
+  send: (item: QueuedMovement) => Promise<ApiResult<unknown>>;
+  /** The server has the change, with its answer, so the queue can settle it. */
+  onSent: (id: string, data: unknown) => void | Promise<void>;
+  /** The server refused this change: flag it, do not delete it. */
   onRejected: (id: string, code: string) => void | Promise<void>;
   concurrency?: number;
 }
@@ -56,9 +57,7 @@ export async function runSyncPass({
   onRejected,
   concurrency = SYNC_CONCURRENCY,
 }: SyncPassOptions): Promise<SyncPassOutcome> {
-  const pending = items.filter(
-    (item): item is QueuedCreate => item.operation === 'create' && item.rejection === undefined,
-  );
+  const pending = items.filter((item) => item.rejection === undefined);
   const outcome: SyncPassOutcome = { sent: 0, rejected: 0 };
   let next = 0;
   // A function, not the property: TypeScript would narrow `stopped` to `undefined` across the awaits.
@@ -72,7 +71,7 @@ export async function runSyncPass({
 
       let result: Awaited<ReturnType<typeof send>>;
       try {
-        result = await send(item.request);
+        result = await send(item);
       } catch {
         // A request that throws never got an answer: the same as no connection.
         result = { ok: false, code: 'NETWORK', messageKey: 'network' };
@@ -81,7 +80,7 @@ export async function runSyncPass({
       if (result.ok) {
         outcome.sent += 1;
         try {
-          await onSent(item.id);
+          await onSent(item.id, result.data);
         } catch {
           // Left in the queue, the movement is sent again and the server answers it as a repeat.
         }

@@ -5,7 +5,13 @@ import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
-import { enqueueMovement, loadQueue, type QueuedRequest } from '../src/lib/local-store/queue';
+import {
+  enqueueMovement,
+  loadQueue,
+  queueDelete,
+  queueEdit,
+  type QueuedRequest,
+} from '../src/lib/local-store/queue';
 import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { openLocalStore } from '../src/lib/local-store/stores';
 import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
@@ -537,6 +543,41 @@ describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
       'GET /auth/session',
       'POST /movements',
+    ]);
+  });
+
+  it('sends a queued edit and a queued deletion with no user action when the connection returns (AC-07)', async () => {
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { calls } = stubApi({
+      'GET /auth/session': session(true),
+      [`PUT /movements/${id(1)}`]: { status: 200, body: { ...created.body, amount: '999' } },
+      [`DELETE /movements/${id(2)}`]: { status: 204 },
+    });
+    renderShell();
+    expect(await screen.findByText('private content')).toBeDefined();
+    const store = await openLocalStore(USER);
+    await queueEdit(store, created.body as never, {
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      amount: '999',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'keep' },
+    });
+    await queueDelete(store, { ...created.body, id: id(2) } as never);
+    store.close();
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual([
+      `DELETE /movements/${id(2)}`,
+      'GET /auth/session',
+      `PUT /movements/${id(1)}`,
     ]);
   });
 
