@@ -13,6 +13,7 @@ import { requestShellWarmup } from '@/lib/service-worker/warmup';
 import { onMovementQueued, onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
 import { cancelSyncRetry, syncMovementQueue } from '@/lib/sync/sync-queue';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
+import { SignOutConfirmation } from '../components/sign-out-confirmation';
 import { StorageWarning } from '../components/storage-warning';
 import { SyncStatus } from '../components/sync-status';
 import { useSignOut } from '../use-sign-out';
@@ -35,7 +36,8 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   // Who the API confirmed in this visit. The queue is only sent for this user, never for whoever the
   // pointer names, so one user's movements cannot leave under another user's session.
   const [confirmedUser, setConfirmedUser] = useState<string | undefined>();
-  const { signingOut, signOutError, signOut } = useSignOut();
+  const { signingOut, signOutError, confirming, requestSignOut, confirmSignOut, cancelSignOut } =
+    useSignOut();
   const [queueCounts, setQueueCounts] = useState<QueueCounts>({ pending: 0, failed: 0 });
 
   useEffect(() => {
@@ -140,8 +142,20 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         setAttempt((value) => value + 1);
       }}
       onSignOut={() => {
-        void signOut();
+        void requestSignOut();
       }}
+      signOutConfirmation={
+        confirming !== undefined ? (
+          <SignOutConfirmation
+            count={confirming}
+            signingOut={signingOut}
+            onConfirm={() => {
+              void confirmSignOut();
+            }}
+            onCancel={cancelSignOut}
+          />
+        ) : null
+      }
       syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
       {children}

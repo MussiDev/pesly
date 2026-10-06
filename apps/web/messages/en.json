@@ -146,7 +146,11 @@
     },
     "signOut": {
       "label": "Sign out",
-      "pending": "Signing out…"
+      "pending": "Signing out…",
+      "confirmTitle": "You have changes that are not synced",
+      "confirmBody": "{count, plural, one {# change has not been sent yet. If you sign out now, it will be lost.} other {# changes have not been sent yet. If you sign out now, they will be lost.}}",
+      "confirm": "Sign out and discard",
+      "cancel": "Cancel"
     },
     "secondFactor": {
       "title": "Two-step verification",
