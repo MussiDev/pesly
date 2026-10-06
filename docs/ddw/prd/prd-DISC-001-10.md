@@ -11,7 +11,7 @@
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
 | DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | done: merged to `main` in PR #35 (migration 0019, journal `when` 1791246865297); the `/cards` screen and its navigation entry shipped with it, so pending decision 4 is open for the owner (the entry stays until the owner decides otherwise) |
-| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | active: branch `feat/DISC-001-10b-card-expenses`, in progress |
+| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | done: branch `feat/DISC-001-10b-card-expenses` (from `main` 663f747, not pushed, no PR yet); no migration; the purchase's statement is derived from its day and the closing dates, not stored; the card expense screen is online only (offline entry still goes through the ordinary movement form on the linked accounts); the Playwright flow `credit-cards-expenses.spec.ts` is written and is run by the orchestrator; next: 10c |
 | DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | pending |
 | DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | pending |
 | DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d; the scheduler is an open decision (PRD 08 is not built) | pending |
