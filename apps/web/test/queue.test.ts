@@ -1,22 +1,37 @@
 // @vitest-environment happy-dom
+import type { MovementResponse } from '@pesly/shared';
 import { IDBFactory } from 'fake-indexeddb';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QUEUE_STORE } from '../src/lib/local-store/database';
 import {
+  discardQueuedChange,
+  readQueueCounts,
+  readQueuedChange,
   readQueuedMovements,
   rejectQueuedMovement,
   removeQueuedMovement,
+  retryQueuedChange,
+  writeQueuedDelete,
+  writeQueuedEdit,
   writeQueuedMovement,
 } from '../src/lib/local-store/device-copy';
 import {
+  countQueue,
+  discardQueued,
   enqueueMovement,
   loadQueue,
   markRejected,
+  queueDelete,
+  queueEdit,
   queuedToMovement,
   removeQueued,
+  retryQueued,
+  settleSent,
+  type QueuedEditRequest,
   type QueuedRequest,
 } from '../src/lib/local-store/queue';
 import { openLocalStore } from '../src/lib/local-store/stores';
+import { QUEUE_CHANGED_EVENT } from '../src/lib/sync/sync-events';
 
 const ANA = '11111111-1111-4111-8111-111111111111';
 const ACCOUNT = '00000000-0000-4000-8000-000000000900';
@@ -80,7 +95,10 @@ describe('local queue of unsent movements', () => {
 
     expect(queue).toHaveLength(1);
     expect(queue[0]).toMatchObject({ id: id(1), createdAt: at(1).toISOString() });
-    expect(queue[0]?.request).toMatchObject({ type: 'expense', amount: '150050', id: id(1) });
+    expect(queue[0]).toMatchObject({
+      operation: 'create',
+      request: { type: 'expense', amount: '150050', id: id(1) },
+    });
   });
 
   it('still holds 5 queued movements after reopening the database (AC-04)', async () => {
@@ -209,6 +227,295 @@ describe('local queue of unsent movements', () => {
 
     await removeQueuedMovement(ANA, id(1));
     expect((await readQueuedMovements(ANA)).map((item) => item.id)).toEqual([id(2)]);
+  });
+});
+
+function serverExpense(n: number, overrides: Partial<MovementResponse> = {}): MovementResponse {
+  return {
+    id: id(n),
+    type: 'expense',
+    accountId: ACCOUNT,
+    categoryId: CATEGORY,
+    destinationAccountId: null,
+    amount: '100000',
+    destinationAmount: null,
+    occurredAt: '2026-10-01T10:00:00.000Z',
+    note: 'server note',
+    rate: '13000000',
+    rateSource: 'automatic',
+    rateType: 'blue',
+    tags: [],
+    createdAt: '2026-10-01T10:00:01.000Z',
+    ...overrides,
+  };
+}
+
+type EditRate = Extract<QueuedEditRequest, { type: 'expense' }>['rate'];
+
+function expenseEdit(amount: string, rate: EditRate = { source: 'keep' }) {
+  return {
+    type: 'expense',
+    accountId: ACCOUNT,
+    categoryId: CATEGORY,
+    amount,
+    occurredAt: '2026-10-01T10:00:00.000Z',
+    note: 'edited',
+    rate,
+  } as QueuedEditRequest;
+}
+
+describe('queue of changes: edits and deletions', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('queues an edit of a cached movement as an update with its base and revision 1 (AC-01)', async () => {
+    const store = await openLocalStore(ANA);
+
+    expect(await queueEdit(store, serverExpense(1), expenseEdit('250000'), at(1))).toBe(true);
+
+    const [record] = await loadQueue(store);
+    expect(record).toMatchObject({
+      id: id(1),
+      operation: 'update',
+      revision: 1,
+      createdAt: at(1).toISOString(),
+      base: { id: id(1), amount: '100000' },
+      request: { type: 'expense', amount: '250000' },
+    });
+    store.close();
+  });
+
+  it('queues a delete of a cached movement (AC-01)', async () => {
+    const store = await openLocalStore(ANA);
+
+    expect(await queueDelete(store, serverExpense(1), at(1))).toBe(true);
+
+    expect(await loadQueue(store)).toMatchObject([
+      { id: id(1), operation: 'delete', revision: 1, base: { id: id(1) } },
+    ]);
+    store.close();
+  });
+
+  it('folds an edit into a queued create, which stays a create and keeps its rate when untouched (AC-01)', async () => {
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(store, expenseRequest(1), at(1));
+    const shown = queuedToMovement((await loadQueue(store))[0] as never);
+
+    expect(await queueEdit(store, shown, expenseEdit('999'), at(2))).toBe(true);
+
+    const [record] = await loadQueue(store);
+    expect(record).toMatchObject({
+      operation: 'create',
+      revision: 2,
+      createdAt: at(1).toISOString(),
+      request: { id: id(1), amount: '999', rate: { source: 'manual', value: '14000000' } },
+    });
+    store.close();
+  });
+
+  it('keeps one record for two edits, with the second request and revision 2 (AC-01)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueEdit(
+      store,
+      serverExpense(1),
+      expenseEdit('200', { source: 'manual', value: '15000000' }),
+    );
+
+    // The second form showed the queued manual rate untouched: the queued rate stays.
+    await queueEdit(store, serverExpense(1), expenseEdit('300'));
+
+    const queue = await loadQueue(store);
+    expect(queue).toHaveLength(1);
+    expect(queue[0]).toMatchObject({
+      operation: 'update',
+      revision: 2,
+      request: { amount: '300', rate: { source: 'manual', value: '15000000' } },
+    });
+    store.close();
+  });
+
+  it('turns a queued create or update into a single delete record (AC-01)', async () => {
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(store, expenseRequest(1), at(1));
+    await queueEdit(store, serverExpense(2), expenseEdit('300'), at(2));
+
+    await queueDelete(store, serverExpense(1), at(3));
+    await queueDelete(store, serverExpense(2, { amount: '1' }), at(3));
+
+    const queue = await loadQueue(store);
+    expect(queue.map((item) => [item.id, item.operation, item.revision])).toEqual([
+      [id(1), 'delete', 2],
+      [id(2), 'delete', 2],
+    ]);
+    // The update kept the server movement it edited as the base of the delete.
+    expect(queue[1]).toMatchObject({ base: { amount: '100000' }, createdAt: at(2).toISOString() });
+    store.close();
+  });
+
+  it('refuses an edit of a queued delete and changes nothing (invalid input)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueDelete(store, serverExpense(1), at(1));
+
+    expect(await queueEdit(store, serverExpense(1), expenseEdit('300'), at(2))).toBe(false);
+
+    expect(await loadQueue(store)).toMatchObject([{ operation: 'delete', revision: 1 }]);
+    store.close();
+  });
+
+  it('refuses an edit whose type differs from the movement (invalid input)', async () => {
+    const store = await openLocalStore(ANA);
+    const transfer = {
+      type: 'transfer',
+      accountId: ACCOUNT,
+      destinationAccountId: DESTINATION,
+      amount: '5',
+      occurredAt: '2026-10-01T10:00:00.000Z',
+    } as QueuedEditRequest;
+
+    expect(await queueEdit(store, serverExpense(1), transfer, at(1))).toBe(false);
+    expect(await loadQueue(store)).toEqual([]);
+    store.close();
+  });
+
+  it('clears the rejection when a failed change is edited (AC-05)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueEdit(store, serverExpense(1), expenseEdit('300'), at(1));
+    await markRejected(store, id(1), 'ACCOUNT_ARCHIVED', 1);
+
+    await queueEdit(store, serverExpense(1), expenseEdit('400'), at(2));
+
+    const [record] = await loadQueue(store);
+    expect(record?.rejection).toBeUndefined();
+    expect(record).toMatchObject({ revision: 2, request: { amount: '400' } });
+    store.close();
+  });
+
+  it('removes a record settled with the sent revision and leaves one that changed since (FR-04)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueEdit(store, serverExpense(1), expenseEdit('300'), at(1));
+    await queueEdit(store, serverExpense(2), expenseEdit('300'), at(1));
+    await queueEdit(store, serverExpense(2), expenseEdit('500'), at(2));
+
+    await settleSent(store, id(1), 1);
+    await settleSent(store, id(2), 1);
+
+    expect(await loadQueue(store)).toMatchObject([{ id: id(2), revision: 2 }]);
+    store.close();
+  });
+
+  it('turns a create changed while in flight into an update of the stored movement, automatic read as keep (FR-04)', async () => {
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(
+      store,
+      { ...expenseRequest(1), rate: { source: 'automatic' } } as QueuedRequest,
+      at(1),
+    );
+    const shown = queuedToMovement((await loadQueue(store))[0] as never);
+    await queueEdit(store, shown, expenseEdit('777'), at(2));
+    const stored = serverExpense(1, { amount: '150050' });
+
+    await settleSent(store, id(1), 1, stored);
+
+    const [record] = await loadQueue(store);
+    expect(record).toMatchObject({
+      operation: 'update',
+      revision: 2,
+      base: stored,
+      request: { amount: '777', rate: { source: 'keep' } },
+    });
+    expect(record?.operation === 'update' && 'id' in record.request).toBe(false);
+    store.close();
+  });
+
+  it('does not flag a rejection of a revision that changed since (AC-05)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueEdit(store, serverExpense(1), expenseEdit('300'), at(1));
+    await queueEdit(store, serverExpense(1), expenseEdit('400'), at(2));
+
+    await markRejected(store, id(1), 'ACCOUNT_ARCHIVED', 1);
+
+    expect((await loadQueue(store))[0]?.rejection).toBeUndefined();
+    store.close();
+  });
+
+  it('clears the flag on retry and removes the record on discard (AC-05)', async () => {
+    const store = await openLocalStore(ANA);
+    await queueEdit(store, serverExpense(1), expenseEdit('300'), at(1));
+    await queueDelete(store, serverExpense(2), at(1));
+    await markRejected(store, id(1), 'ACCOUNT_ARCHIVED', 1);
+    await markRejected(store, id(2), 'INVALID', 1);
+
+    expect(await retryQueued(store, id(1))).toBe(true);
+    expect(await discardQueued(store, id(2))).toBe(true);
+    expect(await retryQueued(store, id(99))).toBe(false);
+
+    expect(await loadQueue(store)).toMatchObject([{ id: id(1), revision: 2 }]);
+    expect((await loadQueue(store))[0]?.rejection).toBeUndefined();
+    store.close();
+  });
+
+  it('counts pending and failed changes apart (AC-03)', async () => {
+    const store = await openLocalStore(ANA);
+    await enqueueMovement(store, expenseRequest(1), at(1));
+    await queueEdit(store, serverExpense(2), expenseEdit('300'), at(2));
+    await queueDelete(store, serverExpense(3), at(3));
+    await markRejected(store, id(3), 'INVALID', 1);
+
+    expect(await countQueue(store)).toEqual({ pending: 2, failed: 1 });
+    store.close();
+  });
+
+  it('reads a record written by DISC-001-04b, with no operation and no revision, as a create (FR-07)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem(QUEUE_STORE, {
+      id: id(1),
+      request: expenseRequest(1),
+      createdAt: at(1).toISOString(),
+    });
+
+    expect(await loadQueue(store)).toMatchObject([{ id: id(1), operation: 'create', revision: 0 }]);
+    store.close();
+  });
+
+  it('skips and keeps a record whose base id differs from its own id (invalid input)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem(QUEUE_STORE, {
+      id: id(1),
+      operation: 'delete',
+      base: serverExpense(2),
+      createdAt: at(1).toISOString(),
+      revision: 1,
+    });
+
+    expect(await loadQueue(store)).toEqual([]);
+    expect(await store.getAll(QUEUE_STORE)).toHaveLength(1);
+    store.close();
+  });
+
+  it('fires the queue-changed event once per successful helper write, and answers false on failure (AC-03)', async () => {
+    const heard = vi.fn();
+    window.addEventListener(QUEUE_CHANGED_EVENT, heard);
+
+    expect(await writeQueuedMovement(ANA, expenseRequest(1))).toBe(true);
+    expect(await writeQueuedEdit(ANA, serverExpense(2), expenseEdit('300'))).toBe(true);
+    expect(await writeQueuedDelete(ANA, serverExpense(3))).toBe(true);
+    await rejectQueuedMovement(ANA, id(3), 'INVALID');
+    expect(await retryQueuedChange(ANA, id(3))).toBe(true);
+    expect(await discardQueuedChange(ANA, id(3))).toBe(true);
+    await removeQueuedMovement(ANA, id(1));
+    expect(heard).toHaveBeenCalledTimes(7);
+
+    expect(await readQueuedChange(ANA, id(2))).toMatchObject({ operation: 'update' });
+    expect(await readQueuedChange(ANA, id(9))).toBeUndefined();
+    expect(await readQueueCounts(ANA)).toEqual({ pending: 1, failed: 0 });
+
+    heard.mockClear();
+    expect(await writeQueuedEdit(undefined, serverExpense(2), expenseEdit('1'))).toBe(false);
+    expect(await writeQueuedDelete(undefined, serverExpense(2))).toBe(false);
+    expect(await readQueueCounts(undefined)).toEqual({ pending: 0, failed: 0 });
+    expect(heard).not.toHaveBeenCalled();
+    window.removeEventListener(QUEUE_CHANGED_EVENT, heard);
   });
 });
 

@@ -20,22 +20,22 @@ afterEach(() => {
 });
 
 describe('parseTheme', () => {
-  it.each(['light', 'dark', 'system'] as const)('accepts %s', (value) => {
+  it.each(['light', 'dark'] as const)('accepts %s', (value) => {
     expect(parseTheme(value)).toBe(value);
   });
 
-  it.each([null, undefined, '', 'DARK', 'sepia', '<script>', 42, {}])(
-    'treats %j as system (tampered or missing storage)',
+  it.each([null, undefined, '', 'DARK', 'system', 'sepia', '<script>', 42, {}])(
+    'treats %j as unset (tampered, missing or legacy storage)',
     (value) => {
-      expect(parseTheme(value)).toBe('system');
+      expect(parseTheme(value)).toBeNull();
     },
   );
 });
 
 describe('resolveTheme', () => {
-  it('follows the operating system only for system', () => {
-    expect(resolveTheme('system', true)).toBe('dark');
-    expect(resolveTheme('system', false)).toBe('light');
+  it('follows the operating system only while nothing is stored', () => {
+    expect(resolveTheme(null, true)).toBe('dark');
+    expect(resolveTheme(null, false)).toBe('light');
     expect(resolveTheme('dark', false)).toBe('dark');
     expect(resolveTheme('light', true)).toBe('light');
   });

@@ -16,6 +16,15 @@ import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { categoryLabel } from '@/features/categories/category-display';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
+import { isOffline } from '@/lib/connectivity';
+import {
+  readQueuedChange,
+  readRecentMovementsCopy,
+  writeQueuedEdit,
+} from '@/lib/local-store/device-copy';
+import { changeToMovement, type QueuedEditRequest } from '@/lib/local-store/queue';
+import { readSessionPointer } from '@/lib/local-store/session-pointer';
+import { notifyMovementQueued } from '@/lib/sync/sync-events';
 import {
   MovementForm,
   type MovementFormInitialValues,
@@ -31,7 +40,9 @@ type MovementState =
   | { kind: 'loading' }
   | { kind: 'failed'; error: ErrorMessageKey }
   | { kind: 'notFound' }
-  | { kind: 'ready'; movement: MovementResponse };
+  | { kind: 'notAvailableOffline' }
+  /** `queued`: the device has a change of it the server does not; a save joins that change. */
+  | { kind: 'ready'; movement: MovementResponse; queued: boolean };
 
 /** What the form shows before the user touches anything: the movement as it is stored. */
 function initialValuesOf(
@@ -60,12 +71,16 @@ function initialValuesOf(
   };
 }
 
-function NotFoundView() {
+export function MovementNotFoundView({
+  reason = 'notFound',
+}: {
+  reason?: 'notFound' | 'notAvailableOffline';
+}) {
   const t = useTranslations('movements');
   return (
     <Card>
       <CardContent className="grid gap-4 pt-6">
-        <p role="alert">{t('edit.notFound')}</p>
+        <p role="alert">{t(`edit.${reason}`)}</p>
         <Link href="/movements" className={buttonVariants({ variant: 'ghost' })}>
           {t('form.back')}
         </Link>
@@ -91,10 +106,38 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
     // A function, not the variable: TypeScript would narrow `active` to `true` across the awaits.
     const isActive = () => active;
     void (async () => {
+      const userId = readSessionPointer()?.userId;
+      // A change waiting on this device is the movement as the person last left it.
+      const queued = await readQueuedChange(userId, movementId);
+      if (!isActive()) return;
+      if (queued !== undefined) {
+        setMovementState(
+          queued.operation === 'delete'
+            ? { kind: 'notFound' }
+            : { kind: 'ready', movement: changeToMovement(queued), queued: true },
+        );
+        return;
+      }
+      const showCopy = async () => {
+        const copy = await readRecentMovementsCopy(userId);
+        if (!isActive()) return;
+        const saved = copy?.find((item) => item.id === movementId);
+        setMovementState(
+          saved === undefined
+            ? { kind: 'notAvailableOffline' }
+            : { kind: 'ready', movement: saved, queued: false },
+        );
+      };
+      if (isOffline()) {
+        await showCopy();
+        return;
+      }
       const result = await api.getMovement(movementId);
       if (!isActive()) return;
       if (result.ok) {
-        setMovementState({ kind: 'ready', movement: result.data });
+        setMovementState({ kind: 'ready', movement: result.data, queued: false });
+      } else if (result.code === 'NETWORK') {
+        await showCopy();
       } else if (result.code === 'UNAUTHENTICATED') {
         router.replace('/sign-in');
       } else if (result.code === 'NOT_FOUND' || result.code === 'VALIDATION_FAILED') {
@@ -109,12 +152,30 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
     };
   }, [api, router, movementId, attempt]);
 
+  /**
+   * Keeps the edit on this device until it can be sent, joined to any change already waiting.
+   * `false` when it could not be stored: the form stays as typed and the person is told.
+   */
+  async function keepOnDevice(
+    movement: MovementResponse,
+    request: QueuedEditRequest,
+  ): Promise<boolean> {
+    const stored = await writeQueuedEdit(readSessionPointer()?.userId, movement, request);
+    if (!stored) return false;
+    // Online, the shell sends it right away; offline it waits for the connection.
+    notifyMovementQueued();
+    router.push('/movements');
+    return true;
+  }
+
   async function save(
     values: MovementFormValues,
     data: MovementFormData,
     movement: MovementResponse,
+    queued: boolean,
   ) {
     if (pending) return;
+    const offline = data.offline || isOffline();
     const { request, fields } = buildMovementRequest(values, {
       accounts: data.accounts,
       categories: data.categories,
@@ -122,6 +183,7 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
       locale,
       now: new Date(),
       defaultRate: data.defaultRate,
+      offline,
       edit: {
         accountId: movement.accountId,
         ...(movement.destinationAccountId === null
@@ -136,11 +198,20 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
     }
     setPending(true);
     setErrors({});
+    // A movement with a change already waiting goes through the queue, so its changes keep order.
+    if (offline || queued) {
+      if (!(await keepOnDevice(movement, request))) {
+        setPending(false);
+        setErrors({ form: 'offlineSaveFailed' });
+      }
+      return;
+    }
     const result = await api.updateMovement(movement.id, request);
     if (result.ok) {
       router.push('/movements');
       return;
     }
+    if (result.code === 'NETWORK' && (await keepOnDevice(movement, request))) return;
     setPending(false);
     if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
     else if (result.code === 'NOT_FOUND') setMovementState({ kind: 'notFound' });
@@ -154,7 +225,9 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
     form.retry();
   }
 
-  if (movementState.kind === 'notFound') return <NotFoundView />;
+  if (movementState.kind === 'notFound' || movementState.kind === 'notAvailableOffline') {
+    return <MovementNotFoundView reason={movementState.kind} />;
+  }
   if (movementState.kind === 'failed') {
     return <AccountsLoadStateView state={movementState} onRetry={retry} />;
   }
@@ -166,7 +239,7 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
   }
 
   const { data } = form.state;
-  const { movement } = movementState;
+  const { movement, queued } = movementState;
   return (
     <MovementForm
       mode="edit"
@@ -193,7 +266,7 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         <TagInputContainer value={value} onChange={onChange} error={error} />
       )}
       onSubmit={(values) => {
-        void save(values, data, movement);
+        void save(values, data, movement, queued);
       }}
     />
   );

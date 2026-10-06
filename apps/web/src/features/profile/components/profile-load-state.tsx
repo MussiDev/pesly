@@ -26,7 +26,7 @@ export function ProfileLoadStateView({
       <div role="status" aria-busy="true" className="grid gap-4">
         <span className="sr-only">{t('loading')}</span>
         {Array.from({ length: cards }, (_, index) => (
-          <Skeleton key={index} className="h-64 rounded-xl" />
+          <Skeleton key={index} className="h-64 rounded-card" />
         ))}
       </div>
     );

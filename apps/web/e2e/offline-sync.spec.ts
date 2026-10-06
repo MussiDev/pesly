@@ -64,10 +64,12 @@ test('offline, a user saves an expense and sees it in the list as pending (AC-01
   await page.goto('/es/movements');
   await expect(page.getByText(t.list.offlineNotice)).toBeVisible();
   await expect(pendingBadges(page)).toHaveCount(1);
-  // The newest movement row (not a navigation item) is the pending one.
-  await expect(page.getByRole('listitem').filter({ hasText: ACCOUNT_NAME }).first()).toContainText(
-    t.list.pending,
-  );
+  // The pending row is the one with the badge. Its place among rows of the same minute is not
+  // ordered, so the test finds it by what it shows and does not assume it is the first.
+  const pendingRow = page.getByRole('listitem').filter({ hasText: t.list.pending });
+  await expect(pendingRow).toHaveCount(1);
+  await expect(pendingRow).toContainText(ACCOUNT_NAME);
+  await expect(pendingRow).toContainText('25,00');
 });
 
 test('offline, a user saves a transfer and an exchange and sees both as pending (AC-02)', async ({

@@ -1,6 +1,6 @@
 'use client';
 
-import { type CategoryLanguage } from '@pesly/shared';
+import { type CategoryLanguage, type MovementType } from '@pesly/shared';
 import { useLocale } from 'next-intl';
 import { useState } from 'react';
 import { AccountsLoadStateView } from '@/features/accounts/components/accounts-load-state';
@@ -29,7 +29,12 @@ interface SavedMovement {
   pending?: boolean;
 }
 
-export function CreateMovementContainer() {
+export interface CreateMovementContainerProps {
+  /** The type the form opens on, already validated by `parseInitialType`. */
+  initialType?: MovementType;
+}
+
+export function CreateMovementContainer({ initialType }: CreateMovementContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const locale = useLocale();
@@ -121,6 +126,7 @@ export function CreateMovementContainer() {
       )}
       <MovementForm
         key={formKey}
+        initialType={initialType}
         accounts={data.accounts.filter((item) => !item.archived)}
         categories={data.categories
           .filter((item) => !item.archived)

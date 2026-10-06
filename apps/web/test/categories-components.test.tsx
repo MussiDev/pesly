@@ -128,6 +128,16 @@ describe('CategoryVisual', () => {
   });
 });
 
+describe('CategoryList soft-card shapes (AC-34)', () => {
+  it('groups the categories in a rounded card without a border', () => {
+    const { container } = renderApp(<CategoryList {...listProps()} />);
+
+    const group = container.querySelector('ul.divide-y');
+    expect(group?.className).toMatch(/rounded-card/);
+    expect(group?.className).not.toMatch(/(^|\s)border(\s|$)/);
+  });
+});
+
 describe('CategoryList', () => {
   it('shows the Spanish default names with es (AC-14)', () => {
     renderApp(<CategoryList {...listProps({ language: 'es' })} />);
@@ -647,6 +657,14 @@ describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
 });
 
 describe('CategoriesLoadStateView (FEAT-004 AC-21)', () => {
+  it('draws its list skeleton with the card radius (AC-35)', () => {
+    const { container } = renderApp(
+      <CategoriesLoadStateView state={{ kind: 'loading' }} onRetry={vi.fn()} />,
+    );
+
+    expect(container.querySelector('[data-slot="skeleton"].rounded-card')).not.toBeNull();
+  });
+
   it('shows a skeleton and announces the loading state while loading', () => {
     const { container } = renderApp(
       <CategoriesLoadStateView state={{ kind: 'loading' }} onRetry={vi.fn()} />,

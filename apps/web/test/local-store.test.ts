@@ -16,6 +16,50 @@ function movement(id: string, occurredAt: string) {
   return { id, occurredAt };
 }
 
+describe('local store: one-key read and write', () => {
+  it('reads and writes one key in one transaction, and deletes it on null (FR-04)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem(QUEUE_STORE, { id: 'k1', n: 1 });
+
+    await store.updateItem(QUEUE_STORE, 'k1', (current) => ({
+      ...(current as { id: string; n: number }),
+      n: 2,
+    }));
+    expect(await store.get(QUEUE_STORE, 'k1')).toEqual({ id: 'k1', n: 2 });
+
+    await store.updateItem(QUEUE_STORE, 'k1', () => undefined);
+    expect(await store.get(QUEUE_STORE, 'k1')).toEqual({ id: 'k1', n: 2 });
+
+    await store.updateItem(QUEUE_STORE, 'k1', () => null);
+    expect(await store.get(QUEUE_STORE, 'k1')).toBeUndefined();
+    store.close();
+  });
+
+  it('stores nothing when the change throws (invalid input)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem(QUEUE_STORE, { id: 'k1', n: 1 });
+
+    await expect(
+      store.updateItem(QUEUE_STORE, 'k1', () => {
+        throw new Error('refused');
+      }),
+    ).rejects.toThrow('refused');
+
+    expect(await store.get(QUEUE_STORE, 'k1')).toEqual({ id: 'k1', n: 1 });
+    store.close();
+  });
+
+  it('writes and removes one movement of the copy by its id (FR-04)', async () => {
+    const store = await openLocalStore(ANA);
+    await store.putItem('movements', movement('m1', '2026-10-01T10:00:00.000Z'));
+    expect(await store.getAll('movements')).toHaveLength(1);
+
+    await store.deleteItem('movements', 'm1');
+    expect(await store.getAll('movements')).toEqual([]);
+    store.close();
+  });
+});
+
 describe('local store', () => {
   it('reads back a value written to the reference store after reopening the database (FR-01)', async () => {
     const first = await openLocalStore(ANA);

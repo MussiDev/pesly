@@ -18,12 +18,12 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
-function readStoredTheme(): Theme {
+function readStoredTheme(): Theme | null {
   try {
     return parseTheme(localStorage.getItem(THEME_STORAGE_KEY));
   } catch {
     // Blocked storage (private mode): the preference simply is not remembered.
-    return 'system';
+    return null;
   }
 }
 
@@ -37,11 +37,11 @@ function storeTheme(theme: Theme): void {
 
 /**
  * Keeps the theme in memory, mirrors it to `localStorage` and applies the `dark` class on `<html>`.
- * The first render is always `system` so server and client markup match; the pre-paint script has
+ * The first render has no stored choice so server and client markup match; the pre-paint script has
  * already set the right class, and nothing touches it until the stored value has been read.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>('system');
+  const [stored, setStored] = useState<Theme | null>(null);
   const [prefersDark, setPrefersDark] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -50,7 +50,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const onChange = (event: { matches: boolean }) => {
       setPrefersDark(event.matches);
     };
-    setThemeState(readStoredTheme());
+    setStored(readStoredTheme());
     setPrefersDark(query.matches);
     setReady(true);
     query.addEventListener('change', onChange);
@@ -59,13 +59,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const theme = resolveTheme(stored, prefersDark);
+
   useEffect(() => {
     if (!ready) return;
-    document.documentElement.classList.toggle('dark', resolveTheme(theme, prefersDark) === 'dark');
-  }, [ready, theme, prefersDark]);
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [ready, theme]);
 
   const setTheme = useCallback((next: Theme) => {
-    setThemeState(next);
+    setStored(next);
     storeTheme(next);
   }, []);
 

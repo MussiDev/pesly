@@ -188,6 +188,19 @@ describe('PUT /movements/:id', () => {
     expect(await balanceOf(s, f.ars2)).toBe('-90000');
   });
 
+  it('keeps the edit received last when two edits of one movement arrive (DISC-001-04c AC-04)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const created = await create(s, expenseBody(f));
+
+    const first = await put(s.app, created.id, expenseBody(f, { amount: '111' }), s.ana);
+    const second = await put(s.app, created.id, expenseBody(f, { amount: '222' }), s.ana);
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect((await stored(s, created.id)).amount).toBe('222');
+    expect(await balanceOf(s, f.ars1)).toBe('-222');
+  });
+
   it('keeps the frozen rate with keep and clears the note and tags that the body omits (AC-01)', async () => {
     const s = await setup();
     const f = await fixture(s.anaId);

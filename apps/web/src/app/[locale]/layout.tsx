@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar';
@@ -13,7 +13,11 @@ import { parseWebEnv } from '@/lib/web-env';
 import '../globals.css';
 
 // Downloaded at build time and served from the app's own origin, so `font-src 'self'` holds.
-const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-plus-jakarta',
+});
 
 // Pages render per request so the CSP nonce from `proxy.ts` can be applied to Next.js' scripts.
 export const dynamic = 'force-dynamic';
@@ -40,7 +44,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
   const nonce = requestNonce(await headers());
 
   return (
-    <html lang={locale} className={inter.variable} suppressHydrationWarning>
+    <html lang={locale} className={plusJakarta.variable} suppressHydrationWarning>
       <head>
         {nonce ? (
           // A plain script, not next/script: it must run before first paint. The browser hides the

@@ -7,14 +7,19 @@ import es from '../messages/es.json';
 const mocks = vi.hoisted(() => ({
   requestHeaders: new Headers(),
   // next/font needs a module-scope call, so the layout calls it once when it is imported.
-  inter: vi.fn(() => ({ className: 'inter-class', variable: 'inter-variable', style: {} })),
+  plusJakarta: vi.fn(() => ({
+    className: 'plus-jakarta-class',
+    variable: 'plus-jakarta-variable',
+    style: {},
+  })),
 }));
 
 vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(mocks.requestHeaders),
 }));
 
-vi.mock('next/font/google', () => ({ Inter: mocks.inter }));
+// Only Plus Jakarta Sans is exported: importing any other family (Inter) fails the layout import.
+vi.mock('next/font/google', () => ({ Plus_Jakarta_Sans: mocks.plusJakarta }));
 
 // Outside React Server Components next-intl ships stubs; this is the server build's behaviour.
 vi.mock('next-intl/server', () => ({
@@ -24,7 +29,7 @@ vi.mock('next-intl/server', () => ({
 
 const { default: LocaleLayout, generateMetadata } = await import('../src/app/[locale]/layout');
 // Recorded now: Vitest clears mock history between tests, and next/font is called at import.
-const fontCalls = [...mocks.inter.mock.calls];
+const fontCalls = [...mocks.plusJakarta.mock.calls];
 const { ApiClientProvider } = await import('../src/lib/api-client-provider');
 const { ThemeProvider } = await import('../src/components/theme-provider');
 const { THEME_SCRIPT } = await import('../src/lib/theme');
@@ -117,15 +122,15 @@ describe('[locale] layout', () => {
 });
 
 describe('[locale] layout design system wiring', () => {
-  it('loads Inter through next/font with swap and emits no third-party font URL (AC-03)', async () => {
+  it('loads Plus Jakarta Sans through next/font with swap and emits no third-party font URL (AC-03)', async () => {
     const tree = await LocaleLayout(props('en'));
 
     expect(fontCalls).toHaveLength(1);
     expect(fontCalls[0]).toEqual([
-      expect.objectContaining({ display: 'swap', variable: '--font-inter' }),
+      expect.objectContaining({ display: 'swap', variable: '--font-plus-jakarta' }),
     ]);
     const html = tree as ReactElement<{ className: string }>;
-    expect(html.props.className).toContain('inter-variable');
+    expect(html.props.className).toContain('plus-jakarta-variable');
     expect(stringsOf(tree).join(' ')).not.toMatch(
       /fonts\.googleapis|fonts\.gstatic|https?:\/\/[^"']*font/i,
     );

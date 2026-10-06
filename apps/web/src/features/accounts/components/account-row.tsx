@@ -127,12 +127,12 @@ export function AccountRow(props: AccountRowProps) {
   return (
     <li
       aria-label={account.name}
-      className="grid min-w-0 content-start gap-3 rounded-2xl border border-border/70 bg-card p-4 text-card-foreground shadow-xs"
+      className="grid min-w-0 content-start gap-3 rounded-card bg-card p-5 text-card-foreground shadow-xs"
     >
       <div className="flex items-center gap-3">
         <span
           aria-hidden
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground [&_svg]:size-5"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground [&_svg]:size-5"
         >
           <TypeIcon />
         </span>

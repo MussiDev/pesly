@@ -26,11 +26,15 @@ export function BalanceCard({
       data-slot="balance-card"
       role="group"
       aria-label={label}
-      className="relative min-w-0 overflow-hidden rounded-2xl bg-hero p-5 text-hero-foreground shadow-md"
+      className="relative min-w-0 overflow-hidden rounded-card bg-hero p-6 text-hero-foreground shadow-md"
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-16 -right-12 size-48 rounded-full bg-hero-foreground/10 blur-2xl"
+        className="pointer-events-none absolute -top-16 -right-14 size-52 rounded-pill bg-hero-foreground/10"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute top-16 right-10 size-36 rounded-pill border border-hero-foreground/20"
       />
       <dl className="relative grid gap-4">
         <div className="grid min-w-0 gap-1">
@@ -39,7 +43,7 @@ export function BalanceCard({
             {primary}
           </dd>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-hero-foreground/10 px-3 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-pill bg-hero-foreground/10 px-4 py-2">
           <dt className="text-small text-hero-muted">{secondaryLabel}</dt>
           <dd className="text-small font-semibold break-words [&_[data-slot=amount]]:whitespace-normal">
             {secondary}

@@ -235,6 +235,34 @@ All notable changes to this project are documented in this file. The format foll
   gets the stored movement back (200) and no second row, an id of another user answers 404, and
   creations with an id have their own limit of 600 per minute. Migration 0018 adds the limit
   bucket to `movement_rate_limits`, with a rollback script.
+- DISC-001-04c Movements can be edited and deleted without a connection: the change is applied on
+  the device at once and queued, one record per movement, so later changes fold into it; online, a
+  change that gets no answer falls back to the queue. The edit screen moved to
+  `/movements/edit?id=`, so one cached page serves every movement offline; the old path still works.
+- DISC-001-04c Every movement in the list shows its sync state (synced, pending or not synced), and
+  the shell shows how many changes wait to be synced and how many did not sync, in Spanish and
+  English. A change the server refuses shows the reason, including a movement deleted on another
+  device, and can be edited and retried, retried as it is, or discarded.
+- DISC-001-04c Queued edits are sent with `PUT` and deletions with `DELETE` (a deletion answered 404
+  counts as done); the server keeps the change it receives last, and the device copy takes the
+  server's answer. Network and server failures are retried with exponential backoff from 5 s,
+  doubling, capped at 5 minutes. No API change, no migration.
+- FEAT-005 Merchant logos: an income or expense whose note names a merchant of a bundled catalog
+  (40 services and stores, matched by whole words ignoring case and accents, the longest keyword
+  first) shows its logo; any other movement keeps its category icon, and a transfer or an exchange
+  shows its type icon. The 62 logos are CC0 single-colour SVGs from Simple Icons 16.34.0 served from
+  the app's own origin, with a sandboxing policy on `/logos/*`; source, license and colour of each
+  are in `apps/web/public/logos/NOTICE.md`. Mercado Libre, Rappi, Cabify and PedidosYa have no logo
+  in that set.
+- FEAT-005 Asset logos and composition: a holding shows the logo of its ticker (32 tickers, US
+  equities and crypto) or its first two letters, a gain or a loss carries an arrow as well as its
+  sign, and each portfolio shows one donut per valuation currency by instrument type, in integer
+  basis points that always sum to exactly 10000.
+- FEAT-005 Home: four circular quick actions (expense, income, transfer, exchange) open the new
+  movement screen already on that type through `?type=`, and an accounts section lists the first
+  five accounts with their balance. The home still makes the same six requests.
+- FEAT-005 New components in `components/ui/`: avatar with a logo fallback, pill tabs, chip,
+  circular action and donut chart, shown with the new hero and chart tokens on the reference page.
 
 ### Changed
 
@@ -254,9 +282,24 @@ All notable changes to this project are documented in this file. The format foll
   categories of each list; the performance budget of NFR-06 (skeleton within 100 ms, data within
   2 s at p75 on 4G) has only a structural test; the 44px target and layout shift checks run against
   `next dev`; `features/accounts/format-amount.ts` is unused and can be deleted.
+- FEAT-005 Visual redesign of every screen: a deep navy accent on a cool-grey canvas with white
+  cards of 24px radius, pill buttons and a navy balance card, in light and in dark (navy-black),
+  set in Plus Jakarta Sans instead of Inter. No API, schema or dependency changed.
+- FEAT-005 Navigation: below 768px a floating pill bar with Home, Movements, a central circular add
+  button, Investments and More (Accounts moved into More); from 768px a top navigation card replaces
+  the side navigation. This reverses the FEAT-004 order of the bottom bar. The page keeps clear of
+  the bar at the end of its content.
+- FEAT-005 The category icon is now a 40px circle so it matches the logos.
+- FEAT-005 Known limitations: the concept elements that need data no API returns (month-over-month
+  variation, balance history, monthly flow bars) are not drawn and belong to PRD 10; the top
+  navigation scrolls away with the page on purpose, because a sticky one covered scrolled-to
+  controls; a merchant is recognized only from the note, with no per-movement override.
 
 ### Fixed
 
+- Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
+  denial of service reached through `next` and `postcss`), which clears the high advisory that
+  failed the lint job of every pull request.
 - FIX-001 A refresh that races a sign-out, sign-out-all or password reset is rejected without
   being logged as refresh token reuse or revoking the session family.
 - FIX-001 A rate-limited sign-in answers 429 even when refunding its reserved attempts fails.
