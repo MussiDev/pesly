@@ -46,7 +46,7 @@ describe('createCreditCardRequestSchema', () => {
       false,
     );
     expect(createCreditCardRequestSchema.safeParse({ ...base, name: '   ' }).success).toBe(false);
-    expect(createCreditCardRequestSchema.safeParse({ ...base, name: 'Vi​sa' }).success).toBe(
+    expect(createCreditCardRequestSchema.safeParse({ ...base, name: 'Vi\u200Bsa' }).success).toBe(
       false,
     );
   });

@@ -20,6 +20,8 @@ const ALL_TABLES = [
   'auth_attempts',
   'categories',
   'category_defaults_seeded',
+  'credit_card_statements',
+  'credit_cards',
   'crypto_market_prices',
   'crypto_price_refresh_failures',
   'crypto_price_sync',
