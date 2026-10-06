@@ -63,6 +63,17 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type RenameAccountRequest,
+  creditCardResponseSchema,
+  listCreditCardsResponseSchema,
+  listStatementsResponseSchema,
+  statementResponseSchema,
+  type CreateCreditCardRequest,
+  type CreditCardResponse,
+  type ListCreditCardsResponse,
+  type ListStatementsResponse,
+  type StatementResponse,
+  type UpdateCreditCardRequest,
+  type UpdateStatementRequest,
   type ResendVerificationResponse,
   type SecondFactorVerifyRequest,
   type SecondFactorVerifyResponse,
@@ -302,6 +313,22 @@ export interface ApiClient {
     includeInAvailable: boolean,
   ): Promise<ApiResult<AccountResponse>>;
   deleteAccount(id: string): Promise<ApiResult<undefined>>;
+  listCreditCards(): Promise<ApiResult<ListCreditCardsResponse>>;
+  createCreditCard(body: CreateCreditCardRequest): Promise<ApiResult<CreditCardResponse>>;
+  getCreditCard(id: string): Promise<ApiResult<CreditCardResponse>>;
+  updateCreditCardDays(
+    id: string,
+    body: UpdateCreditCardRequest,
+  ): Promise<ApiResult<CreditCardResponse>>;
+  /** Deletes the card, its statements and its two linked accounts (409 when they have movements). */
+  deleteCreditCard(id: string): Promise<ApiResult<undefined>>;
+  /** Newest first; the API creates the missing cycles before answering. */
+  listStatements(cardId: string): Promise<ApiResult<ListStatementsResponse>>;
+  updateStatement(
+    cardId: string,
+    statementId: string,
+    body: UpdateStatementRequest,
+  ): Promise<ApiResult<StatementResponse>>;
   listCategories(query: ListCategoriesParams): Promise<ApiResult<ListCategoriesResponse>>;
   createCategory(body: CreateCategoryInput): Promise<ApiResult<CategoryResponse>>;
   getCategory(id: string): Promise<ApiResult<CategoryResponse>>;
@@ -436,6 +463,26 @@ export function createApiClient({
   ): Promise<ApiResult<T>> {
     const path = resourcePath('accounts', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onCreditCard<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('credit-cards', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onStatement<T>(
+    cardId: string,
+    statementId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const card = resourcePath('credit-cards', cardId);
+    const statement = resourcePath('statements', statementId);
+    return card === null || statement === null
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(`${card}${statement}`);
   }
 
   function onCategory<T>(
@@ -611,6 +658,63 @@ export function createApiClient({
           method: 'DELETE',
           path,
           response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listCreditCards: () =>
+      request({
+        method: 'GET',
+        path: '/credit-cards',
+        response: listCreditCardsResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    createCreditCard: (body) =>
+      request({
+        method: 'POST',
+        path: '/credit-cards',
+        body,
+        response: creditCardResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getCreditCard: (id) =>
+      onCreditCard(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: creditCardResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateCreditCardDays: (id, body) =>
+      onCreditCard(id, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: creditCardResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteCreditCard: (id) =>
+      onCreditCard(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    listStatements: (cardId) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/statements`,
+          response: listStatementsResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateStatement: (cardId, statementId, body) =>
+      onStatement(cardId, statementId, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: statementResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),
