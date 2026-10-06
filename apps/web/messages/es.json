@@ -42,6 +42,10 @@
     "brand": "Pesly",
     "skipToContent": "Saltar al contenido",
     "storageWarning": "Tu navegador puede borrar los datos guardados en este dispositivo si se queda sin espacio. Deja algo de almacenamiento libre y reconéctate seguido para no perder nada.",
+    "sync": {
+      "waiting": "{count, plural, one {# cambio esperando sincronizarse} other {# cambios esperando sincronizarse}}",
+      "failed": "{count, plural, one {# cambio no se sincronizó} other {# cambios no se sincronizaron}}"
+    },
     "nav": {
       "label": "Navegación principal",
       "home": "Inicio",
