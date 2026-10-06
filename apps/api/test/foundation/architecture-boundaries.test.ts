@@ -25,6 +25,32 @@ const APPLICATION_FILE = 'apps/api/src/identity/application/probe.ts';
 const INVESTMENTS_DOMAIN_FILE = 'apps/api/src/investments/domain/probe.ts';
 const INVESTMENTS_APPLICATION_FILE = 'apps/api/src/investments/application/probe.ts';
 
+describe('credit-cards module import boundaries', () => {
+  it.each([
+    [
+      'apps/api/src/credit-cards/domain/probe.ts',
+      "import { x } from '../infrastructure/db/schema';",
+    ],
+    ['apps/api/src/credit-cards/domain/probe.ts', "import { eq } from 'drizzle-orm';"],
+    [
+      'apps/api/src/credit-cards/application/probe.ts',
+      "import { x } from '../infrastructure/db/schema';",
+    ],
+    ['apps/api/src/credit-cards/domain/probe.ts', "import express from 'express';"],
+  ])('rejects in %s: %s (sad path)', async (file, source) => {
+    expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
+  });
+
+  it('allows credit-cards domain and application to import shared code and the access port', async () => {
+    expect(
+      await restrictedImports(
+        'apps/api/src/credit-cards/application/probe.ts',
+        "import type { AccessScope } from '../../shared/access';\nimport { y } from '../domain/credit-card';\n",
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe('investments module import boundaries', () => {
   it.each([
     "import { x } from '../infrastructure/db/schema';",

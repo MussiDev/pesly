@@ -225,8 +225,15 @@ describe('the composition root', () => {
   it('passes eraseUserMovements to beforeUserErased and the real adapters to the accounts and categories routes', async () => {
     const source = await readFile(SERVER_FILE, 'utf8');
 
-    expect(source).toMatch(/beforeUserErased:\s*\[\s*eraseUserMovements\s*\]/);
+    // The movements step first, then the cards step (DISC-001-10a D11).
+    expect(source).toMatch(
+      /beforeUserErased:\s*\[\s*eraseUserMovements,\s*eraseUserCreditCards,?\s*\]/,
+    );
     expect(source).toMatch(/createAccountRoutes\(\{[^}]*movements:\s*createAccountMovements\(db\)/);
+    expect(source).toMatch(/createAccountRoutes\(\{[^}]*links:\s*createCardAccountLinks\(db\)/);
+    expect(source).toMatch(
+      /createCreditCardRoutes\(\{[^}]*activity:\s*createAccountMovements\(db\)/,
+    );
     expect(source).toMatch(/createCategoryRoutes\(\{[^}]*usage:\s*createCategoryUsage\(db\)/);
     expect(source).not.toMatch(/NoMovementsAdapter|NoUsageAdapter/);
   });

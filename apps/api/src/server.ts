@@ -1,6 +1,11 @@
 import { createAccountRoutes } from './accounts';
 import { createApp } from './app';
 import { createCategoryRoutes, seedDefaultCategories } from './categories';
+import {
+  createCardAccountLinks,
+  createCreditCardRoutes,
+  eraseUserCreditCards,
+} from './credit-cards';
 // Deep import on purpose: the exchange-rates barrel would load the providers and the sync job into the API process (NFR-03, R-08).
 import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/exchange-rate-routes';
 import { createInvestmentsRoutes } from './investments';
@@ -24,11 +29,21 @@ const app = createApp({
   logger,
   // The composition root is the only place that knows these modules: new accounts get their default
   // categories in the transaction that creates them, and erasing a user deletes their movements
-  // first because their keys to accounts and categories restrict.
-  identity: { db, onUserCreated: [seedDefaultCategories], beforeUserErased: [eraseUserMovements] },
+  // and then their cards first, because their keys to accounts and categories restrict.
+  identity: {
+    db,
+    onUserCreated: [seedDefaultCategories],
+    beforeUserErased: [eraseUserMovements, eraseUserCreditCards],
+  },
   routerFactories: [
-    createAccountRoutes({ db, logger, movements: createAccountMovements(db) }),
+    createAccountRoutes({
+      db,
+      logger,
+      movements: createAccountMovements(db),
+      links: createCardAccountLinks(db),
+    }),
     createCategoryRoutes({ db, logger, usage: createCategoryUsage(db) }),
+    createCreditCardRoutes({ db, logger, activity: createAccountMovements(db) }),
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
