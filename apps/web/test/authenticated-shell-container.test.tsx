@@ -1,10 +1,21 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
+import {
+  enqueueMovement,
+  loadQueue,
+  markRejected,
+  queueDelete,
+  queueEdit,
+  type QueuedRequest,
+} from '../src/lib/local-store/queue';
 import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
+import { openLocalStore } from '../src/lib/local-store/stores';
+import { MOVEMENT_QUEUED_EVENT, QUEUE_CHANGED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -320,7 +331,7 @@ describe('AuthenticatedShellContainer service worker warm-up (DISC-001-04a)', ()
     localStorage.clear();
   });
 
-  it('asks the worker to cache the two offline screens once, after the shell is ready (FR-04)', async () => {
+  it('asks the worker to cache the offline screens once, after the shell is ready (FR-04)', async () => {
     const postMessage = vi.fn();
     setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
     stubApi({ 'GET /auth/session': session(true) });
@@ -333,7 +344,7 @@ describe('AuthenticatedShellContainer service worker warm-up (DISC-001-04a)', ()
     });
     expect(postMessage).toHaveBeenCalledWith({
       type: 'PESLY_CACHE_URLS',
-      urls: ['/es/movements', '/es/movements/new'],
+      urls: ['/es/movements', '/es/movements/new', '/es/movements/edit'],
     });
   });
 
@@ -430,5 +441,292 @@ describe('AuthenticatedShellContainer persistent storage (DISC-001-04a)', () => 
 
     expect(screen.queryByText(es.app.storageWarning)).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
+  const USER = 'u1';
+  const ACCOUNT = '00000000-0000-4000-8000-000000000900';
+  const CATEGORY = '00000000-0000-4000-8000-000000000901';
+  const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+  const created = {
+    status: 201,
+    body: {
+      id: id(1),
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      destinationAccountId: null,
+      amount: '150050',
+      destinationAmount: null,
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      note: null,
+      rate: '14000000',
+      rateSource: 'manual',
+      rateType: null,
+      createdAt: '2026-10-02T15:31:00.000Z',
+      tags: [],
+    },
+  };
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  function request(n: number): QueuedRequest {
+    return {
+      id: id(n),
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      amount: '150050',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'manual', value: '14000000' },
+    };
+  }
+
+  async function queue(...numbers: number[]): Promise<void> {
+    const store = await openLocalStore(USER);
+    for (const n of numbers) {
+      await enqueueMovement(store, request(n), new Date(Date.UTC(2026, 9, 2, 12, 0, n)));
+    }
+    store.close();
+  }
+
+  async function queued(): Promise<number> {
+    const store = await openLocalStore(USER);
+    const items = await loadQueue(store);
+    store.close();
+    return items.length;
+  }
+
+  const postCount = (calls: { method: string; path: string }[]): number =>
+    calls.filter((call) => call.method === 'POST' && call.path === '/movements').length;
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    setOnline(true);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('sends the queue without any user action once the shell is ready (AC-05)', async () => {
+    await queue(1, 2);
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+
+    renderShell();
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(postCount(calls)).toBe(2);
+  });
+
+  it('starts a pass when the connection returns, after checking the session (AC-05)', async () => {
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+    renderShell();
+    expect(await screen.findByText('private content')).toBeDefined();
+    await queue(1);
+    expect(calls).toEqual([]);
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+      'GET /auth/session',
+      'POST /movements',
+    ]);
+  });
+
+  it('sends a queued edit and a queued deletion with no user action when the connection returns (AC-07)', async () => {
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { calls } = stubApi({
+      'GET /auth/session': session(true),
+      [`PUT /movements/${id(1)}`]: { status: 200, body: { ...created.body, amount: '999' } },
+      [`DELETE /movements/${id(2)}`]: { status: 204 },
+    });
+    renderShell();
+    expect(await screen.findByText('private content')).toBeDefined();
+    const store = await openLocalStore(USER);
+    await queueEdit(store, created.body as never, {
+      type: 'expense',
+      accountId: ACCOUNT,
+      categoryId: CATEGORY,
+      amount: '999',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'keep' },
+    });
+    await queueDelete(store, { ...created.body, id: id(2) } as never);
+    store.close();
+
+    setOnline(true);
+    window.dispatchEvent(new Event('online'));
+
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual([
+      `DELETE /movements/${id(2)}`,
+      'GET /auth/session',
+      `PUT /movements/${id(1)}`,
+    ]);
+  });
+
+  it('starts a pass when a save fell back to the queue while online, and not while offline (FR-04)', async () => {
+    const { calls } = stubApi({ 'GET /auth/session': session(true), 'POST /movements': created });
+    renderShell();
+    await screen.findByText('private content');
+    expect(postCount(calls)).toBe(0);
+
+    await queue(1);
+    window.dispatchEvent(new Event(MOVEMENT_QUEUED_EVENT));
+    await waitFor(async () => {
+      expect(await queued()).toBe(0);
+    });
+    expect(postCount(calls)).toBe(1);
+
+    setOnline(false);
+    await queue(2);
+    window.dispatchEvent(new Event(MOVEMENT_QUEUED_EVENT));
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(postCount(calls)).toBe(1);
+    expect(await queued()).toBe(1);
+  });
+
+  it('sends nothing for an unverified account or a visitor without a session (invalid input)', async () => {
+    await queue(1);
+    const unverified = stubApi({ 'GET /auth/session': session(false) });
+    const first = renderShell();
+    await waitFor(() => {
+      expect(first.router.replace).toHaveBeenCalledWith('/es/check-your-email');
+    });
+    first.unmount();
+
+    const visitor = stubApi({
+      'GET /auth/session': UNAUTHENTICATED,
+      'POST /auth/refresh': UNAUTHENTICATED,
+    });
+    const second = renderShell();
+    await waitFor(() => {
+      expect(second.router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+
+    expect(postCount(unverified.calls)).toBe(0);
+    expect(postCount(visitor.calls)).toBe(0);
+    expect(await queued()).toBe(1);
+  });
+
+  it('sends nothing without a connection: the pointer alone does not start a pass (FR-04)', async () => {
+    await queue(1);
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+    const { fetch } = stubApi({ 'POST /movements': created });
+
+    renderShell();
+    await screen.findByText('private content');
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(fetch).not.toHaveBeenCalled();
+    expect(await queued()).toBe(1);
+  });
+});
+
+describe('AuthenticatedShellContainer: the waiting count (DISC-001-04c)', () => {
+  const USER = 'u1';
+  const ACCOUNT = '00000000-0000-4000-8000-000000000900';
+  const CATEGORY = '00000000-0000-4000-8000-000000000901';
+  const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+
+  function setOnline(online: boolean): void {
+    Object.defineProperty(navigator, 'onLine', { value: online, configurable: true });
+  }
+
+  async function queue(...numbers: number[]): Promise<void> {
+    const store = await openLocalStore(USER);
+    for (const n of numbers) {
+      await enqueueMovement(store, {
+        id: id(n),
+        type: 'expense',
+        accountId: ACCOUNT,
+        categoryId: CATEGORY,
+        amount: '100',
+        occurredAt: '2026-10-02T15:30:00.000Z',
+        rate: { source: 'manual', value: '14000000' },
+      });
+    }
+    store.close();
+  }
+
+  beforeEach(() => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    setOnline(false);
+  });
+
+  afterEach(() => {
+    setOnline(true);
+  });
+
+  it('offline, shows the count of changes waiting for the user the device knows (AC-03)', async () => {
+    await queue(1, 2, 3);
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText('3 cambios esperando sincronizarse')).toBeDefined();
+  });
+
+  it('follows the queue-changed event and disappears at zero (AC-03)', async () => {
+    await queue(1, 2, 3);
+    stubApi({});
+    renderShell();
+    await screen.findByText('3 cambios esperando sincronizarse');
+
+    const store = await openLocalStore(USER);
+    await store.clear('queue');
+    store.close();
+    window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+
+    await waitFor(() => {
+      expect(screen.queryByText(/esperando sincronizarse/)).toBeNull();
+    });
+  });
+
+  it('shows the failed changes with a link to the movement list (AC-05)', async () => {
+    await queue(1);
+    const store = await openLocalStore(USER);
+    await markRejected(store, id(1), 'ACCOUNT_ARCHIVED');
+    store.close();
+    stubApi({});
+
+    renderShell();
+
+    const link = await screen.findByRole('link', { name: '1 cambio no se sincronizó' });
+    expect(link.getAttribute('href')).toBe('/es/movements');
+  });
+
+  it('shows nothing when the queue cannot be read (invalid input)', async () => {
+    Object.defineProperty(globalThis, 'indexedDB', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    stubApi({});
+
+    renderShell();
+
+    expect(await screen.findByText('private content')).toBeDefined();
+    expect(screen.queryByText(/sincroniz/)).toBeNull();
   });
 });

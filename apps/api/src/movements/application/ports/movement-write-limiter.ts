@@ -1,7 +1,15 @@
-/** A fixed-window limit: at most `limit` manual creations per `windowSeconds`, per owner. */
+/**
+ * Counters of different buckets never share a row, so spending one never moves the other: `manual`
+ * is a creation without a device id, `device` one that carries an id chosen by the device.
+ */
+export const WRITE_LIMIT_BUCKETS = ['manual', 'device'] as const;
+export type WriteLimitBucket = (typeof WRITE_LIMIT_BUCKETS)[number];
+
+/** A fixed-window limit: at most `limit` creations of one bucket per `windowSeconds`, per owner. */
 export interface WritePolicy {
   limit: number;
   windowSeconds: number;
+  bucket: WriteLimitBucket;
 }
 
 export interface WriteReservation {

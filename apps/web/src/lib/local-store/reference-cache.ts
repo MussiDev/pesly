@@ -76,6 +76,19 @@ export async function saveRecentMovements(
   await store.replaceAll(MOVEMENTS_STORE, recent);
 }
 
+/** Puts the server's version of one movement into the saved copy, by its id. */
+export async function putRecentMovement(
+  store: LocalStore,
+  movement: MovementResponse,
+): Promise<void> {
+  await store.putItem(MOVEMENTS_STORE, movement);
+}
+
+/** Removes one movement from the saved copy; one that is not there is not an error. */
+export async function removeRecentMovement(store: LocalStore, id: string): Promise<void> {
+  await store.deleteItem(MOVEMENTS_STORE, id);
+}
+
 /** The saved movements, newest first; a stored item that does not parse is left out. */
 export async function loadRecentMovements(store: LocalStore): Promise<MovementResponse[]> {
   const stored = await store.getAll(MOVEMENTS_STORE, { newestFirst: true });

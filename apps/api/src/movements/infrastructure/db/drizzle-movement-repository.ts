@@ -1,6 +1,7 @@
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
 import type { MovementRepository } from '../../application/ports/movement-repository';
 import type { Movement, MovementFilters, NewMovement } from '../../domain/movement';
+import { DuplicateMovementId } from '../../domain/errors';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import { ResourceNotFound } from '../../../shared/access/not-found-unless-allowed';
@@ -10,6 +11,7 @@ import { movementConditions } from './drizzle-movement-filters';
 import { movements } from './schema';
 import { movementTags, tags } from './tags-schema';
 
+const PRIMARY_KEY = 'movements_pkey';
 const ACCOUNT_KEY = 'movements_account_owner_fk';
 const CATEGORY_KEY = 'movements_category_owner_kind_fk';
 const DESTINATION_KEY = 'movements_destination_owner_fk';
@@ -229,15 +231,17 @@ async function linkTags(
 export class DrizzleMovementRepository implements MovementRepository {
   constructor(private readonly db: Database) {}
 
-  async insert(scope: AccessScope<'write'>, data: NewMovement): Promise<Movement> {
+  async insert(scope: AccessScope<'write'>, data: NewMovement, id?: string): Promise<Movement> {
     // A note that is empty after trimming carries no information.
     const note = data.note === null || data.note.trim() === '' ? null : data.note;
     try {
       return await this.db.transaction(async (tx) => {
         const [row] = await tx
           .insert(movements)
-          // Fields are picked one by one: a loosely typed caller cannot smuggle id or timestamps.
+          // Fields are picked one by one: a loosely typed caller cannot smuggle an owner or timestamps;
+          // the id is the one field it may choose, and only through the use case that validated it.
           .values({
+            ...(id === undefined ? {} : { id }),
             ownerId: scope.userId,
             type: data.type,
             accountId: data.accountId,
@@ -257,6 +261,10 @@ export class DrizzleMovementRepository implements MovementRepository {
         return toMovement(row, stored);
       });
     } catch (error) {
+      // A lost race on the primary key is the one conflict a caller handles on purpose.
+      if (id !== undefined && violatedConstraint(error, '23505') === PRIMARY_KEY) {
+        throw new DuplicateMovementId();
+      }
       throw asNotFound(error);
     }
   }

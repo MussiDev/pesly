@@ -222,6 +222,31 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-04a Persistent storage is requested after sign-in and the user is warned, in Spanish
   and English, when the browser denies it. The copy on the device is not wiped on sign-out yet;
   that comes with DISC-001-04d. No migration.
+- DISC-001-04b Movements can be saved without a connection: expenses, income, transfers and currency
+  exchanges go to a durable queue in the per-user IndexedDB, with a UUID chosen on the device, and
+  show in the movement list with a "Pending" badge, in Spanish and English. An expense or income
+  saved offline freezes the rate on screen as a manual rate, and asks for one when the device has
+  none stored.
+- DISC-001-04b The queue is sent on its own when the app starts online, when the connection returns
+  and when a save gets no answer: up to 4 requests at a time, one pass at a time across tabs, a
+  retry after `Retry-After` when the limit is reached, and a movement the server refuses is kept in
+  the queue instead of lost (it is shown by DISC-001-04c, so 04b ships with 04c).
+- DISC-001-04b `POST /movements` accepts an optional `id`: the same user sending an id that exists
+  gets the stored movement back (200) and no second row, an id of another user answers 404, and
+  creations with an id have their own limit of 600 per minute. Migration 0018 adds the limit
+  bucket to `movement_rate_limits`, with a rollback script.
+- DISC-001-04c Movements can be edited and deleted without a connection: the change is applied on
+  the device at once and queued, one record per movement, so later changes fold into it; online, a
+  change that gets no answer falls back to the queue. The edit screen moved to
+  `/movements/edit?id=`, so one cached page serves every movement offline; the old path still works.
+- DISC-001-04c Every movement in the list shows its sync state (synced, pending or not synced), and
+  the shell shows how many changes wait to be synced and how many did not sync, in Spanish and
+  English. A change the server refuses shows the reason, including a movement deleted on another
+  device, and can be edited and retried, retried as it is, or discarded.
+- DISC-001-04c Queued edits are sent with `PUT` and deletions with `DELETE` (a deletion answered 404
+  counts as done); the server keeps the change it receives last, and the device copy takes the
+  server's answer. Network and server failures are retried with exponential backoff from 5 s,
+  doubling, capped at 5 minutes. No API change, no migration.
 - FEAT-005 Merchant logos: an income or expense whose note names a merchant of a bundled catalog
   (40 services and stores, matched by whole words ignoring case and accents, the longest keyword
   first) shows its logo; any other movement keeps its category icon, and a transfer or an exchange
@@ -272,6 +297,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
+  denial of service reached through `next` and `postcss`), which clears the high advisory that
+  failed the lint job of every pull request.
 - FIX-001 A refresh that races a sign-out, sign-out-all or password reset is rejected without
   being logged as refresh token reuse or revoking the session family.
 - FIX-001 A rate-limited sign-in answers 429 even when refunding its reserved attempts fails.

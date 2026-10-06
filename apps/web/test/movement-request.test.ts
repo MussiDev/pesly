@@ -395,3 +395,82 @@ describe('buildMovementRequest in edit mode (DISC-001-03e Block 6)', () => {
     });
   });
 });
+
+describe('buildMovementRequest: saved without a connection (FR-06, AC-07)', () => {
+  const SUELDO = '00000000-0000-4000-8000-000000000012';
+  const offline = (overrides: Partial<MovementRequestContext> = {}) =>
+    context({
+      offline: true,
+      categories: [
+        { id: COMIDA, kind: 'expense', archived: false },
+        { id: SUELDO, kind: 'income', archived: false },
+      ],
+      ...overrides,
+    });
+  const expense = (overrides: Partial<MovementFormValues> = {}) =>
+    values({ type: 'expense', categoryId: COMIDA, destinationAccountId: undefined, ...overrides });
+
+  it('freezes the stored rate the field shows as a manual rate while the field is untouched (FR-06)', () => {
+    const result = buildMovementRequest(expense(), offline());
+
+    expect(result.request).toMatchObject({
+      type: 'expense',
+      rate: { source: 'manual', value: '12505000' },
+    });
+  });
+
+  it('sends the rate the user typed as manual, even with a stored rate (FR-06)', () => {
+    const result = buildMovementRequest(expense({ rateEdited: true, rate: '1.300,25' }), offline());
+
+    expect(result.request).toMatchObject({ rate: { source: 'manual', value: '13002500' } });
+  });
+
+  it('refuses an expense with no stored rate and an empty rate field (AC-07)', () => {
+    const result = buildMovementRequest(expense({ rate: '' }), offline({ defaultRate: '' }));
+
+    expect(result.request).toBeUndefined();
+    expect(result.fields).toEqual({ rate: 'movements.errors.rateRequired' });
+  });
+
+  it('builds an income with no stored rate once the user types one (AC-07)', () => {
+    const result = buildMovementRequest(
+      expense({ type: 'income', categoryId: SUELDO, rateEdited: true, rate: '1.200,5' }),
+      offline({ defaultRate: '' }),
+    );
+
+    expect(result.request).toMatchObject({
+      type: 'income',
+      rate: { source: 'manual', value: '12005000' },
+    });
+  });
+
+  it('refuses a stored rate that cannot be read when the field is untouched (invalid input)', () => {
+    const result = buildMovementRequest(expense({ rate: 'abc' }), offline({ defaultRate: 'abc' }));
+
+    expect(result.request).toBeUndefined();
+    expect(result.fields).toEqual({ rate: 'movements.errors.rateInvalid' });
+  });
+
+  it('keeps the automatic rate online while the field is untouched (FR-06)', () => {
+    const result = buildMovementRequest(expense(), context({ offline: false }));
+
+    expect(result.request).toMatchObject({ rate: { source: 'automatic' } });
+  });
+
+  it('builds the same transfer and the same exchange as online (AC-02)', () => {
+    const exchange = values({
+      type: 'exchange',
+      accountId: CAJA,
+      destinationAccountId: DOLARES,
+      amount: '1.450.000,00',
+      destinationAmount: '1.000,00',
+    });
+
+    expect(buildMovementRequest(values(), offline())).toEqual(
+      buildMovementRequest(values(), context()),
+    );
+    expect(buildMovementRequest(exchange, offline())).toEqual(
+      buildMovementRequest(exchange, context()),
+    );
+  });
+});

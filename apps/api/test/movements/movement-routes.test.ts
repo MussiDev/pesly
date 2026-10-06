@@ -176,14 +176,12 @@ describe('POST /movements and GET /movements', () => {
     expect(movementResponseSchema.parse(single.body).id).toBe(created.id);
   });
 
-  it('ignores an owner, id and timestamps sent in the body: the movement belongs to the caller (threat R-16)', async () => {
+  it('ignores an owner and timestamps sent in the body: the movement belongs to the caller (threat R-16)', async () => {
     const s = await setup();
     const f = await fixture(s.anaId);
-    const smuggledId = '11111111-1111-4111-8111-111111111111';
     const response = await post(
       s.app,
       expenseBody(f, {
-        id: smuggledId,
         ownerId: s.bobId,
         createdAt: '2001-01-01T00:00:00.000Z',
         rateType: 'blue',
@@ -192,7 +190,7 @@ describe('POST /movements and GET /movements', () => {
     );
     expect(response.status).toBe(201);
     const created = movementResponseSchema.parse(response.body);
-    expect(created.id).not.toBe(smuggledId);
+    expect(created.createdAt).not.toBe('2001-01-01T00:00:00.000Z');
     const stored = await connection.pool.query<{ owner_id: string }>(
       'select owner_id from movements where id = $1',
       [created.id],
@@ -792,5 +790,143 @@ describe('tags and filters through the real stack', () => {
     await get(s.app, '/movements?tag=SecretTagName', s.ana);
     await get(s.app, '/tags?prefix=SecretTag', s.ana);
     expect(s.lines.join('\n')).not.toContain('SecretTag');
+  });
+});
+
+describe('POST /movements with a device id', () => {
+  const DEVICE_ID = '2f6d8a14-5b3c-4e97-8a01-6c4d9e2b7f30';
+
+  async function countById(id: string): Promise<number> {
+    const result = await connection.pool.query<{ n: string }>(
+      'select count(*) as n from movements where id = $1',
+      [id],
+    );
+    return Number(result.rows[0]?.n ?? 0);
+  }
+
+  it('stores the movement under the id the device sent and answers 201 (AC-03)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const response = await post(s.app, expenseBody(f, { id: DEVICE_ID }), s.ana);
+    expect(response.status).toBe(201);
+    expect(movementResponseSchema.parse(response.body).id).toBe(DEVICE_ID);
+    expect(await countById(DEVICE_ID)).toBe(1);
+  });
+
+  it('answers 201 and then 200 with the same body for the same request sent twice, and keeps one row (AC-06)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const body = expenseBody(f, { id: DEVICE_ID });
+    const first = await post(s.app, body, s.ana);
+    const second = await post(s.app, body, s.ana);
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(200);
+    expect(second.body).toEqual(first.body);
+    expect(await countById(DEVICE_ID)).toBe(1);
+    expect(await countMovements(s.anaId)).toBe(1);
+  });
+
+  it('answers 400 VALIDATION_FAILED naming body.id for an id that is not a UUID and stores nothing (invalid input)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const response = await post(s.app, expenseBody(f, { id: 'not-a-uuid' }), s.ana);
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(JSON.stringify(response.body)).toContain('body.id');
+    expect(JSON.stringify(response.body)).not.toContain('not-a-uuid');
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('answers 404 NOT_FOUND for the id of another user and shows nothing of that movement (AC-06)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const g = await fixture(s.bobId);
+    expect((await post(s.app, expenseBody(f, { id: DEVICE_ID }), s.ana)).status).toBe(201);
+
+    const response = await post(s.app, expenseBody(g, { id: DEVICE_ID, amount: '424242' }), s.bob);
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    expect(await countMovements(s.bobId)).toBe(0);
+    expect(await countById(DEVICE_ID)).toBe(1);
+  });
+
+  it('keeps the manual limit for requests without an id and leaves the device bucket untouched (NFR-02)', async () => {
+    const s = await setup({ writeLimit: 3 });
+    const f = await fixture(s.anaId);
+    for (let i = 0; i < 3; i += 1) {
+      expect((await post(s.app, expenseBody(f), s.ana)).status).toBe(201);
+    }
+    expect((await post(s.app, expenseBody(f), s.ana)).status).toBe(429);
+    // The same user, with an id, is counted in another bucket and still gets through.
+    expect((await post(s.app, expenseBody(f, { id: DEVICE_ID }), s.ana)).status).toBe(201);
+    // Creations with an id never spend manual units: the manual bucket stayed at its limit of 3.
+    const counters = await connection.pool.query<{ bucket: string; count: number }>(
+      'select bucket, count from movement_rate_limits where owner_id = $1 order by bucket',
+      [s.anaId],
+    );
+    expect(counters.rows.map((row) => [row.bucket, row.count])).toEqual([
+      ['device', 1],
+      ['manual', 3],
+    ]);
+  });
+
+  it('answers 201 to 100 creations with an id in one minute (NFR-02)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    for (let i = 0; i < 100; i += 1) {
+      const id = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`;
+      const response = await post(s.app, expenseBody(f, { id }), s.ana);
+      expect(response.status, `creation ${i}`).toBe(201);
+    }
+    expect(await countMovements(s.anaId)).toBe(100);
+  });
+
+  it('answers 401 without a session and 403 EMAIL_NOT_VERIFIED for an unverified user on the id path (invalid input)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const body = expenseBody(f, { id: DEVICE_ID });
+    const anonymous = await post(s.app, body);
+    expect(anonymous.status).toBe(401);
+    expect(anonymous.body).toEqual({ code: 'UNAUTHENTICATED' });
+
+    const email = `eve-${randomUUID()}@example.com`;
+    await seedUser(connection, { email, password: PASSWORD, verified: false });
+    const eve = sessionFrom(await signIn(s.app, email, PASSWORD));
+    const unverified = await post(s.app, body, eve);
+    expect(unverified.status).toBe(403);
+    expect(unverified.body).toEqual({ code: 'EMAIL_NOT_VERIFIED' });
+    expect(await countById(DEVICE_ID)).toBe(0);
+  });
+
+  it('logs the movement id and none of the movement data for a created and a replayed movement (FR-05)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const body = expenseBody(f, { id: DEVICE_ID, amount: '987654321', note: 'private note text' });
+    await post(s.app, body, s.ana);
+    await post(s.app, body, s.ana);
+    const entries = s.lines.map((line) => JSON.parse(line) as Record<string, unknown>);
+    const audit = entries.filter(
+      (entry) => entry.msg === 'movement created' || entry.msg === 'movement replayed',
+    );
+    expect(audit.map((entry) => entry.msg)).toEqual(['movement created', 'movement replayed']);
+    for (const entry of audit) {
+      expect(entry).toMatchObject({ userId: s.anaId, movementId: DEVICE_ID });
+      const text = JSON.stringify(entry);
+      expect(text).not.toContain('987654321');
+      expect(text).not.toContain('private note text');
+      expect(text).not.toContain('14000000');
+    }
+  });
+
+  it('answers 500 INTERNAL with only { code } when the database fails on the id path (error path)', async () => {
+    const broken = createDatabase(testDatabaseUrl);
+    await broken.pool.end();
+    const s = await setup({ db: broken.db });
+    const f = await fixture(s.anaId);
+    const response = await post(s.app, expenseBody(f, { id: DEVICE_ID, amount: '424242' }), s.ana);
+    expect(response.status).toBe(500);
+    expect(response.body).toEqual({ code: 'INTERNAL' });
+    expect(JSON.stringify(response.body)).not.toContain(DEVICE_ID);
+    expect(JSON.stringify(response.body)).not.toContain('424242');
   });
 });

@@ -7,6 +7,11 @@ import { AccountsLoadStateView } from '@/features/accounts/components/accounts-l
 import { categoryLabel } from '@/features/categories/category-display';
 import { useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
+import { isOffline } from '@/lib/connectivity';
+import { writeQueuedMovement } from '@/lib/local-store/device-copy';
+import type { QueuedRequest } from '@/lib/local-store/queue';
+import { readSessionPointer } from '@/lib/local-store/session-pointer';
+import { notifyMovementQueued } from '@/lib/sync/sync-events';
 import { MovementForm, type MovementFormValues } from '../components/movement-form';
 import { MovementSaved } from '../components/movement-saved';
 import { formatRate } from '../format-rate';
@@ -20,6 +25,8 @@ import { TagInputContainer } from './tag-input-container';
 interface SavedMovement {
   rate: string | undefined;
   implied: boolean;
+  /** Kept on this device, to be sent when there is a connection: no rate was stored yet. */
+  pending?: boolean;
 }
 
 export interface CreateMovementContainerProps {
@@ -39,8 +46,27 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
   // Bumped on every save: remounts the form so the next movement starts from a clean one.
   const [formKey, setFormKey] = useState(0);
 
+  /**
+   * Keeps the movement on this device until it can be sent. `false` when it could not be stored (no
+   * user known, no IndexedDB, no room): the person is told, and nothing is lost from the form.
+   */
+  async function keepOnDevice(request: QueuedRequest): Promise<boolean> {
+    const stored = await writeQueuedMovement(readSessionPointer()?.userId, request);
+    if (!stored) return false;
+    setSaved({ rate: undefined, implied: false, pending: true });
+    setFormKey((current) => current + 1);
+    setPending(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Online with a failed request, the queue is sent right away; offline the shell ignores it.
+    notifyMovementQueued();
+    return true;
+  }
+
   async function create(values: MovementFormValues, data: MovementFormData) {
     if (pending) return;
+    // The copy on screen came from the device, or there is no connection: what the person sees is
+    // what gets frozen, and the save goes to the queue.
+    const offline = data.offline || isOffline();
     const { request, fields } = buildMovementRequest(values, {
       accounts: data.accounts,
       categories: data.categories,
@@ -48,14 +74,25 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
       locale,
       now: new Date(),
       defaultRate: data.defaultRate,
+      offline,
     });
     if (request === undefined) {
       setErrors({ fields });
       return;
     }
+    // The id is chosen here, before anything is sent or stored, so repeating this save can never
+    // make a second movement: a lost answer is retried with the same id.
+    const withId = { ...request, id: crypto.randomUUID() };
     setPending(true);
     setErrors({});
-    const result = await api.createMovement(request);
+    if (offline) {
+      if (!(await keepOnDevice(withId))) {
+        setPending(false);
+        setErrors({ form: 'offlineSaveFailed' });
+      }
+      return;
+    }
+    const result = await api.createMovement(withId);
     if (result.ok) {
       const { rate, rateSource } = result.data;
       const implied = rateSource === 'implied';
@@ -69,6 +106,8 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    // No answer at all: the movement is kept on the device and sent when the connection is back.
+    if (result.code === 'NETWORK' && (await keepOnDevice(withId))) return;
     setPending(false);
     if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
     // Every other failure keeps the form mounted, so what the user typed stays for a retry.
@@ -82,7 +121,9 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
   const { data } = state;
   return (
     <div className="grid gap-4">
-      {saved === undefined ? null : <MovementSaved rate={saved.rate} implied={saved.implied} />}
+      {saved === undefined ? null : (
+        <MovementSaved rate={saved.rate} implied={saved.implied} pending={saved.pending === true} />
+      )}
       <MovementForm
         key={formKey}
         initialType={initialType}

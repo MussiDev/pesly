@@ -120,6 +120,13 @@
       "when": 1790992572883,
       "tag": "0017_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791162359112,
+      "tag": "0018_device_write_limit",
+      "breakpoints": true
     }
   ]
 }

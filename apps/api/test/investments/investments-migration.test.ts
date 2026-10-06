@@ -32,6 +32,7 @@ const LATER_MIGRATIONS = [
   '0015_price_snapshots',
   '0016_transfers_exchanges',
   '0017_tags',
+  '0018_device_write_limit',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

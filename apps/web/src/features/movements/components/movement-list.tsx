@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link } from '@/i18n/navigation';
+import type { SyncFailure, SyncState } from '../sync-overlay';
 import { dayKey, formatDay, MovementRow } from './movement-row';
 import { MovementsLoadStateView, type MovementsLoadState } from './movements-load-state';
 
@@ -22,6 +23,10 @@ export interface MovementListItem {
   categoryColor?: string;
   destinationAccountName: string | undefined;
   destinationCurrency: string | undefined;
+  /** Where the movement stands against the server; absent, the row shows no sync marker. */
+  syncState?: SyncState;
+  /** Why the server refused its change; present only when `syncState` is `failed`. */
+  failure?: SyncFailure;
 }
 
 export interface MovementListProps {
@@ -57,6 +62,10 @@ export interface MovementListRowActions {
   onAskDelete: (id: string) => void;
   onConfirmDelete: (id: string) => void;
   onCancelDelete: () => void;
+  /** Sends a failed change again. */
+  onRetry: (id: string) => void;
+  /** Drops a failed change from the device. */
+  onDiscard: (id: string) => void;
 }
 
 interface DayGroup {
@@ -159,6 +168,8 @@ export function MovementList({
                     destinationAccountName={item.destinationAccountName}
                     destinationCurrency={item.destinationCurrency}
                     timeZone={timeZone}
+                    syncState={item.syncState}
+                    failure={item.failure}
                     actions={
                       rowActions === undefined
                         ? undefined
@@ -172,6 +183,12 @@ export function MovementList({
                               rowActions.onConfirmDelete(item.movement.id);
                             },
                             onCancelDelete: rowActions.onCancelDelete,
+                            onRetry: () => {
+                              rowActions.onRetry(item.movement.id);
+                            },
+                            onDiscard: () => {
+                              rowActions.onDiscard(item.movement.id);
+                            },
                           }
                     }
                   />

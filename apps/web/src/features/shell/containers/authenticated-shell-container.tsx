@@ -5,11 +5,16 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
+import { readQueueCounts } from '@/lib/local-store/device-copy';
 import { requestPersistentStorage } from '@/lib/local-store/persistence';
+import type { QueueCounts } from '@/lib/local-store/queue';
 import { readSessionPointer, writeSessionPointer } from '@/lib/local-store/session-pointer';
 import { requestShellWarmup } from '@/lib/service-worker/warmup';
+import { onMovementQueued, onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
+import { cancelSyncRetry, syncMovementQueue } from '@/lib/sync/sync-queue';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
 import { StorageWarning } from '../components/storage-warning';
+import { SyncStatus } from '../components/sync-status';
 import { useSignOut } from '../use-sign-out';
 
 /**
@@ -27,7 +32,11 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   const [state, setState] = useState<ShellState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [storageDenied, setStorageDenied] = useState(false);
+  // Who the API confirmed in this visit. The queue is only sent for this user, never for whoever the
+  // pointer names, so one user's movements cannot leave under another user's session.
+  const [confirmedUser, setConfirmedUser] = useState<string | undefined>();
   const { signingOut, signOutError, signOut } = useSignOut();
+  const [queueCounts, setQueueCounts] = useState<QueueCounts>({ pending: 0, failed: 0 });
 
   useEffect(() => {
     // Without a connection the app opens from what the last online visit left: the pointer names
@@ -38,6 +47,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
       return true;
     };
     if (!online) {
+      setConfirmedUser(undefined);
       if (!openFromPointer()) setState({ kind: 'failed', error: 'offlineNoCopy' });
       return;
     }
@@ -55,7 +65,10 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         emailVerified: result.data.user.emailVerified,
       });
       if (!result.data.user.emailVerified) router.replace('/check-your-email');
-      else setState({ kind: 'ready' });
+      else {
+        setConfirmedUser(result.data.user.id);
+        setState({ kind: 'ready' });
+      }
     });
     return () => {
       active = false;
@@ -67,6 +80,41 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   useEffect(() => {
     if (state.kind === 'ready' && online) void requestShellWarmup(locale);
   }, [state.kind, online, locale]);
+
+  // The movements saved without a connection go out once the session is confirmed online, when the
+  // connection returns, and when a save falls back to the queue. One pass at a time (see the queue).
+  useEffect(() => {
+    if (confirmedUser === undefined || !online) return;
+    const run = () => {
+      void syncMovementQueue(confirmedUser, api);
+    };
+    run();
+    const stopListening = onMovementQueued(run);
+    return () => {
+      stopListening();
+      cancelSyncRetry();
+    };
+  }, [confirmedUser, online, api]);
+
+  // What waits on this device for the user it knows, offline too; read again whenever the queue
+  // changes or a pass ends. A queue that cannot be read counts as empty.
+  useEffect(() => {
+    if (state.kind !== 'ready') return;
+    let live = true;
+    const read = () => {
+      void readQueueCounts(readSessionPointer()?.userId).then((counts) => {
+        if (live) setQueueCounts(counts);
+      });
+    };
+    read();
+    const stopQueue = onQueueChanged(read);
+    const stopSync = onSyncFinished(read);
+    return () => {
+      live = false;
+      stopQueue();
+      stopSync();
+    };
+  }, [state.kind]);
 
   // The offline copy is only worth keeping if the browser does not evict it: ask once the shell is
   // ready and warn when the answer is no. A browser without the Storage API says nothing.
@@ -94,6 +142,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
       onSignOut={() => {
         void signOut();
       }}
+      syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
       {children}
       {/* After the content: it arrives late and must not push the screen down (NFR-03). */}

@@ -1,13 +1,26 @@
 import type { REFERENCE_STORE } from './database';
-import { MOVEMENTS_STORE, OCCURRED_AT_INDEX, openLocalDatabase, type StoreName } from './database';
+import {
+  MOVEMENTS_STORE,
+  OCCURRED_AT_INDEX,
+  QUEUE_CREATED_AT_INDEX,
+  QUEUE_STORE,
+  openLocalDatabase,
+  type StoreName,
+} from './database';
 
 /**
- * Typed access to the two object stores of one user. Values are `unknown` on purpose: whoever reads
+ * Typed access to the object stores of one user. Values are `unknown` on purpose: whoever reads
  * them parses them with the shared contracts, so a record that does not fit is never trusted.
  */
+/** The stores whose items carry their own `id` as the key. */
+type KeyedStore = typeof QUEUE_STORE | typeof MOVEMENTS_STORE;
+
 export interface LocalStore {
   get(store: StoreName, key: string): Promise<unknown>;
-  /** Every item of a store; `newestFirst` orders the movements by `occurredAt`, newest first. */
+  /**
+   * Every item of a store; `newestFirst` orders the movements by `occurredAt`, newest first, and the
+   * queue always comes oldest first by `createdAt`.
+   */
   getAll(store: StoreName, options?: { newestFirst?: boolean }): Promise<unknown[]>;
   put(store: typeof REFERENCE_STORE, key: string, value: unknown): Promise<void>;
   /** Several reference values in one transaction: either all of them are written or none. */
@@ -17,8 +30,21 @@ export interface LocalStore {
   ): Promise<void>;
   /** Clears the store and writes the items in one transaction; a failed write keeps the old copy. */
   replaceAll(store: typeof MOVEMENTS_STORE, items: readonly unknown[]): Promise<void>;
+  /** Writes one item under its own `id`; an item with no `id` is refused and nothing is stored. */
+  putItem(store: KeyedStore, value: unknown): Promise<void>;
+  /** Removes one item by its key; a key that is not there is not an error. */
+  deleteItem(store: KeyedStore, key: string): Promise<void>;
+  /**
+   * Reads one item and writes what `change` answers, in one transaction: `undefined` leaves it,
+   * `null` deletes it, anything else is put. A `change` that throws stores nothing.
+   */
+  updateItem(store: KeyedStore, key: string, change: (current: unknown) => unknown): Promise<void>;
   clear(store: StoreName): Promise<void>;
   close(): void;
+}
+
+function toError(value: unknown): Error {
+  return value instanceof Error ? value : new Error('IndexedDB transaction aborted');
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -68,12 +94,16 @@ export async function openLocalStore(userId: string): Promise<LocalStore> {
 
     async getAll(store, options = {}) {
       const objectStore = database.transaction(store, 'readonly').objectStore(store);
-      if (!options.newestFirst || store !== MOVEMENTS_STORE) {
-        return requestResult(objectStore.getAll());
-      }
+      const ordered =
+        store === QUEUE_STORE
+          ? { index: QUEUE_CREATED_AT_INDEX, direction: 'next' as const }
+          : store === MOVEMENTS_STORE && options.newestFirst
+            ? { index: OCCURRED_AT_INDEX, direction: 'prev' as const }
+            : undefined;
+      if (ordered === undefined) return requestResult(objectStore.getAll());
       return new Promise<unknown[]>((resolve, reject) => {
         const items: unknown[] = [];
-        const cursor = objectStore.index(OCCURRED_AT_INDEX).openCursor(null, 'prev');
+        const cursor = objectStore.index(ordered.index).openCursor(null, ordered.direction);
         cursor.onsuccess = () => {
           const position = cursor.result;
           if (position === null) {
@@ -103,6 +133,43 @@ export async function openLocalStore(userId: string): Promise<LocalStore> {
       inTransaction(database, store, (objectStore) => {
         objectStore.clear();
         for (const item of items) objectStore.put(item);
+      }),
+
+    putItem: (store, value) =>
+      inTransaction(database, store, (objectStore) => {
+        objectStore.put(value);
+      }),
+
+    deleteItem: (store, key) =>
+      inTransaction(database, store, (objectStore) => {
+        objectStore.delete(key);
+      }),
+
+    updateItem: (store, key, change) =>
+      new Promise<void>((resolve, reject) => {
+        const transaction = database.transaction(store, 'readwrite');
+        let failure: unknown;
+        transaction.oncomplete = () => {
+          resolve();
+        };
+        transaction.onerror = () => {
+          reject(transaction.error ?? new Error('IndexedDB transaction failed'));
+        };
+        transaction.onabort = () => {
+          reject(toError(failure ?? transaction.error));
+        };
+        const objectStore = transaction.objectStore(store);
+        const read = objectStore.get(key);
+        read.onsuccess = () => {
+          try {
+            const next = change(read.result);
+            if (next === null) objectStore.delete(key);
+            else if (next !== undefined) objectStore.put(next);
+          } catch (error) {
+            failure = error;
+            transaction.abort();
+          }
+        };
       }),
 
     clear: (store) =>

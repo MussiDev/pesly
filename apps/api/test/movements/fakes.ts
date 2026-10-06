@@ -5,6 +5,7 @@ import type {
   Movement,
   MovementFilters,
 } from '../../src/movements/domain/movement';
+import { DuplicateMovementId } from '../../src/movements/domain/errors';
 import type { Clock } from '../../src/movements/application/ports/clock';
 import type {
   MovementRepository,
@@ -47,11 +48,17 @@ export class InMemoryMovementRepository implements MovementRepository {
     options: { limit: number; offset: number; filters: MovementFilters };
   }[] = [];
 
-  async insert(scope: AccessScope<'write'>, data: NewMovement): Promise<Movement> {
+  /** The id each `insert` was called with, `undefined` when the caller gave none. */
+  readonly insertIds: (string | undefined)[] = [];
+
+  async insert(scope: AccessScope<'write'>, data: NewMovement, id?: string): Promise<Movement> {
     await Promise.resolve();
     if (this.insertError) throw this.insertError;
+    this.insertIds.push(id);
+    // The real table has one primary key for every owner, so a taken id is taken for all of them.
+    if (id !== undefined && this.rows.some((row) => row.id === id)) throw new DuplicateMovementId();
     const movement: Movement = {
-      id: randomUUID(),
+      id: id ?? randomUUID(),
       ownerId: scope.userId,
       createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, this.rows.length)),
       ...data,
@@ -308,7 +315,7 @@ export class InMemoryMovementWriteLimiter implements MovementWriteLimiter {
     this.recordCalls.push(ownerId);
     const windowMs = policy.windowSeconds * 1000;
     const windowStart = new Date(Math.floor(this.now().getTime() / windowMs) * windowMs);
-    const key = `${ownerId}|${windowStart.toISOString()}`;
+    const key = `${ownerId}|${policy.bucket}|${windowStart.toISOString()}`;
     const count = (this.counts.get(key) ?? 0) + 1;
     this.counts.set(key, count);
     return { count, allowed: count <= policy.limit, windowStart };
@@ -321,17 +328,17 @@ export class InMemoryMovementWriteLimiter implements MovementWriteLimiter {
 
   private async releaseAsync(
     ownerId: string,
-    _policy: WritePolicy,
+    policy: WritePolicy,
     windowStart: Date,
   ): Promise<void> {
     await Promise.resolve();
     this.releaseCalls.push(windowStart);
     if (this.releaseError) throw this.releaseError;
-    const key = `${ownerId}|${windowStart.toISOString()}`;
+    const key = `${ownerId}|${policy.bucket}|${windowStart.toISOString()}`;
     this.counts.set(key, Math.max(0, (this.counts.get(key) ?? 0) - 1));
   }
 
-  countFor(ownerId: string, windowStart: Date): number {
-    return this.counts.get(`${ownerId}|${windowStart.toISOString()}`) ?? 0;
+  countFor(ownerId: string, windowStart: Date, bucket: WritePolicy['bucket'] = 'manual'): number {
+    return this.counts.get(`${ownerId}|${bucket}|${windowStart.toISOString()}`) ?? 0;
   }
 }
