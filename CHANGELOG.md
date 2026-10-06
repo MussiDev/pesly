@@ -297,6 +297,9 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
+  denial of service reached through `next` and `postcss`), which clears the high advisory that
+  failed the lint job of every pull request.
 - FIX-001 A refresh that races a sign-out, sign-out-all or password reset is rejected without
   being logged as refresh token reuse or revoking the session family.
 - FIX-001 A rate-limited sign-in answers 429 even when refunding its reserved attempts fails.
