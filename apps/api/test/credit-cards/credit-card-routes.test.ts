@@ -1,14 +1,22 @@
 import {
+  cardExpenseResponseSchema,
   creditCardResponseSchema,
+  listMovementsResponseSchema,
   listStatementsResponseSchema,
+  type CreditCardResponse,
   type StatementResponse,
 } from '@pesly/shared';
 import type { Express } from 'express';
 import request from 'supertest';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createAccountRoutes } from '../../src/accounts';
 import { createCardAccountLinks, createCreditCardRoutes } from '../../src/credit-cards';
-import { createAccountMovements } from '../../src/movements';
+import {
+  createAccountMovements,
+  createCardPurchases,
+  createExpenseRecorder,
+  createMovementRoutes,
+} from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
 import { createIdentityHarness } from '../helpers/identity-harness';
@@ -31,6 +39,10 @@ beforeAll(() => {
 
 afterAll(async () => {
   await connection.pool.end();
+});
+
+beforeEach(async () => {
+  await connection.pool.query(`delete from exchange_rates where rate_type in ('blue', 'mep')`);
 });
 
 const PASSWORD = 'a long enough passphrase';
@@ -60,8 +72,11 @@ async function setup() {
         db: connection.db,
         logger,
         activity: createAccountMovements(connection.db),
+        expenses: createExpenseRecorder(connection.db, logger, { clock }),
+        purchases: createCardPurchases(connection.db),
         clock,
       }),
+      createMovementRoutes({ db: connection.db, logger, clock }),
       createAccountRoutes({
         db: connection.db,
         logger,
@@ -181,6 +196,7 @@ describe('statements', () => {
         closingDate: '2026-10-24',
         dueDate: '2026-11-05',
         status: 'open',
+        totals: { ARS: '0', USD: '0' },
       }),
     ]);
   });
@@ -358,5 +374,258 @@ describe('access control', () => {
       .send({ name: 'Visa', closingDay: 24, dueDay: 5 });
     expect(response.status).toBe(403);
     expect((await call(s.app, 'get', '/credit-cards', s.ana)).body).toEqual({ items: [] });
+  });
+});
+
+type Setup = Awaited<ReturnType<typeof setup>>;
+
+describe('POST /credit-cards/:id/expenses', () => {
+  const MANUAL_RATE = { source: 'manual', value: '14000000' };
+
+  async function cardWithCategory(s: Setup) {
+    const card = await createVisa(s.app, s.ana);
+    const categoryId = await newCategory(connection.pool, s.anaId, 'expense');
+    return { card, categoryId };
+  }
+
+  const expenseBody = (categoryId: string, overrides: Record<string, unknown> = {}) => ({
+    currency: 'USD',
+    categoryId,
+    amount: '1599',
+    occurredAt: '2026-10-06T14:00:00.000Z',
+    rate: MANUAL_RATE,
+    ...overrides,
+  });
+
+  const postExpense = (
+    s: Setup,
+    cardId: string,
+    body: Record<string, unknown>,
+    cookies: Partial<SessionCookies> | undefined = s.ana,
+  ) => call(s.app, 'post', `/credit-cards/${cardId}/expenses`, cookies, body);
+
+  async function totalsOf(s: Setup, card: CreditCardResponse) {
+    return (await statementsOf(s.app, s.ana, card.id)).map(({ period, totals }) => ({
+      period,
+      totals,
+    }));
+  }
+
+  const countMovements = async (ownerId: string) =>
+    Number(
+      (
+        await connection.pool.query<{ n: string }>(
+          'select count(*) as n from movements where owner_id = $1',
+          [ownerId],
+        )
+      ).rows[0]?.n,
+    );
+
+  it('records 15.99 USD on the USD account and GET /movements shows it there (AC-01)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+
+    const response = await postExpense(s, card.id, expenseBody(categoryId));
+
+    expect(response.status).toBe(201);
+    const recorded = cardExpenseResponseSchema.parse(response.body);
+    expect(recorded).toMatchObject({
+      accountId: card.usdAccountId,
+      currency: 'USD',
+      amount: '1599',
+      occurredAt: '2026-10-06T14:00:00.000Z',
+    });
+    expect(recorded.statementId).not.toBeNull();
+    const listed = await call(s.app, 'get', `/movements?accountId=${card.usdAccountId}`, s.ana);
+    expect(listed.status).toBe(200);
+    expect(
+      listMovementsResponseSchema
+        .parse(listed.body)
+        .items.map(({ id, amount }) => ({ id, amount })),
+    ).toEqual([{ id: recorded.movementId, amount: '1599' }]);
+  });
+
+  it('sends an ARS expense to the ARS account', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(s, card.id, expenseBody(categoryId, { currency: 'ARS' }));
+    expect(response.status).toBe(201);
+    expect(cardExpenseResponseSchema.parse(response.body).accountId).toBe(card.arsAccountId);
+  });
+
+  it('puts the 24th and the 25th in different statements when the card closes on the 24th (AC-02, AC-03)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    await statementsOf(s.app, s.ana, card.id);
+    s.clock.current = new Date('2026-10-25T15:00:00.000Z');
+
+    const onClosing = await postExpense(
+      s,
+      card.id,
+      expenseBody(categoryId, { occurredAt: '2026-10-24T15:00:00.000Z', amount: '1000' }),
+    );
+    const afterClosing = await postExpense(
+      s,
+      card.id,
+      expenseBody(categoryId, { occurredAt: '2026-10-25T15:00:00.000Z', amount: '2500' }),
+    );
+
+    const october = cardExpenseResponseSchema.parse(onClosing.body);
+    const november = cardExpenseResponseSchema.parse(afterClosing.body);
+    expect(october.statementId).not.toBe(november.statementId);
+    expect(await totalsOf(s, card)).toEqual(
+      expect.arrayContaining([
+        { period: '2026-10', totals: { ARS: '0', USD: '1000' } },
+        { period: '2026-11', totals: { ARS: '0', USD: '2500' } },
+      ]),
+    );
+  });
+
+  it('moves the purchases of the 25th and 26th into the statement when its closing date moves to the 26th (AC-04)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    await statementsOf(s.app, s.ana, card.id);
+    s.clock.current = new Date('2026-10-26T15:00:00.000Z');
+    for (const day of ['25', '26']) {
+      const response = await postExpense(
+        s,
+        card.id,
+        expenseBody(categoryId, { occurredAt: `2026-10-${day}T15:00:00.000Z`, amount: '700' }),
+      );
+      expect(response.status).toBe(201);
+    }
+    // The October statement is open again: its status is derived from the clock, never stored.
+    s.clock.current = new Date('2026-10-24T15:00:00.000Z');
+    const october = byPeriod(await statementsOf(s.app, s.ana, card.id), '2026-10');
+    expect(october?.totals).toEqual({ ARS: '0', USD: '0' });
+
+    const patched = await call(
+      s.app,
+      'patch',
+      `/credit-cards/${card.id}/statements/${october?.id ?? ''}`,
+      s.ana,
+      { closingDate: '2026-10-26' },
+    );
+
+    expect(patched.status).toBe(200);
+    expect(patched.body).toMatchObject({ totals: { ARS: '0', USD: '1400' } });
+    expect(byPeriod(await statementsOf(s.app, s.ana, card.id), '2026-10')?.totals).toEqual({
+      ARS: '0',
+      USD: '1400',
+    });
+  });
+
+  it('reads totals of 50,000.00 ARS and 20.00 USD as exact minor-unit strings (AC-05)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    await postExpense(s, card.id, expenseBody(categoryId, { currency: 'ARS', amount: '5000000' }));
+    await postExpense(s, card.id, expenseBody(categoryId, { currency: 'USD', amount: '2000' }));
+
+    expect(byPeriod(await statementsOf(s.app, s.ana, card.id), '2026-10')?.totals).toEqual({
+      ARS: '5000000',
+      USD: '2000',
+    });
+  });
+
+  it.each([
+    ['an accountId key', { accountId: '2f1c6c1e-7a0b-4a70-9e9b-0d9d1e0f7a11' }],
+    ['currency EUR', { currency: 'EUR' }],
+    ['amount 0', { amount: '0' }],
+  ])('answers 400 for %s and records nothing (invalid input)', async (_name, overrides) => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(s, card.id, expenseBody(categoryId, overrides));
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it("answers 404 to Bob on Ana's card and records nothing (sad path)", async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(s, card.id, expenseBody(categoryId), s.bob);
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('answers 400 MOVEMENT_DATE_IN_FUTURE for a date after today and records nothing (sad path)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(
+      s,
+      card.id,
+      expenseBody(categoryId, { occurredAt: '2026-10-09T15:00:00.000Z' }),
+    );
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'MOVEMENT_DATE_IN_FUTURE' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('answers 409 CATEGORY_ARCHIVED for an archived category (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana);
+    const archived = await newCategory(connection.pool, s.anaId, 'expense', true);
+    const response = await postExpense(s, card.id, expenseBody(archived));
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'CATEGORY_ARCHIVED' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('answers 400 RATE_REQUIRED for an automatic rate with none stored (sad path)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(
+      s,
+      card.id,
+      expenseBody(categoryId, { rate: { source: 'automatic' } }),
+    );
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code: 'RATE_REQUIRED' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('answers 429 RATE_LIMITED on the 61st expense of a minute (sad path)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    for (let i = 0; i < 60; i += 1) {
+      expect((await postExpense(s, card.id, expenseBody(categoryId))).status).toBe(201);
+    }
+    const limited = await postExpense(s, card.id, expenseBody(categoryId));
+    expect(limited.status).toBe(429);
+    expect(limited.body).toEqual({ code: 'RATE_LIMITED' });
+    expect(await countMovements(s.anaId)).toBe(60);
+  });
+
+  it('answers 401 without a session and 403 before the email is verified (sad path)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const anonymous = await call(
+      s.app,
+      'post',
+      `/credit-cards/${card.id}/expenses`,
+      undefined,
+      expenseBody(categoryId),
+    );
+    expect(anonymous.status).toBe(401);
+    const unverified = await postExpense(s, card.id, expenseBody(categoryId), s.eve);
+    expect(unverified.status).toBe(403);
+    expect(unverified.body).toEqual({ code: 'EMAIL_NOT_VERIFIED' });
+    expect(await countMovements(s.anaId)).toBe(0);
+  });
+
+  it('logs ids only: never the amount or the note (sad path)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const response = await postExpense(
+      s,
+      card.id,
+      expenseBody(categoryId, { amount: '123457', note: 'secret lunch' }),
+    );
+    expect(response.status).toBe(201);
+    const logged = s.lines.join('\n');
+    expect(logged).toContain(card.id);
+    expect(logged).not.toContain('123457');
+    expect(logged).not.toContain('secret lunch');
   });
 });

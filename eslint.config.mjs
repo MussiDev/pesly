@@ -40,14 +40,14 @@ const CATEGORIES_IMPORTS = {
     'Identity must not import the categories module; the composition root registers a hook instead.',
 };
 
-// Identity, accounts and categories declare ports; only the composition root wires movements in.
+// Identity, accounts, categories and credit-cards declare ports; only the composition root wires movements in.
 // A regex, not a glob: accounts has its own `infrastructure/movements` adapter folder, and a glob
 // that matches the folder name would also match everything inside it. This matches only the
 // movements module barrel and its layers.
 const MOVEMENTS_IMPORTS = {
   regex: '^(\\.\\./)+movements(/(domain|application|infrastructure|index)(/.*)?)?$',
   message:
-    'Identity, accounts and categories must not import the movements module; the composition root wires it in.',
+    'Identity, accounts, categories and credit-cards must not import the movements module; the composition root wires it in.',
 };
 
 export default defineConfig(
@@ -178,6 +178,33 @@ export default defineConfig(
       'apps/api/src/accounts/application/**/*.ts',
       'apps/api/src/categories/application/**/*.ts',
     ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [INFRASTRUCTURE_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+      ],
+    },
+  },
+  // Credit cards declares ports for expenses and purchases that the movements adapters implement;
+  // movements imports credit-cards types, never the reverse. The generic blocks are repeated with
+  // MOVEMENTS_IMPORTS added.
+  {
+    files: ['apps/api/src/credit-cards/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [TEST_IMPORTS, MOVEMENTS_IMPORTS] }],
+    },
+  },
+  {
+    files: ['apps/api/src/credit-cards/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [INFRASTRUCTURE_IMPORTS, IO_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+      ],
+    },
+  },
+  {
+    files: ['apps/api/src/credit-cards/application/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

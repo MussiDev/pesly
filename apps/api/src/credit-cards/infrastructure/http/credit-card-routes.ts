@@ -1,4 +1,6 @@
 import {
+  cardExpenseResponseSchema,
+  createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
   creditCardIdParamsSchema,
   creditCardResponseSchema,
@@ -30,13 +32,16 @@ import { GetCreditCard } from '../../application/get-credit-card';
 import { ListCreditCards } from '../../application/list-credit-cards';
 import { ListStatements } from '../../application/list-statements';
 import type { AccountActivity } from '../../application/ports/account-activity';
+import type { CardPurchases } from '../../application/ports/card-purchases';
 import type { Clock } from '../../application/ports/clock';
+import type { ExpenseRecorder } from '../../application/ports/expense-recorder';
+import { RecordCardExpense } from '../../application/record-card-expense';
 import { UpdateCreditCardDays } from '../../application/update-credit-card-days';
 import { UpdateStatementDates } from '../../application/update-statement-dates';
 import { DrizzleCreditCardRepository } from '../db/drizzle-credit-card-repository';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
 import { SystemClock } from '../system-clock';
-import { presentCreditCard, presentStatement } from './credit-card-presenter';
+import { presentCardExpense, presentCreditCard, presentStatement } from './credit-card-presenter';
 
 export interface CreditCardRoutesOptions {
   db: Database;
@@ -44,6 +49,10 @@ export interface CreditCardRoutesOptions {
   logger: Logger;
   /** Whether a linked account has movements; the movements module provides it (spec D10). */
   activity: AccountActivity;
+  /** Records the card expenses through the movements rules; the movements module provides it (spec D7). */
+  expenses: ExpenseRecorder;
+  /** Daily purchase sums behind the statement totals; the movements module provides it. */
+  purchases: CardPurchases;
   /** Defaults to the system clock; tests inject one to move "today". */
   clock?: Clock;
 }
@@ -63,12 +72,16 @@ export function createCreditCardRoutes({
   db,
   logger,
   activity,
+  expenses,
+  purchases,
   clock = new SystemClock(),
 }: CreditCardRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
   const deps = {
     cards: new DrizzleCreditCardRepository(db),
     activity,
+    expenses,
+    purchases,
     timeZones: new DrizzleUserTimeZone(db),
     clock,
   };
@@ -79,6 +92,7 @@ export function createCreditCardRoutes({
   const deleteCard = new DeleteCreditCard(deps);
   const listStatements = new ListStatements(deps);
   const updateStatement = new UpdateStatementDates(deps);
+  const recordExpense = new RecordCardExpense(deps);
 
   // Audit lines carry ids only: never the card name.
   const audit = (
@@ -190,6 +204,37 @@ export function createCreditCardRoutes({
             statementId: statement.id,
           });
           res.json(presentStatement(statement));
+        },
+      ),
+    );
+
+    router.post(
+      '/credit-cards/:id/expenses',
+      validate(
+        {
+          params: creditCardIdParamsSchema,
+          body: createCardExpenseRequestSchema,
+          response: cardExpenseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const expense = await recordExpense.execute(scope, params.id, {
+            currency: body.currency,
+            categoryId: body.categoryId,
+            amount: BigInt(body.amount),
+            occurredAt: new Date(body.occurredAt),
+            ...(body.note === undefined ? {} : { note: body.note }),
+            rate:
+              body.rate.source === 'manual'
+                ? { source: 'manual', value: BigInt(body.rate.value) }
+                : { source: 'automatic' },
+          });
+          // Ids only: never the amount or the note.
+          audit('card expense recorded', requestId, auth, {
+            cardId: params.id,
+            movementId: expense.movementId,
+          });
+          res.status(201).json(presentCardExpense(expense));
         },
       ),
     );

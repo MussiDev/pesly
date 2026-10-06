@@ -11,7 +11,9 @@ import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/e
 import { createInvestmentsRoutes } from './investments';
 import {
   createAccountMovements,
+  createCardPurchases,
   createCategoryUsage,
+  createExpenseRecorder,
   createMovementRoutes,
   createTagRoutes,
   eraseUserMovements,
@@ -43,7 +45,13 @@ const app = createApp({
       links: createCardAccountLinks(db),
     }),
     createCategoryRoutes({ db, logger, usage: createCategoryUsage(db) }),
-    createCreditCardRoutes({ db, logger, activity: createAccountMovements(db) }),
+    createCreditCardRoutes({
+      db,
+      logger,
+      activity: createAccountMovements(db),
+      expenses: createExpenseRecorder(db, logger),
+      purchases: createCardPurchases(db),
+    }),
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
