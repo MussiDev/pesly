@@ -467,6 +467,48 @@ describe('MovementList on the design system (FEAT-004 AC-17, AC-22)', () => {
     expect(within(row).getByText(/12:30/)).toBeDefined();
   });
 
+  it('shows the logo of the merchant an expense note names (AC-21)', () => {
+    const base = listItem('m1', 'expense', '2026-10-02T15:30:00.000Z');
+    list([{ ...base, movement: { ...base.movement, note: 'Suscripción Netflix' } }]);
+
+    const row = screen.getByRole('listitem');
+    expect(row.querySelector('img')?.getAttribute('src')).toBe('/logos/netflix.svg');
+  });
+
+  it('keeps the category icon when the note names no merchant, or there is no note (AC-22)', () => {
+    const base = listItem('m1', 'expense', '2026-10-02T15:30:00.000Z');
+    list([
+      { ...base, movement: { ...base.movement, id: 'a', note: 'almuerzo' } },
+      { ...base, movement: { ...base.movement, id: 'b', note: null } },
+    ]);
+
+    for (const row of screen.getAllByRole('listitem')) {
+      expect(row.querySelector('img')).toBeNull();
+      expect(row.querySelector('[data-icon]')).not.toBeNull();
+    }
+  });
+
+  it('shows the type icon for a transfer and never a logo, even if its note names a merchant (AC-23)', () => {
+    const base = listItem('m1', 'expense', '2026-10-02T15:30:00.000Z');
+    list([
+      {
+        ...base,
+        movement: {
+          ...base.movement,
+          type: 'transfer',
+          note: 'Netflix',
+          destinationAccountId: 'a2',
+        },
+        destinationAccountName: 'Dolares',
+        destinationCurrency: 'ARS',
+      },
+    ]);
+
+    const row = screen.getByRole('listitem');
+    expect(row.querySelector('img')).toBeNull();
+    expect(row.querySelector('[data-slot="avatar"] svg')).not.toBeNull();
+  });
+
   it('shows direction with a sign and a screen-reader label, not colour alone', () => {
     list([
       listItem('m1', 'expense', '2026-10-02T15:30:00.000Z'),

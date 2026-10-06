@@ -25,8 +25,8 @@ export function AccountsLoadStateView({
       <div role="status" aria-busy="true" className="grid gap-4">
         <span className="sr-only">{t('loading')}</span>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Skeleton className="h-28 rounded-xl" />
-          <Skeleton className="h-28 rounded-xl" />
+          <Skeleton className="h-28 rounded-card" />
+          <Skeleton className="h-28 rounded-card" />
         </div>
         <div className="grid gap-3">
           <Skeleton className="h-16" />

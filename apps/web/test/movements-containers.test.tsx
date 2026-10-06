@@ -218,6 +218,39 @@ describe('CreateMovementContainer: loading', () => {
   });
 });
 
+describe('CreateMovementContainer: preselected type (AC-14)', () => {
+  it('starts the form on the type it receives', async () => {
+    stubApi(routes());
+    renderApp(<CreateMovementContainer initialType="income" />);
+    await screen.findByLabelText(es.movements.fields.amount);
+
+    expect(field(es.movements.fields.type).value).toBe('income');
+  });
+
+  it('starts on expense when it receives no type', async () => {
+    await open();
+
+    expect(field(es.movements.fields.type).value).toBe('expense');
+  });
+
+  it('error: after saving, the next movement starts again on the type the screen was opened with', async () => {
+    stubApi(routes());
+    renderApp(<CreateMovementContainer initialType="income" />);
+    await screen.findByLabelText(es.movements.fields.amount);
+    const user = userEvent.setup();
+    await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
+    await user.selectOptions(field(es.movements.fields.category), SUELDO_ID);
+    await user.type(field(es.movements.fields.amount), '100');
+
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toBeDefined();
+    });
+    expect(field(es.movements.fields.type).value).toBe('income');
+  });
+});
+
 describe('CreateMovementContainer: rate (AC-06 to AC-11, AC-20, AC-21)', () => {
   it('prefills the default rate type sell price and sends an automatic rate while untouched (AC-06, AC-07)', async () => {
     const { calls } = await open();

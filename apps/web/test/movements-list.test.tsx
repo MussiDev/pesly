@@ -1361,7 +1361,8 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     await screen.findByText('Taxi');
 
     expect(screen.getAllByText('Taxi')).toHaveLength(1);
-    expect(screen.getAllByText(es.movements.list.pending)).toHaveLength(1);
+    // The queue is read from IndexedDB a moment after the page shows, so the state is awaited.
+    expect(await screen.findAllByText(es.movements.list.pending)).toHaveLength(1);
   });
 
   it('shows the pending movement next to the loaded page online while it has not been sent (FR-04)', async () => {
@@ -1384,8 +1385,9 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
     renderApp(<MovementsContainer />);
     await screen.findByText('Almuerzo');
 
-    expect(screen.getByText('Taxi')).toBeDefined();
-    expect(screen.getByText(es.movements.list.failed)).toBeDefined();
+    // The queue is read from IndexedDB a moment after the copy shows, so the row is awaited.
+    expect(await screen.findByText('Taxi')).toBeDefined();
+    expect(await screen.findByText(es.movements.list.failed)).toBeDefined();
     expect(screen.queryByText(es.movements.list.pending)).toBeNull();
   });
 

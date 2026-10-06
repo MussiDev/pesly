@@ -13,11 +13,16 @@
       "currencies": {
         "ARS": "Pesos argentinos (ARS)",
         "USD": "Dólares estadounidenses (USD)"
-      }
+      },
+      "currenciesShort": {
+        "ARS": "Pesos",
+        "USD": "Dólares"
+      },
+      "tile": "{currency} · disponible"
     },
     "recent": {
       "title": "Últimos movimientos",
-      "seeAll": "Ver todos los movimientos",
+      "seeAll": "Ver todos",
       "income": "Ingreso",
       "expense": "Gasto",
       "transfer": "Transferencia",
@@ -34,6 +39,17 @@
       "title": "Crea tu primera cuenta",
       "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
       "action": "Crear cuenta"
+    },
+    "quickActions": {
+      "label": "Acciones rápidas",
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferir",
+      "exchange": "Cambio"
+    },
+    "accounts": {
+      "title": "Cuentas",
+      "seeAll": "Ver todas"
     }
   },
   "app": {
@@ -60,7 +76,7 @@
     },
     "more": {
       "title": "Más",
-      "description": "Categorías, perfil, seguridad y apariencia."
+      "description": "Cuentas, categorías, perfil, seguridad y apariencia."
     }
   },
   "auth": {
@@ -149,7 +165,7 @@
     "label": "Tema",
     "light": "Claro",
     "dark": "Oscuro",
-    "system": "Sistema"
+    "darkMode": "Modo oscuro"
   },
   "ui": {
     "loading": "Cargando…",
@@ -181,7 +197,9 @@
         "badges": "Etiquetas",
         "amounts": "Montos",
         "states": "Estados de carga, vacío y error",
-        "rows": "Listas"
+        "rows": "Listas",
+        "primitives": "Componentes de tarjetas suaves",
+        "balance": "Tarjeta de saldo"
       },
       "type": {
         "display": "Display",
@@ -238,12 +256,35 @@
       "shape": {
         "radius": "Radio",
         "elevation": "Elevación",
-        "spacing": "Espaciado"
+        "spacing": "Espaciado",
+        "card": "Tarjeta",
+        "pill": "Píldora",
+        "circle": "Acción circular"
       },
       "rows": {
         "title": "Sueldo",
         "description": "Cuenta principal",
         "trailing": "Detalle"
+      },
+      "primitives": {
+        "avatars": "Avatares",
+        "tabsLabel": "Rango",
+        "range1m": "1M",
+        "range3m": "3M",
+        "range1y": "1A",
+        "chipAll": "Todas",
+        "chipMine": "Mías",
+        "circular": "Gasto",
+        "donutLabel": "Composición por tipo",
+        "stock": "Acciones",
+        "bond": "Bonos",
+        "crypto": "Cripto",
+        "donutCentre": "Total"
+      },
+      "balance": {
+        "label": "Pesos",
+        "available": "Disponible",
+        "netWorth": "Patrimonio"
       }
     }
   },
@@ -780,7 +821,8 @@
       "addHolding": "Agregar posición",
       "addHoldingFor": "Agregar posición a {name}",
       "delete": "Eliminar cartera",
-      "deleteFor": "Eliminar cartera {name}"
+      "deleteFor": "Eliminar cartera {name}",
+      "compositionLabel": "Composición por tipo de instrumento en {currency}"
     },
     "holding": {
       "quantity": "Cantidad: {quantity}",

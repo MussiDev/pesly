@@ -62,7 +62,7 @@ export function CategoryVisual({
       data-icon={emoji !== undefined || isCategoryIcon(icon) ? icon : 'unknown'}
       data-color={isCategoryColor(color) ? color : 'unknown'}
       className={cn(
-        'inline-flex size-9 shrink-0 items-center justify-center rounded-md [&>svg]:size-5',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-pill [&>svg]:size-5',
         isCategoryColor(color) ? CATEGORY_COLOR_CLASSES[color] : FALLBACK_COLOR_CLASS,
         className,
       )}

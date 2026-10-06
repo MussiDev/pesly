@@ -127,6 +127,35 @@ function profileAnswer(timeZone: string) {
   };
 }
 
+describe('HomeContainer sections (AC-13)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('shows the accounts section with the active accounts and the quick actions, with no extra request', async () => {
+    const { calls } = stubApi(loadedRoutes());
+    renderApp(<HomeContainer />);
+
+    const list = await screen.findByRole('list', { name: es.home.accounts.title });
+    expect(within(list).getByText('Caja')).toBeDefined();
+    expect(within(list).getByText('Dólares')).toBeDefined();
+    // Archived accounts only refine the display of movements; they are not listed.
+    expect(within(list).queryByText('Vieja')).toBeNull();
+    expect(screen.getByRole('list', { name: es.home.quickActions.label })).toBeDefined();
+    const paths = calls.map((call) => call.path).sort();
+    expect(paths).toEqual(
+      [
+        ACCOUNTS_PATH,
+        ARCHIVED_ACCOUNTS_PATH,
+        MOVEMENTS_PATH,
+        CATEGORIES_PATH,
+        ARCHIVED_CATEGORIES_PATH,
+        PROFILE_PATH,
+      ].sort(),
+    );
+  });
+});
+
 /** The late-evening UTC instant that is already the next day in Tokyo. */
 const LATE_UTC = '2026-10-05T23:30:00.000Z';
 
@@ -430,7 +459,9 @@ describe('HomeContainer', () => {
       },
     });
     renderApp(<HomeContainer />);
-    const row = within(await screen.findByRole('listitem'));
+    const row = within(
+      within(await screen.findByRole('list', { name: es.home.recent.title })).getByRole('listitem'),
+    );
     expect(row.getByText(new RegExp(es.home.recent.unknownAccount))).toBeDefined();
     expect(row.getByText('5,00')).toBeDefined();
     expect(row.queryByText(/¤|ARS|USD|\$/)).toBeNull();
@@ -444,7 +475,9 @@ describe('HomeContainer', () => {
       },
     });
     renderApp(<HomeContainer />);
-    const row = within(await screen.findByRole('listitem'));
+    const row = within(
+      within(await screen.findByRole('list', { name: es.home.recent.title })).getByRole('listitem'),
+    );
     expect(row.getByText(/Vieja/)).toBeDefined();
     expect(row.getByText(money(500n, 'USD', 'es'))).toBeDefined();
     expect(row.queryByText(new RegExp(es.home.recent.unknownAccount))).toBeNull();
@@ -460,7 +493,9 @@ describe('HomeContainer', () => {
       },
     });
     renderApp(<HomeContainer />);
-    const row = within(await screen.findByRole('listitem'));
+    const row = within(
+      within(await screen.findByRole('list', { name: es.home.recent.title })).getByRole('listitem'),
+    );
     expect(row.getByText(new RegExp(es.home.recent.unknownAccount))).toBeDefined();
     expect(row.getByText('5,00')).toBeDefined();
     expect(row.queryByText(/¤|ARS|USD|\$/)).toBeNull();
