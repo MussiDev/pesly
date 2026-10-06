@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { accountNameSchema } from '../src/accounts/account';
 import {
   CARD_NAME_MAX_LENGTH,
+  cardExpenseResponseSchema,
+  createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
   creditCardResponseSchema,
   statementParamsSchema,
@@ -132,8 +134,99 @@ describe('params and responses', () => {
         closingDate: '2026-10-24',
         dueDate: '2026-11-05',
         status: 'pending',
+        totals: { ARS: '0', USD: '0' },
       }).success,
     ).toBe(false);
+  });
+});
+
+const STATEMENT = {
+  id: UUID,
+  cardId: UUID,
+  period: '2026-10',
+  closingDate: '2026-10-24',
+  dueDate: '2026-11-05',
+  status: 'open',
+};
+
+const CARD_EXPENSE = {
+  currency: 'ARS',
+  categoryId: UUID,
+  amount: '150000',
+  occurredAt: '2026-10-05T15:30:00.000Z',
+  rate: { source: 'automatic' },
+};
+
+describe('createCardExpenseRequestSchema', () => {
+  it('accepts a valid card expense and a statement response with totals (AC-05)', () => {
+    expect(createCardExpenseRequestSchema.safeParse(CARD_EXPENSE).success).toBe(true);
+    expect(
+      createCardExpenseRequestSchema.safeParse({
+        ...CARD_EXPENSE,
+        currency: 'USD',
+        note: ' Dinner ',
+        rate: { source: 'manual', value: '12500000' },
+      }).success,
+    ).toBe(true);
+    expect(
+      statementResponseSchema.safeParse({ ...STATEMENT, totals: { ARS: '5000000', USD: '2000' } })
+        .success,
+    ).toBe(true);
+    expect(
+      cardExpenseResponseSchema.safeParse({
+        movementId: UUID,
+        accountId: UUID,
+        currency: 'ARS',
+        amount: '150000',
+        occurredAt: '2026-10-05T15:30:00.000Z',
+        statementId: null,
+      }).success,
+    ).toBe(true);
+  });
+
+  it.each(['EUR', 'usd', undefined])('rejects currency %s as invalid input (FR-01)', (currency) => {
+    expect(createCardExpenseRequestSchema.safeParse({ ...CARD_EXPENSE, currency }).success).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ['an accountId key', { accountId: UUID }],
+    ['an amount of 0', { amount: '0' }],
+    ['a decimal amount', { amount: '15.99' }],
+    ['a leading-zero amount', { amount: '015' }],
+    ['a zero-width note', { note: 'Di​nner' }],
+    ['a type key', { type: 'expense' }],
+    ['a tags key', { tags: ['a'] }],
+  ])('rejects %s as invalid input (FR-01)', (_label, patch) => {
+    expect(createCardExpenseRequestSchema.safeParse({ ...CARD_EXPENSE, ...patch }).success).toBe(
+      false,
+    );
+  });
+
+  it('rejects a statement response without totals or with one currency (FR-03)', () => {
+    expect(statementResponseSchema.safeParse(STATEMENT).success).toBe(false);
+    expect(
+      statementResponseSchema.safeParse({ ...STATEMENT, totals: { ARS: '100' } }).success,
+    ).toBe(false);
+    expect(
+      statementResponseSchema.safeParse({ ...STATEMENT, totals: { ARS: '1.5', USD: '0' } }).success,
+    ).toBe(false);
+  });
+
+  it('reports only the failing paths, not the typed values (sad path, FR-01)', () => {
+    const result = createCardExpenseRequestSchema.safeParse({
+      ...CARD_EXPENSE,
+      amount: '99.99',
+      note: 'secret​note',
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    const paths = result.error.issues.map((issue) => issue.path.join('.'));
+    expect(paths).toEqual(expect.arrayContaining(['amount', 'note']));
+    const text = JSON.stringify(result.error.issues);
+    expect(text).not.toContain('99.99');
+    expect(text).not.toContain('secret');
   });
 });
 
