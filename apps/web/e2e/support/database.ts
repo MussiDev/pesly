@@ -288,3 +288,26 @@ export async function movementRowIds(email: string): Promise<string[]> {
   );
   return rows.map((row) => String(row.id));
 }
+
+/** The amount stored for one movement, or `null` once it is gone. */
+export async function movementAmount(id: string): Promise<string | null> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query('select amount::text as amount from movements where id = $1', [id]),
+  );
+  const row = rows[0];
+  return row === undefined ? null : String(row.amount);
+}
+
+/** Archives the account of `email` named `name`, as if done on another device. */
+export async function archiveAccount(email: string, name: string): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update accounts a set archived_at = now()
+         from users u
+        where u.id = a.owner_id and u.email = $1 and a.name = $2
+       returning a.id`,
+      [email, name],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No account named ${name} for ${email}`);
+}
