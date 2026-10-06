@@ -50,6 +50,7 @@ export function addToWipeMarker(userId: string): void {
 }
 
 export function removeFromWipeMarker(userId: string): void {
+  if (!USER_ID_PATTERN.test(userId)) return;
   const ids = readWipeMarker();
   if (!ids.includes(userId)) return;
   writeWipeMarker(ids.filter((id) => id !== userId));

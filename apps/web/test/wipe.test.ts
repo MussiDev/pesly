@@ -257,6 +257,21 @@ describe('wipe marker', () => {
     expect(localStorage.getItem(WIPE_MARKER_KEY)).toBeNull();
   });
 
+  it('invalid input: removing an invalid id leaves the marker untouched', () => {
+    localStorage.setItem(WIPE_MARKER_KEY, JSON.stringify([ANA]));
+    const getItem = vi.spyOn(localStorage, 'getItem');
+    const setItem = vi.spyOn(localStorage, 'setItem');
+    const removeItem = vi.spyOn(localStorage, 'removeItem');
+
+    for (const userId of ['', '../x', 'a b']) removeFromWipeMarker(userId);
+
+    // The id rule is checked before the marker is even read.
+    expect(getItem).not.toHaveBeenCalled();
+    expect(setItem).not.toHaveBeenCalled();
+    expect(removeItem).not.toHaveBeenCalled();
+    expect(readWipeMarker()).toEqual([ANA]);
+  });
+
   it('keeps at most 20 ids, without duplicates, dropping the oldest (invalid input)', () => {
     for (let index = 1; index <= 25; index += 1) addToWipeMarker(`user-${String(index)}`);
     addToWipeMarker('user-25');
