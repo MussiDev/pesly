@@ -52,7 +52,8 @@
       "movements": "Movimientos",
       "investments": "Inversiones",
       "more": "Más",
-      "addMovement": "Agregar movimiento"
+      "addMovement": "Agregar movimiento",
+      "cards": "Tarjetas"
     },
     "more": {
       "title": "Más",
@@ -361,6 +362,31 @@
       "currencyRequired": "Elige una moneda.",
       "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
       "amountOutOfRange": "El saldo inicial no puede superar {max} en valor absoluto."
+    }
+  },
+  "creditCards": {
+    "title": "Tarjetas de crédito",
+    "new": "Nueva tarjeta",
+    "list": {
+      "label": "Tus tarjetas de crédito",
+      "days": "Cierra el día {closing} · vence el día {due}",
+      "emptyTitle": "Todavía no hay tarjetas",
+      "emptyDescription": "Agrega una tarjeta para seguir sus resúmenes."
+    },
+    "form": {
+      "title": "Nueva tarjeta de crédito",
+      "name": "Nombre",
+      "nameHint": "Con la tarjeta se crean dos cuentas de tarjeta de crédito, una en ARS y otra en USD.",
+      "closingDay": "Día de cierre",
+      "dueDay": "Día de vencimiento",
+      "dayHint": "Un día del 1 al 31. En los meses más cortos se usa el último día.",
+      "submit": "Crear tarjeta",
+      "pending": "Creando…",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "dayInvalid": "Ingresa un día del 1 al 31.",
+      "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elige otro nombre."
     }
   },
   "movements": {

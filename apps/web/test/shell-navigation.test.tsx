@@ -162,6 +162,9 @@ describe('SideNav (AC-13)', () => {
     expect(nav.getByRole('link', { name: en.app.nav.categories }).getAttribute('href')).toBe(
       '/en/categories',
     );
+    expect(nav.getByRole('link', { name: en.app.nav.cards }).getAttribute('href')).toBe(
+      '/en/cards',
+    );
     expect(nav.getByRole('link', { name: en.app.nav.profile }).getAttribute('href')).toBe(
       '/en/settings/profile',
     );
@@ -307,6 +310,7 @@ describe('MoreMenu (FR-07)', () => {
     expect(main.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       '/en/investments',
       '/en/categories',
+      '/en/cards',
       '/en/settings/profile',
       '/en/settings/security',
     ]);

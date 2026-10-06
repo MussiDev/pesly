@@ -52,7 +52,8 @@
       "movements": "Movements",
       "investments": "Investments",
       "more": "More",
-      "addMovement": "Add movement"
+      "addMovement": "Add movement",
+      "cards": "Cards"
     },
     "more": {
       "title": "More",
@@ -361,6 +362,31 @@
       "currencyRequired": "Choose a currency.",
       "amountInvalid": "Enter a valid amount, for example 1,500.00.",
       "amountOutOfRange": "The opening balance cannot exceed {max} in absolute value."
+    }
+  },
+  "creditCards": {
+    "title": "Credit cards",
+    "new": "New card",
+    "list": {
+      "label": "Your credit cards",
+      "days": "Closes on day {closing} · due on day {due}",
+      "emptyTitle": "No credit cards yet",
+      "emptyDescription": "Add a card to follow its statements."
+    },
+    "form": {
+      "title": "New credit card",
+      "name": "Name",
+      "nameHint": "Two credit card accounts are created with it, one in ARS and one in USD.",
+      "closingDay": "Closing day",
+      "dueDay": "Due day",
+      "dayHint": "A day from 1 to 31. In shorter months the last day is used.",
+      "submit": "Create card",
+      "pending": "Creating…",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "dayInvalid": "Enter a day from 1 to 31.",
+      "nameTaken": "One of the accounts this card needs already exists. Choose another name."
     }
   },
   "movements": {
