@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
@@ -13,6 +13,12 @@ const eslint = new ESLint({
   overrideConfig: { languageOptions: { parserOptions: { projectService: false, project: null } } },
   ruleFilter: ({ ruleId }) => ruleId === 'no-restricted-imports',
 });
+
+// The first lint loads the config and its plugins, which takes several seconds under a full run;
+// paying it here keeps that cost out of whichever test happens to come first.
+beforeAll(async () => {
+  await eslint.lintText('\n', { filePath: `${repoRoot}apps/api/src/warm-up.ts` });
+}, 60_000);
 
 async function restrictedImports(filePath: string, source: string): Promise<string[]> {
   const [result] = await eslint.lintText(source, { filePath: `${repoRoot}${filePath}` });
