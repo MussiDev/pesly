@@ -14,7 +14,7 @@ afterEach(() => {
 });
 
 describe('requestShellWarmup', () => {
-  it('asks the active worker to cache the list and the entry screen of the locale (FR-04)', async () => {
+  it('asks the active worker to cache the list, the entry and the edit screens of the locale (FR-04)', async () => {
     const postMessage = vi.fn();
     setServiceWorker({ ready: Promise.resolve({ active: { postMessage } }) });
 
@@ -24,7 +24,7 @@ describe('requestShellWarmup', () => {
     expect(postMessage).toHaveBeenCalledTimes(1);
     expect(postMessage).toHaveBeenCalledWith({
       type: 'PESLY_CACHE_URLS',
-      urls: ['/es/movements', '/es/movements/new'],
+      urls: ['/es/movements', '/es/movements/new', '/es/movements/edit'],
     });
   });
 
