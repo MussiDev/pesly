@@ -127,6 +127,13 @@
       "when": 1791162359112,
       "tag": "0018_device_write_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791246865297,
+      "tag": "0019_credit_cards",
+      "breakpoints": true
     }
   ]
 }
