@@ -195,7 +195,7 @@ describe('createCardExpenseRequestSchema', () => {
     ['an amount of 0', { amount: '0' }],
     ['a decimal amount', { amount: '15.99' }],
     ['a leading-zero amount', { amount: '015' }],
-    ['a zero-width note', { note: 'Di​nner' }],
+    ['a zero-width note', { note: 'Di\u200bnner' }],
     ['a type key', { type: 'expense' }],
     ['a tags key', { tags: ['a'] }],
   ])('rejects %s as invalid input (FR-01)', (_label, patch) => {
@@ -218,7 +218,7 @@ describe('createCardExpenseRequestSchema', () => {
     const result = createCardExpenseRequestSchema.safeParse({
       ...CARD_EXPENSE,
       amount: '99.99',
-      note: 'secret​note',
+      note: 'secret\u200bnote',
     });
     expect(result.success).toBe(false);
     if (result.success) return;
