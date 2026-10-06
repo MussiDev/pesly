@@ -3,6 +3,7 @@ import { accountResponseSchema } from '@pesly/shared';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { AccountLinks } from '../../src/accounts/application/ports/account-links';
 import type { AccountMovements } from '../../src/accounts/application/ports/account-movements';
 import { createAccountRoutes } from '../../src/accounts';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
@@ -60,7 +61,7 @@ interface Setup {
   lines: string[];
 }
 
-async function setup(movements?: AccountMovements): Promise<Setup> {
+async function setup(movements?: AccountMovements, links?: AccountLinks): Promise<Setup> {
   const lines: string[] = [];
   const logger = createLogger({
     level: 'debug',
@@ -70,6 +71,7 @@ async function setup(movements?: AccountMovements): Promise<Setup> {
     db: connection.db,
     logger,
     ...(movements ? { movements } : {}),
+    ...(links ? { links } : {}),
   });
   const harness = createIdentityHarness(connection, {
     realSessions: true,
@@ -392,6 +394,28 @@ describe('DELETE /accounts/:id', () => {
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ code: 'ACCOUNT_HAS_MOVEMENTS' });
     expect((await get(s.app, `/accounts/${id}`, s.ana)).status).toBe(200);
+  });
+
+  it('answers 409 ACCOUNT_LINKED_TO_CARD for a linked account and keeps it (sad path, FR-02)', async () => {
+    const s = await setup(undefined, { isLinked: () => Promise.resolve(true) });
+    const id = await create(s);
+    const response = await send(s.app, 'delete', `/accounts/${id}`, s.ana);
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_CARD' });
+    expect((await get(s.app, `/accounts/${id}`, s.ana)).status).toBe(200);
+  });
+
+  it('maps the card key violation to ACCOUNT_LINKED_TO_CARD when the guard is bypassed (sad path)', async () => {
+    const s = await setup();
+    const ars = await create(s);
+    const usd = await create(s, { name: 'Linked USD', currency: 'USD' });
+    await connection.pool.query(
+      'insert into credit_cards (owner_id, name, closing_day, due_day, ars_account_id, usd_account_id) values ($1, $2, 24, 5, $3, $4)',
+      [s.anaId, 'Linked', ars, usd],
+    );
+    const response = await send(s.app, 'delete', `/accounts/${ars}`, s.ana);
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_CARD' });
   });
 
   it("answers 404, never 409, for another user's account that has movements", async () => {

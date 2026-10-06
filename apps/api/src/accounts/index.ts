@@ -2,6 +2,7 @@ export * from './domain/account';
 export * from './domain/errors';
 export * from './application/ports/account-repository';
 export * from './application/ports/account-movements';
+export * from './application/ports/account-links';
 export * from './application/create-account';
 export * from './application/get-account';
 export * from './application/list-accounts';

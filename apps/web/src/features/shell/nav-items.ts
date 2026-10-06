@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  CreditCard,
   Ellipsis,
   House,
   Landmark,
@@ -18,6 +19,7 @@ export type NavLabelKey =
   | 'investments'
   | 'more'
   | 'categories'
+  | 'cards'
   | 'profile'
   | 'security';
 
@@ -53,6 +55,7 @@ export const PRIMARY_ITEMS: readonly NavItem[] = [
 /** What "More" holds on small screens and the top navigation shows directly. */
 export const SECONDARY_ITEMS: readonly NavItem[] = [
   { href: '/categories', labelKey: 'categories', icon: Tags },
+  { href: '/cards', labelKey: 'cards', icon: CreditCard },
   { href: '/settings/profile', labelKey: 'profile', icon: UserRound },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
 ];

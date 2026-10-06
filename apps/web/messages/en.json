@@ -72,7 +72,8 @@
       "movements": "Movements",
       "investments": "Investments",
       "more": "More",
-      "addMovement": "Add movement"
+      "addMovement": "Add movement",
+      "cards": "Cards"
     },
     "more": {
       "title": "More",
@@ -332,6 +333,9 @@
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
+    "accountLinkedToCard": "This account belongs to a credit card, so it cannot be deleted on its own. Delete the card instead.",
+    "cardHasMovements": "The accounts of this card have movements, so the card cannot be deleted.",
+    "statementClosed": "This statement is already closed, so its dates can no longer change.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
     "offlineSaveFailed": "We could not save this movement on your device. Check that it has free space and try again.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
@@ -407,6 +411,53 @@
       "currencyRequired": "Choose a currency.",
       "amountInvalid": "Enter a valid amount, for example 1,500.00.",
       "amountOutOfRange": "The opening balance cannot exceed {max} in absolute value."
+    }
+  },
+  "creditCards": {
+    "title": "Credit cards",
+    "new": "New card",
+    "list": {
+      "label": "Your credit cards",
+      "days": "Closes on day {closing} · due on day {due}",
+      "emptyTitle": "No credit cards yet",
+      "emptyDescription": "Add a card to follow its statements."
+    },
+    "form": {
+      "title": "New credit card",
+      "name": "Name",
+      "nameHint": "Two credit card accounts are created with it, one in ARS and one in USD.",
+      "closingDay": "Closing day",
+      "dueDay": "Due day",
+      "dayHint": "A day from 1 to 31. In shorter months the last day is used.",
+      "submit": "Create card",
+      "pending": "Creating…",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "dayInvalid": "Enter a day from 1 to 31.",
+      "nameTaken": "One of the accounts this card needs already exists. Choose another name."
+    },
+    "detail": {
+      "back": "All cards",
+      "days": "Default days",
+      "daysHint": "Changing a day also moves the dates of the open statements.",
+      "saveDays": "Save days",
+      "statements": "Statements",
+      "closes": "Closes {date}",
+      "due": "Due {date}",
+      "open": "Open",
+      "closed": "Closed",
+      "edit": "Edit dates",
+      "closingDate": "Closing date",
+      "dueDate": "Due date",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete card",
+      "confirmDelete": "Delete {name}, its statements and its two accounts?",
+      "confirm": "Delete",
+      "notFound": "This card does not exist or was deleted.",
+      "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
+      "daysConflict": "With that closing day the open statement would close before the previous one."
     }
   },
   "movements": {

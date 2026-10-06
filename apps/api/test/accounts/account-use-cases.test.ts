@@ -3,6 +3,7 @@ import { MINOR_UNITS_MAX, sumMinorUnits } from '@pesly/shared';
 import {
   AccountHasMovements,
   AccountArchived,
+  AccountLinkedToCard,
   AccountNameTaken,
   CreateAccount,
   CreditCardSettingLocked,
@@ -16,6 +17,7 @@ import {
 import { balanceOf } from '../../src/accounts/domain/account';
 import { ResourceNotFound } from '../../src/shared/access';
 import {
+  FakeAccountLinks,
   FakeAccountMovements,
   InMemoryAccountRepository,
   readScopeFor,
@@ -27,6 +29,7 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 let accounts: InMemoryAccountRepository;
 let movements: FakeAccountMovements;
+let links: FakeAccountLinks;
 let createAccount: CreateAccount;
 let getAccount: GetAccount;
 let listAccounts: ListAccounts;
@@ -40,7 +43,8 @@ const defaultList = { archived: false, limit: 50, offset: 0 };
 beforeEach(() => {
   accounts = new InMemoryAccountRepository();
   movements = new FakeAccountMovements();
-  const deps = { accounts, movements };
+  links = new FakeAccountLinks();
+  const deps = { accounts, movements, links };
   createAccount = new CreateAccount(deps);
   getAccount = new GetAccount(deps);
   listAccounts = new ListAccounts(deps);
@@ -205,6 +209,32 @@ describe('delete', () => {
     expect(error).not.toBeInstanceOf(AccountHasMovements);
     expect(spy).not.toHaveBeenCalled();
     expect(accounts.rows.has(theirs.id)).toBe(true);
+  });
+
+  it('fails with AccountLinkedToCard for an account linked to a card, and the row stays (sad path, FR-02)', async () => {
+    const account = await create(ALICE, 'Visa ARS');
+    links.linked.add(account.id);
+    const spy = vi.spyOn(movements, 'hasMovements');
+    const error = await deleteAccount
+      .execute(await writeScopeFor(ALICE), account.id)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountLinkedToCard);
+    expect(error).toMatchObject({ code: 'ACCOUNT_LINKED_TO_CARD' });
+    expect(spy).not.toHaveBeenCalled();
+    expect(accounts.rows.has(account.id)).toBe(true);
+  });
+
+  it('still renames and archives an account linked to a card (FR-02, D2)', async () => {
+    const account = await create(ALICE, 'Visa ARS');
+    links.linked.add(account.id);
+    const renamed = await renameAccount.execute(
+      await writeScopeFor(ALICE),
+      account.id,
+      'Visa pesos',
+    );
+    expect(renamed.name).toBe('Visa pesos');
+    const archived = await setArchived.execute(await writeScopeFor(ALICE), account.id, true);
+    expect(archived.archivedAt).not.toBeNull();
   });
 
   it('lets a repository foreign-key violation surface as AccountHasMovements', async () => {

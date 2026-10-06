@@ -72,7 +72,8 @@
       "movements": "Movimientos",
       "investments": "Inversiones",
       "more": "Más",
-      "addMovement": "Agregar movimiento"
+      "addMovement": "Agregar movimiento",
+      "cards": "Tarjetas"
     },
     "more": {
       "title": "Más",
@@ -332,6 +333,9 @@
     "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
     "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
+    "accountLinkedToCard": "Esta cuenta pertenece a una tarjeta de crédito, por eso no se puede eliminar sola. Elimina la tarjeta en su lugar.",
+    "cardHasMovements": "Las cuentas de esta tarjeta tienen movimientos, por eso la tarjeta no se puede eliminar.",
+    "statementClosed": "Este resumen ya cerró, por eso sus fechas ya no pueden cambiar.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
     "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
@@ -407,6 +411,53 @@
       "currencyRequired": "Elige una moneda.",
       "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
       "amountOutOfRange": "El saldo inicial no puede superar {max} en valor absoluto."
+    }
+  },
+  "creditCards": {
+    "title": "Tarjetas de crédito",
+    "new": "Nueva tarjeta",
+    "list": {
+      "label": "Tus tarjetas de crédito",
+      "days": "Cierra el día {closing} · vence el día {due}",
+      "emptyTitle": "Todavía no hay tarjetas",
+      "emptyDescription": "Agrega una tarjeta para seguir sus resúmenes."
+    },
+    "form": {
+      "title": "Nueva tarjeta de crédito",
+      "name": "Nombre",
+      "nameHint": "Con la tarjeta se crean dos cuentas de tarjeta de crédito, una en ARS y otra en USD.",
+      "closingDay": "Día de cierre",
+      "dueDay": "Día de vencimiento",
+      "dayHint": "Un día del 1 al 31. En los meses más cortos se usa el último día.",
+      "submit": "Crear tarjeta",
+      "pending": "Creando…",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "dayInvalid": "Ingresa un día del 1 al 31.",
+      "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elige otro nombre."
+    },
+    "detail": {
+      "back": "Todas las tarjetas",
+      "days": "Días predeterminados",
+      "daysHint": "Cambiar un día también mueve las fechas de los resúmenes abiertos.",
+      "saveDays": "Guardar días",
+      "statements": "Resúmenes",
+      "closes": "Cierra el {date}",
+      "due": "Vence el {date}",
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "edit": "Editar fechas",
+      "closingDate": "Fecha de cierre",
+      "dueDate": "Fecha de vencimiento",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar tarjeta",
+      "confirmDelete": "¿Eliminar {name}, sus resúmenes y sus dos cuentas?",
+      "confirm": "Eliminar",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
+      "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior."
     }
   },
   "movements": {

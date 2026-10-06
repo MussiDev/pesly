@@ -14,6 +14,13 @@ export class AccountHasMovements extends AppError {
   }
 }
 
+/** The account is one of the two linked accounts of a credit card; deleting the card removes it. */
+export class AccountLinkedToCard extends AppError {
+  constructor() {
+    super('ACCOUNT_LINKED_TO_CARD');
+  }
+}
+
 /** A credit card is never part of the available total, so its setting cannot be changed. */
 export class CreditCardSettingLocked extends AppError {
   constructor() {

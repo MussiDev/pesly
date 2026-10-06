@@ -6,7 +6,12 @@ import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0015_price_snapshots';
 // Journal-newer migrations go first: the migrator only replays what is newer than the last recorded.
-const NEWER_TAGS = ['0016_transfers_exchanges', '0017_tags', '0018_device_write_limit'];
+const NEWER_TAGS = [
+  '0016_transfers_exchanges',
+  '0017_tags',
+  '0018_device_write_limit',
+  '0019_credit_cards',
+];
 const PRICE_TABLES = [
   'crypto_market_prices',
   'crypto_price_refresh_failures',
