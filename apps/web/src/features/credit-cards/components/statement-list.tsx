@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ListRow } from '@/components/ui/list-row';
+import type { Locale } from '@/i18n/routing';
+import { formatMoney } from '@/lib/format-amount';
 import { formatCalendarDate, formatPeriod } from '../format-dates';
 import { StatementDatesForm, type StatementDatesValues } from './statement-dates-form';
 
@@ -27,7 +29,7 @@ export function StatementList({
   onSave,
 }: StatementListProps) {
   const t = useTranslations('creditCards.detail');
-  const locale = useLocale();
+  const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
 
   return (
     <ul className="divide-y rounded-xl border bg-card px-3">
@@ -45,6 +47,24 @@ export function StatementList({
                   </span>
                   <span aria-hidden="true"> · </span>
                   <span>{t('due', { date: formatCalendarDate(statement.dueDate, locale) })}</span>
+                  <span className="mt-1 flex flex-wrap gap-x-4">
+                    {(['ARS', 'USD'] as const).map((currency) => {
+                      const amount = formatMoney(
+                        BigInt(statement.totals[currency]),
+                        currency,
+                        locale,
+                      );
+                      return (
+                        <span
+                          key={currency}
+                          className="whitespace-nowrap tabular-nums"
+                          aria-label={t(currency === 'ARS' ? 'totalArs' : 'totalUsd', { amount })}
+                        >
+                          {amount}
+                        </span>
+                      );
+                    })}
+                  </span>
                 </>
               }
               trailing={
