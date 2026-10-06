@@ -11,8 +11,8 @@
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
 | DISC-001-04a | Local Store, App Shell and Reference Cache | prd-DISC-001-04a.md | PRD 01, 02 and 03 (all merged) | done: branch `feat/DISC-001-04a-local-store-app-shell`, no migration; must ship together with 04d, because the copy on the device is not wiped on sign-out until then (threat R-03); next: 04b |
-| DISC-001-04b | Offline Entry and Sync of New Movements | prd-DISC-001-04b.md | depends on a | pending |
-| DISC-001-04c | Offline Edit and Delete, Sync States, Failures and Retries | prd-DISC-001-04c.md | depends on a and b; DISC-001-03e is merged (#27), so editing and deleting exist | pending |
+| DISC-001-04b | Offline Entry and Sync of New Movements | prd-DISC-001-04b.md | depends on a | done: branch `feat/DISC-001-04b-offline-entry-sync` (on top of 04a, merged), migration 0018 (journal `when` 1791162359112, above main's maximum on 2026-10-06; check it again at merge); must NOT be merged or released alone: a movement the server refuses stays queued and unseen until 04c, so it ships with 04c, and 04a still waits for 04d (threat R-03, R-08); a dry-run merge of `main` (22 commits ahead, FEAT-005) was clean; next: 04c |
+| DISC-001-04c | Offline Edit and Delete, Sync States, Failures and Retries | prd-DISC-001-04c.md | depends on a and b; DISC-001-03e is merged (#27), so editing and deleting exist | active |
 | DISC-001-04d | Session, Sign Out and Local Data | prd-DISC-001-04d.md | depends on a and b | pending |
 | DISC-001-04e | Conflicts on Group Movements | prd-DISC-001-04e.md | depends on c; blocked by PRD 05 (Groups & Expense Splitting), which is not built | blocked — needs PRD 05 |
 

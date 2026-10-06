@@ -222,6 +222,19 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-04a Persistent storage is requested after sign-in and the user is warned, in Spanish
   and English, when the browser denies it. The copy on the device is not wiped on sign-out yet;
   that comes with DISC-001-04d. No migration.
+- DISC-001-04b Movements can be saved without a connection: expenses, income, transfers and currency
+  exchanges go to a durable queue in the per-user IndexedDB, with a UUID chosen on the device, and
+  show in the movement list with a "Pending" badge, in Spanish and English. An expense or income
+  saved offline freezes the rate on screen as a manual rate, and asks for one when the device has
+  none stored.
+- DISC-001-04b The queue is sent on its own when the app starts online, when the connection returns
+  and when a save gets no answer: up to 4 requests at a time, one pass at a time across tabs, a
+  retry after `Retry-After` when the limit is reached, and a movement the server refuses is kept in
+  the queue instead of lost (it is shown by DISC-001-04c, so 04b ships with 04c).
+- DISC-001-04b `POST /movements` accepts an optional `id`: the same user sending an id that exists
+  gets the stored movement back (200) and no second row, an id of another user answers 404, and
+  creations with an id have their own limit of 600 per minute. Migration 0018 adds the limit
+  bucket to `movement_rate_limits`, with a rollback script.
 
 ### Changed
 
