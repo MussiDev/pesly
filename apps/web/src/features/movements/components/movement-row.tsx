@@ -1,7 +1,7 @@
 'use client';
 
 import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
-import { Pencil, Trash2 } from 'lucide-react';
+import { CloudCheck, Pencil, RotateCw, Trash2, Undo2 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ import { MovementAvatar } from './movement-avatar';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatRate } from '../format-rate';
+import { failureMessageKey } from '../sync-failure';
+import type { SyncFailure, SyncState } from '../sync-overlay';
 
 /** What a row offers to do with its movement; absent, the row only shows it. */
 export interface MovementRowActions {
@@ -22,6 +24,10 @@ export interface MovementRowActions {
   onAskDelete: () => void;
   onConfirmDelete: () => void;
   onCancelDelete: () => void;
+  /** Offered on a failed change: send it again. */
+  onRetry?: () => void;
+  /** Offered on a failed change: drop it from the device. */
+  onDiscard?: () => void;
 }
 
 export interface MovementRowProps {
@@ -38,8 +44,10 @@ export interface MovementRowProps {
   destinationCurrency: string | undefined;
   timeZone: string;
   actions?: MovementRowActions;
-  /** Kept on this device and not sent yet: the row says so. */
-  pending?: boolean;
+  /** Where the movement stands against the server; absent, no marker shows. */
+  syncState?: SyncState;
+  /** Why the server refused its change, when `syncState` is `failed`. */
+  failure?: SyncFailure;
 }
 
 /** ISO 4217's "no currency" code: it formats the amount with a neutral sign. */
@@ -100,9 +108,12 @@ export function MovementRow({
   destinationCurrency,
   timeZone,
   actions,
-  pending = false,
+  syncState,
+  failure,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
+  const tSync = useTranslations('movements.sync');
+  const tErrors = useTranslations('errors');
   const tActions = useTranslations('movements.list.actions');
   const tTypes = useTranslations('movements.types');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
@@ -175,9 +186,37 @@ export function MovementRow({
           )
         }
       />
-      {pending ? (
+      {syncState === 'synced' ? (
+        <div className="flex px-1">
+          <span
+            role="img"
+            aria-label={t('synced')}
+            className="text-muted-foreground [&>svg]:size-4"
+          >
+            <CloudCheck aria-hidden />
+          </span>
+        </div>
+      ) : syncState === 'pending' ? (
         <div className="px-1">
           <Badge variant="warning">{t('pending')}</Badge>
+        </div>
+      ) : syncState === 'failed' ? (
+        <div className="grid gap-1 px-1">
+          <div>
+            <Badge variant="destructive">{t('failed')}</Badge>
+          </div>
+          {failure === undefined ? null : (
+            <p className="text-small text-destructive">
+              {failureMessageKey(failure) === 'deletedElsewhere'
+                ? tSync('deletedElsewhere')
+                : tErrors(
+                    failureMessageKey(failure) as Exclude<
+                      ReturnType<typeof failureMessageKey>,
+                      'deletedElsewhere'
+                    >,
+                  )}
+            </p>
+          )}
         </div>
       ) : null}
       {movement.note === null ? null : (
@@ -224,23 +263,46 @@ export function MovementRow({
         </div>
       ) : (
         <div className="-mt-2 flex justify-end">
-          <Link
-            href={`/movements/${movement.id}/edit`}
-            title={tActions('edit')}
-            className={buttonVariants({ size: 'icon', variant: 'ghost' })}
-          >
-            <Pencil aria-hidden />
-            <span className="sr-only">
-              {tActions('edit')} {title}
-            </span>
-          </Link>
-          <IconAction
-            label={tActions('delete')}
-            subject={title}
-            icon={<Trash2 aria-hidden />}
-            disabled={actions.pending}
-            onClick={actions.onAskDelete}
-          />
+          {syncState === 'failed' && actions.onRetry !== undefined ? (
+            <IconAction
+              label={tActions('retry')}
+              subject={title}
+              icon={<RotateCw aria-hidden />}
+              disabled={actions.pending}
+              onClick={actions.onRetry}
+            />
+          ) : null}
+          {syncState === 'failed' && actions.onDiscard !== undefined ? (
+            <IconAction
+              label={tActions('discard')}
+              subject={title}
+              icon={<Undo2 aria-hidden />}
+              disabled={actions.pending}
+              onClick={actions.onDiscard}
+            />
+          ) : null}
+          {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
+          {failure?.operation === 'delete' ? null : (
+            <>
+              <Link
+                href={`/movements/edit?id=${movement.id}`}
+                title={tActions('edit')}
+                className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+              >
+                <Pencil aria-hidden />
+                <span className="sr-only">
+                  {tActions('edit')} {title}
+                </span>
+              </Link>
+              <IconAction
+                label={tActions('delete')}
+                subject={title}
+                icon={<Trash2 aria-hidden />}
+                disabled={actions.pending}
+                onClick={actions.onAskDelete}
+              />
+            </>
+          )}
         </div>
       )}
     </li>

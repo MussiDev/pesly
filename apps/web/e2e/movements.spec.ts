@@ -642,7 +642,7 @@ test('edits an expense from the list, the balance follows, and deletes it after 
   await page
     .getByRole('link', { name: `${t.list.actions.edit} ${EXPENSE_CATEGORY}`, exact: true })
     .click();
-  await expect(page).toHaveURL(/\/es\/movements\/[0-9a-f-]{36}\/edit$/);
+  await expect(page).toHaveURL(/\/es\/movements\/edit\?id=[0-9a-f-]{36}$/);
   await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveValue('100,00');
   await expect(page.getByLabel(t.fields.type, { exact: true })).toBeDisabled();
   await page.getByLabel(t.fields.amount, { exact: true }).fill('40,00');

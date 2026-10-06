@@ -20,6 +20,8 @@ export interface AuthenticatedShellProps {
   signOutError: ApiErrorKey | undefined;
   onRetry: () => void;
   onSignOut: () => void;
+  /** What waits to be synced, shown above the page once the shell is ready. */
+  syncStatus?: ReactNode;
   children: ReactNode;
 }
 
@@ -31,6 +33,7 @@ export function AuthenticatedShell({
   signOutError,
   onRetry,
   onSignOut,
+  syncStatus,
   children,
 }: AuthenticatedShellProps) {
   const t = useTranslations('app');
@@ -87,6 +90,7 @@ export function AuthenticatedShell({
                 <SignOutAlert error={signOutError} />
               </div>
             ) : null}
+            {syncStatus}
             {children}
           </>
         )}

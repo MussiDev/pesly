@@ -145,7 +145,7 @@ async function queued() {
   const store = await openLocalStore(ANA);
   const items = await loadQueue(store);
   store.close();
-  return items;
+  return items.filter((item) => item.operation === 'create');
 }
 
 function setOnline(online: boolean): void {

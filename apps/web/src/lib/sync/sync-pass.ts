@@ -26,10 +26,11 @@ export interface SyncPassOutcome {
 export interface SyncPassOptions {
   /** The queue, oldest first; the ones already flagged as rejected are skipped. */
   items: readonly QueuedMovement[];
-  send: (request: QueuedMovement['request']) => Promise<ApiResult<unknown>>;
-  /** The server has the movement, so the queue can drop it. */
-  onSent: (id: string) => void | Promise<void>;
-  /** The server refused this movement: flag it, do not delete it. */
+  /** Sends one queued change (a create, an edit or a delete) to the API. */
+  send: (item: QueuedMovement) => Promise<ApiResult<unknown>>;
+  /** The server has the change, with its answer, so the queue can settle it. */
+  onSent: (id: string, data: unknown) => void | Promise<void>;
+  /** The server refused this change: flag it, do not delete it. */
   onRejected: (id: string, code: string) => void | Promise<void>;
   concurrency?: number;
 }
@@ -70,7 +71,7 @@ export async function runSyncPass({
 
       let result: Awaited<ReturnType<typeof send>>;
       try {
-        result = await send(item.request);
+        result = await send(item);
       } catch {
         // A request that throws never got an answer: the same as no connection.
         result = { ok: false, code: 'NETWORK', messageKey: 'network' };
@@ -79,7 +80,7 @@ export async function runSyncPass({
       if (result.ok) {
         outcome.sent += 1;
         try {
-          await onSent(item.id);
+          await onSent(item.id, result.data);
         } catch {
           // Left in the queue, the movement is sent again and the server answers it as a repeat.
         }
