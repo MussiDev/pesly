@@ -8,6 +8,8 @@ const PASSWORD = 'correct horse battery staple';
 const es = catalogs.es;
 const t = es.creditCards;
 
+test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
+
 /** A fresh address per test: the e2e database and the Mailpit inbox persist across runs. */
 function uniqueEmail(label: string): string {
   return `${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@e2e.argent.test`;
