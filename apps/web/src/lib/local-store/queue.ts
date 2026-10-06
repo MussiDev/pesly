@@ -380,6 +380,55 @@ export function queuedToMovement(
   };
 }
 
+/**
+ * What the list shows for any queued change: a create as `queuedToMovement` builds it, an edit as
+ * its base with the edited fields over it, and a delete as its base. An edit's rate is the base's
+ * for `keep`, the typed one for `manual`, and empty for `automatic` until the server freezes it;
+ * an omitted note or tags read as cleared, as `PUT` does. A request whose type differs from its
+ * base shows the base: the server will refuse it and the reason will show.
+ */
+export function changeToMovement(
+  record: QueuedMovement,
+  currencies?: ReadonlyMap<string, string>,
+): MovementResponse {
+  if (record.operation === 'create') return queuedToMovement(record, currencies);
+  if (record.operation === 'delete') return record.base;
+  const { base, request } = record;
+  if (request.type !== base.type) return base;
+  const common = {
+    ...base,
+    accountId: request.accountId,
+    amount: request.amount,
+    occurredAt: request.occurredAt,
+    note: request.note ?? null,
+  };
+  if (request.type === 'transfer') {
+    return {
+      ...common,
+      destinationAccountId: request.destinationAccountId,
+      destinationAmount: request.amount,
+    };
+  }
+  if (request.type === 'exchange') {
+    return {
+      ...common,
+      destinationAccountId: request.destinationAccountId,
+      destinationAmount: request.destinationAmount,
+      rate: impliedRateOf(request, currencies),
+      rateSource: 'implied',
+    };
+  }
+  const rate =
+    request.rate.source === 'keep'
+      ? { rate: base.rate, rateSource: base.rateSource, rateType: base.rateType }
+      : {
+          rate: request.rate.source === 'manual' ? request.rate.value : null,
+          rateSource: request.rate.source,
+          rateType: null,
+        };
+  return { ...common, categoryId: request.categoryId, tags: request.tags ?? [], ...rate };
+}
+
 function impliedRateOf(
   request: Pick<
     Extract<CreateMovementRequest, { type: 'exchange' }>,
