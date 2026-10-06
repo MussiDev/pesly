@@ -1,34 +1,29 @@
-import { firstOpenPeriod, statementDatesFor } from '@pesly/shared';
 import { notFoundUnlessAllowed, type AccessScope } from '../../shared/access';
-import type { StatementDraft, StatementView } from '../domain/credit-card';
-import { missingStatements } from '../domain/statement-schedule';
-import { todayOf, withStatus, type CreditCardDependencies } from './dependencies';
+import type { StatementView } from '../domain/credit-card';
+import { statementTotals } from '../domain/statement-assignment';
+import { withStatus, zoneAndToday, type CreditCardDependencies } from './dependencies';
+import { ensureStatements } from './ensure-statements';
 
 export class ListStatements {
   constructor(
-    private readonly deps: Pick<CreditCardDependencies, 'cards' | 'timeZones' | 'clock'>,
+    private readonly deps: Pick<
+      CreditCardDependencies,
+      'cards' | 'timeZones' | 'clock' | 'purchases'
+    >,
   ) {}
 
   /**
-   * The statements of the card, newest first. Missing cycles up to the one open today are created
-   * first (user decision D6), which is why reading them takes a write scope.
+   * The statements of the card, newest first, with the totals of their purchases (FR-03). Missing
+   * cycles up to the one open today are created first, which is why reading them takes a write scope.
    */
   async execute(scope: AccessScope<'write'>, cardId: string): Promise<StatementView[]> {
     const card = notFoundUnlessAllowed(await this.deps.cards.findById(scope, cardId));
-    const today = await todayOf(this.deps, scope.userId);
-    let statements = await this.deps.cards.listStatements(scope, cardId);
-    const latest = statements.at(-1);
-    let drafts: StatementDraft[];
-    if (latest) {
-      drafts = missingStatements(latest, card, today);
-    } else {
-      const period = firstOpenPeriod(today, card.closingDay);
-      drafts = [{ period, ...statementDatesFor(period, card.closingDay, card.dueDay) }];
-    }
-    if (drafts.length > 0) {
-      await this.deps.cards.insertStatements(scope, cardId, drafts);
-      statements = await this.deps.cards.listStatements(scope, cardId);
-    }
-    return statements.map((statement) => withStatus(statement, today)).reverse();
+    const { timeZone, today } = await zoneAndToday(this.deps, scope.userId);
+    const statements = await ensureStatements(this.deps.cards, scope, card, today);
+    const daily = await this.deps.purchases.dailyPurchases(scope, card, timeZone);
+    const totals = statementTotals(statements, daily);
+    return statements
+      .map((statement) => withStatus(statement, today, totals.get(statement.id)))
+      .reverse();
   }
 }

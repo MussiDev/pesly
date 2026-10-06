@@ -1,4 +1,5 @@
 import { LINKED_ACCOUNT_SUFFIXES, type StatementStatus } from '@pesly/shared';
+import type { StatementTotals } from './statement-assignment';
 
 export interface CreditCard {
   id: string;
@@ -22,9 +23,10 @@ export interface Statement extends StatementDraft {
   cardId: string;
 }
 
-/** A statement with its status, computed on read from the user's today (FR-07). */
+/** A statement with its status (FR-07) and the totals of its purchases (FR-03), both derived on read. */
 export interface StatementView extends Statement {
   status: StatementStatus;
+  totals: StatementTotals;
 }
 
 /** "<card name> ARS" and "<card name> USD" (FR-02). */

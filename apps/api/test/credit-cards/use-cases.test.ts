@@ -16,7 +16,9 @@ import {
 import { ResourceNotFound } from '../../src/shared/access';
 import {
   FakeActivity,
+  FakeCardPurchases,
   FakeClock,
+  FakeExpenseRecorder,
   FakeTimeZones,
   InMemoryCreditCards,
   readScopeFor,
@@ -31,9 +33,12 @@ function setup(now = '2026-10-06T12:00:00.000Z') {
   const activity = new FakeActivity();
   const timeZones = new FakeTimeZones();
   const clock = new FakeClock(new Date(now));
-  const deps = { cards, activity, timeZones, clock };
+  const expenses = new FakeExpenseRecorder(clock);
+  const purchases = new FakeCardPurchases(expenses);
+  const deps = { cards, activity, timeZones, clock, purchases, expenses };
   return {
     cards,
+    expenses,
     activity,
     clock,
     create: new CreateCreditCard(deps),
@@ -62,6 +67,7 @@ describe('CreateCreditCard', () => {
         closingDate: '2026-10-24',
         dueDate: '2026-11-05',
         status: 'open',
+        totals: { ARS: 0n, USD: 0n },
       }),
     ]);
   });
@@ -159,7 +165,36 @@ describe('UpdateStatementDates', () => {
       closingDate: '2026-10-26',
       dueDate: '2026-11-05',
       status: 'open',
+      totals: { ARS: 0n, USD: 0n },
     });
+  });
+
+  it('answers the totals of the purchases assigned after the move (AC-04, AC-05)', async () => {
+    const { app, card, october } = await withCard('2026-10-25T15:00:00.000Z');
+    // The 24th has passed: record through the fake, then read the totals of the stored cycles.
+    app.expenses.expenses.push({
+      ownerId: ANA,
+      id: 'e1',
+      accountId: card.arsAccountId,
+      categoryId: 'c',
+      amount: 700n,
+      occurredAt: new Date('2026-10-25T15:00:00.000Z'),
+      rate: { source: 'automatic' },
+    });
+    const november = (await app.statements.execute(await writeScopeFor(ANA), card.id)).find(
+      (s) => s.period === '2026-11',
+    );
+    if (!november) throw new Error('no november');
+
+    const updated = await app.updateStatement.execute(
+      await writeScopeFor(ANA),
+      card.id,
+      november.id,
+      { dueDate: '2026-12-07' },
+    );
+
+    expect(october.totals).toEqual({ ARS: 0n, USD: 0n });
+    expect(updated.totals).toEqual({ ARS: 700n, USD: 0n });
   });
 
   it('refuses to change a closed statement (sad path, AC-07)', async () => {
