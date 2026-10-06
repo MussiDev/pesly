@@ -235,6 +235,18 @@ All notable changes to this project are documented in this file. The format foll
   gets the stored movement back (200) and no second row, an id of another user answers 404, and
   creations with an id have their own limit of 600 per minute. Migration 0018 adds the limit
   bucket to `movement_rate_limits`, with a rollback script.
+- DISC-001-04c Movements can be edited and deleted without a connection: the change is applied on
+  the device at once and queued, one record per movement, so later changes fold into it; online, a
+  change that gets no answer falls back to the queue. The edit screen moved to
+  `/movements/edit?id=`, so one cached page serves every movement offline; the old path still works.
+- DISC-001-04c Every movement in the list shows its sync state (synced, pending or not synced), and
+  the shell shows how many changes wait to be synced and how many did not sync, in Spanish and
+  English. A change the server refuses shows the reason, including a movement deleted on another
+  device, and can be edited and retried, retried as it is, or discarded.
+- DISC-001-04c Queued edits are sent with `PUT` and deletions with `DELETE` (a deletion answered 404
+  counts as done); the server keeps the change it receives last, and the device copy takes the
+  server's answer. Network and server failures are retried with exponential backoff from 5 s,
+  doubling, capped at 5 minutes. No API change, no migration.
 
 ### Changed
 
