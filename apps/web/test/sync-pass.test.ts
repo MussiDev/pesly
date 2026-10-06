@@ -10,6 +10,8 @@ const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(
 
 function queued(n: number, rejection?: string): QueuedMovement {
   return {
+    operation: 'create',
+    revision: 1,
     id: id(n),
     createdAt: new Date(Date.UTC(2026, 9, 2, 12, 0, 0, n)).toISOString(),
     request: {

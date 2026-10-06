@@ -1,5 +1,5 @@
 import type { ApiResult } from '@/lib/api-client';
-import type { QueuedMovement } from '@/lib/local-store/queue';
+import type { QueuedCreate, QueuedMovement } from '@/lib/local-store/queue';
 
 /** How many movements are sent at the same time: enough for a long queue, gentle on the API. */
 export const SYNC_CONCURRENCY = 4;
@@ -26,7 +26,7 @@ export interface SyncPassOutcome {
 export interface SyncPassOptions {
   /** The queue, oldest first; the ones already flagged as rejected are skipped. */
   items: readonly QueuedMovement[];
-  send: (request: QueuedMovement['request']) => Promise<ApiResult<unknown>>;
+  send: (request: QueuedCreate['request']) => Promise<ApiResult<unknown>>;
   /** The server has the movement, so the queue can drop it. */
   onSent: (id: string) => void | Promise<void>;
   /** The server refused this movement: flag it, do not delete it. */
@@ -56,7 +56,9 @@ export async function runSyncPass({
   onRejected,
   concurrency = SYNC_CONCURRENCY,
 }: SyncPassOptions): Promise<SyncPassOutcome> {
-  const pending = items.filter((item) => item.rejection === undefined);
+  const pending = items.filter(
+    (item): item is QueuedCreate => item.operation === 'create' && item.rejection === undefined,
+  );
   const outcome: SyncPassOutcome = { sent: 0, rejected: 0 };
   let next = 0;
   // A function, not the property: TypeScript would narrow `stopped` to `undefined` across the awaits.

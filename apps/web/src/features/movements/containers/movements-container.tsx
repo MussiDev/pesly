@@ -21,7 +21,7 @@ import {
   readReferenceCopy,
   writeRecentMovementsCopy,
 } from '@/lib/local-store/device-copy';
-import { queuedToMovement, type QueuedMovement } from '@/lib/local-store/queue';
+import { queuedToMovement, type QueuedCreate } from '@/lib/local-store/queue';
 import { readSessionPointer } from '@/lib/local-store/session-pointer';
 import { onSyncFinished } from '@/lib/sync/sync-events';
 import {
@@ -147,7 +147,7 @@ export function MovementsContainer() {
   const [list, setList] = useState<ListState>({ kind: 'loading' });
   const [listAttempt, setListAttempt] = useState(0);
   // What was saved on this device and has not been sent: shown next to the list as pending.
-  const [queue, setQueue] = useState<QueuedMovement[]>([]);
+  const [queue, setQueue] = useState<QueuedCreate[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<ErrorMessageKey | undefined>();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
@@ -192,7 +192,14 @@ export function MovementsContainer() {
     if (list.kind !== 'ready') return;
     let live = true;
     void readQueuedMovements(readSessionPointer()?.userId).then((items) => {
-      if (live) setQueue(items.filter((item) => item.rejection === undefined));
+      if (live) {
+        setQueue(
+          items.filter(
+            (item): item is QueuedCreate =>
+              item.operation === 'create' && item.rejection === undefined,
+          ),
+        );
+      }
     });
     return () => {
       live = false;
