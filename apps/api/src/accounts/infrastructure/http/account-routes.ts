@@ -31,6 +31,8 @@ import { RenameAccount } from '../../application/rename-account';
 import { SetAccountArchived } from '../../application/set-account-archived';
 import { SetIncludeInAvailable } from '../../application/set-include-in-available';
 import { DrizzleAccountRepository } from '../db/drizzle-account-repository';
+import type { AccountLinks } from '../../application/ports/account-links';
+import { NoLinksAdapter } from '../links/no-links-adapter';
 import { NoMovementsAdapter } from '../movements/no-movements-adapter';
 import { presentAccount, presentAccountList } from './account-presenter';
 
@@ -38,6 +40,8 @@ export interface AccountRoutesOptions {
   db: Database;
   /** Defaults to the adapter that reports no movements (until PRD 03). */
   movements?: AccountMovements;
+  /** Defaults to the adapter that reports no links; the credit-cards module provides the real one. */
+  links?: AccountLinks;
   /** Required so the audit trail cannot silently disappear. */
   logger: Logger;
 }
@@ -56,6 +60,7 @@ function scopeOf<A extends AccessAction>(
 export function createAccountRoutes({
   db,
   movements = new NoMovementsAdapter(),
+  links = new NoLinksAdapter(),
   logger,
 }: AccountRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
@@ -66,7 +71,7 @@ export function createAccountRoutes({
   const renameAccount = new RenameAccount({ accounts, movements });
   const setArchived = new SetAccountArchived({ accounts, movements });
   const setIncludeInAvailable = new SetIncludeInAvailable({ accounts, movements });
-  const deleteAccount = new DeleteAccount({ accounts, movements });
+  const deleteAccount = new DeleteAccount({ accounts, movements, links });
 
   // Audit lines carry ids only: never the name or any amount.
   const audit = (
