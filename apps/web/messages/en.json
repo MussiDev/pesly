@@ -387,6 +387,28 @@
     "errors": {
       "dayInvalid": "Enter a day from 1 to 31.",
       "nameTaken": "One of the accounts this card needs already exists. Choose another name."
+    },
+    "detail": {
+      "back": "All cards",
+      "days": "Default days",
+      "daysHint": "Changing a day also moves the dates of the open statements.",
+      "saveDays": "Save days",
+      "statements": "Statements",
+      "closes": "Closes {date}",
+      "due": "Due {date}",
+      "open": "Open",
+      "closed": "Closed",
+      "edit": "Edit dates",
+      "closingDate": "Closing date",
+      "dueDate": "Due date",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete card",
+      "confirmDelete": "Delete {name}, its statements and its two accounts?",
+      "confirm": "Delete",
+      "notFound": "This card does not exist or was deleted.",
+      "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
+      "daysConflict": "With that closing day the open statement would close before the previous one."
     }
   },
   "movements": {
