@@ -13,6 +13,7 @@ afterAll(async () => {
 });
 
 const TABLES = ['credit_card_statements', 'credit_cards'];
+const INSTALLMENT_TABLES = ['installment_purchases', 'installments'];
 
 interface ForeignKey {
   conname: string;
@@ -47,7 +48,7 @@ describe('credit cards schema introspection', () => {
       `select column_name from information_schema.columns
         where table_schema = 'public' and table_name = any($1)
           and data_type in ('real', 'double precision', 'numeric', 'money')`,
-      [TABLES],
+      [[...TABLES, ...INSTALLMENT_TABLES]],
     );
     expect(result.rows).toEqual([]);
   });
@@ -111,5 +112,50 @@ describe('credit cards schema introspection', () => {
         'credit_card_statements_card_period_unique',
       ]),
     );
+  });
+
+  it('stores installment amounts as bigint and ties purchases to their card, owner and category (10c NFR-01)', async () => {
+    const amounts = await connection.pool.query<{ table_name: string; data_type: string }>(
+      `select table_name, data_type from information_schema.columns
+        where table_schema = 'public' and table_name = any($1) and column_name in ('total_amount', 'amount')
+        order by table_name`,
+      [INSTALLMENT_TABLES],
+    );
+    expect(amounts.rows).toEqual([
+      { table_name: 'installment_purchases', data_type: 'bigint' },
+      { table_name: 'installments', data_type: 'bigint' },
+    ]);
+    expect(await foreignKeys('installment_purchases')).toEqual([
+      {
+        conname: 'installment_purchases_card_owner_fk',
+        target: 'credit_cards',
+        columns: ['card_id', 'owner_id'],
+        foreign_columns: ['id', 'owner_id'],
+        on_delete: 'r',
+      },
+      {
+        conname: 'installment_purchases_category_owner_kind_fk',
+        target: 'categories',
+        columns: ['category_id', 'owner_id', 'category_kind'],
+        foreign_columns: ['id', 'owner_id', 'kind'],
+        on_delete: 'r',
+      },
+      {
+        conname: 'installment_purchases_owner_id_users_id_fk',
+        target: 'users',
+        columns: ['owner_id'],
+        foreign_columns: ['id'],
+        on_delete: 'c',
+      },
+    ]);
+    expect(await foreignKeys('installments')).toEqual([
+      {
+        conname: 'installments_purchase_id_installment_purchases_id_fk',
+        target: 'installment_purchases',
+        columns: ['purchase_id'],
+        foreign_columns: ['id'],
+        on_delete: 'c',
+      },
+    ]);
   });
 });

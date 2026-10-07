@@ -1,17 +1,19 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   check,
   date,
   foreignKey,
   index,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
   unique,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { accounts, users } from './foreign-relations';
+import { accounts, categories, users } from './foreign-relations';
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
@@ -89,5 +91,85 @@ export const creditCardStatements = pgTable(
     unique('credit_card_statements_card_period_unique').on(table.cardId, table.period),
     index('credit_card_statements_owner_idx').on(table.ownerId),
     index('credit_card_statements_card_closing_idx').on(table.cardId, table.closingDate),
+  ],
+);
+
+/** 10^15 minor units: the same ceiling as a movement amount. */
+const AMOUNT_MAX_LITERAL = sql.raw('1000000000000000');
+
+/**
+ * An installment purchase on a card (DISC-001-10c). It is not a movement: only its installments
+ * count as spending. `category_kind` is always `expense`, so the composite key to categories makes
+ * the database refuse an income category.
+ */
+export const installmentPurchases = pgTable(
+  'installment_purchases',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    cardId: uuid('card_id').notNull(),
+    categoryId: uuid('category_id').notNull(),
+    categoryKind: text('category_kind').notNull().default('expense'),
+    totalAmount: bigint('total_amount', { mode: 'bigint' }).notNull(),
+    installmentCount: smallint('installment_count').notNull(),
+    /** The calendar day of the purchase in the user's time zone. */
+    purchasedOn: date('purchased_on', { mode: 'string' }).notNull(),
+    note: text('note'),
+    /** Set when a deletion kept installments of closed statements (spec D5). */
+    cancelledAt: timestamptz('cancelled_at'),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    check(
+      'installment_purchases_total_range_check',
+      sql`${table.totalAmount} between 1 and ${AMOUNT_MAX_LITERAL}`,
+    ),
+    check('installment_purchases_count_check', sql`${table.installmentCount} between 2 and 60`),
+    check(
+      'installment_purchases_total_covers_count_check',
+      sql`${table.totalAmount} >= ${table.installmentCount}`,
+    ),
+    check('installment_purchases_category_kind_check', sql`${table.categoryKind} = 'expense'`),
+    check(
+      'installment_purchases_note_length_check',
+      sql`${table.note} is null or char_length(${table.note}) <= 500`,
+    ),
+    foreignKey({
+      name: 'installment_purchases_card_owner_fk',
+      columns: [table.cardId, table.ownerId],
+      foreignColumns: [creditCards.id, creditCards.ownerId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'installment_purchases_category_owner_kind_fk',
+      columns: [table.categoryId, table.ownerId, table.categoryKind],
+      foreignColumns: [categories.id, categories.ownerId, categories.kind],
+    }).onDelete('restrict'),
+    index('installment_purchases_owner_card_idx').on(table.ownerId, table.cardId, table.createdAt),
+    index('installment_purchases_category_idx').on(table.categoryId),
+  ],
+);
+
+/** One installment, assigned to the statement of `period` (spec D1). */
+export const installments = pgTable(
+  'installments',
+  {
+    purchaseId: uuid('purchase_id')
+      .notNull()
+      .references(() => installmentPurchases.id, { onDelete: 'cascade' }),
+    number: smallint('number').notNull(),
+    period: text('period').notNull(),
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'installments_pk', columns: [table.purchaseId, table.number] }),
+    check('installments_number_check', sql`${table.number} between 1 and 60`),
+    check('installments_period_check', sql`${table.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
+    check(
+      'installments_amount_range_check',
+      sql`${table.amount} between 1 and ${AMOUNT_MAX_LITERAL}`,
+    ),
   ],
 );
