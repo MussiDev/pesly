@@ -22,6 +22,7 @@ const statement = {
   closingDate: '2026-10-24',
   dueDate: '2026-11-05',
   status: 'open',
+  totals: { ARS: '0', USD: '0' },
 };
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -154,5 +155,52 @@ describe('credit cards api client', () => {
       code: 'INTERNAL',
       messageKey: 'unexpected',
     });
+  });
+
+  it('createCardExpense posts the expense to the card route and parses the answer (FR-01)', async () => {
+    const answer = {
+      movementId: '5a1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5b',
+      accountId: card.usdAccountId,
+      currency: 'USD',
+      amount: '1599',
+      occurredAt: '2026-10-05T15:00:00.000Z',
+      statementId: STATEMENT_ID,
+    };
+    const { client, fetch } = clientWith(jsonResponse(201, answer));
+    const body = {
+      currency: 'USD' as const,
+      categoryId: '00000000-0000-4000-8000-000000000011',
+      amount: '1599',
+      occurredAt: '2026-10-05T15:00:00.000Z',
+      rate: { source: 'automatic' as const },
+    };
+
+    expect(await client.createCardExpense(CARD_ID, body)).toEqual({ ok: true, data: answer });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/expenses`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+  });
+
+  it('createCardExpense maps a malformed success body to unexpected and refuses ".." (error path)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(201, { movementId: 1 }));
+    const body = {
+      currency: 'ARS' as const,
+      categoryId: '00000000-0000-4000-8000-000000000011',
+      amount: '100',
+      occurredAt: '2026-10-05T15:00:00.000Z',
+      rate: { source: 'automatic' as const },
+    };
+    expect(await client.createCardExpense(CARD_ID, body)).toMatchObject({
+      ok: false,
+      code: 'INTERNAL',
+      messageKey: 'unexpected',
+    });
+    expect(await client.createCardExpense('..', body)).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

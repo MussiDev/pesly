@@ -414,6 +414,27 @@
     }
   },
   "creditCards": {
+    "expense": {
+      "title": "Card expense",
+      "description": "Record a purchase on this card. It is assigned to the statement that is open on the purchase date.",
+      "fields": {
+        "currency": "Currency",
+        "currencyPlaceholder": "Choose a currency",
+        "amount": "Amount",
+        "category": "Category",
+        "categoryPlaceholder": "Choose a category",
+        "occurredAt": "Date and time",
+        "note": "Note (optional)"
+      },
+      "submit": "Save expense",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record a card expense. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "errors": {
+        "currencyRequired": "The currency must be ARS or USD."
+      }
+    },
     "title": "Credit cards",
     "new": "New card",
     "list": {
@@ -447,6 +468,9 @@
       "due": "Due {date}",
       "open": "Open",
       "closed": "Closed",
+      "totalArs": "Total in ARS: {amount}",
+      "totalUsd": "Total in USD: {amount}",
+      "addExpense": "Add expense",
       "edit": "Edit dates",
       "closingDate": "Closing date",
       "dueDate": "Due date",

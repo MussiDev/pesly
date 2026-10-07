@@ -2,13 +2,17 @@ import { isStatementClosed, nextPeriod, statementDatesFor } from '@pesly/shared'
 import { notFoundUnlessAllowed, ResourceNotFound, type AccessScope } from '../../shared/access';
 import type { StatementView } from '../domain/credit-card';
 import { StatementClosed } from '../domain/errors';
+import { statementTotals } from '../domain/statement-assignment';
 import { validateStatementDates } from '../domain/statement-schedule';
-import { todayOf, withStatus, type CreditCardDependencies } from './dependencies';
+import { withStatus, zoneAndToday, type CreditCardDependencies } from './dependencies';
 import type { StatementDates } from './ports/credit-card-repository';
 
 export class UpdateStatementDates {
   constructor(
-    private readonly deps: Pick<CreditCardDependencies, 'cards' | 'timeZones' | 'clock'>,
+    private readonly deps: Pick<
+      CreditCardDependencies,
+      'cards' | 'timeZones' | 'clock' | 'purchases'
+    >,
   ) {}
 
   /**
@@ -25,7 +29,7 @@ export class UpdateStatementDates {
     const statements = await this.deps.cards.listStatements(scope, cardId);
     const index = statements.findIndex((statement) => statement.id === statementId);
     const statement = notFoundUnlessAllowed(statements[index]);
-    const today = await todayOf(this.deps, scope.userId);
+    const { timeZone, today } = await zoneAndToday(this.deps, scope.userId);
     if (isStatementClosed(statement.closingDate, today)) throw new StatementClosed();
 
     const dates = {
@@ -43,6 +47,8 @@ export class UpdateStatementDates {
 
     const updated = await this.deps.cards.updateStatement(scope, cardId, statementId, dates);
     if (!updated) throw new ResourceNotFound();
-    return withStatus(updated, today);
+    const stored = statements.map((s) => (s.id === updated.id ? updated : s));
+    const daily = await this.deps.purchases.dailyPurchases(scope, card, timeZone);
+    return withStatus(updated, today, statementTotals(stored, daily).get(updated.id));
   }
 }

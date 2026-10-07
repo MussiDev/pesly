@@ -63,10 +63,13 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type RenameAccountRequest,
+  cardExpenseResponseSchema,
   creditCardResponseSchema,
   listCreditCardsResponseSchema,
   listStatementsResponseSchema,
   statementResponseSchema,
+  type CardExpenseResponse,
+  type CreateCardExpenseRequest,
   type CreateCreditCardRequest,
   type CreditCardResponse,
   type ListCreditCardsResponse,
@@ -334,6 +337,11 @@ export interface ApiClient {
   deleteCreditCard(id: string): Promise<ApiResult<undefined>>;
   /** Newest first; the API creates the missing cycles before answering. */
   listStatements(cardId: string): Promise<ApiResult<ListStatementsResponse>>;
+  /** Records an expense on the card's ARS or USD account; needs a connection. */
+  createCardExpense(
+    cardId: string,
+    body: CreateCardExpenseRequest,
+  ): Promise<ApiResult<CardExpenseResponse>>;
   updateStatement(
     cardId: string,
     statementId: string,
@@ -715,6 +723,16 @@ export function createApiClient({
           method: 'GET',
           path: `${path}/statements`,
           response: listStatementsResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createCardExpense: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/expenses`,
+          body,
+          response: cardExpenseResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),

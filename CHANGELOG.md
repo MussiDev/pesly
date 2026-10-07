@@ -287,6 +287,13 @@ All notable changes to this project are documented in this file. The format foll
   either account has movements; a linked account cannot be deleted on its own from the accounts
   screen (rename and archive still work). Erasing a user deletes their cards first. Migration 0019
   adds `credit_cards` and `credit_card_statements`, with a rollback script.
+- DISC-001-10b Card expenses: `POST /credit-cards/:id/expenses` and an "Add expense" screen on the
+  card page record an expense on a card in ARS or USD; the app picks the card's linked account of that
+  currency, and the usual movement rules (date, category, frozen rate, write limit) apply.
+- DISC-001-10b Statement assignment: a purchase belongs to the first statement whose closing date is on
+  or after its day in the user's time zone, so moving the closing date of an open statement or the
+  default days reassigns purchases without any stored link. Each statement shows its total per
+  currency, the sum of the expenses on the card's two accounts. No migration.
 
 ### Changed
 

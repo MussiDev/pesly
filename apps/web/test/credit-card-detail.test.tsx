@@ -7,6 +7,10 @@ import { CreditCardDetailContainer } from '../src/features/credit-cards/containe
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { en } = CATALOGS;
+const NBSP = String.fromCharCode(0xa0);
+/** Testing Library collapses whitespace (the non-breaking space included) in accessible names. */
+const label = (template: string, amount: string) =>
+  template.replace('{amount}', amount).replace(NBSP, ' ');
 const ID = '3f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a10';
 const CARD_PATH = `/credit-cards/${ID}`;
 const STATEMENTS_PATH = `${CARD_PATH}/statements`;
@@ -29,6 +33,7 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
     closingDate: '2026-10-24',
     dueDate: '2026-11-05',
     status: 'open',
+    totals: { ARS: '0', USD: '0' },
     ...overrides,
   };
 }
@@ -71,6 +76,76 @@ describe('CreditCardDetailContainer', () => {
     ).toBeDefined();
     const september = screen.getByRole('listitem', { name: month('2026-09') });
     expect(within(september).getByText(en.creditCards.detail.closed)).toBeDefined();
+  });
+
+  it('shows both totals of a statement with 50,000.00 ARS and 20.00 USD in English (AC-05)', async () => {
+    stubApi(loaded([statement({ totals: { ARS: '5000000', USD: '2000' } })]));
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+    const october = await screen.findByRole('listitem', { name: month('2026-10') });
+    const ars = within(october).getByLabelText(
+      label(en.creditCards.detail.totalArs, `50,000.00${NBSP}ARS`),
+    );
+    expect(ars.textContent).toBe(`50,000.00${NBSP}ARS`);
+    const usd = within(october).getByLabelText(
+      label(en.creditCards.detail.totalUsd, `20.00${NBSP}USD`),
+    );
+    expect(usd.textContent).toBe(`20.00${NBSP}USD`);
+  });
+
+  it('shows both totals in Spanish with the Spanish separators (AC-05)', async () => {
+    stubApi(loaded([statement({ totals: { ARS: '5000000', USD: '2000' } })]));
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'es' });
+
+    const items = await screen.findAllByRole('listitem');
+    const row = items.find((item) => item.textContent.includes('50.000,00'));
+    expect(row).toBeDefined();
+    if (!row) return;
+    const { es } = CATALOGS;
+    expect(
+      within(row).getByLabelText(label(es.creditCards.detail.totalArs, `50.000,00${NBSP}ARS`))
+        .textContent,
+    ).toBe(`50.000,00${NBSP}ARS`);
+    expect(
+      within(row).getByLabelText(label(es.creditCards.detail.totalUsd, `20,00${NBSP}USD`))
+        .textContent,
+    ).toBe(`20,00${NBSP}USD`);
+  });
+
+  it('shows zero in both currencies for a statement with no purchases (FR-03)', async () => {
+    stubApi(loaded([OCTOBER]));
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+    const october = await screen.findByRole('listitem', { name: month('2026-10') });
+    expect(
+      within(october).getByLabelText(label(en.creditCards.detail.totalArs, `0.00${NBSP}ARS`))
+        .textContent,
+    ).toBe(`0.00${NBSP}ARS`);
+    expect(
+      within(october).getByLabelText(label(en.creditCards.detail.totalUsd, `0.00${NBSP}USD`))
+        .textContent,
+    ).toBe(`0.00${NBSP}USD`);
+  });
+
+  it('links the card page to the expense screen of the card (FR-01)', async () => {
+    stubApi(loaded());
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+    const link = await screen.findByRole('link', { name: en.creditCards.detail.addExpense });
+    expect(link.getAttribute('href')).toBe(`/en/cards/${ID}/expense`);
+  });
+
+  it('shows the load-failure state when a statement comes without totals (error path)', async () => {
+    const withoutTotals: Omit<StatementResponse, 'totals'> & { totals?: unknown } = { ...OCTOBER };
+    delete withoutTotals.totals;
+    stubApi({
+      [`GET ${CARD_PATH}`]: { status: 200, body: card },
+      [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: [withoutTotals] } },
+    });
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+    expect(await screen.findByRole('button', { name: en.app.retry })).toBeDefined();
+    expect(screen.queryByRole('listitem', { name: month('2026-10') })).toBeNull();
   });
 
   it('moves the open statement closing date and shows the saved date (AC-06)', async () => {

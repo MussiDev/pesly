@@ -1,4 +1,5 @@
-import type { CreditCardResponse, StatementResponse } from '@pesly/shared';
+import type { CardExpenseResponse, CreditCardResponse, StatementResponse } from '@pesly/shared';
+import type { RecordedCardExpense } from '../../application/record-card-expense';
 import type { CreditCard, StatementView } from '../../domain/credit-card';
 
 export function presentCreditCard(card: CreditCard): CreditCardResponse {
@@ -21,5 +22,20 @@ export function presentStatement(statement: StatementView): StatementResponse {
     closingDate: statement.closingDate,
     dueDate: statement.dueDate,
     status: statement.status,
+    totals: {
+      ARS: statement.totals.ARS.toString(),
+      USD: statement.totals.USD.toString(),
+    },
+  };
+}
+
+export function presentCardExpense(expense: RecordedCardExpense): CardExpenseResponse {
+  return {
+    movementId: expense.movementId,
+    accountId: expense.accountId,
+    currency: expense.currency,
+    amount: expense.amount.toString(),
+    occurredAt: expense.occurredAt.toISOString(),
+    statementId: expense.statementId,
   };
 }

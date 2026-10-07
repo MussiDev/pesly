@@ -1,5 +1,16 @@
 import { z } from 'zod';
-import { ACCOUNT_NAME_MAX_LENGTH, boundedNameSchema } from '../accounts/account';
+import {
+  ACCOUNT_NAME_MAX_LENGTH,
+  accountCurrencySchema,
+  boundedNameSchema,
+} from '../accounts/account';
+import {
+  movementAmountSchema,
+  movementNoteSchema,
+  movementRateRequestSchema,
+  occurredAtSchema,
+} from '../movements/movement';
+import { exactIntegerStringSchema } from '../money';
 import { isCalendarDate } from './statement-cycle';
 
 /** Suffixes of the two linked accounts; their names are "<card name> ARS" and "<card name> USD". */
@@ -77,6 +88,37 @@ export const listCreditCardsResponseSchema = z.object({
 
 export type ListCreditCardsResponse = z.infer<typeof listCreditCardsResponseSchema>;
 
+/**
+ * `POST /credit-cards/:id/expenses`: an expense request without `accountId` (the server picks the
+ * card's linked account of `currency`), `type`, `tags` and the device `id`.
+ */
+export const createCardExpenseRequestSchema = z.strictObject({
+  currency: accountCurrencySchema,
+  categoryId: z.uuid(),
+  amount: movementAmountSchema,
+  occurredAt: occurredAtSchema,
+  note: movementNoteSchema.optional(),
+  rate: movementRateRequestSchema,
+});
+
+export type CreateCardExpenseRequest = z.infer<typeof createCardExpenseRequestSchema>;
+
+export const cardExpenseResponseSchema = z.object({
+  movementId: z.string(),
+  accountId: z.string(),
+  currency: accountCurrencySchema,
+  amount: z.string(),
+  occurredAt: z.iso.datetime(),
+  statementId: z.string().nullable(),
+});
+
+export type CardExpenseResponse = z.infer<typeof cardExpenseResponseSchema>;
+
+/** Sum of the purchases assigned to a statement, per currency, in minor units; never stored. */
+export const statementTotalsSchema = z.record(accountCurrencySchema, exactIntegerStringSchema);
+
+export type StatementTotals = z.infer<typeof statementTotalsSchema>;
+
 export const statementResponseSchema = z.object({
   id: z.string(),
   cardId: z.string(),
@@ -84,6 +126,7 @@ export const statementResponseSchema = z.object({
   closingDate: calendarDateSchema,
   dueDate: calendarDateSchema,
   status: statementStatusSchema,
+  totals: statementTotalsSchema,
 });
 
 export type StatementResponse = z.infer<typeof statementResponseSchema>;

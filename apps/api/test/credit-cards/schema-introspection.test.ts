@@ -52,6 +52,14 @@ describe('credit cards schema introspection', () => {
     expect(result.rows).toEqual([]);
   });
 
+  it('adds no table beyond the two card tables (10b NFR-01)', async () => {
+    const result = await connection.pool.query<{ table_name: string }>(
+      `select table_name from information_schema.tables
+        where table_schema = 'public' and table_name like 'credit\\_card%' order by table_name`,
+    );
+    expect(result.rows.map((row) => row.table_name)).toEqual(TABLES.toSorted());
+  });
+
   it('ties both linked accounts to the card owner with restricting composite keys (FR-02, AC-10)', async () => {
     expect(await foreignKeys('credit_cards')).toEqual([
       {

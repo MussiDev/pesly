@@ -1,6 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { dateInTimeZone } from '@pesly/shared';
 import type { AccountActivity } from '../../src/credit-cards/application/ports/account-activity';
+import type { CardPurchases } from '../../src/credit-cards/application/ports/card-purchases';
 import type { Clock } from '../../src/credit-cards/application/ports/clock';
+import type {
+  ExpenseRecorder,
+  ExpenseToRecord,
+} from '../../src/credit-cards/application/ports/expense-recorder';
+import type { DailyPurchase } from '../../src/credit-cards/domain/statement-assignment';
 import type {
   CardDays,
   CreateCreditCardData,
@@ -161,6 +168,63 @@ export class FakeTimeZones implements UserTimeZone {
 
   timeZoneOf(): Promise<string> {
     return Promise.resolve(this.zone);
+  }
+}
+
+export interface RecordedExpense {
+  ownerId: string;
+  id: string;
+  accountId: string;
+  categoryId: string;
+  amount: bigint;
+  occurredAt: Date;
+  note?: string;
+  rate: ExpenseToRecord['rate'];
+}
+
+/** Stores expenses in memory; refuses a future date like the movements rules do. */
+export class FakeExpenseRecorder implements ExpenseRecorder {
+  readonly expenses: RecordedExpense[] = [];
+  /** When set, the next call rejects with it and stores nothing. */
+  failWith: Error | null = null;
+
+  constructor(private readonly clock: Clock) {}
+
+  record(
+    scope: AccessScope<'write'>,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }> {
+    if (this.failWith) return Promise.reject(this.failWith);
+    if (expense.occurredAt.getTime() > this.clock.now().getTime()) {
+      return Promise.reject(new Error('MOVEMENT_DATE_IN_FUTURE'));
+    }
+    const id = randomUUID();
+    this.expenses.push({ ownerId: scope.userId, id, ...expense });
+    return Promise.resolve({ id, occurredAt: expense.occurredAt });
+  }
+}
+
+/** Derives the daily sums from the expenses a `FakeExpenseRecorder` stored, as the SQL adapter does. */
+export class FakeCardPurchases implements CardPurchases {
+  constructor(private readonly recorder: FakeExpenseRecorder) {}
+
+  dailyPurchases(scope: AccessScope, card: CreditCard, timeZone: string): Promise<DailyPurchase[]> {
+    const sums = new Map<string, DailyPurchase>();
+    for (const expense of this.recorder.expenses) {
+      if (expense.ownerId !== scope.userId) continue;
+      const currency =
+        expense.accountId === card.arsAccountId
+          ? 'ARS'
+          : expense.accountId === card.usdAccountId
+            ? 'USD'
+            : null;
+      if (!currency) continue;
+      const day = dateInTimeZone(expense.occurredAt, timeZone);
+      const key = `${day}|${currency}`;
+      const previous = sums.get(key);
+      sums.set(key, { day, currency, amount: (previous?.amount ?? 0n) + expense.amount });
+    }
+    return Promise.resolve([...sums.values()]);
   }
 }
 

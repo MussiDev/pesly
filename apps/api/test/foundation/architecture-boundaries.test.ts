@@ -47,6 +47,38 @@ describe('credit-cards module import boundaries', () => {
     expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
   });
 
+  it.each([
+    ['apps/api/src/credit-cards/domain/probe.ts', "import { x } from '../../movements';"],
+    [
+      'apps/api/src/credit-cards/domain/probe.ts',
+      "import { x } from '../../movements/domain/movement';",
+    ],
+    ['apps/api/src/credit-cards/application/probe.ts', "import { x } from '../../movements';"],
+    ['apps/api/src/credit-cards/index.ts', "import { x } from '../movements';"],
+    [
+      'apps/api/src/credit-cards/infrastructure/http/probe.ts',
+      "import { x } from '../../../movements/infrastructure/db/schema';",
+    ],
+  ])('rejects credit-cards importing movements in %s: %s (sad path)', async (file, source) => {
+    expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
+  });
+
+  it('keeps the older restrictions on credit-cards where the movements pattern was added (sad path)', async () => {
+    for (const [file, source] of [
+      ['apps/api/src/credit-cards/domain/probe.ts', "import pg from 'pg';"],
+      [
+        'apps/api/src/credit-cards/application/probe.ts',
+        "import { x } from '../infrastructure/db/schema';",
+      ],
+      [
+        'apps/api/src/credit-cards/infrastructure/db/probe.ts',
+        "import { x } from '../../../../test/fakes/mutable-clock';",
+      ],
+    ] as const) {
+      expect(await restrictedImports(file, `${source}\n`), file).toEqual(['no-restricted-imports']);
+    }
+  });
+
   it('allows credit-cards domain and application to import shared code and the access port', async () => {
     expect(
       await restrictedImports(
