@@ -135,6 +135,7 @@ describe('params and responses', () => {
         dueDate: '2026-11-05',
         status: 'pending',
         totals: { ARS: '0', USD: '0' },
+        installments: [],
       }).success,
     ).toBe(false);
   });
@@ -147,6 +148,7 @@ const STATEMENT = {
   closingDate: '2026-10-24',
   dueDate: '2026-11-05',
   status: 'open',
+  installments: [],
 };
 
 const CARD_EXPENSE = {
@@ -202,6 +204,15 @@ describe('createCardExpenseRequestSchema', () => {
     expect(createCardExpenseRequestSchema.safeParse({ ...CARD_EXPENSE, ...patch }).success).toBe(
       false,
     );
+  });
+
+  it('rejects a statement response without the installments list (FR-06)', () => {
+    const withoutInstallments: Record<string, unknown> = {
+      ...STATEMENT,
+      totals: { ARS: '0', USD: '0' },
+    };
+    delete withoutInstallments.installments;
+    expect(statementResponseSchema.safeParse(withoutInstallments).success).toBe(false);
   });
 
   it('rejects a statement response without totals or with one currency (FR-03)', () => {

@@ -11,6 +11,7 @@ import {
   occurredAtSchema,
 } from '../movements/movement';
 import { exactIntegerStringSchema } from '../money';
+import { INSTALLMENTS_MAX, INSTALLMENTS_MIN } from '../money/split-installments';
 import { isCalendarDate } from './statement-cycle';
 
 /** Suffixes of the two linked accounts; their names are "<card name> ARS" and "<card name> USD". */
@@ -119,6 +120,21 @@ export const statementTotalsSchema = z.record(accountCurrencySchema, exactIntege
 
 export type StatementTotals = z.infer<typeof statementTotalsSchema>;
 
+export const installmentCountSchema = z.number().int().min(INSTALLMENTS_MIN).max(INSTALLMENTS_MAX);
+
+/** One installment as listed inside a statement (DISC-001-10c FR-06). */
+export const installmentNumberSchema = z.number().int().min(1).max(INSTALLMENTS_MAX);
+
+export const statementInstallmentSchema = z.object({
+  purchaseId: z.string(),
+  number: installmentNumberSchema,
+  count: installmentCountSchema,
+  amount: z.string(),
+  categoryId: z.string(),
+});
+
+export type StatementInstallment = z.infer<typeof statementInstallmentSchema>;
+
 export const statementResponseSchema = z.object({
   id: z.string(),
   cardId: z.string(),
@@ -127,6 +143,7 @@ export const statementResponseSchema = z.object({
   dueDate: calendarDateSchema,
   status: statementStatusSchema,
   totals: statementTotalsSchema,
+  installments: z.array(statementInstallmentSchema),
 });
 
 export type StatementResponse = z.infer<typeof statementResponseSchema>;
