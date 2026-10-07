@@ -11,6 +11,7 @@ import {
   FakeExpenseRecorder,
   FakeTimeZones,
   InMemoryCreditCards,
+  installmentFakes,
   writeScopeFor,
 } from './fakes';
 
@@ -29,6 +30,7 @@ function setup(now = '2026-10-06T12:00:00.000Z') {
     clock,
     purchases: new FakeCardPurchases(recorder),
     expenses: recorder,
+    ...installmentFakes(),
   };
   return {
     cards,

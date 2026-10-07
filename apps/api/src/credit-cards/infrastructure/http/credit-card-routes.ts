@@ -2,13 +2,20 @@ import {
   cardExpenseResponseSchema,
   createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
+  createInstallmentPurchaseRequestSchema,
   creditCardIdParamsSchema,
   creditCardResponseSchema,
+  installmentExpensesQuerySchema,
+  installmentExpensesResponseSchema,
+  installmentPurchaseParamsSchema,
+  installmentPurchaseResponseSchema,
   listCreditCardsResponseSchema,
+  listInstallmentPurchasesResponseSchema,
   listStatementsResponseSchema,
   statementParamsSchema,
   statementResponseSchema,
   updateCreditCardRequestSchema,
+  updateInstallmentPurchaseRequestSchema,
   updateStatementRequestSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
@@ -27,21 +34,37 @@ import { requireVerifiedEmail } from '../../../shared/http/require-verified-emai
 import { validate } from '../../../shared/http/validate';
 import type { Logger } from '../../../shared/logging/logger';
 import { CreateCreditCard } from '../../application/create-credit-card';
+import { CreateInstallmentPurchase } from '../../application/create-installment-purchase';
 import { DeleteCreditCard } from '../../application/delete-credit-card';
+import { DeleteInstallmentPurchase } from '../../application/delete-installment-purchase';
 import { GetCreditCard } from '../../application/get-credit-card';
+import { GetInstallmentPurchase } from '../../application/get-installment-purchase';
+import { ListInstallmentExpenses } from '../../application/list-installment-expenses';
+import { ListInstallmentPurchases } from '../../application/list-installment-purchases';
 import { ListCreditCards } from '../../application/list-credit-cards';
 import { ListStatements } from '../../application/list-statements';
 import type { AccountActivity } from '../../application/ports/account-activity';
 import type { CardPurchases } from '../../application/ports/card-purchases';
 import type { Clock } from '../../application/ports/clock';
+import type { ExpenseCategoryGuard } from '../../application/ports/expense-category-guard';
 import type { ExpenseRecorder } from '../../application/ports/expense-recorder';
+import type { InstallmentWriteLimit } from '../../application/ports/installment-write-limit';
 import { RecordCardExpense } from '../../application/record-card-expense';
 import { UpdateCreditCardDays } from '../../application/update-credit-card-days';
+import { UpdateInstallmentPurchase } from '../../application/update-installment-purchase';
 import { UpdateStatementDates } from '../../application/update-statement-dates';
 import { DrizzleCreditCardRepository } from '../db/drizzle-credit-card-repository';
+import { DrizzleInstallmentRepository } from '../db/drizzle-installment-repository';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
 import { SystemClock } from '../system-clock';
-import { presentCardExpense, presentCreditCard, presentStatement } from './credit-card-presenter';
+import {
+  presentCardExpense,
+  presentCreditCard,
+  presentInstallmentExpenses,
+  presentInstallmentPurchase,
+  presentInstallmentPurchaseList,
+  presentStatement,
+} from './credit-card-presenter';
 
 export interface CreditCardRoutesOptions {
   db: Database;
@@ -53,6 +76,10 @@ export interface CreditCardRoutesOptions {
   expenses: ExpenseRecorder;
   /** Daily purchase sums behind the statement totals; the movements module provides it. */
   purchases: CardPurchases;
+  /** The category rules of a new expense; the movements module provides it (spec D7). */
+  categories: ExpenseCategoryGuard;
+  /** The per-user creation limit shared with the movements routes; the movements module provides it. */
+  writeLimit: InstallmentWriteLimit;
   /** Defaults to the system clock; tests inject one to move "today". */
   clock?: Clock;
 }
@@ -74,6 +101,8 @@ export function createCreditCardRoutes({
   activity,
   expenses,
   purchases,
+  categories,
+  writeLimit,
   clock = new SystemClock(),
 }: CreditCardRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
@@ -82,6 +111,9 @@ export function createCreditCardRoutes({
     activity,
     expenses,
     purchases,
+    categories,
+    writeLimit,
+    installments: new DrizzleInstallmentRepository(db),
     timeZones: new DrizzleUserTimeZone(db),
     clock,
   };
@@ -93,6 +125,12 @@ export function createCreditCardRoutes({
   const listStatements = new ListStatements(deps);
   const updateStatement = new UpdateStatementDates(deps);
   const recordExpense = new RecordCardExpense(deps);
+  const createPurchase = new CreateInstallmentPurchase(deps);
+  const listPurchases = new ListInstallmentPurchases(deps);
+  const getPurchase = new GetInstallmentPurchase(deps);
+  const updatePurchase = new UpdateInstallmentPurchase(deps);
+  const deletePurchase = new DeleteInstallmentPurchase(deps);
+  const listExpenses = new ListInstallmentExpenses(deps);
 
   // Audit lines carry ids only: never the card name.
   const audit = (
@@ -127,6 +165,18 @@ export function createCreditCardRoutes({
         const scope = await scopeOf(policy, auth, 'read');
         res.json({ items: (await listCards.execute(scope)).map(presentCreditCard) });
       }),
+    );
+
+    // Declared before `/credit-cards/:id` so the path is never read as a card id.
+    router.get(
+      '/credit-cards/installment-expenses',
+      validate(
+        { query: installmentExpensesQuerySchema, response: installmentExpensesResponseSchema },
+        async ({ query }, { res, auth }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          res.json(presentInstallmentExpenses(await listExpenses.execute(scope, query)));
+        },
+      ),
     );
 
     router.get(
@@ -235,6 +285,95 @@ export function createCreditCardRoutes({
             movementId: expense.movementId,
           });
           res.status(201).json(presentCardExpense(expense));
+        },
+      ),
+    );
+
+    router.post(
+      '/credit-cards/:id/installment-purchases',
+      validate(
+        {
+          params: creditCardIdParamsSchema,
+          body: createInstallmentPurchaseRequestSchema,
+          response: installmentPurchaseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const purchase = await createPurchase.execute(scope, params.id, {
+            categoryId: body.categoryId,
+            amount: BigInt(body.amount),
+            installments: body.installments,
+            purchasedOn: body.purchasedOn,
+            ...(body.note === undefined ? {} : { note: body.note }),
+          });
+          // Ids only: never the amount or the note.
+          audit('installment purchase recorded', requestId, auth, {
+            cardId: params.id,
+            purchaseId: purchase.id,
+          });
+          res.status(201).json(presentInstallmentPurchase(purchase));
+        },
+      ),
+    );
+
+    router.get(
+      '/credit-cards/:id/installment-purchases',
+      validate(
+        { params: creditCardIdParamsSchema, response: listInstallmentPurchasesResponseSchema },
+        async ({ params }, { res, auth }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          res.json(presentInstallmentPurchaseList(await listPurchases.execute(scope, params.id)));
+        },
+      ),
+    );
+
+    router.get(
+      '/credit-cards/:id/installment-purchases/:purchaseId',
+      validate(
+        { params: installmentPurchaseParamsSchema, response: installmentPurchaseResponseSchema },
+        async ({ params }, { res, auth }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          res.json(
+            presentInstallmentPurchase(
+              await getPurchase.execute(scope, params.id, params.purchaseId),
+            ),
+          );
+        },
+      ),
+    );
+
+    router.patch(
+      '/credit-cards/:id/installment-purchases/:purchaseId',
+      validate(
+        {
+          params: installmentPurchaseParamsSchema,
+          body: updateInstallmentPurchaseRequestSchema,
+          response: installmentPurchaseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const purchase = await updatePurchase.execute(scope, params.id, params.purchaseId, body);
+          audit('installment purchase changed', requestId, auth, {
+            cardId: params.id,
+            purchaseId: purchase.id,
+          });
+          res.json(presentInstallmentPurchase(purchase));
+        },
+      ),
+    );
+
+    router.delete(
+      '/credit-cards/:id/installment-purchases/:purchaseId',
+      validate(
+        { params: installmentPurchaseParamsSchema },
+        async ({ params }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          await deletePurchase.execute(scope, params.id, params.purchaseId);
+          audit('installment purchase deleted', requestId, auth, {
+            cardId: params.id,
+            purchaseId: params.purchaseId,
+          });
+          res.sendStatus(204);
         },
       ),
     );

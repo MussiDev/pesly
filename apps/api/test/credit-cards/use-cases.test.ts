@@ -21,6 +21,7 @@ import {
   FakeExpenseRecorder,
   FakeTimeZones,
   InMemoryCreditCards,
+  installmentFakes,
   readScopeFor,
   writeScopeFor,
 } from './fakes';
@@ -35,7 +36,7 @@ function setup(now = '2026-10-06T12:00:00.000Z') {
   const clock = new FakeClock(new Date(now));
   const expenses = new FakeExpenseRecorder(clock);
   const purchases = new FakeCardPurchases(expenses);
-  const deps = { cards, activity, timeZones, clock, purchases, expenses };
+  const deps = { cards, activity, timeZones, clock, purchases, expenses, ...installmentFakes() };
   return {
     cards,
     expenses,
