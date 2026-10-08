@@ -35,6 +35,7 @@ const LATER_MIGRATIONS = [
   '0018_device_write_limit',
   '0019_credit_cards',
   '0020_installments',
+  '0021_installment_currency',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

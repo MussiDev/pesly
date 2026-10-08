@@ -141,6 +141,13 @@
       "when": 1791419213992,
       "tag": "0020_installments",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791505000000,
+      "tag": "0021_installment_currency",
+      "breakpoints": true
     }
   ]
 }

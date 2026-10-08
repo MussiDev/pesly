@@ -8,12 +8,16 @@ import {
   statementStatusSchema,
 } from './credit-card';
 
+export const installmentCurrencySchema = z.enum(['ARS', 'USD']);
+
+export type InstallmentCurrency = z.infer<typeof installmentCurrencySchema>;
+
 const periodSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
 
-/** `POST /credit-cards/:id/installment-purchases`: ARS only (FR-02), 2 to 60 installments (FR-01). */
+/** `POST /credit-cards/:id/installment-purchases`: ARS or USD, 2 to 60 installments (FR-01). */
 export const createInstallmentPurchaseRequestSchema = z
   .strictObject({
-    currency: z.literal('ARS'),
+    currency: installmentCurrencySchema,
     categoryId: z.uuid(),
     amount: movementAmountSchema,
     installments: installmentCountSchema,
@@ -62,7 +66,7 @@ export const installmentPurchaseResponseSchema = z.object({
   cardId: z.string(),
   categoryId: z.string(),
   amount: z.string(),
-  currency: z.literal('ARS'),
+  currency: installmentCurrencySchema,
   installmentCount: installmentCountSchema,
   purchasedOn: calendarDateSchema,
   note: z.string().nullable(),
@@ -73,7 +77,7 @@ export const installmentPurchaseResponseSchema = z.object({
 export type InstallmentPurchaseResponse = z.infer<typeof installmentPurchaseResponseSchema>;
 
 /** Pending debt of a card per currency, minor units: installments in statements not yet closed (FR-07). */
-export const pendingDebtSchema = z.record(z.enum(['ARS', 'USD']), exactIntegerStringSchema);
+export const pendingDebtSchema = z.record(installmentCurrencySchema, exactIntegerStringSchema);
 
 export const listInstallmentPurchasesResponseSchema = z.object({
   items: z.array(installmentPurchaseResponseSchema),
@@ -114,7 +118,7 @@ export const installmentExpensesResponseSchema = z.object({
     z.object({
       month: monthSchema,
       categoryId: z.string(),
-      currency: z.literal('ARS'),
+      currency: installmentCurrencySchema,
       amount: z.string(),
     }),
   ),

@@ -113,6 +113,7 @@ describe('statement view latency with installments (NFR-02)', () => {
         cardId,
         categoryId,
         totalAmount: BigInt(INSTALLMENTS) * 1000n,
+        currency: 'ARS',
         purchasedOn: '2026-01-05',
         note: null,
         installments: periods.map((period, index) => ({

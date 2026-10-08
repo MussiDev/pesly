@@ -343,6 +343,7 @@ export function createCreditCardRoutes({
           const scope = await scopeOf(policy, auth, 'write');
           const purchase = await createPurchase.execute(scope, params.id, {
             categoryId: body.categoryId,
+            currency: body.currency,
             amount: BigInt(body.amount),
             installments: body.installments,
             purchasedOn: body.purchasedOn,

@@ -1,3 +1,4 @@
+import type { InstallmentCurrency } from '@pesly/shared';
 import { notFoundUnlessAllowed, type AccessScope } from '../../shared/access';
 import { InstallmentPurchaseDateInFuture } from '../domain/errors';
 import {
@@ -11,7 +12,8 @@ import { ensureStatements } from './ensure-statements';
 
 export interface InstallmentPurchaseInput {
   categoryId: string;
-  /** Total in ARS minor units. */
+  currency: InstallmentCurrency;
+  /** Total in minor units of `currency`. */
   amount: bigint;
   installments: number;
   /** Calendar day of the purchase in the user's time zone, `YYYY-MM-DD`. */
@@ -54,6 +56,7 @@ export class CreateInstallmentPurchase {
         cardId: card.id,
         categoryId: input.categoryId,
         totalAmount: input.amount,
+        currency: input.currency,
         purchasedOn: input.purchasedOn,
         note: input.note ?? null,
         installments: planInstallments(input.amount, input.installments, first.period),

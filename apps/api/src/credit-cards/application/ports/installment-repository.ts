@@ -1,3 +1,4 @@
+import type { InstallmentCurrency } from '@pesly/shared';
 import type { AccessScope } from '../../../shared/access';
 import type {
   InstallmentPurchase,
@@ -9,6 +10,7 @@ export interface NewInstallmentPurchase {
   cardId: string;
   categoryId: string;
   totalAmount: bigint;
+  currency: InstallmentCurrency;
   purchasedOn: string;
   note: string | null;
   installments: readonly PlannedInstallment[];

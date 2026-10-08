@@ -42,6 +42,7 @@ export function presentStatement(statement: StatementView): StatementResponse {
       number: installment.number,
       count: installment.count,
       amount: installment.amount.toString(),
+      currency: installment.currency,
       categoryId: installment.categoryId,
     })),
     payments: statement.payments && {
@@ -89,7 +90,7 @@ export function presentInstallmentPurchase(
     cardId: purchase.cardId,
     categoryId: purchase.categoryId,
     amount: purchase.totalAmount.toString(),
-    currency: 'ARS',
+    currency: purchase.currency,
     installmentCount: purchase.installmentCount,
     purchasedOn: purchase.purchasedOn,
     note: purchase.note,
@@ -121,7 +122,7 @@ export function presentInstallmentExpenses(
     items: items.map((item) => ({
       month: item.month,
       categoryId: item.categoryId,
-      currency: 'ARS',
+      currency: item.currency,
       amount: item.amount.toString(),
     })),
   };
