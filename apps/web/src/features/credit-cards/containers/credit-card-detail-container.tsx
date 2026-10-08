@@ -35,7 +35,7 @@ type PageState =
       card: CreditCardResponse;
       statements: StatementResponse[];
       purchases: InstallmentPurchaseResponse[];
-      pendingDebtArs: string;
+      pendingDebt: { ARS: string; USD: string };
     };
 
 /** A full catalog path: API errors live in `errors`, the card page ones in `creditCards.detail`. */
@@ -71,7 +71,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           card: card.data,
           statements: statements.data.items,
           purchases: purchases.data.items,
-          pendingDebtArs: purchases.data.pendingDebt.ARS,
+          pendingDebt: purchases.data.pendingDebt,
         });
         return;
       }
@@ -122,7 +122,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
               ...current,
               statements: statements.data.items,
               purchases: purchases.data.items,
-              pendingDebtArs: purchases.data.pendingDebt.ARS,
+              pendingDebt: purchases.data.pendingDebt,
             }
           : current,
       );
@@ -241,12 +241,6 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
         <h1 className="text-title">{state.card.name}</h1>
         <div className="flex items-center gap-2">
           <Link
-            href={`/cards/${cardId}/expense`}
-            className={buttonVariants({ variant: 'default', size: 'sm' })}
-          >
-            {t('creditCards.detail.addExpense')}
-          </Link>
-          <Link
             href={`/cards/${cardId}/payments/new`}
             className={buttonVariants({ variant: 'outline', size: 'sm' })}
           >
@@ -254,9 +248,9 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           </Link>
           <Link
             href={`/cards/${cardId}/installments/new`}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            className={buttonVariants({ variant: 'default', size: 'sm' })}
           >
-            {t('creditCards.detail.addInstallments')}
+            {t('creditCards.detail.addPurchase')}
           </Link>
           <Link
             href={`/cards/${cardId}/import`}
@@ -303,7 +297,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
         <h2 className="text-heading">{t('creditCards.installments.heading')}</h2>
         <InstallmentPurchaseList
           purchases={state.purchases}
-          pendingDebtArs={state.pendingDebtArs}
+          pendingDebt={state.pendingDebt}
           confirmingId={confirmingPurchaseId}
           pending={pending}
           onAskDelete={setConfirmingPurchaseId}

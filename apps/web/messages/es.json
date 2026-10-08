@@ -528,7 +528,6 @@
       "closed": "Cerrado",
       "totalArs": "Total en ARS: {amount}",
       "totalUsd": "Total en USD: {amount}",
-      "addExpense": "Agregar gasto",
       "edit": "Editar fechas",
       "closingDate": "Fecha de cierre",
       "dueDate": "Fecha de vencimiento",
@@ -540,7 +539,7 @@
       "notFound": "Esta tarjeta no existe o fue eliminada.",
       "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
       "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
-      "addInstallments": "Agregar cuotas",
+      "addPurchase": "Agregar compra",
       "importStatement": "Importar un resumen",
       "installmentLine": "Cuota {number} de {count}: {amount}",
       "payStatement": "Pagar resumen",
@@ -552,12 +551,13 @@
       }
     },
     "installments": {
-      "title": "Compra en cuotas",
-      "description": "Registra una compra en cuotas en pesos. Cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
+      "title": "Agregar compra",
+      "description": "Registra una compra con tarjeta en pesos o en dólares. Pagada en un solo pago es un gasto común de la tarjeta; en cuotas, cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
       "fields": {
-        "amount": "Monto total (ARS)",
+        "currency": "Moneda",
+        "amount": "Monto total",
         "installments": "Cantidad de cuotas",
-        "installmentsHint": "De {min} a {max}",
+        "installmentsHint": "{min} para un solo pago, hasta {max}",
         "category": "Categoría",
         "categoryPlaceholder": "Elige una categoría",
         "purchasedOn": "Fecha de la compra",
@@ -566,10 +566,10 @@
       "submit": "Guardar compra",
       "pending": "Guardando…",
       "back": "Volver a la tarjeta",
-      "connectionNeeded": "Se necesita conexión para registrar una compra en cuotas. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "connectionNeeded": "Se necesita conexión para registrar una compra. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
       "notFound": "Esta tarjeta no existe o fue eliminada.",
       "errors": {
-        "installmentsInvalid": "Ingresa una cantidad entera de cuotas de 2 a 60.",
+        "installmentsInvalid": "Ingresa una cantidad entera de cuotas de 1 a 60.",
         "amountTooSmall": "El monto debe ser de al menos un centavo por cuota."
       },
       "heading": "Compras en cuotas",

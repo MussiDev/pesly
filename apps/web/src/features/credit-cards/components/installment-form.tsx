@@ -1,6 +1,6 @@
 'use client';
 
-import { INSTALLMENTS_MAX, INSTALLMENTS_MIN } from '@pesly/shared';
+import { INSTALLMENTS_MAX } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, type SubmitEvent } from 'react';
@@ -13,7 +13,11 @@ import { Select } from '@/components/ui/select';
 import { readField } from '@/features/auth/read-field';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
-import type { InstallmentFieldErrors, InstallmentFormValues } from '../installment-request';
+import {
+  PURCHASE_PAYMENTS_MIN,
+  type InstallmentFieldErrors,
+  type InstallmentFormValues,
+} from '../installment-request';
 
 /** A full catalog path, plus the wait in seconds for the write limit message. */
 export interface InstallmentAlertMessage {
@@ -42,7 +46,9 @@ export interface InstallmentFormProps {
   onSubmit: (values: InstallmentFormValues) => void;
 }
 
-/** Presentational: the installment purchase is always in pesos, so there is no currency choice (FR-02). */
+const CURRENCIES = ['ARS', 'USD'] as const;
+
+/** Presentational: a card purchase in ARS or USD, paid in one payment or in installments. */
 export function InstallmentForm({
   cardId,
   categories,
@@ -65,6 +71,7 @@ export function InstallmentForm({
     event.preventDefault();
     const form = event.currentTarget;
     onSubmit({
+      currency: readField(form, 'currency'),
       amount: readField(form, 'amount'),
       installments: readField(form, 'installments'),
       categoryId: readField(form, 'categoryId'),
@@ -89,6 +96,17 @@ export function InstallmentForm({
               </AlertDescription>
             </Alert>
           ) : null}
+          <MovementField label={t('fields.currency')} error={errors.fields?.currency}>
+            {(control) => (
+              <Select name="currency" defaultValue="ARS" required {...control}>
+                {CURRENCIES.map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </MovementField>
           <MovementField label={t('fields.amount')} error={errors.fields?.amount}>
             {(control) => <MoneyInput name="amount" required {...control} />}
           </MovementField>
@@ -100,7 +118,7 @@ export function InstallmentForm({
                 inputMode="numeric"
                 autoComplete="off"
                 placeholder={t('fields.installmentsHint', {
-                  min: INSTALLMENTS_MIN,
+                  min: PURCHASE_PAYMENTS_MIN,
                   max: INSTALLMENTS_MAX,
                 })}
                 required
