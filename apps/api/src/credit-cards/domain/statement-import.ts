@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { MOVEMENT_NOTE_MAX_LENGTH, previousPeriod } from '@pesly/shared';
 
 /** The fields of an imported line that tell one purchase from another. */
@@ -17,11 +16,11 @@ function normalizeText(text: string): string {
 }
 
 /**
- * The key that makes an import idempotent: a hash of the line's date, normalized description,
+ * The key that makes an import idempotent (its SHA-256 is the stored fingerprint): the line's date, normalized description,
  * voucher, currency, amount and installment N/M, plus the occurrence index of identical lines in
  * the same file, so two equal purchases of one day stay two lines instead of collapsing.
  */
-export function fingerprintLine(line: ImportedLineIdentity, occurrence: number): string {
+export function lineKey(line: ImportedLineIdentity, occurrence: number): string {
   const key = JSON.stringify([
     line.date,
     normalizeText(line.description),
@@ -32,17 +31,17 @@ export function fingerprintLine(line: ImportedLineIdentity, occurrence: number):
     line.installmentCount,
     occurrence,
   ]);
-  return createHash('sha256').update(key).digest('hex');
+  return key;
 }
 
-/** Fingerprints of the lines of one file, in order; identical lines get increasing occurrences. */
-export function fingerprintLines(lines: readonly ImportedLineIdentity[]): string[] {
+/** Keys of the lines of one file, in order; identical lines get increasing occurrences. */
+export function lineKeys(lines: readonly ImportedLineIdentity[]): string[] {
   const seen = new Map<string, number>();
   return lines.map((line) => {
-    const base = fingerprintLine(line, 0);
+    const base = lineKey(line, 0);
     const occurrence = seen.get(base) ?? 0;
     seen.set(base, occurrence + 1);
-    return occurrence === 0 ? base : fingerprintLine(line, occurrence);
+    return occurrence === 0 ? base : lineKey(line, occurrence);
   });
 }
 

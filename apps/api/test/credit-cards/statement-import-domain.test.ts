@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-  firstPeriodOfInstallment,
   fingerprintLine,
   fingerprintLines,
+} from '../../src/credit-cards/application/fingerprint-statement-lines';
+import {
+  firstPeriodOfInstallment,
   noteFromDescription,
   type ImportedLineIdentity,
 } from '../../src/credit-cards/domain/statement-import';

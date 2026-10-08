@@ -6,14 +6,11 @@ import {
 } from '@pesly/shared';
 import { notFoundUnlessAllowed, type AccessScope } from '../../shared/access';
 import type { CreditCard, StatementDraft } from '../domain/credit-card';
-import {
-  firstPeriodOfInstallment,
-  fingerprintLines,
-  noteFromDescription,
-} from '../domain/statement-import';
+import { firstPeriodOfInstallment, noteFromDescription } from '../domain/statement-import';
 import type { CreateInstallmentPurchase } from './create-installment-purchase';
 import { zoneAndToday, type CreditCardDependencies } from './dependencies';
 import { ensureStatements } from './ensure-statements';
+import { fingerprintLines } from './fingerprint-statement-lines';
 import { RecordCardExpense } from './record-card-expense';
 
 export interface StatementImportLineInput {
