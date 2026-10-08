@@ -65,6 +65,31 @@ export function StatementList({
                       );
                     })}
                   </span>
+                  {statement.payments
+                    ? (['ARS', 'USD'] as const).map((currency) => {
+                        const payment = statement.payments?.[currency];
+                        if (payment === undefined) return null;
+                        // A currency with no total and nothing paid has nothing to say (spec D3).
+                        if (
+                          BigInt(statement.totals[currency]) === 0n &&
+                          BigInt(payment.paid) === 0n
+                        ) {
+                          return null;
+                        }
+                        return (
+                          <span
+                            key={`payment-${currency}`}
+                            className="mt-1 block text-sm tabular-nums"
+                          >
+                            {t('paymentLine', {
+                              currency,
+                              status: t(`paymentStatus.${payment.status}`),
+                              amount: formatMoney(BigInt(payment.paid), currency, locale),
+                            })}
+                          </span>
+                        );
+                      })
+                    : null}
                   {statement.installments.map((installment) => (
                     <span
                       key={`${installment.purchaseId}-${String(installment.number)}`}

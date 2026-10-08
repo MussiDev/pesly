@@ -483,7 +483,14 @@
       "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
       "daysConflict": "With that closing day the open statement would close before the previous one.",
       "addInstallments": "Add installments",
-      "installmentLine": "Installment {number} of {count}: {amount}"
+      "installmentLine": "Installment {number} of {count}: {amount}",
+      "payStatement": "Pay statement",
+      "paymentLine": "{currency}: {status}, paid {amount}",
+      "paymentStatus": {
+        "paid": "Paid",
+        "partially_paid": "Partially paid",
+        "unpaid": "Unpaid"
+      }
     },
     "installments": {
       "title": "Installment purchase",
@@ -517,6 +524,23 @@
       "confirmDelete": "Confirm delete",
       "cancel": "Cancel",
       "deleteHint": "Installments in statements that are already closed are kept."
+    },
+    "payments": {
+      "title": "Pay a statement",
+      "description": "Move money from one of your accounts to this card. It is a transfer, not an expense, and it pays the oldest unpaid statement first.",
+      "fields": {
+        "currency": "Currency",
+        "sourceAccount": "Pay from",
+        "sourceAccountPlaceholder": "Choose an account",
+        "amount": "Amount",
+        "occurredAt": "Date and time",
+        "note": "Note (optional)"
+      },
+      "submit": "Record payment",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record a payment. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted."
     }
   },
   "movements": {

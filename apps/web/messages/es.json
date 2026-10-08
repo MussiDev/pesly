@@ -483,7 +483,14 @@
       "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
       "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
       "addInstallments": "Agregar cuotas",
-      "installmentLine": "Cuota {number} de {count}: {amount}"
+      "installmentLine": "Cuota {number} de {count}: {amount}",
+      "payStatement": "Pagar resumen",
+      "paymentLine": "{currency}: {status}, pagado {amount}",
+      "paymentStatus": {
+        "paid": "Pagado",
+        "partially_paid": "Pago parcial",
+        "unpaid": "Sin pagar"
+      }
     },
     "installments": {
       "title": "Compra en cuotas",
@@ -517,6 +524,23 @@
       "confirmDelete": "Confirmar eliminación",
       "cancel": "Cancelar",
       "deleteHint": "Las cuotas de los resúmenes que ya cerraron se conservan."
+    },
+    "payments": {
+      "title": "Pagar un resumen",
+      "description": "Mueve dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar.",
+      "fields": {
+        "currency": "Moneda",
+        "sourceAccount": "Pagar desde",
+        "sourceAccountPlaceholder": "Elige una cuenta",
+        "amount": "Monto",
+        "occurredAt": "Fecha y hora",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Registrar pago",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar un pago. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada."
     }
   },
   "movements": {

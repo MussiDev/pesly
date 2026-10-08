@@ -232,6 +232,7 @@ const STATEMENT: StatementResponse = {
   installments: [
     { purchaseId: PURCHASE_ID, number: 1, count: 12, amount: '1000000', categoryId: COMIDA_ID },
   ],
+  payments: null,
 };
 
 const PENDING_11 = { ARS: '11000000', USD: '0' };

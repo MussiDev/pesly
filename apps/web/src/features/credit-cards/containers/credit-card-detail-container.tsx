@@ -247,6 +247,12 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
             {t('creditCards.detail.addExpense')}
           </Link>
           <Link
+            href={`/cards/${cardId}/payments/new`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            {t('creditCards.detail.payStatement')}
+          </Link>
+          <Link
             href={`/cards/${cardId}/installments/new`}
             className={buttonVariants({ variant: 'outline', size: 'sm' })}
           >

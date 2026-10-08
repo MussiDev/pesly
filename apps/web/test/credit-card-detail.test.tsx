@@ -40,6 +40,7 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
     status: 'open',
     totals: { ARS: '0', USD: '0' },
     installments: [],
+    payments: null,
     ...overrides,
   };
 }
