@@ -131,6 +131,7 @@ export const statementInstallmentSchema = z.object({
   number: installmentNumberSchema,
   count: installmentCountSchema,
   amount: z.string(),
+  currency: z.enum(['ARS', 'USD']),
   categoryId: z.string(),
 });
 

@@ -68,7 +68,15 @@ describe('createInstallmentPurchaseRequestSchema', () => {
     ).toBe(false);
   });
 
-  it.each(['USD', 'ars', undefined])('rejects the currency %s (AC-03)', (currency) => {
+  it('accepts ARS and USD', () => {
+    for (const currency of ['ARS', 'USD']) {
+      expect(createInstallmentPurchaseRequestSchema.safeParse({ ...VALID, currency }).success).toBe(
+        true,
+      );
+    }
+  });
+
+  it.each(['USDT', 'EUR', 'ars', undefined])('rejects the currency %s (AC-03)', (currency) => {
     expect(createInstallmentPurchaseRequestSchema.safeParse({ ...VALID, currency }).success).toBe(
       false,
     );

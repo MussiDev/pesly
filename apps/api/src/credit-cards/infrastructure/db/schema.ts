@@ -113,6 +113,8 @@ export const installmentPurchases = pgTable(
     categoryId: uuid('category_id').notNull(),
     categoryKind: text('category_kind').notNull().default('expense'),
     totalAmount: bigint('total_amount', { mode: 'bigint' }).notNull(),
+    /** The purchase currency; its installments inherit it. */
+    currency: text('currency').$type<'ARS' | 'USD'>().notNull().default('ARS'),
     installmentCount: smallint('installment_count').notNull(),
     /** The calendar day of the purchase in the user's time zone. */
     purchasedOn: date('purchased_on', { mode: 'string' }).notNull(),
@@ -127,6 +129,7 @@ export const installmentPurchases = pgTable(
       'installment_purchases_total_range_check',
       sql`${table.totalAmount} between 1 and ${AMOUNT_MAX_LITERAL}`,
     ),
+    check('installment_purchases_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
     check('installment_purchases_count_check', sql`${table.installmentCount} between 2 and 60`),
     check(
       'installment_purchases_total_covers_count_check',

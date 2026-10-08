@@ -75,8 +75,9 @@ function purchase(
   installments: number,
   purchasedOn = '2026-10-06',
   categoryId = FOOD,
+  currency: 'ARS' | 'USD' = 'ARS',
 ) {
-  return { categoryId, amount, installments, purchasedOn };
+  return { categoryId, currency, amount, installments, purchasedOn };
 }
 
 describe('CreateInstallmentPurchase', () => {
@@ -201,6 +202,21 @@ describe('statements with installments', () => {
     ]);
   });
 
+  it('adds a USD installment to the USD total, not the ARS one (USD totals)', async () => {
+    const { app, card } = await withCard();
+    const scope = await writeScopeFor(ANA);
+    await app.create.execute(scope, card.id, purchase(12000n, 12, '2026-10-06', FOOD, 'USD'));
+    await app.create.execute(scope, card.id, purchase(1200000n, 12));
+
+    const [october] = await app.statements.execute(scope, card.id);
+
+    expect(october?.totals).toEqual({ ARS: 100000n, USD: 1000n });
+    expect(october?.installments).toEqual([
+      expect.objectContaining({ currency: 'USD', amount: 1000n }),
+      expect.objectContaining({ currency: 'ARS', amount: 100000n }),
+    ]);
+  });
+
   it('keeps counting the closed installments after a deletion (AC-09, FR-06)', async () => {
     const { app, card } = await withCard();
     const scope = await writeScopeFor(ANA);
@@ -229,6 +245,23 @@ describe('ListInstallmentPurchases', () => {
     expect(items).toHaveLength(1);
     expect(items[0]?.installments[0]?.status).toBe('closed');
     expect(pendingDebt).toEqual({ ARS: 11000000n, USD: 0n });
+  });
+
+  it('keeps a pending debt per currency for ARS and USD purchases (USD pending debt)', async () => {
+    const { app, card } = await withCard();
+    const scope = await writeScopeFor(ANA);
+    await app.create.execute(scope, card.id, purchase(12000000n, 12));
+    const usd = await app.create.execute(
+      scope,
+      card.id,
+      purchase(30000n, 3, '2026-10-06', FOOD, 'USD'),
+    );
+    app.clock.current = new Date('2026-10-25T12:00:00.000Z');
+
+    const { pendingDebt } = await app.list.execute(await readScopeFor(ANA), card.id);
+
+    expect(usd.currency).toBe('USD');
+    expect(pendingDebt).toEqual({ ARS: 11000000n, USD: 20000n });
   });
 
   it('shows zero pending debt for a card without purchases', async () => {
@@ -347,7 +380,9 @@ describe('UpdateInstallmentPurchase', () => {
       from: '2026-11',
       to: '2026-11',
     });
-    expect(month).toEqual([{ month: '2026-11', categoryId: HOME, amount: 1000000n }]);
+    expect(month).toEqual([
+      { month: '2026-11', categoryId: HOME, currency: 'ARS', amount: 1000000n },
+    ]);
   });
 
   it('refuses a rejected new category and changes nothing (sad path)', async () => {
@@ -370,12 +405,26 @@ describe('ListInstallmentExpenses', () => {
     const read = await readScopeFor(ANA);
 
     expect(await app.monthly.execute(read, { from: '2026-11', to: '2026-11' })).toEqual([
-      { month: '2026-11', categoryId: FOOD, amount: 1000000n },
+      { month: '2026-11', categoryId: FOOD, currency: 'ARS', amount: 1000000n },
     ]);
     const year = await app.monthly.execute(read, { from: '2026-11', to: '2027-10' });
     expect(year).toHaveLength(12);
     expect(year.reduce((sum, item) => sum + item.amount, 0n)).toBe(12000000n);
     expect(await app.monthly.execute(read, { from: '2026-10', to: '2026-10' })).toEqual([]);
+  });
+
+  it('keeps the currency of each installment apart in the same month and category (USD in installment-expenses)', async () => {
+    const { app, card } = await withCard();
+    const scope = await writeScopeFor(ANA);
+    await app.create.execute(scope, card.id, purchase(12000000n, 12));
+    await app.create.execute(scope, card.id, purchase(24000n, 12, '2026-10-06', FOOD, 'USD'));
+
+    expect(
+      await app.monthly.execute(await readScopeFor(ANA), { from: '2026-11', to: '2026-11' }),
+    ).toEqual([
+      { month: '2026-11', categoryId: FOOD, currency: 'ARS', amount: 1000000n },
+      { month: '2026-11', categoryId: FOOD, currency: 'USD', amount: 2000n },
+    ]);
   });
 
   it('is empty for another user and for a month without installments (error path of empty data)', async () => {
