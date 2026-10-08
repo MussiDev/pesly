@@ -36,6 +36,7 @@ import type {
   PaymentToRecord,
   StatementPaymentRecorder,
 } from '../../src/credit-cards/application/ports/statement-payment-recorder';
+import type { StatementImportRepository } from '../../src/credit-cards/application/ports/statement-import-repository';
 import type { UserTimeZone } from '../../src/credit-cards/application/ports/user-time-zone';
 import {
   linkedAccountNames,
@@ -210,7 +211,18 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
   /** When set, the next call rejects with it and stores nothing. */
   failWith: Error | null = null;
 
+  /** How many expenses came through the path that spends no creation limit unit. */
+  unmetered = 0;
+
   constructor(private readonly clock: Clock) {}
+
+  recordUnmetered(
+    scope: AccessScope<'write'>,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }> {
+    this.unmetered += 1;
+    return this.record(scope, expense);
+  }
 
   record(
     scope: AccessScope<'write'>,
@@ -437,6 +449,23 @@ export class FakeCardPayments implements CardPayments {
   }
 }
 
+/** In-memory fingerprints, scoped by owner and card like the SQL table. */
+export class InMemoryStatementImports implements StatementImportRepository {
+  readonly claimed = new Set<string>();
+
+  claim(scope: AccessScope<'write'>, cardId: string, fingerprint: string): Promise<boolean> {
+    const key = `${scope.userId}|${cardId}|${fingerprint}`;
+    if (this.claimed.has(key)) return Promise.resolve(false);
+    this.claimed.add(key);
+    return Promise.resolve(true);
+  }
+
+  release(scope: AccessScope<'write'>, cardId: string, fingerprint: string): Promise<void> {
+    this.claimed.delete(`${scope.userId}|${cardId}|${fingerprint}`);
+    return Promise.resolve();
+  }
+}
+
 /** The collaborators of the installment use cases, with in-memory stand-ins. */
 export function installmentFakes() {
   const paymentRecorder = new FakePaymentRecorder();
@@ -446,5 +475,6 @@ export function installmentFakes() {
     installments: new InMemoryInstallments(),
     categories: new FakeCategoryGuard(),
     writeLimit: new FakeWriteLimit(),
+    statementImports: new InMemoryStatementImports(),
   };
 }
