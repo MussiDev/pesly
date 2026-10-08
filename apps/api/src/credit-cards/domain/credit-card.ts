@@ -1,6 +1,7 @@
 import { LINKED_ACCOUNT_SUFFIXES, type StatementStatus } from '@pesly/shared';
 import type { StatementInstallmentView } from './installment';
 import type { StatementTotals } from './statement-assignment';
+import type { StatementPaymentView } from './statement-payment';
 
 export interface CreditCard {
   id: string;
@@ -29,6 +30,8 @@ export interface StatementView extends Statement {
   status: StatementStatus;
   totals: StatementTotals;
   installments: StatementInstallmentView[];
+  /** Paid amount and status per currency; `null` while the statement is open (spec D3). */
+  payments: StatementPaymentView | null;
 }
 
 /** "<card name> ARS" and "<card name> USD" (FR-02). */

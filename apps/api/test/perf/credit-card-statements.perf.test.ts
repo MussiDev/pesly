@@ -8,10 +8,12 @@ import { createCreditCardRoutes } from '../../src/credit-cards';
 import { DrizzleInstallmentRepository } from '../../src/credit-cards/infrastructure/db/drizzle-installment-repository';
 import {
   createAccountMovements,
+  createCardPayments,
   createCardPurchases,
   createExpenseCategoryGuard,
   createExpenseRecorder,
   createInstallmentWriteLimit,
+  createStatementPaymentRecorder,
 } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -78,6 +80,8 @@ describe('statement view latency with installments (NFR-02)', () => {
           activity: createAccountMovements(connection.db),
           expenses: createExpenseRecorder(connection.db, logger),
           purchases: createCardPurchases(connection.db),
+          cardPayments: createCardPayments(connection.db),
+          paymentRecorder: createStatementPaymentRecorder(connection.db, logger),
           categories: createExpenseCategoryGuard(connection.db),
           writeLimit: createInstallmentWriteLimit(connection.db, logger),
         }),

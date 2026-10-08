@@ -18,11 +18,13 @@ import {
 import { createAccountRoutes } from '../../src/accounts';
 import {
   createAccountMovements,
+  createCardPayments,
   createCardPurchases,
   createCategoryUsage,
   createExpenseCategoryGuard,
   createExpenseRecorder,
   createInstallmentWriteLimit,
+  createStatementPaymentRecorder,
 } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -79,6 +81,8 @@ async function setup() {
         activity: createAccountMovements(connection.db),
         expenses: createExpenseRecorder(connection.db, logger, { clock }),
         purchases: createCardPurchases(connection.db),
+        cardPayments: createCardPayments(connection.db),
+        paymentRecorder: createStatementPaymentRecorder(connection.db, logger, { clock }),
         categories: createExpenseCategoryGuard(connection.db),
         writeLimit: createInstallmentWriteLimit(connection.db, logger, { clock }),
         clock,
