@@ -4,7 +4,7 @@
 |---|---|
 | Ticket | DISC-001-10c |
 | Tier | FEATURE |
-| Date | 2026-10-07 |
+| Date | 2026-10-08 |
 | Scope | `git diff 77d55f1..HEAD` over `apps/`, `packages/` and the lockfile without tests and e2e: `packages/shared/src/credit-cards/{installment,credit-card}.ts` and `money/split-installments.ts`; `apps/api/src/credit-cards/**` (domain, use cases, ports, repository, routes, presenter, schema); `apps/api/src/movements/infrastructure/credit-cards/{drizzle-expense-category-guard,drizzle-installment-write-limit}.ts` and `movements/index.ts`; `apps/api/src/server.ts`; migration `apps/api/drizzle/0020_installments.sql` and its rollback; `apps/web/src/features/credit-cards/**`, the `/cards/[id]/installments/new` page, `apps/web/src/lib/api-client.ts`, both catalogs; `apps/web/package.json` and `pnpm-lock.yaml` (next 16.3.8); tests and e2e scanned for secrets only. |
 | Method | Review of the diff by the author with targeted searches over the changed files (secret patterns, `sql.raw` and interpolated SQL, `eval`/`exec`/`child_process`, `innerHTML`/`dangerouslySetInnerHTML`, file access, outbound calls, logger calls), the threat model R-01 to R-05 as checklist, ESLint with the module boundary rules, plus `pnpm audit --prod --audit-level high` on the final tree. No per-block subagent review was run (see the tests report, deviations) |
 | Result | PASSED — 0 Critical, 0 High, 0 Medium open; 3 Info documented below |
