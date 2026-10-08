@@ -23,6 +23,7 @@ const statement = {
   dueDate: '2026-11-05',
   status: 'open',
   totals: { ARS: '0', USD: '0' },
+  installments: [],
 };
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -198,6 +199,98 @@ describe('credit cards api client', () => {
       messageKey: 'unexpected',
     });
     expect(await client.createCardExpense('..', body)).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  const PURCHASE_ID = '5b1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5c';
+  const purchase = {
+    id: PURCHASE_ID,
+    cardId: CARD_ID,
+    categoryId: '00000000-0000-4000-8000-000000000011',
+    amount: '12000000',
+    currency: 'ARS',
+    installmentCount: 2,
+    purchasedOn: '2026-10-05',
+    note: null,
+    createdAt: '2026-10-05T15:00:00.000Z',
+    installments: [
+      {
+        number: 1,
+        amount: '6000000',
+        period: '2026-10',
+        closingDate: '2026-10-24',
+        dueDate: '2026-11-05',
+        status: 'open',
+      },
+    ],
+  };
+
+  it('createInstallmentPurchase posts the purchase to the card route and parses the answer (AC-01)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(201, purchase));
+    const body = {
+      currency: 'ARS' as const,
+      categoryId: purchase.categoryId,
+      amount: '12000000',
+      installments: 2,
+      purchasedOn: '2026-10-05',
+    };
+
+    expect(await client.createInstallmentPurchase(CARD_ID, body)).toEqual({
+      ok: true,
+      data: purchase,
+    });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/installment-purchases`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+  });
+
+  it('listInstallmentPurchases reads the purchases and the pending debt (FR-07)', async () => {
+    const answer = { items: [purchase], pendingDebt: { ARS: '6000000', USD: '0' } };
+    const { client, fetch } = clientWith(jsonResponse(200, answer));
+
+    expect(await client.listInstallmentPurchases(CARD_ID)).toEqual({ ok: true, data: answer });
+    expect(requestAt(fetch, 0).url).toBe(
+      `${BASE_URL}/credit-cards/${CARD_ID}/installment-purchases`,
+    );
+  });
+
+  it('deleteInstallmentPurchase sends a DELETE to the purchase path (FR-08)', async () => {
+    const { client, fetch } = clientWith(new Response(null, { status: 204 }));
+
+    expect(await client.deleteInstallmentPurchase(CARD_ID, PURCHASE_ID)).toEqual({
+      ok: true,
+      data: undefined,
+    });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/installment-purchases/${PURCHASE_ID}`);
+    expect(init.method).toBe('DELETE');
+  });
+
+  it('maps a malformed installment answer to unexpected and refuses ".." ids (error path)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(200, { items: 1 }));
+    const body = {
+      currency: 'ARS' as const,
+      categoryId: purchase.categoryId,
+      amount: '100',
+      installments: 2,
+      purchasedOn: '2026-10-05',
+    };
+
+    expect(await client.listInstallmentPurchases(CARD_ID)).toMatchObject({
+      ok: false,
+      code: 'INTERNAL',
+      messageKey: 'unexpected',
+    });
+    expect(await client.createInstallmentPurchase('..', body)).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(await client.deleteInstallmentPurchase(CARD_ID, '..')).toMatchObject({
       ok: false,
       code: 'VALIDATION_FAILED',
     });
