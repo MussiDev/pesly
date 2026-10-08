@@ -294,6 +294,18 @@ All notable changes to this project are documented in this file. The format foll
   or after its day in the user's time zone, so moving the closing date of an open statement or the
   default days reassigns purchases without any stored link. Each statement shows its total per
   currency, the sum of the expenses on the card's two accounts. No migration.
+- DISC-001-10c Installment purchases: `POST /credit-cards/:id/installment-purchases` and an "Add
+  installments" screen record a purchase in ARS in 2 to 60 installments, split into equal parts with
+  the leftover minor units on the first installment. The first installment goes to the statement of
+  the purchase day and each following one to the next statement; a purchase in USD is refused. A
+  purchase can be read, edited (category and note) and deleted; deleting it removes the installments
+  of statements not closed yet and keeps the ones in closed statements. Migration 0020.
+- DISC-001-10c Statement totals and pending debt: each statement lists its installments and its total
+  per currency now adds them to the purchases, and the card page shows the pending debt, the
+  installments in statements not yet closed.
+- DISC-001-10c Installments by category and month: `GET /credit-cards/installment-expenses` returns each
+  installment as an expense of the purchase's category in the due-date month of its statement, for
+  budgets (PRD 06) and reports (PRD 09) to read when they are built.
 
 ### Changed
 
@@ -328,6 +340,8 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Security: `next` is raised to 16.3.8 (GHSA-cjq9-62q9-8jv4, a server-side request forgery in the
+  image optimizer), which clears the high advisory of `pnpm audit --prod --audit-level high`.
 - Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
   denial of service reached through `next` and `postcss`), which clears the high advisory that
   failed the lint job of every pull request.

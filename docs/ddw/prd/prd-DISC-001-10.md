@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | done: merged to `main` in PR #35 (migration 0019, journal `when` 1791246865297); the `/cards` screen and its navigation entry shipped with it, so pending decision 4 is open for the owner (the entry stays until the owner decides otherwise) |
 | DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | done: branch `feat/DISC-001-10b-card-expenses` (from `main` 663f747, not pushed, no PR yet); no migration; the purchase's statement is derived from its day and the closing dates, not stored; the card expense screen is online only (offline entry still goes through the ordinary movement form on the linked accounts); the Playwright flow `credit-cards-expenses.spec.ts` is written and is run by the orchestrator; next: 10c |
-| DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | pending |
+| DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | done: branch `feat/DISC-001-10c-installments` (from `main` 77d55f1, not pushed, no PR yet); migration 0020 (journal `when` 1791419213992, to be checked again at merge); installment purchases are not movements (no expense on the linked accounts), the statement of an installment is stored as its period; the monthly installment expenses by category are exposed by `GET /credit-cards/installment-expenses`; the Playwright flow `credit-cards-installments.spec.ts` is written and is run by the orchestrator; next: d |
 | DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | pending |
 | DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d; the scheduler is an open decision (PRD 08 is not built) | pending |
 | DISC-001-10f | Statement Due-Date Reminders | prd-DISC-001-10f.md | PRD 08 (Recurring Payments & Reminders), which is not built | blocked: needs PRD 08 |
@@ -22,7 +22,7 @@ a → b → c → d → e, a chain: each one needs the one before it. f starts w
 needs only a besides PRD 08.
 
 ## Pending decisions (not resolved in the sub-PRDs)
-1. **Budgets and reports consuming installments** (for DISC-001-10c's PLAN). The original FR-13
+1. **Budgets and reports consuming installments** (resolved in DISC-001-10c with the recommended option: 10c exposes the installments by category and month through `GET /credit-cards/installment-expenses`; PRD 06 and PRD 09 consume them when built). The original FR-13
    makes each installment an expense of the purchase's category in the month of its statement's due
    date, "for reports (PRD 09) and budgets (PRD 06)". Neither is built. Recommended: 10c exposes
    the installments by category and month through the API and the movements model, and PRD 06 and
@@ -38,6 +38,18 @@ needs only a besides PRD 08.
 4. **Release unit of 10a and the rest** (found while splitting). 10a creates cards and statements
    that nothing can use until 10b records expenses on them. Recommended: merge each sub-ticket to
    `main` as it finishes, but ship the card UI only with 10b. Alternative: release a to d together.
+
+## Open for the owner after DISC-001-10c
+- **Installments and the linked ARS account balance.** An installment purchase is not a movement, so
+  it does not change the balance of the card's ARS account; only DISC-001-10d decides how a
+  statement payment accounts for the installments in the statement total.
+- **Editing a purchase.** The PRD names "edit" in FR-09 and AC-10 without a rule; 10c lets the owner
+  change the category and the note through the API (amounts and counts are fixed: delete and record
+  again). There is no web edit screen.
+- **Offline.** The installment screen is online only, like the card expense screen of 10b.
+- **`next` raised to 16.3.8** to clear GHSA-cjq9-62q9-8jv4 so the audit gate passes; not part of the spec.
+- **A deleted purchase with closed installments** stays as a cancelled row (hidden, answering 404) so
+  its closed installments keep counting; a card or a category used by a purchase cannot be deleted.
 
 ## Added while splitting (not in the original text)
 Each addition is derived from an obligation or decision already on record in the original PRD;
