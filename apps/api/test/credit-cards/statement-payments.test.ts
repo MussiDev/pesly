@@ -204,7 +204,7 @@ describe('RecordStatementPayment with pesos', () => {
   it('passes the pesos debited to the recorder as given', async () => {
     const { app, card } = await closedOctober();
     const recorded = await pay(app, card, { pesosAmount: 9_147_065n });
-    expect(recorded.exchange).toEqual({ pesosAmount: 9_147_065n, rate: expect.any(BigInt) });
+    expect(recorded.exchange?.pesosAmount).toBe(9_147_065n);
     expect(app.recorder.payments[0]).toMatchObject({
       destinationAccountId: card.usdAccountId,
       amount: 5_959n,

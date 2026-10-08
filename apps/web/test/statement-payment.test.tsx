@@ -96,6 +96,7 @@ function formRoutes(overrides: Record<string, Parameters<typeof stubApi>[0][stri
         accountId: card.arsAccountId,
         currency: 'ARS',
         amount: '6000000',
+        exchange: null,
         occurredAt: NOW,
       },
     },
@@ -150,7 +151,7 @@ describe('StatementPaymentContainer', () => {
     ]);
   });
 
-  it('offers only accounts of the chosen currency, never the card own, so a mismatch cannot be picked (AC-02)', async () => {
+  it('offers only ARS accounts for an ARS payment and every open account for a USD one, never the card own (AC-02)', async () => {
     await open();
     const user = userEvent.setup();
 
@@ -160,7 +161,65 @@ describe('StatementPaymentContainer', () => {
     expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
     await user.selectOptions(field(t.fields.currency), 'USD');
     expect(screen.getByRole('option', { name: 'Banco dólares' })).toBeDefined();
-    expect(screen.queryByRole('option', { name: 'Banco' })).toBeNull();
+    expect(screen.getByRole('option', { name: 'Banco' })).toBeDefined();
+    expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
+  });
+
+  it('pays USD from a USD account as today, without the pesos field', async () => {
+    const { calls } = await open();
+    const user = userEvent.setup();
+    await user.selectOptions(field(t.fields.currency), 'USD');
+    await user.selectOptions(field(t.fields.sourceAccount), USD_BANK_ID);
+    expect(screen.queryByLabelText(t.fields.pesosAmount)).toBeNull();
+    await user.type(field(t.fields.amount), '59,59');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toEqual({
+      currency: 'USD',
+      sourceAccountId: USD_BANK_ID,
+      amount: '5959',
+      occurredAt: NOW,
+    });
+  });
+
+  it('shows the pesos field and the derived rate for a USD payment from an ARS account and sends the pesos', async () => {
+    const { calls } = await open();
+    const user = userEvent.setup();
+    await user.selectOptions(field(t.fields.currency), 'USD');
+    await user.selectOptions(field(t.fields.sourceAccount), BANK_ID);
+    await user.type(field(t.fields.amount), '59,59');
+    await user.type(field(t.fields.pesosAmount), '91.470,65');
+
+    expect((await screen.findByRole('status')).textContent).toBe(
+      es.movements.exchange.impliedRate.replace('{rate}', '1535,0000'),
+    );
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]?.body).toEqual({
+      currency: 'USD',
+      sourceAccountId: BANK_ID,
+      amount: '5959',
+      pesosAmount: '9147065',
+      occurredAt: NOW,
+    });
+  });
+
+  it('asks for the pesos when an ARS account pays USD and sends nothing without them (invalid input)', async () => {
+    const { calls } = await open();
+    const user = userEvent.setup();
+    await user.selectOptions(field(t.fields.currency), 'USD');
+    await user.selectOptions(field(t.fields.sourceAccount), BANK_ID);
+    await user.type(field(t.fields.amount), '59,59');
+    await user.click(submit());
+
+    expect(await screen.findByText(es.movements.errors.amountInvalid)).toBeDefined();
+    expect(posts(calls)).toEqual([]);
   });
 
   it('shows the API mismatch message as an alert and keeps the typed values (AC-02)', async () => {

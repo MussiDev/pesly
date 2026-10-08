@@ -80,4 +80,44 @@ describe('buildStatementPaymentRequest', () => {
     });
     expect(result.fields?.occurredAt).toBe('movements.errors.dateSkipped');
   });
+
+  describe('USD paid from an ARS account', () => {
+    const usd = (patch: Partial<StatementPaymentFormValues> = {}) =>
+      values({ currency: 'USD', amount: '59,59', pesosAmount: '91.470,65', ...patch });
+
+    it('adds the pesos debited as minor units to the request', () => {
+      expect(buildStatementPaymentRequest(usd(), context)).toEqual({
+        request: {
+          currency: 'USD',
+          sourceAccountId: BANK,
+          amount: '5959',
+          pesosAmount: '9147065',
+          occurredAt: '2026-10-02T15:30:00.000Z',
+        },
+      });
+    });
+
+    it.each([
+      ['empty', ''],
+      ['zero', '0'],
+      ['with three decimals', '1,234'],
+    ])('gives a pesos message when the pesos are %s and no request', (_label, pesosAmount) => {
+      const result = buildStatementPaymentRequest(usd({ pesosAmount }), context);
+      expect(result.request).toBeUndefined();
+      expect(Object.keys(result.fields ?? {})).toEqual(['pesosAmount']);
+    });
+
+    it('does not send the pesos for a USD account, and still refuses a USD account for ARS', () => {
+      const same = buildStatementPaymentRequest(usd({ sourceAccountId: USD_BANK }), context);
+      expect(same.request).toEqual({
+        currency: 'USD',
+        sourceAccountId: USD_BANK,
+        amount: '5959',
+        occurredAt: '2026-10-02T15:30:00.000Z',
+      });
+      expect(
+        buildStatementPaymentRequest(values({ sourceAccountId: USD_BANK }), context).fields,
+      ).toEqual({ sourceAccount: 'errors.movementCurrencyMismatch' });
+    });
+  });
 });

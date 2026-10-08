@@ -527,12 +527,13 @@
     },
     "payments": {
       "title": "Pagar un resumen",
-      "description": "Mueve dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar.",
+      "description": "Mueve dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar. Pagar dólares desde una cuenta en pesos registra una compra de dólares a la cotización que resulta de los montos.",
       "fields": {
         "currency": "Moneda",
         "sourceAccount": "Pagar desde",
         "sourceAccountPlaceholder": "Elige una cuenta",
         "amount": "Monto",
+        "pesosAmount": "Pesos debitados",
         "occurredAt": "Fecha y hora",
         "note": "Nota (opcional)"
       },
