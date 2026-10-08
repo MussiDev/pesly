@@ -11,6 +11,7 @@ import type { ExpenseCategoryGuard } from './ports/expense-category-guard';
 import type { ExpenseRecorder } from './ports/expense-recorder';
 import type { InstallmentRepository } from './ports/installment-repository';
 import type { InstallmentWriteLimit } from './ports/installment-write-limit';
+import type { StatementImportRepository } from './ports/statement-import-repository';
 import type { StatementPaymentRecorder } from './ports/statement-payment-recorder';
 import type { UserTimeZone } from './ports/user-time-zone';
 
@@ -26,6 +27,7 @@ export interface CreditCardDependencies {
   writeLimit: InstallmentWriteLimit;
   cardPayments: CardPayments;
   paymentRecorder: StatementPaymentRecorder;
+  statementImports: StatementImportRepository;
 }
 
 /** The caller's calendar date, `YYYY-MM-DD`, in their stored time zone (PRD 01 FR-24). */

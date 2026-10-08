@@ -5,7 +5,7 @@ import type {
 import type { AccessScope } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import type { Logger } from '../../../shared/logging/logger';
-import { CreateMovement } from '../../application/create-movement';
+import { CreateMovement, type CreateMovementInput } from '../../application/create-movement';
 import type { Clock } from '../../application/ports/clock';
 import { RecordManualMovement } from '../../application/record-manual-movement';
 import { DrizzleAccountLookup } from '../db/drizzle-account-lookup';
@@ -23,22 +23,37 @@ export interface ExpenseRecorderOptions {
   clock?: Clock;
 }
 
+function toInput(expense: ExpenseToRecord): CreateMovementInput {
+  return {
+    type: 'expense',
+    accountId: expense.accountId,
+    categoryId: expense.categoryId,
+    amount: expense.amount,
+    occurredAt: expense.occurredAt,
+    ...(expense.note === undefined ? {} : { note: expense.note }),
+    rate: expense.rate,
+  };
+}
+
 class MovementsExpenseRecorder implements ExpenseRecorder {
-  constructor(private readonly recordManualMovement: RecordManualMovement) {}
+  constructor(
+    private readonly recordManualMovement: RecordManualMovement,
+    private readonly createMovement: CreateMovement,
+  ) {}
 
   async record(
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }> {
-    const movement = await this.recordManualMovement.execute(scope, {
-      type: 'expense',
-      accountId: expense.accountId,
-      categoryId: expense.categoryId,
-      amount: expense.amount,
-      occurredAt: expense.occurredAt,
-      ...(expense.note === undefined ? {} : { note: expense.note }),
-      rate: expense.rate,
-    });
+    const movement = await this.recordManualMovement.execute(scope, toInput(expense));
+    return { id: movement.id, occurredAt: movement.occurredAt };
+  }
+
+  async recordUnmetered(
+    scope: AccessScope<'write'>,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }> {
+    const movement = await this.createMovement.execute(scope, toInput(expense));
     return { id: movement.id, occurredAt: movement.occurredAt };
   }
 }
@@ -70,5 +85,6 @@ export function createExpenseRecorder(
       },
       writeLimit,
     ),
+    createMovement,
   );
 }

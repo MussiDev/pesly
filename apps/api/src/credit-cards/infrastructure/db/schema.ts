@@ -184,3 +184,32 @@ export const installments = pgTable(
     ),
   ],
 );
+
+/**
+ * One line of an imported card statement, recorded by its fingerprint so importing the same file
+ * again creates nothing twice. Only the hash is kept: no description, amount or voucher.
+ */
+export const cardStatementImportLines = pgTable(
+  'card_statement_import_lines',
+  {
+    ownerId: uuid('owner_id').notNull(),
+    cardId: uuid('card_id').notNull(),
+    fingerprint: text('fingerprint').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'card_statement_import_lines_pk',
+      columns: [table.ownerId, table.cardId, table.fingerprint],
+    }),
+    check(
+      'card_statement_import_lines_fingerprint_check',
+      sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    foreignKey({
+      name: 'card_statement_import_lines_card_owner_fk',
+      columns: [table.cardId, table.ownerId],
+      foreignColumns: [creditCards.id, creditCards.ownerId],
+    }).onDelete('cascade'),
+  ],
+);

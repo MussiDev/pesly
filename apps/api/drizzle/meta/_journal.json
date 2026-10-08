@@ -148,6 +148,13 @@
       "when": 1791505000000,
       "tag": "0021_installment_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791510000000,
+      "tag": "0022_card_statement_import_lines",
+      "breakpoints": true
     }
   ]
 }
