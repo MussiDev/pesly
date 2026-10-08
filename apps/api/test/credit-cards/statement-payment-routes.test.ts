@@ -411,3 +411,205 @@ describe('POST /credit-cards/:id/payments', () => {
     expect(logged).not.toContain('secret rent');
   });
 });
+
+describe('POST /credit-cards/:id/payments, USD part from an ARS account', () => {
+  const USD_PESOS = '9147065'; // 91,470.65 ARS debited for 59.59 USD at 1535.0000
+
+  /** A card with a 59.59 USD purchase on 2026-10-05, whose October statement is closed. */
+  async function closedUsdOctober(s: Setup) {
+    const card = await createVisa(s);
+    const categoryId = await newCategory(connection.pool, s.anaId, 'expense');
+    const spent = await call(s.app, 'post', `/credit-cards/${card.id}/expenses`, s.ana, {
+      currency: 'USD',
+      categoryId,
+      amount: '5959',
+      occurredAt: '2026-10-05T14:00:00.000Z',
+      rate: MANUAL_RATE,
+    });
+    expect(spent.status).toBe(201);
+    s.clock.current = new Date('2026-11-10T15:00:00.000Z');
+    return card;
+  }
+
+  const usdBody = (sourceAccountId: string, overrides: Record<string, unknown> = {}) =>
+    paymentBody(sourceAccountId, { currency: 'USD', amount: '5959', ...overrides });
+
+  it('records an exchange of the pesos debited and marks the USD part paid (statement example)', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+
+    const response = await pay(s, card.id, usdBody(bank, { pesosAmount: USD_PESOS }));
+
+    expect(response.status).toBe(201);
+    expect(statementPaymentResponseSchema.parse(response.body)).toMatchObject({
+      accountId: card.usdAccountId,
+      currency: 'USD',
+      amount: '5959',
+      exchange: { pesosAmount: USD_PESOS, rate: '15350000' },
+    });
+    expect(await balanceOf(s, bank)).toBe(`-${USD_PESOS}`);
+    // The 59.59 USD purchase took the card account to -5959; the payment brings it back to zero.
+    expect(await balanceOf(s, card.usdAccountId)).toBe('0');
+    const exchanges = await call(s.app, 'get', '/movements?type=exchange', s.ana);
+    expect(listMovementsResponseSchema.parse(exchanges.body).items).toHaveLength(1);
+    expect((await october(s, card.id)).payments?.USD).toEqual({ paid: '5959', status: 'paid' });
+  });
+
+  it('derives the pesos from the rate with exact half-up arithmetic', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+
+    const exact = await pay(s, card.id, usdBody(bank, { rate: '15350000' }));
+    const rounded = await pay(s, card.id, usdBody(bank, { amount: '1', rate: '15355000' }));
+
+    expect(statementPaymentResponseSchema.parse(exact.body).exchange?.pesosAmount).toBe(USD_PESOS);
+    // 1 cent at 1535.5 is 15.355 pesos: rounded half-up to 1536 cents.
+    expect(statementPaymentResponseSchema.parse(rounded.body).exchange?.pesosAmount).toBe('1536');
+  });
+
+  it('keeps a USD payment from a USD account a plain transfer without exchange data', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const usdBank = await newAccount(connection.pool, s.anaId, false, 'USD');
+
+    const response = await pay(s, card.id, usdBody(usdBank));
+
+    expect(statementPaymentResponseSchema.parse(response.body).exchange).toBeNull();
+    expect((await october(s, card.id)).payments?.USD.status).toBe('paid');
+  });
+
+  it('answers 400 without pesos or rate, with both, with pesos from a USD account, and for ARS with pesos (sad path)', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+    const usdBank = await newAccount(connection.pool, s.anaId, false, 'USD');
+
+    const responses = [
+      await pay(s, card.id, usdBody(bank)),
+      await pay(s, card.id, usdBody(bank, { pesosAmount: USD_PESOS, rate: '15350000' })),
+      await pay(s, card.id, usdBody(usdBank, { pesosAmount: USD_PESOS })),
+      await pay(s, card.id, usdBody(usdBank, { rate: '15350000' })),
+      await pay(s, card.id, paymentBody(bank, { pesosAmount: USD_PESOS })),
+      await pay(s, card.id, usdBody(bank, { pesosAmount: '0' })),
+      await pay(s, card.id, usdBody(bank, { rate: '0' })),
+    ];
+
+    for (const response of responses) {
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    }
+    expect((await october(s, card.id)).payments?.USD.status).toBe('unpaid');
+  });
+
+  it('still refuses ARS paid from a USD account (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s);
+    const usdBank = await newAccount(connection.pool, s.anaId, false, 'USD');
+
+    const response = await pay(s, card.id, paymentBody(usdBank));
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'MOVEMENT_CURRENCY_MISMATCH' });
+  });
+
+  it('answers 404 for a foreign card or source and 400 for a future date, storing nothing (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s);
+    const bobCard = await createVisa(s, s.bob);
+    const anaBank = await newAccount(connection.pool, s.anaId);
+    const bobBank = await newAccount(connection.pool, s.bobId);
+    const body = { pesosAmount: USD_PESOS };
+
+    const foreignCard = await pay(s, card.id, usdBody(bobBank, body), s.bob);
+    const foreignSource = await pay(s, bobCard.id, usdBody(anaBank, body), s.bob);
+    const future = await pay(
+      s,
+      card.id,
+      usdBody(anaBank, { ...body, occurredAt: '2026-10-08T14:00:00.000Z' }),
+    );
+
+    expect(foreignCard.status).toBe(404);
+    expect(foreignSource.status).toBe(404);
+    expect(future.status).toBe(400);
+    expect(future.body).toMatchObject({ code: 'MOVEMENT_DATE_IN_FUTURE' });
+    const stored = await connection.pool.query<{ n: string }>(
+      `select count(*) as n from movements where type = 'exchange' and owner_id in ($1, $2)`,
+      [s.anaId, s.bobId],
+    );
+    expect(stored.rows[0]).toEqual({ n: '0' });
+  });
+
+  it('accepts the largest amounts and refuses a rate whose pesos exceed the limit', async () => {
+    const s = await setup();
+    const card = await createVisa(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+
+    const max = await pay(
+      s,
+      card.id,
+      usdBody(bank, { amount: '1000000000000000', pesosAmount: '1000000000000000' }),
+    );
+    const tooMuch = await pay(
+      s,
+      card.id,
+      usdBody(bank, { amount: '1000000000000000', rate: '100000000000' }),
+    );
+
+    expect(max.status).toBe(201);
+    expect(statementPaymentResponseSchema.parse(max.body).exchange).toEqual({
+      pesosAmount: '1000000000000000',
+      rate: '10000',
+    });
+    expect(tooMuch.status).toBe(400);
+  });
+
+  it('moves the status when the exchange is edited or deleted through the movements API', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+    const paid = statementPaymentResponseSchema.parse(
+      (await pay(s, card.id, usdBody(bank, { pesosAmount: USD_PESOS }))).body,
+    );
+
+    const edited = await request(s.app)
+      .put(`/movements/${paid.movementId}`)
+      .set(trustedHeaders)
+      .set('Cookie', cookieHeader(s.ana))
+      .send({
+        type: 'exchange',
+        accountId: bank,
+        destinationAccountId: card.usdAccountId,
+        amount: '4000000',
+        destinationAmount: '2000',
+        occurredAt: '2026-10-06T14:00:00.000Z',
+      });
+    expect(edited.status).toBe(200);
+    expect((await october(s, card.id)).payments?.USD).toEqual({
+      paid: '2000',
+      status: 'partially_paid',
+    });
+
+    const removed = await call(s.app, 'delete', `/movements/${paid.movementId}`, s.ana);
+    expect(removed.status).toBe(204);
+    expect((await october(s, card.id)).payments?.USD).toEqual({ paid: '0', status: 'unpaid' });
+  });
+
+  it('does not count an exchange out of the card USD account as a payment', async () => {
+    const s = await setup();
+    const card = await closedUsdOctober(s);
+    const bank = await newAccount(connection.pool, s.anaId);
+    const out = await call(s.app, 'post', '/movements', s.ana, {
+      type: 'exchange',
+      accountId: card.usdAccountId,
+      destinationAccountId: bank,
+      amount: '5959',
+      destinationAmount: USD_PESOS,
+      occurredAt: '2026-10-06T14:00:00.000Z',
+    });
+    expect(out.status).toBe(201);
+
+    expect((await october(s, card.id)).payments?.USD).toEqual({ paid: '0', status: 'unpaid' });
+  });
+});

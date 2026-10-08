@@ -318,6 +318,8 @@ export function createCreditCardRoutes({
             currency: body.currency,
             sourceAccountId: body.sourceAccountId,
             amount: BigInt(body.amount),
+            ...(body.pesosAmount === undefined ? {} : { pesosAmount: BigInt(body.pesosAmount) }),
+            ...(body.rate === undefined ? {} : { rate: BigInt(body.rate) }),
             occurredAt: new Date(body.occurredAt),
             ...(body.note === undefined ? {} : { note: body.note }),
           });

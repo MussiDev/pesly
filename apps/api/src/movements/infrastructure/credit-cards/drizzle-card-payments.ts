@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { CardPayments } from '../../../credit-cards/application/ports/card-payments';
 import type { CreditCard } from '../../../credit-cards/domain/credit-card';
 import type { StatementTotals } from '../../../credit-cards/domain/statement-assignment';
@@ -8,8 +8,8 @@ import type { Database } from '../../../shared/db/client';
 import { movements } from '../db/schema';
 
 /**
- * What the card received is the transfers whose destination is one of its linked accounts, summed
- * per destination (spec D2). Scoped in the same statement: a scope that is not the owner's matches
+ * What the card received is the transfers whose destination is one of its linked accounts, plus the
+ * exchanges into its USD account, summed per destination (spec D2). Scoped in the same statement: a scope that is not the owner's matches
  * no rows.
  */
 class DrizzleCardPayments implements CardPayments {
@@ -20,13 +20,20 @@ class DrizzleCardPayments implements CardPayments {
       .select({
         destinationAccountId: movements.destinationAccountId,
         // `sum(bigint)` is numeric: cast to text so the exact value reaches BigInt.
-        total: sql<string>`sum(${movements.amount})::text`,
+        total: sql<string>`sum(${movements.destinationAmount})::text`,
       })
       .from(movements)
       .where(
         and(
           scopedTo(scope, { owner: movements.ownerId }),
-          eq(movements.type, 'transfer'),
+          or(
+            eq(movements.type, 'transfer'),
+            // An exchange pays the USD part only: the USD received is its destination amount.
+            and(
+              eq(movements.type, 'exchange'),
+              eq(movements.destinationAccountId, card.usdAccountId),
+            ),
+          ),
           inArray(movements.destinationAccountId, [card.arsAccountId, card.usdAccountId]),
         ),
       )

@@ -4,7 +4,11 @@ import { ListStatements } from '../../src/credit-cards/application/list-statemen
 import { RecordStatementPayment } from '../../src/credit-cards/application/record-statement-payment';
 import { UpdateStatementDates } from '../../src/credit-cards/application/update-statement-dates';
 import type { CreditCard } from '../../src/credit-cards/domain/credit-card';
-import { allocatePayments, paymentStatus } from '../../src/credit-cards/domain/statement-payment';
+import {
+  allocatePayments,
+  paymentStatus,
+  pesosForRate,
+} from '../../src/credit-cards/domain/statement-payment';
 import { ResourceNotFound } from '../../src/shared/access';
 import {
   FakeActivity,
@@ -175,6 +179,63 @@ describe('statements with payments', () => {
       dueDate: '2026-12-08',
     });
     expect(updated.payments).toBeNull();
+  });
+});
+
+describe('pesosForRate', () => {
+  it('multiplies exactly and removes the scale, rounding half-up', () => {
+    expect(pesosForRate(5_959n, 15_350_000n)).toBe(9_147_065n);
+    expect(pesosForRate(1n, 15_355_000n)).toBe(1_536n);
+    expect(pesosForRate(1n, 15_354_999n)).toBe(1_535n);
+    expect(pesosForRate(10n ** 15n, 100_000_000_000n)).toBe(10n ** 22n);
+  });
+});
+
+describe('RecordStatementPayment with pesos', () => {
+  const pay = async (app: ReturnType<typeof setup>, card: CreditCard, extra: object) =>
+    app.pay.execute(await writeScopeFor(ANA), card.id, {
+      currency: 'USD',
+      sourceAccountId: BANK,
+      amount: 5_959n,
+      occurredAt: new Date('2026-11-01T15:00:00.000Z'),
+      ...extra,
+    });
+
+  it('passes the pesos debited to the recorder as given', async () => {
+    const { app, card } = await closedOctober();
+    const recorded = await pay(app, card, { pesosAmount: 9_147_065n });
+    expect(recorded.exchange).toEqual({ pesosAmount: 9_147_065n, rate: expect.any(BigInt) });
+    expect(app.recorder.payments[0]).toMatchObject({
+      destinationAccountId: card.usdAccountId,
+      amount: 5_959n,
+      pesosDebited: 9_147_065n,
+    });
+  });
+
+  it('derives the pesos from the rate', async () => {
+    const { app, card } = await closedOctober();
+    await pay(app, card, { rate: 15_350_000n });
+    expect(app.recorder.payments[0]?.pesosDebited).toBe(9_147_065n);
+  });
+
+  it('refuses pesos on an ARS payment and a rate whose pesos leave the range, recording nothing', async () => {
+    const { app, card } = await closedOctober();
+    await expect(
+      app.pay.execute(await writeScopeFor(ANA), card.id, {
+        currency: 'ARS',
+        sourceAccountId: BANK,
+        amount: 100n,
+        pesosAmount: 100n,
+        occurredAt: new Date('2026-11-01T15:00:00.000Z'),
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    await expect(pay(app, card, { amount: 1n, rate: 1n })).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    await expect(
+      pay(app, card, { amount: 10n ** 15n, rate: 100_000_000_000n }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect(app.recorder.payments).toEqual([]);
   });
 });
 

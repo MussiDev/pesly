@@ -66,6 +66,10 @@ export function presentStatementPayment(
     accountId: payment.accountId,
     currency: payment.currency,
     amount: payment.amount.toString(),
+    exchange: payment.exchange && {
+      pesosAmount: payment.exchange.pesosAmount.toString(),
+      rate: payment.exchange.rate.toString(),
+    },
     occurredAt: payment.occurredAt.toISOString(),
   };
 }

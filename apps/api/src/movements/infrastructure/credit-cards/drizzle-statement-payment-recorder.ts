@@ -1,8 +1,10 @@
+import { AppError } from '@pesly/shared';
 import type {
   PaymentToRecord,
+  RecordedPaymentMovement,
   StatementPaymentRecorder,
 } from '../../../credit-cards/application/ports/statement-payment-recorder';
-import type { AccessScope } from '../../../shared/access';
+import { notFoundUnlessAllowed, type AccessScope } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import type { Logger } from '../../../shared/logging/logger';
 import { CreateMovement } from '../../application/create-movement';
@@ -24,21 +26,55 @@ export interface StatementPaymentRecorderOptions {
 }
 
 class MovementsStatementPaymentRecorder implements StatementPaymentRecorder {
-  constructor(private readonly recordManualMovement: RecordManualMovement) {}
+  constructor(
+    private readonly recordManualMovement: RecordManualMovement,
+    private readonly accounts: DrizzleAccountLookup,
+  ) {}
 
   async record(
     scope: AccessScope<'write'>,
     payment: PaymentToRecord,
-  ): Promise<{ id: string; occurredAt: Date }> {
+  ): Promise<RecordedPaymentMovement> {
+    const source = notFoundUnlessAllowed(await this.accounts.find(scope, payment.sourceAccountId));
+    const destination = notFoundUnlessAllowed(
+      await this.accounts.find(scope, payment.destinationAccountId),
+    );
+    const note = payment.note === undefined ? {} : { note: payment.note };
+    const crossCurrency = source.currency === 'ARS' && destination.currency === 'USD';
+
+    if (payment.pesosDebited !== undefined && !crossCurrency) {
+      throw new AppError('VALIDATION_FAILED', 'Only a USD payment from an ARS account has pesos');
+    }
+    if (crossCurrency) {
+      if (payment.pesosDebited === undefined) {
+        throw new AppError('VALIDATION_FAILED', 'A USD payment from an ARS account needs pesos');
+      }
+      const movement = await this.recordManualMovement.execute(scope, {
+        type: 'exchange',
+        accountId: payment.sourceAccountId,
+        destinationAccountId: payment.destinationAccountId,
+        amount: payment.pesosDebited,
+        destinationAmount: payment.amount,
+        occurredAt: payment.occurredAt,
+        ...note,
+      });
+      if (movement.type !== 'exchange') throw new Error('An exchange was expected');
+      return {
+        id: movement.id,
+        occurredAt: movement.occurredAt,
+        exchange: { pesosAmount: movement.amount, rate: movement.rate },
+      };
+    }
+
     const movement = await this.recordManualMovement.execute(scope, {
       type: 'transfer',
       accountId: payment.sourceAccountId,
       destinationAccountId: payment.destinationAccountId,
       amount: payment.amount,
       occurredAt: payment.occurredAt,
-      ...(payment.note === undefined ? {} : { note: payment.note }),
+      ...note,
     });
-    return { id: movement.id, occurredAt: movement.occurredAt };
+    return { id: movement.id, occurredAt: movement.occurredAt, exchange: null };
   }
 }
 
@@ -69,5 +105,6 @@ export function createStatementPaymentRecorder(
       },
       writeLimit,
     ),
+    new DrizzleAccountLookup(db),
   );
 }

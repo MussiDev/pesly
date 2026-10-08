@@ -34,6 +34,7 @@ import type {
 } from '../../src/credit-cards/application/ports/credit-card-repository';
 import type {
   PaymentToRecord,
+  RecordedPaymentMovement,
   StatementPaymentRecorder,
 } from '../../src/credit-cards/application/ports/statement-payment-recorder';
 import type { UserTimeZone } from '../../src/credit-cards/application/ports/user-time-zone';
@@ -409,14 +410,15 @@ export class FakePaymentRecorder implements StatementPaymentRecorder {
   /** When set, the next call rejects with it and stores nothing. */
   failWith: Error | null = null;
 
-  record(
-    scope: AccessScope<'write'>,
-    payment: PaymentToRecord,
-  ): Promise<{ id: string; occurredAt: Date }> {
+  record(scope: AccessScope<'write'>, payment: PaymentToRecord): Promise<RecordedPaymentMovement> {
     if (this.failWith) return Promise.reject(this.failWith);
     const id = randomUUID();
     this.payments.push({ ownerId: scope.userId, id, ...payment });
-    return Promise.resolve({ id, occurredAt: payment.occurredAt });
+    const exchange =
+      payment.pesosDebited === undefined
+        ? null
+        : { pesosAmount: payment.pesosDebited, rate: 15_350_000n };
+    return Promise.resolve({ id, occurredAt: payment.occurredAt, exchange });
   }
 }
 
