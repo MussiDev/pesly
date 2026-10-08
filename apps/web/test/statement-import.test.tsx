@@ -137,6 +137,7 @@ describe('StatementImportContainer', () => {
     expect(post?.path).toBe(`${CARD_PATH}/statement-imports`);
     const body = post?.body as { closingDate: string; categoryId: string; lines: unknown[] };
     expect(body.closingDate).toBe('2026-09-24');
+    expect(body).toHaveProperty('dueDate', '2026-10-05');
     expect(body.categoryId).toBe(COMIDA_ID);
     expect(body.lines).toHaveLength(9);
     expect(JSON.stringify(body)).not.toContain('Su pago');

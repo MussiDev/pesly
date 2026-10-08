@@ -59,6 +59,16 @@ describe('createStatementImportRequestSchema', () => {
     expect(statementImportLineSchema.safeParse({ ...LINE, ...patch }).success).toBe(false);
   });
 
+  it('accepts a due date after the closing date and rejects one on or before it', () => {
+    const ok = createStatementImportRequestSchema.safeParse({ ...REQUEST, dueDate: '2026-10-05' });
+    expect(ok.success).toBe(true);
+    for (const dueDate of ['2026-09-24', '2026-09-01']) {
+      expect(createStatementImportRequestSchema.safeParse({ ...REQUEST, dueDate }).success).toBe(
+        false,
+      );
+    }
+  });
+
   it('accepts exactly the maximum number of lines', () => {
     const lines = Array(STATEMENT_IMPORT_MAX_LINES).fill(LINE);
     expect(createStatementImportRequestSchema.safeParse({ ...REQUEST, lines }).success).toBe(true);

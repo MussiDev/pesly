@@ -41,12 +41,19 @@ export const statementImportLineSchema = z
 export type StatementImportLine = z.infer<typeof statementImportLineSchema>;
 
 /** `POST /credit-cards/:id/statement-imports`: the lines of one statement, one category for all. */
-export const createStatementImportRequestSchema = z.strictObject({
-  /** The closing date of the imported statement: it picks the statement the lines land on. */
-  closingDate: calendarDateSchema,
-  categoryId: z.uuid(),
-  lines: z.array(statementImportLineSchema).min(1).max(STATEMENT_IMPORT_MAX_LINES),
-});
+export const createStatementImportRequestSchema = z
+  .strictObject({
+    /** The closing date of the imported statement: it picks the statement the lines land on. */
+    closingDate: calendarDateSchema,
+    /** Its due date; when the card has no such statement yet, it is created with both dates. */
+    dueDate: calendarDateSchema.optional(),
+    categoryId: z.uuid(),
+    lines: z.array(statementImportLineSchema).min(1).max(STATEMENT_IMPORT_MAX_LINES),
+  })
+  .refine((body) => body.dueDate === undefined || body.dueDate > body.closingDate, {
+    path: ['dueDate'],
+    message: 'The due date must be after the closing date',
+  });
 
 export type CreateStatementImportRequest = z.infer<typeof createStatementImportRequestSchema>;
 

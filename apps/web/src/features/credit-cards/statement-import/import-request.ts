@@ -49,6 +49,7 @@ export function buildStatementImportRequest(
 ): CreateStatementImportRequest {
   return {
     closingDate: statement.closingDate,
+    dueDate: statement.dueDate,
     categoryId: options.categoryId,
     lines: selectedLines(statement, options.includeFees).map((line): StatementImportLine => ({
       date: line.date,
