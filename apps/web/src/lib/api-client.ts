@@ -64,6 +64,7 @@ import {
   type RegisterResponse,
   type RenameAccountRequest,
   cardExpenseResponseSchema,
+  statementImportResponseSchema,
   creditCardResponseSchema,
   listCreditCardsResponseSchema,
   installmentPurchaseResponseSchema,
@@ -73,6 +74,8 @@ import {
   statementResponseSchema,
   type CardExpenseResponse,
   type CreateCardExpenseRequest,
+  type CreateStatementImportRequest,
+  type StatementImportResponse,
   type CreateInstallmentPurchaseRequest,
   type CreateStatementPaymentRequest,
   type StatementPaymentResponse,
@@ -350,6 +353,11 @@ export interface ApiClient {
     cardId: string,
     body: CreateCardExpenseRequest,
   ): Promise<ApiResult<CardExpenseResponse>>;
+  /** Uploads the lines of a parsed card statement; needs a connection. */
+  createStatementImport(
+    cardId: string,
+    body: CreateStatementImportRequest,
+  ): Promise<ApiResult<StatementImportResponse>>;
   /** Pays a statement: a transfer to the card's linked account of the currency; needs a connection. */
   recordStatementPayment(
     cardId: string,
@@ -767,6 +775,16 @@ export function createApiClient({
           path: `${path}/expenses`,
           body,
           response: cardExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createStatementImport: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/statement-imports`,
+          body,
+          response: statementImportResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),

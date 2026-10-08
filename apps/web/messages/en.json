@@ -414,6 +414,64 @@
     }
   },
   "creditCards": {
+    "import": {
+      "title": "Import a statement",
+      "description": "Upload the statement file of this card. Its purchases, installments and fees are added to the card, and lines that were imported before are skipped.",
+      "file": {
+        "label": "Statement file",
+        "hint": "Only .xlsx files up to 2 MB. The file is read on your device."
+      },
+      "parsing": "Reading the file…",
+      "errors": {
+        "tooLarge": "The file is larger than 2 MB.",
+        "unreadable": "The file could not be read. Choose an .xlsx statement file.",
+        "unrecognized": "The file does not look like a card statement: the closing and due dates were not found.",
+        "invalidRow": "A row of the statement could not be understood. Check the file and try again.",
+        "invalidAmount": "An amount of the statement could not be read. Check the file and try again.",
+        "noLines": "The statement has no purchases or fees to import."
+      },
+      "preview": {
+        "title": "Preview",
+        "dates": "Closes {closing} · due {due}",
+        "ending": "card ending {digits}",
+        "caption": "Lines found in the statement",
+        "date": "Date",
+        "descriptionColumn": "Description",
+        "installments": "Installment",
+        "installmentOf": "{number} of {count}",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "status": {
+        "purchase": "Will be imported",
+        "fee": "Will be imported (fee)",
+        "skippedFee": "Fee left out",
+        "ignored": "Ignored (payment)"
+      },
+      "includeFees": "Include taxes and fees (\"Otros conceptos\")",
+      "reconcile": {
+        "line": "Selected lines add up to {sum}; the statement total is {total}.",
+        "noTotal": "Selected lines add up to {sum}; the file has no total in this currency.",
+        "differs": "The selected lines do not add up to the statement total. You can still import them; check the file first if you expected them to match."
+      },
+      "category": {
+        "label": "Category for all the lines",
+        "placeholder": "Choose a category",
+        "required": "Choose a category."
+      },
+      "tooMany": "A statement import accepts at most 300 lines.",
+      "submit": "Import {count, plural, one {# line} other {# lines}}",
+      "importing": "Importing…",
+      "connectionNeeded": "A connection is needed to import a statement. Check it and try again: the file and your choices are kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "back": "Back to the card",
+      "result": {
+        "title": "Import finished",
+        "summary": "{created, plural, one {# line was added} other {# lines were added}} and {skipped, plural, one {# was skipped because it was already imported} other {# were skipped because they were already imported}}.",
+        "detail": "{expenses, plural, one {# expense} other {# expenses}} and {purchases, plural, one {# installment purchase} other {# installment purchases}}.",
+        "viewCard": "View the card"
+      }
+    },
     "expense": {
       "title": "Card expense",
       "description": "Record a purchase on this card. It is assigned to the statement that is open on the purchase date.",
@@ -483,6 +541,7 @@
       "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
       "daysConflict": "With that closing day the open statement would close before the previous one.",
       "addInstallments": "Add installments",
+      "importStatement": "Import a statement",
       "installmentLine": "Installment {number} of {count}: {amount}",
       "payStatement": "Pay statement",
       "paymentLine": "{currency}: {status}, paid {amount}",

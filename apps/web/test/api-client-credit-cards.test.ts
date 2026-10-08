@@ -250,6 +250,33 @@ describe('credit cards api client', () => {
     expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
   });
 
+  it('createStatementImport posts the lines to the card route and parses the counts', async () => {
+    const answer = { created: 2, skipped: 1, createdExpenses: 1, createdInstallmentPurchases: 1 };
+    const { client, fetch } = clientWith(jsonResponse(201, answer));
+    const body = {
+      closingDate: '2026-09-24',
+      categoryId: purchase.categoryId,
+      lines: [
+        {
+          date: '2026-08-10',
+          description: 'Shop',
+          voucher: null,
+          currency: 'ARS' as const,
+          amount: '1000',
+          installmentNumber: null,
+          installmentCount: null,
+          kind: 'purchase' as const,
+        },
+      ],
+    };
+
+    expect(await client.createStatementImport(CARD_ID, body)).toEqual({ ok: true, data: answer });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/statement-imports`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+  });
+
   it('recordStatementPayment posts the payment to the card route and parses the answer (AC-01)', async () => {
     const answer = {
       movementId: '5a1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5b',

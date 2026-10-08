@@ -414,6 +414,64 @@
     }
   },
   "creditCards": {
+    "import": {
+      "title": "Importar un resumen",
+      "description": "Subí el archivo del resumen de esta tarjeta. Sus compras, cuotas y cargos se agregan a la tarjeta, y las líneas que ya se importaron antes se omiten.",
+      "file": {
+        "label": "Archivo del resumen",
+        "hint": "Solo archivos .xlsx de hasta 2 MB. El archivo se lee en tu dispositivo."
+      },
+      "parsing": "Leyendo el archivo…",
+      "errors": {
+        "tooLarge": "El archivo pesa más de 2 MB.",
+        "unreadable": "No se pudo leer el archivo. Elegí un resumen en formato .xlsx.",
+        "unrecognized": "El archivo no parece un resumen de tarjeta: no se encontraron las fechas de cierre y vencimiento.",
+        "invalidRow": "No se pudo entender una fila del resumen. Revisá el archivo y probá de nuevo.",
+        "invalidAmount": "No se pudo leer un importe del resumen. Revisá el archivo y probá de nuevo.",
+        "noLines": "El resumen no tiene compras ni cargos para importar."
+      },
+      "preview": {
+        "title": "Vista previa",
+        "dates": "Cierra {closing} · vence {due}",
+        "ending": "tarjeta terminada en {digits}",
+        "caption": "Líneas encontradas en el resumen",
+        "date": "Fecha",
+        "descriptionColumn": "Descripción",
+        "installments": "Cuota",
+        "installmentOf": "{number} de {count}",
+        "amount": "Importe",
+        "status": "Estado"
+      },
+      "status": {
+        "purchase": "Se importará",
+        "fee": "Se importará (cargo)",
+        "skippedFee": "Cargo excluido",
+        "ignored": "Ignorado (pago)"
+      },
+      "includeFees": "Incluir impuestos y cargos (\"Otros conceptos\")",
+      "reconcile": {
+        "line": "Las líneas elegidas suman {sum}; el total del resumen es {total}.",
+        "noTotal": "Las líneas elegidas suman {sum}; el archivo no tiene total en esta moneda.",
+        "differs": "Las líneas elegidas no suman el total del resumen. Igual podés importarlas; revisá el archivo antes si esperabas que coincidan."
+      },
+      "category": {
+        "label": "Categoría para todas las líneas",
+        "placeholder": "Elegí una categoría",
+        "required": "Elegí una categoría."
+      },
+      "tooMany": "Una importación acepta como máximo 300 líneas.",
+      "submit": "Importar {count, plural, one {# línea} other {# líneas}}",
+      "importing": "Importando…",
+      "connectionNeeded": "Hace falta conexión para importar un resumen. Revisala y probá de nuevo: el archivo y tus elecciones se conservan.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "back": "Volver a la tarjeta",
+      "result": {
+        "title": "Importación terminada",
+        "summary": "{created, plural, one {Se agregó # línea} other {Se agregaron # líneas}} y {skipped, plural, one {# se omitió porque ya estaba importada} other {# se omitieron porque ya estaban importadas}}.",
+        "detail": "{expenses, plural, one {# gasto} other {# gastos}} y {purchases, plural, one {# compra en cuotas} other {# compras en cuotas}}.",
+        "viewCard": "Ver la tarjeta"
+      }
+    },
     "expense": {
       "title": "Gasto con tarjeta",
       "description": "Registra una compra con esta tarjeta. Se asigna al resumen que está abierto en la fecha de la compra.",
@@ -483,6 +541,7 @@
       "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
       "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
       "addInstallments": "Agregar cuotas",
+      "importStatement": "Importar un resumen",
       "installmentLine": "Cuota {number} de {count}: {amount}",
       "payStatement": "Pagar resumen",
       "paymentLine": "{currency}: {status}, pagado {amount}",

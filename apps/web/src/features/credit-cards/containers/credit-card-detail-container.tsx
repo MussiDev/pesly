@@ -258,6 +258,12 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           >
             {t('creditCards.detail.addInstallments')}
           </Link>
+          <Link
+            href={`/cards/${cardId}/import`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            {t('creditCards.detail.importStatement')}
+          </Link>
           {back}
         </div>
       </div>
