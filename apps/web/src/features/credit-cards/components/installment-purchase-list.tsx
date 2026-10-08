@@ -10,8 +10,8 @@ import { formatCalendarDate } from '../format-dates';
 
 interface InstallmentPurchaseListProps {
   purchases: readonly InstallmentPurchaseResponse[];
-  /** Pending debt in minor units, as the API sends it. */
-  pendingDebtArs: string;
+  /** Pending debt per currency in minor units, as the API sends it. */
+  pendingDebt: { ARS: string; USD: string };
   confirmingId: string | undefined;
   pending: boolean;
   onAskDelete: (id: string) => void;
@@ -22,7 +22,7 @@ interface InstallmentPurchaseListProps {
 /** The card's pending debt and its active installment purchases, with a confirmed delete (FR-07, FR-08). */
 export function InstallmentPurchaseList({
   purchases,
-  pendingDebtArs,
+  pendingDebt,
   confirmingId,
   pending,
   onAskDelete,
@@ -31,13 +31,21 @@ export function InstallmentPurchaseList({
 }: InstallmentPurchaseListProps) {
   const t = useTranslations('creditCards.installments');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
-  const debt = formatMoney(BigInt(pendingDebtArs), 'ARS', locale);
+  const debt = formatMoney(BigInt(pendingDebt.ARS), 'ARS', locale);
+  const debtUsd =
+    BigInt(pendingDebt.USD) === 0n ? null : formatMoney(BigInt(pendingDebt.USD), 'USD', locale);
 
   return (
     <div className="grid gap-3">
       <p className="text-body" aria-label={t('pendingDebtLabel', { amount: debt })}>
         <span>{t('pendingDebt')}</span> <span className="tabular-nums font-medium">{debt}</span>
       </p>
+      {debtUsd === null ? null : (
+        <p className="text-body" aria-label={t('pendingDebtLabel', { amount: debtUsd })}>
+          <span>{t('pendingDebt')}</span>{' '}
+          <span className="tabular-nums font-medium">{debtUsd}</span>
+        </p>
+      )}
       {purchases.length === 0 ? (
         <p className="text-muted-foreground">{t('empty')}</p>
       ) : (
@@ -55,7 +63,7 @@ export function InstallmentPurchaseList({
                       <span>
                         {t('summary', {
                           count: purchase.installmentCount,
-                          total: formatMoney(BigInt(purchase.amount), 'ARS', locale),
+                          total: formatMoney(BigInt(purchase.amount), purchase.currency, locale),
                         })}
                       </span>
                       <span aria-hidden="true"> · </span>

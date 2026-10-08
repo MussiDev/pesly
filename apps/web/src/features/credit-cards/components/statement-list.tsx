@@ -98,7 +98,11 @@ export function StatementList({
                       {t('installmentLine', {
                         number: installment.number,
                         count: installment.count,
-                        amount: formatMoney(BigInt(installment.amount), 'ARS', locale),
+                        amount: formatMoney(
+                          BigInt(installment.amount),
+                          installment.currency,
+                          locale,
+                        ),
                       })}
                     </span>
                   ))}

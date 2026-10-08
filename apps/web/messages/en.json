@@ -470,7 +470,6 @@
       "closed": "Closed",
       "totalArs": "Total in ARS: {amount}",
       "totalUsd": "Total in USD: {amount}",
-      "addExpense": "Add expense",
       "edit": "Edit dates",
       "closingDate": "Closing date",
       "dueDate": "Due date",
@@ -482,7 +481,7 @@
       "notFound": "This card does not exist or was deleted.",
       "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
       "daysConflict": "With that closing day the open statement would close before the previous one.",
-      "addInstallments": "Add installments",
+      "addPurchase": "Add purchase",
       "installmentLine": "Installment {number} of {count}: {amount}",
       "payStatement": "Pay statement",
       "paymentLine": "{currency}: {status}, paid {amount}",
@@ -493,12 +492,13 @@
       }
     },
     "installments": {
-      "title": "Installment purchase",
-      "description": "Record a purchase in installments in pesos. Each installment goes to a statement, starting with the one open on the purchase date.",
+      "title": "Add purchase",
+      "description": "Record a card purchase in pesos or dollars. Paid in one payment it is a regular expense on the card; in installments, each one goes to a statement, starting with the one open on the purchase date.",
       "fields": {
-        "amount": "Total amount (ARS)",
+        "currency": "Currency",
+        "amount": "Total amount",
         "installments": "Number of installments",
-        "installmentsHint": "{min} to {max}",
+        "installmentsHint": "{min} for a single payment, up to {max}",
         "category": "Category",
         "categoryPlaceholder": "Choose a category",
         "purchasedOn": "Purchase date",
@@ -507,10 +507,10 @@
       "submit": "Save purchase",
       "pending": "Saving…",
       "back": "Back to the card",
-      "connectionNeeded": "A connection is needed to record an installment purchase. Check it and try again: what you typed is kept.",
+      "connectionNeeded": "A connection is needed to record a purchase. Check it and try again: what you typed is kept.",
       "notFound": "This card does not exist or was deleted.",
       "errors": {
-        "installmentsInvalid": "Enter a whole number of installments from 2 to 60.",
+        "installmentsInvalid": "Enter a whole number of installments from 1 to 60.",
         "amountTooSmall": "The amount must be at least one cent per installment."
       },
       "heading": "Installment purchases",
