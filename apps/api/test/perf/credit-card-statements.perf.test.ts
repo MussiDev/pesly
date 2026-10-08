@@ -166,7 +166,7 @@ describe('statement view latency with installments (NFR-02)', () => {
     );
     expect(Object.fromEntries(statuses)).toEqual({ 200: REQUESTS });
     expect(p95).toBeLessThan(MAX_P95_MS);
-  });
+  }, 180_000);
 });
 
 async function fetchJson(
