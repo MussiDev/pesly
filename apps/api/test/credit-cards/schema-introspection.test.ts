@@ -150,10 +150,10 @@ describe('credit cards schema introspection', () => {
     ]);
     expect(await foreignKeys('installments')).toEqual([
       {
-        conname: 'installments_purchase_id_installment_purchases_id_fk',
+        conname: 'installments_purchase_owner_fk',
         target: 'installment_purchases',
-        columns: ['purchase_id'],
-        foreign_columns: ['id'],
+        columns: ['purchase_id', 'owner_id'],
+        foreign_columns: ['id', 'owner_id'],
         on_delete: 'c',
       },
     ]);

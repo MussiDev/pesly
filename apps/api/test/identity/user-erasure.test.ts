@@ -71,6 +71,12 @@ const CREDIT_CARDS_STEP_CONSTRAINTS = [
   'credit_cards_usd_account_owner_fk',
 ] as const;
 
+/** The restricting composite keys from `installment_purchases` to the card and the category (migration 0020). */
+const INSTALLMENT_PURCHASES_STEP_CONSTRAINTS = [
+  'installment_purchases_card_owner_fk',
+  'installment_purchases_category_owner_kind_fk',
+] as const;
+
 /** The restricting composite keys of `movements` (migrations 0014 and 0016). */
 const MOVEMENTS_STEP_CONSTRAINTS = [
   'movements_account_owner_fk',
@@ -406,6 +412,38 @@ const REGISTRY: readonly RegisteredTable[] = [
       await query(
         context,
         "insert into credit_card_statements (card_id, owner_id, period, closing_date, due_date) select id, owner_id, '2026-10', '2026-10-24', '2026-11-05' from credit_cards where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'installment_purchases',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The keys to the card and the category restrict, so the step deletes the purchases before
+    // the cards go; the key to users itself cascades.
+    stepConstraints: INSTALLMENT_PURCHASES_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Cuotas', 'wallet', 'blue')",
+        [context.userId],
+      );
+      await query(
+        context,
+        "insert into installment_purchases (owner_id, card_id, category_id, total_amount, installment_count, purchased_on) select c.owner_id, c.id, (select id from categories where owner_id = $1 and name = 'Cuotas'), 20000, 2, '2026-10-01' from credit_cards c where c.owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'installments',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into installments (purchase_id, owner_id, number, period, amount) select id, owner_id, 1, '2026-10', 10000 from installment_purchases where owner_id = $1 limit 1",
         [context.userId],
       );
     },

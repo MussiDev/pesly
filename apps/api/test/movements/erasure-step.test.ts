@@ -234,7 +234,10 @@ describe('the composition root', () => {
     expect(source).toMatch(
       /createCreditCardRoutes\(\{[^}]*activity:\s*createAccountMovements\(db\)/,
     );
-    expect(source).toMatch(/createCategoryRoutes\(\{[^}]*usage:\s*createCategoryUsage\(db\)/);
+    // The category usage combines the movements adapter with the installment purchases one (10c D7).
+    expect(source).toMatch(/createCategoryRoutes\(\{[^}]*usage:\s*categoryUsage/);
+    expect(source).toMatch(/movementCategoryUsage\s*=\s*createCategoryUsage\(db\)/);
+    expect(source).toMatch(/installmentCategoryUsage\s*=\s*createInstallmentCategoryUsage\(db\)/);
     expect(source).not.toMatch(/NoMovementsAdapter|NoUsageAdapter/);
   });
 });

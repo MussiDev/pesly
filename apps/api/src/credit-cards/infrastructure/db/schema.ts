@@ -147,6 +147,8 @@ export const installmentPurchases = pgTable(
       columns: [table.categoryId, table.ownerId, table.categoryKind],
       foreignColumns: [categories.id, categories.ownerId, categories.kind],
     }).onDelete('restrict'),
+    // The target of the installments' composite key.
+    unique('installment_purchases_id_owner_unique').on(table.id, table.ownerId),
     index('installment_purchases_owner_card_idx').on(table.ownerId, table.cardId, table.createdAt),
     index('installment_purchases_category_idx').on(table.categoryId),
   ],
@@ -156,15 +158,21 @@ export const installmentPurchases = pgTable(
 export const installments = pgTable(
   'installments',
   {
-    purchaseId: uuid('purchase_id')
-      .notNull()
-      .references(() => installmentPurchases.id, { onDelete: 'cascade' }),
+    purchaseId: uuid('purchase_id').notNull(),
+    /** The purchase's owner, so every query on installments is scoped like the rest (AGENTS.md). */
+    ownerId: uuid('owner_id').notNull(),
     number: smallint('number').notNull(),
     period: text('period').notNull(),
     amount: bigint('amount', { mode: 'bigint' }).notNull(),
   },
   (table) => [
     primaryKey({ name: 'installments_pk', columns: [table.purchaseId, table.number] }),
+    foreignKey({
+      name: 'installments_purchase_owner_fk',
+      columns: [table.purchaseId, table.ownerId],
+      foreignColumns: [installmentPurchases.id, installmentPurchases.ownerId],
+    }).onDelete('cascade'),
+    index('installments_owner_idx').on(table.ownerId),
     check('installments_number_check', sql`${table.number} between 1 and 60`),
     check('installments_period_check', sql`${table.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`),
     check(

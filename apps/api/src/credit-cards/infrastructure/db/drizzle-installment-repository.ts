@@ -91,6 +91,7 @@ export class DrizzleInstallmentRepository implements InstallmentRepository {
       await tx.insert(installments).values(
         data.installments.map((installment) => ({
           purchaseId: purchase.id,
+          ownerId: scope.userId,
           ...installment,
         })),
       );

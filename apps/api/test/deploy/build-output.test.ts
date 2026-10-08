@@ -32,6 +32,8 @@ const ALL_TABLES = [
   'exchange_rate_sync',
   'exchange_rates',
   'holdings',
+  'installment_purchases',
+  'installments',
   'movement_rate_limits',
   'movement_tags',
   'movements',

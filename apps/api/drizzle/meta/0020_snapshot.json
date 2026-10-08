@@ -1,5 +1,5 @@
 {
-  "id": "beb66a9a-16a4-4c2f-921e-54bdf5a31f74",
+  "id": "3a220853-5aeb-4ff2-b790-721933a5b05d",
   "prevId": "6106a7bd-8bbf-420a-8f34-f424c3c6c6dd",
   "version": "7",
   "dialect": "postgresql",
@@ -962,7 +962,16 @@
         }
       },
       "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
+      "uniqueConstraints": {
+        "installment_purchases_id_owner_unique": {
+          "name": "installment_purchases_id_owner_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "id",
+            "owner_id"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {
         "installment_purchases_total_range_check": {
@@ -998,6 +1007,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "number": {
           "name": "number",
           "type": "smallint",
@@ -1017,17 +1032,35 @@
           "notNull": true
         }
       },
-      "indexes": {},
+      "indexes": {
+        "installments_owner_idx": {
+          "name": "installments_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
-        "installments_purchase_id_installment_purchases_id_fk": {
-          "name": "installments_purchase_id_installment_purchases_id_fk",
+        "installments_purchase_owner_fk": {
+          "name": "installments_purchase_owner_fk",
           "tableFrom": "installments",
           "tableTo": "installment_purchases",
           "columnsFrom": [
-            "purchase_id"
+            "purchase_id",
+            "owner_id"
           ],
           "columnsTo": [
-            "id"
+            "id",
+            "owner_id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"

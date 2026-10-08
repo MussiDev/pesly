@@ -2831,7 +2831,7 @@ describe('0020_installments migration', () => {
       ?.id;
     const installment = (number: number, period: string, amount: number) =>
       sqlState(
-        `insert into installments (purchase_id, number, period, amount) values ('${id}', ${number}, '${period}', ${amount})`,
+        `insert into installments (purchase_id, owner_id, number, period, amount) values ('${id}', '${ana}', ${number}, '${period}', ${amount})`,
       );
     expect(await installment(1, '2026-10', 10000)).toBeUndefined();
     expect(await installment(1, '2026-11', 10000)).toBe('23505');
