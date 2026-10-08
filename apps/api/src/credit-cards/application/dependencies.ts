@@ -1,11 +1,15 @@
 import { isStatementClosed, todayInTimeZone } from '@pesly/shared';
 import type { Statement, StatementView } from '../domain/credit-card';
+import type { StatementInstallmentView } from '../domain/installment';
 import type { StatementTotals } from '../domain/statement-assignment';
 import type { AccountActivity } from './ports/account-activity';
 import type { CardPurchases } from './ports/card-purchases';
 import type { Clock } from './ports/clock';
 import type { CreditCardRepository } from './ports/credit-card-repository';
+import type { ExpenseCategoryGuard } from './ports/expense-category-guard';
 import type { ExpenseRecorder } from './ports/expense-recorder';
+import type { InstallmentRepository } from './ports/installment-repository';
+import type { InstallmentWriteLimit } from './ports/installment-write-limit';
 import type { UserTimeZone } from './ports/user-time-zone';
 
 export interface CreditCardDependencies {
@@ -15,6 +19,9 @@ export interface CreditCardDependencies {
   clock: Clock;
   purchases: CardPurchases;
   expenses: ExpenseRecorder;
+  installments: InstallmentRepository;
+  categories: ExpenseCategoryGuard;
+  writeLimit: InstallmentWriteLimit;
 }
 
 /** The caller's calendar date, `YYYY-MM-DD`, in their stored time zone (PRD 01 FR-24). */
@@ -38,10 +45,12 @@ export function withStatus(
   statement: Statement,
   today: string,
   totals: StatementTotals = { ARS: 0n, USD: 0n },
+  installments: StatementInstallmentView[] = [],
 ): StatementView {
   return {
     ...statement,
     totals,
+    installments,
     status: isStatementClosed(statement.closingDate, today) ? 'closed' : 'open',
   };
 }

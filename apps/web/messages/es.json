@@ -481,7 +481,42 @@
       "confirm": "Eliminar",
       "notFound": "Esta tarjeta no existe o fue eliminada.",
       "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
-      "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior."
+      "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
+      "addInstallments": "Agregar cuotas",
+      "installmentLine": "Cuota {number} de {count}: {amount}"
+    },
+    "installments": {
+      "title": "Compra en cuotas",
+      "description": "Registra una compra en cuotas en pesos. Cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
+      "fields": {
+        "amount": "Monto total (ARS)",
+        "installments": "Cantidad de cuotas",
+        "installmentsHint": "De {min} a {max}",
+        "category": "Categoría",
+        "categoryPlaceholder": "Elige una categoría",
+        "purchasedOn": "Fecha de la compra",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Guardar compra",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar una compra en cuotas. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "errors": {
+        "installmentsInvalid": "Ingresa una cantidad entera de cuotas de 2 a 60.",
+        "amountTooSmall": "El monto debe ser de al menos un centavo por cuota."
+      },
+      "heading": "Compras en cuotas",
+      "pendingDebt": "Deuda pendiente",
+      "pendingDebtLabel": "Deuda pendiente: {amount}",
+      "empty": "No hay compras en cuotas en esta tarjeta.",
+      "purchaseOn": "Compra del {date}",
+      "summary": "{count} cuotas · total {total}",
+      "openCount": "{count, plural, one {# cuota pendiente} other {# cuotas pendientes}}",
+      "delete": "Eliminar",
+      "confirmDelete": "Confirmar eliminación",
+      "cancel": "Cancelar",
+      "deleteHint": "Las cuotas de los resúmenes que ya cerraron se conservan."
     }
   },
   "movements": {

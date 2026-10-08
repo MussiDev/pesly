@@ -14,6 +14,11 @@ const label = (template: string, amount: string) =>
 const ID = '3f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a10';
 const CARD_PATH = `/credit-cards/${ID}`;
 const STATEMENTS_PATH = `${CARD_PATH}/statements`;
+const PURCHASES_PATH = `${CARD_PATH}/installment-purchases`;
+const NO_PURCHASES = {
+  status: 200,
+  body: { items: [], pendingDebt: { ARS: '0', USD: '0' } },
+} as const;
 
 const card: CreditCardResponse = {
   id: ID,
@@ -34,6 +39,7 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
     dueDate: '2026-11-05',
     status: 'open',
     totals: { ARS: '0', USD: '0' },
+    installments: [],
     ...overrides,
   };
 }
@@ -59,6 +65,7 @@ const month = (period: string) =>
 const loaded = (statements: StatementResponse[] = [OCTOBER, SEPTEMBER]) => ({
   [`GET ${CARD_PATH}`]: { status: 200, body: card },
   [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: statements } },
+  [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
 });
 
 describe('CreditCardDetailContainer', () => {
@@ -127,6 +134,14 @@ describe('CreditCardDetailContainer', () => {
     ).toBe(`0.00${NBSP}USD`);
   });
 
+  it('links the card page to the installment screen of the card (FR-01)', async () => {
+    stubApi(loaded());
+    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+    const link = await screen.findByRole('link', { name: en.creditCards.detail.addInstallments });
+    expect(link.getAttribute('href')).toBe(`/en/cards/${ID}/installments/new`);
+  });
+
   it('links the card page to the expense screen of the card (FR-01)', async () => {
     stubApi(loaded());
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
@@ -141,6 +156,7 @@ describe('CreditCardDetailContainer', () => {
     stubApi({
       [`GET ${CARD_PATH}`]: { status: 200, body: card },
       [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: [withoutTotals] } },
+      [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
 
@@ -220,6 +236,7 @@ describe('CreditCardDetailContainer', () => {
         { status: 200, body: { items: [OCTOBER] } },
         { status: 200, body: { items: [statement({ closingDate: '2026-10-20' })] } },
       ],
+      [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
       [`PATCH ${CARD_PATH}`]: { status: 200, body: { ...card, closingDay: 20 } },
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
@@ -301,6 +318,7 @@ describe('CreditCardDetailContainer', () => {
         { status: 200, body: card },
       ],
       [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: [OCTOBER] } },
+      [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
 

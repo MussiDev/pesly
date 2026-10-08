@@ -5,7 +5,8 @@ import { DrizzleUserDeletionRepository } from '../../src/identity/infrastructure
 import { eraseUserMovements } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { newUserId, writeScope } from '../movements/db-fixtures';
+import { DrizzleInstallmentRepository } from '../../src/credit-cards/infrastructure/db/drizzle-installment-repository';
+import { newCategory, newUserId, writeScope } from '../movements/db-fixtures';
 
 let connection: DatabaseConnection;
 
@@ -80,5 +81,30 @@ describe('eraseUserCreditCards', () => {
     await connection.db.transaction((tx) => eraseUserCreditCards(tx, ana));
     await connection.pool.query('delete from accounts where owner_id = $1', [ana]);
     expect(await count('select count(*) as n from accounts where owner_id = $1', [ana])).toBe(0);
+  });
+
+  it('deletes the installment purchases before the cards so no restricting key refuses (sad path of ordering)', async () => {
+    const ana = await userWithCard();
+    const scope = await writeScope(ana);
+    const card = (await new DrizzleCreditCardRepository(connection.db).list(scope))[0];
+    if (!card) throw new Error('The card was not created');
+    await new DrizzleInstallmentRepository(connection.db).create(scope, {
+      cardId: card.id,
+      categoryId: await newCategory(connection.pool, ana, 'expense'),
+      totalAmount: 1000n,
+      purchasedOn: '2026-10-01',
+      note: null,
+      installments: [
+        { number: 1, period: '2026-10', amount: 500n },
+        { number: 2, period: '2026-11', amount: 500n },
+      ],
+    });
+
+    await erase(ana, [eraseUserMovements, eraseUserCreditCards]);
+
+    expect(await usersWith(ana)).toBe(0);
+    expect(
+      await count('select count(*) as n from installment_purchases where owner_id = $1', [ana]),
+    ).toBe(0);
   });
 });

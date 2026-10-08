@@ -3,6 +3,20 @@ import { dateInTimeZone } from '@pesly/shared';
 import type { AccountActivity } from '../../src/credit-cards/application/ports/account-activity';
 import type { CardPurchases } from '../../src/credit-cards/application/ports/card-purchases';
 import type { Clock } from '../../src/credit-cards/application/ports/clock';
+import type { ExpenseCategoryGuard } from '../../src/credit-cards/application/ports/expense-category-guard';
+import type {
+  InstallmentPurchaseChange,
+  InstallmentRepository,
+  NewInstallmentPurchase,
+} from '../../src/credit-cards/application/ports/installment-repository';
+import type {
+  InstallmentWriteLimit,
+  WriteUnit,
+} from '../../src/credit-cards/application/ports/installment-write-limit';
+import type {
+  InstallmentPurchase,
+  InstallmentRow,
+} from '../../src/credit-cards/domain/installment';
 import type {
   ExpenseRecorder,
   ExpenseToRecord,
@@ -234,4 +248,153 @@ export class FakeClock implements Clock {
   now(): Date {
     return this.current;
   }
+}
+
+interface PurchaseRow {
+  ownerId: string;
+  purchase: InstallmentPurchase;
+  cancelled: boolean;
+}
+
+/** In-memory installments: rows are visible only to their owner and card, like the SQL scope. */
+export class InMemoryInstallments implements InstallmentRepository {
+  readonly purchases = new Map<string, PurchaseRow>();
+
+  create(scope: AccessScope<'write'>, data: NewInstallmentPurchase): Promise<InstallmentPurchase> {
+    const purchase: InstallmentPurchase = {
+      id: randomUUID(),
+      cardId: data.cardId,
+      categoryId: data.categoryId,
+      totalAmount: data.totalAmount,
+      installmentCount: data.installments.length,
+      purchasedOn: data.purchasedOn,
+      note: data.note,
+      createdAt: new Date('2026-10-06T12:00:00.000Z'),
+      installments: data.installments.map((installment) => ({ ...installment })),
+    };
+    this.purchases.set(purchase.id, { ownerId: scope.userId, purchase, cancelled: false });
+    return Promise.resolve(purchase);
+  }
+
+  private active(scope: AccessScope, cardId: string, purchaseId: string): PurchaseRow | null {
+    const row = this.purchases.get(purchaseId);
+    return row && row.ownerId === scope.userId && row.purchase.cardId === cardId && !row.cancelled
+      ? row
+      : null;
+  }
+
+  listPurchases(scope: AccessScope, cardId: string): Promise<InstallmentPurchase[]> {
+    return Promise.resolve(
+      [...this.purchases.values()]
+        .filter((row) => row.ownerId === scope.userId && row.purchase.cardId === cardId)
+        .filter((row) => !row.cancelled)
+        .map((row) => row.purchase),
+    );
+  }
+
+  findPurchase(
+    scope: AccessScope,
+    cardId: string,
+    purchaseId: string,
+  ): Promise<InstallmentPurchase | null> {
+    return Promise.resolve(this.active(scope, cardId, purchaseId)?.purchase ?? null);
+  }
+
+  updatePurchase(
+    scope: AccessScope<'write'>,
+    cardId: string,
+    purchaseId: string,
+    change: InstallmentPurchaseChange,
+  ): Promise<InstallmentPurchase | null> {
+    const row = this.active(scope, cardId, purchaseId);
+    if (!row) return Promise.resolve(null);
+    row.purchase = {
+      ...row.purchase,
+      ...(change.categoryId === undefined ? {} : { categoryId: change.categoryId }),
+      ...(change.note === undefined ? {} : { note: change.note }),
+    };
+    return Promise.resolve(row.purchase);
+  }
+
+  removeInstallments(
+    scope: AccessScope<'write'>,
+    cardId: string,
+    purchaseId: string,
+    numbers: readonly number[],
+  ): Promise<boolean> {
+    const row = this.active(scope, cardId, purchaseId);
+    if (!row) return Promise.resolve(false);
+    row.purchase = {
+      ...row.purchase,
+      installments: row.purchase.installments.filter((i) => !numbers.includes(i.number)),
+    };
+    if (row.purchase.installments.length === 0) this.purchases.delete(purchaseId);
+    else row.cancelled = true;
+    return Promise.resolve(true);
+  }
+
+  listRows(scope: AccessScope, cardId?: string): Promise<InstallmentRow[]> {
+    return Promise.resolve(
+      [...this.purchases.values()]
+        .filter((row) => row.ownerId === scope.userId)
+        .filter((row) => cardId === undefined || row.purchase.cardId === cardId)
+        .flatMap((row) =>
+          row.purchase.installments.map((installment) => ({
+            cardId: row.purchase.cardId,
+            purchaseId: row.purchase.id,
+            number: installment.number,
+            count: row.purchase.installmentCount,
+            period: installment.period,
+            amount: installment.amount,
+            categoryId: row.purchase.categoryId,
+          })),
+        ),
+    );
+  }
+
+  cardHasPurchases(scope: AccessScope, cardId: string): Promise<boolean> {
+    return Promise.resolve(
+      [...this.purchases.values()].some(
+        (row) => row.ownerId === scope.userId && row.purchase.cardId === cardId,
+      ),
+    );
+  }
+}
+
+/** Accepts any category except the ids put in `rejected`, which throw the error given. */
+export class FakeCategoryGuard implements ExpenseCategoryGuard {
+  readonly rejected = new Map<string, Error>();
+
+  assertOpenExpenseCategory(_scope: AccessScope<'write'>, categoryId: string): Promise<void> {
+    const error = this.rejected.get(categoryId);
+    return error ? Promise.reject(error) : Promise.resolve();
+  }
+}
+
+/** Allows `limit` creations, then throws the error given; counts refunds. */
+export class FakeWriteLimit implements InstallmentWriteLimit {
+  taken = 0;
+  released = 0;
+  limit = Number.POSITIVE_INFINITY;
+  exhausted: Error = new Error('RATE_LIMITED');
+
+  take(): Promise<WriteUnit> {
+    if (this.taken >= this.limit) return Promise.reject(this.exhausted);
+    this.taken += 1;
+    return Promise.resolve({
+      release: () => {
+        this.released += 1;
+        return Promise.resolve();
+      },
+    });
+  }
+}
+
+/** The collaborators of the installment use cases, with in-memory stand-ins. */
+export function installmentFakes() {
+  return {
+    installments: new InMemoryInstallments(),
+    categories: new FakeCategoryGuard(),
+    writeLimit: new FakeWriteLimit(),
+  };
 }

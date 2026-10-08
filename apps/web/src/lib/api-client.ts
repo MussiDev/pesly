@@ -66,10 +66,15 @@ import {
   cardExpenseResponseSchema,
   creditCardResponseSchema,
   listCreditCardsResponseSchema,
+  installmentPurchaseResponseSchema,
+  listInstallmentPurchasesResponseSchema,
   listStatementsResponseSchema,
   statementResponseSchema,
   type CardExpenseResponse,
   type CreateCardExpenseRequest,
+  type CreateInstallmentPurchaseRequest,
+  type InstallmentPurchaseResponse,
+  type ListInstallmentPurchasesResponse,
   type CreateCreditCardRequest,
   type CreditCardResponse,
   type ListCreditCardsResponse,
@@ -342,6 +347,15 @@ export interface ApiClient {
     cardId: string,
     body: CreateCardExpenseRequest,
   ): Promise<ApiResult<CardExpenseResponse>>;
+  /** Records an installment purchase on the card, in ARS; needs a connection. */
+  createInstallmentPurchase(
+    cardId: string,
+    body: CreateInstallmentPurchaseRequest,
+  ): Promise<ApiResult<InstallmentPurchaseResponse>>;
+  /** The card's active installment purchases and its pending debt. */
+  listInstallmentPurchases(cardId: string): Promise<ApiResult<ListInstallmentPurchasesResponse>>;
+  /** Removes the installments of statements not closed yet; the closed ones stay. */
+  deleteInstallmentPurchase(cardId: string, purchaseId: string): Promise<ApiResult<undefined>>;
   updateStatement(
     cardId: string,
     statementId: string,
@@ -501,6 +515,18 @@ export function createApiClient({
     return card === null || statement === null
       ? Promise.resolve(failure('VALIDATION_FAILED'))
       : build(`${card}${statement}`);
+  }
+
+  function onInstallmentPurchase<T>(
+    cardId: string,
+    purchaseId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const card = resourcePath('credit-cards', cardId);
+    const purchase = resourcePath('installment-purchases', purchaseId);
+    return card === null || purchase === null
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(`${card}${purchase}`);
   }
 
   function onCategory<T>(
@@ -735,6 +761,29 @@ export function createApiClient({
           response: cardExpenseResponseSchema,
           refreshOnUnauthenticated: true,
         }),
+      ),
+    createInstallmentPurchase: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/installment-purchases`,
+          body,
+          response: installmentPurchaseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listInstallmentPurchases: (cardId) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/installment-purchases`,
+          response: listInstallmentPurchasesResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteInstallmentPurchase: (cardId, purchaseId) =>
+      onInstallmentPurchase(cardId, purchaseId, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
       ),
     updateStatement: (cardId, statementId, body) =>
       onStatement(cardId, statementId, (path) =>

@@ -11,6 +11,7 @@ const NEWER_TAGS = [
   '0017_tags',
   '0018_device_write_limit',
   '0019_credit_cards',
+  '0020_installments',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

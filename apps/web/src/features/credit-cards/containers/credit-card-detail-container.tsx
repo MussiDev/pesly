@@ -1,6 +1,10 @@
 'use client';
 
-import type { CreditCardResponse, StatementResponse } from '@pesly/shared';
+import type {
+  CreditCardResponse,
+  InstallmentPurchaseResponse,
+  StatementResponse,
+} from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -18,6 +22,7 @@ import {
   CreditCardsLoadStateView,
   type CreditCardsLoadState,
 } from '../components/credit-cards-load-state';
+import { InstallmentPurchaseList } from '../components/installment-purchase-list';
 import type { StatementDatesValues } from '../components/statement-dates-form';
 import { StatementList } from '../components/statement-list';
 import { parseDay } from '../credit-card-form-errors';
@@ -25,7 +30,13 @@ import { parseDay } from '../credit-card-form-errors';
 type PageState =
   | CreditCardsLoadState
   | { kind: 'notFound' }
-  | { kind: 'ready'; card: CreditCardResponse; statements: StatementResponse[] };
+  | {
+      kind: 'ready';
+      card: CreditCardResponse;
+      statements: StatementResponse[];
+      purchases: InstallmentPurchaseResponse[];
+      pendingDebtArs: string;
+    };
 
 /** A full catalog path: API errors live in `errors`, the card page ones in `creditCards.detail`. */
 type Notice = `errors.${ApiFailure['messageKey']}` | 'creditCards.detail.datesInvalid';
@@ -43,24 +54,35 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
     Partial<Record<keyof CardDaysValues, CardDaysMessage>>
   >({});
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingPurchaseId, setConfirmingPurchaseId] = useState<string | undefined>();
   const [notice, setNotice] = useState<Notice | undefined>();
 
   useEffect(() => {
     let active = true;
-    void Promise.all([api.getCreditCard(cardId), api.listStatements(cardId)]).then(
-      ([card, statements]) => {
-        if (!active) return;
-        if (card.ok && statements.ok) {
-          setState({ kind: 'ready', card: card.data, statements: statements.data.items });
-          return;
-        }
-        const failure = card.ok ? statements : card;
-        if (failure.ok) return;
-        if (failure.code === 'UNAUTHENTICATED') router.replace('/sign-in');
-        else if (failure.code === 'NOT_FOUND') setState({ kind: 'notFound' });
-        else setState({ kind: 'failed', error: failure.messageKey });
-      },
-    );
+    void Promise.all([
+      api.getCreditCard(cardId),
+      api.listStatements(cardId),
+      api.listInstallmentPurchases(cardId),
+    ]).then(([card, statements, purchases]) => {
+      if (!active) return;
+      if (card.ok && statements.ok && purchases.ok) {
+        setState({
+          kind: 'ready',
+          card: card.data,
+          statements: statements.data.items,
+          purchases: purchases.data.items,
+          pendingDebtArs: purchases.data.pendingDebt.ARS,
+        });
+        return;
+      }
+      const failure = [card, statements, purchases].find(
+        (result): result is ApiFailure => !result.ok,
+      );
+      if (failure === undefined) return;
+      if (failure.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+      else if (failure.code === 'NOT_FOUND') setState({ kind: 'notFound' });
+      else setState({ kind: 'failed', error: failure.messageKey });
+    });
     return () => {
       active = false;
     };
@@ -85,6 +107,39 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
       setState((current) =>
         current.kind === 'ready' ? { ...current, statements: result.data.items } : current,
       );
+    }
+  }
+
+  async function reloadPurchases() {
+    const [statements, purchases] = await Promise.all([
+      api.listStatements(cardId),
+      api.listInstallmentPurchases(cardId),
+    ]);
+    if (statements.ok && purchases.ok) {
+      setState((current) =>
+        current.kind === 'ready'
+          ? {
+              ...current,
+              statements: statements.data.items,
+              purchases: purchases.data.items,
+              pendingDebtArs: purchases.data.pendingDebt.ARS,
+            }
+          : current,
+      );
+    }
+  }
+
+  async function removePurchase(id: string) {
+    setPending(true);
+    setNotice(undefined);
+    const result = await api.deleteInstallmentPurchase(cardId, id);
+    setPending(false);
+    setConfirmingPurchaseId(undefined);
+    if (result.ok) {
+      await reloadPurchases();
+    } else if (!handleShared(result)) {
+      // The purchase stays listed: nothing was removed.
+      setNotice(`errors.${result.messageKey}`);
     }
   }
 
@@ -191,6 +246,12 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           >
             {t('creditCards.detail.addExpense')}
           </Link>
+          <Link
+            href={`/cards/${cardId}/installments/new`}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            {t('creditCards.detail.addInstallments')}
+          </Link>
           {back}
         </div>
       </div>
@@ -223,6 +284,22 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           }}
           onSave={(id, values) => {
             void saveStatement(id, values);
+          }}
+        />
+      </section>
+      <section className="grid gap-3">
+        <h2 className="text-heading">{t('creditCards.installments.heading')}</h2>
+        <InstallmentPurchaseList
+          purchases={state.purchases}
+          pendingDebtArs={state.pendingDebtArs}
+          confirmingId={confirmingPurchaseId}
+          pending={pending}
+          onAskDelete={setConfirmingPurchaseId}
+          onCancelDelete={() => {
+            setConfirmingPurchaseId(undefined);
+          }}
+          onDelete={(id) => {
+            void removePurchase(id);
           }}
         />
       </section>

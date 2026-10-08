@@ -65,6 +65,18 @@ export function StatementList({
                       );
                     })}
                   </span>
+                  {statement.installments.map((installment) => (
+                    <span
+                      key={`${installment.purchaseId}-${String(installment.number)}`}
+                      className="mt-1 block text-sm tabular-nums"
+                    >
+                      {t('installmentLine', {
+                        number: installment.number,
+                        count: installment.count,
+                        amount: formatMoney(BigInt(installment.amount), 'ARS', locale),
+                      })}
+                    </span>
+                  ))}
                 </>
               }
               trailing={

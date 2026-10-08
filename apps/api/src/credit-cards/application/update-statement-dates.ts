@@ -2,6 +2,7 @@ import { isStatementClosed, nextPeriod, statementDatesFor } from '@pesly/shared'
 import { notFoundUnlessAllowed, ResourceNotFound, type AccessScope } from '../../shared/access';
 import type { StatementView } from '../domain/credit-card';
 import { StatementClosed } from '../domain/errors';
+import { addInstallmentTotals, installmentsOfPeriod } from '../domain/installment';
 import { statementTotals } from '../domain/statement-assignment';
 import { validateStatementDates } from '../domain/statement-schedule';
 import { withStatus, zoneAndToday, type CreditCardDependencies } from './dependencies';
@@ -11,7 +12,7 @@ export class UpdateStatementDates {
   constructor(
     private readonly deps: Pick<
       CreditCardDependencies,
-      'cards' | 'timeZones' | 'clock' | 'purchases'
+      'cards' | 'timeZones' | 'clock' | 'purchases' | 'installments'
     >,
   ) {}
 
@@ -49,6 +50,14 @@ export class UpdateStatementDates {
     if (!updated) throw new ResourceNotFound();
     const stored = statements.map((s) => (s.id === updated.id ? updated : s));
     const daily = await this.deps.purchases.dailyPurchases(scope, card, timeZone);
-    return withStatus(updated, today, statementTotals(stored, daily).get(updated.id));
+    const rows = await this.deps.installments.listRows(scope, cardId);
+    const totals = statementTotals(stored, daily);
+    addInstallmentTotals(totals, stored, rows);
+    return withStatus(
+      updated,
+      today,
+      totals.get(updated.id),
+      installmentsOfPeriod(rows, updated.period),
+    );
   }
 }

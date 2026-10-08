@@ -38,3 +38,10 @@ export class CardDaysConflict extends AppError {
     );
   }
 }
+
+/** The purchase date, in the user's time zone, is after today (the rule movements apply to expenses). */
+export class InstallmentPurchaseDateInFuture extends AppError {
+  constructor() {
+    super('MOVEMENT_DATE_IN_FUTURE', 'the purchase date is after today', ['body.purchasedOn']);
+  }
+}

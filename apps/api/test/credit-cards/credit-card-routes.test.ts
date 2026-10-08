@@ -14,7 +14,9 @@ import { createCardAccountLinks, createCreditCardRoutes } from '../../src/credit
 import {
   createAccountMovements,
   createCardPurchases,
+  createExpenseCategoryGuard,
   createExpenseRecorder,
+  createInstallmentWriteLimit,
   createMovementRoutes,
 } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
@@ -74,6 +76,8 @@ async function setup() {
         activity: createAccountMovements(connection.db),
         expenses: createExpenseRecorder(connection.db, logger, { clock }),
         purchases: createCardPurchases(connection.db),
+        categories: createExpenseCategoryGuard(connection.db),
+        writeLimit: createInstallmentWriteLimit(connection.db, logger, { clock }),
         clock,
       }),
       createMovementRoutes({ db: connection.db, logger, clock }),
