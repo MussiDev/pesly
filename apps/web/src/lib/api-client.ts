@@ -69,10 +69,13 @@ import {
   installmentPurchaseResponseSchema,
   listInstallmentPurchasesResponseSchema,
   listStatementsResponseSchema,
+  statementPaymentResponseSchema,
   statementResponseSchema,
   type CardExpenseResponse,
   type CreateCardExpenseRequest,
   type CreateInstallmentPurchaseRequest,
+  type CreateStatementPaymentRequest,
+  type StatementPaymentResponse,
   type InstallmentPurchaseResponse,
   type ListInstallmentPurchasesResponse,
   type CreateCreditCardRequest,
@@ -347,6 +350,11 @@ export interface ApiClient {
     cardId: string,
     body: CreateCardExpenseRequest,
   ): Promise<ApiResult<CardExpenseResponse>>;
+  /** Pays a statement: a transfer to the card's linked account of the currency; needs a connection. */
+  recordStatementPayment(
+    cardId: string,
+    body: CreateStatementPaymentRequest,
+  ): Promise<ApiResult<StatementPaymentResponse>>;
   /** Records an installment purchase on the card, in ARS; needs a connection. */
   createInstallmentPurchase(
     cardId: string,
@@ -759,6 +767,16 @@ export function createApiClient({
           path: `${path}/expenses`,
           body,
           response: cardExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    recordStatementPayment: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/payments`,
+          body,
+          response: statementPaymentResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),

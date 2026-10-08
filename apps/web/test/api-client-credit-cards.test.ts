@@ -24,6 +24,7 @@ const statement = {
   status: 'open',
   totals: { ARS: '0', USD: '0' },
   installments: [],
+  payments: null,
 };
 
 function jsonResponse(status: number, body: unknown): Response {
@@ -247,6 +248,51 @@ describe('credit cards api client', () => {
     expect(init.method).toBe('POST');
     expect(JSON.parse(init.body as string)).toEqual(body);
     expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+  });
+
+  it('recordStatementPayment posts the payment to the card route and parses the answer (AC-01)', async () => {
+    const answer = {
+      movementId: '5a1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5b',
+      sourceAccountId: '33333333-3333-4333-8333-333333333333',
+      accountId: card.arsAccountId,
+      currency: 'ARS',
+      amount: '6000000',
+      occurredAt: '2026-10-05T15:00:00.000Z',
+    };
+    const { client, fetch } = clientWith(jsonResponse(201, answer));
+    const body = {
+      currency: 'ARS' as const,
+      sourceAccountId: answer.sourceAccountId,
+      amount: '6000000',
+      occurredAt: answer.occurredAt,
+    };
+
+    expect(await client.recordStatementPayment(CARD_ID, body)).toEqual({ ok: true, data: answer });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/payments`);
+    expect(init.method).toBe('POST');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+  });
+
+  it('recordStatementPayment maps a malformed answer to unexpected and refuses ".." (error path)', async () => {
+    const { client, fetch } = clientWith(jsonResponse(201, { movementId: 1 }));
+    const body = {
+      currency: 'ARS' as const,
+      sourceAccountId: '33333333-3333-4333-8333-333333333333',
+      amount: '1',
+      occurredAt: '2026-10-05T15:00:00.000Z',
+    };
+    expect(await client.recordStatementPayment(CARD_ID, body)).toMatchObject({
+      ok: false,
+      code: 'INTERNAL',
+      messageKey: 'unexpected',
+    });
+    expect(await client.recordStatementPayment('..', body)).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it('listInstallmentPurchases reads the purchases and the pending debt (FR-07)', async () => {
