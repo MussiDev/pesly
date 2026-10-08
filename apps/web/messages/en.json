@@ -481,7 +481,42 @@
       "confirm": "Delete",
       "notFound": "This card does not exist or was deleted.",
       "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
-      "daysConflict": "With that closing day the open statement would close before the previous one."
+      "daysConflict": "With that closing day the open statement would close before the previous one.",
+      "addInstallments": "Add installments",
+      "installmentLine": "Installment {number} of {count}: {amount}"
+    },
+    "installments": {
+      "title": "Installment purchase",
+      "description": "Record a purchase in installments in pesos. Each installment goes to a statement, starting with the one open on the purchase date.",
+      "fields": {
+        "amount": "Total amount (ARS)",
+        "installments": "Number of installments",
+        "installmentsHint": "{min} to {max}",
+        "category": "Category",
+        "categoryPlaceholder": "Choose a category",
+        "purchasedOn": "Purchase date",
+        "note": "Note (optional)"
+      },
+      "submit": "Save purchase",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record an installment purchase. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "errors": {
+        "installmentsInvalid": "Enter a whole number of installments from 2 to 60.",
+        "amountTooSmall": "The amount must be at least one cent per installment."
+      },
+      "heading": "Installment purchases",
+      "pendingDebt": "Pending debt",
+      "pendingDebtLabel": "Pending debt: {amount}",
+      "empty": "No installment purchases on this card.",
+      "purchaseOn": "Purchase on {date}",
+      "summary": "{count} installments · total {total}",
+      "openCount": "{count, plural, one {# installment pending} other {# installments pending}}",
+      "delete": "Delete",
+      "confirmDelete": "Confirm delete",
+      "cancel": "Cancel",
+      "deleteHint": "Installments in statements that are already closed are kept."
     }
   },
   "movements": {
