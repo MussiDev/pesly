@@ -34,3 +34,4 @@ export * from './time/zoned-time';
 export * from './credit-cards/statement-cycle';
 export * from './credit-cards/credit-card';
 export * from './credit-cards/installment';
+export * from './credit-cards/statement-payment';

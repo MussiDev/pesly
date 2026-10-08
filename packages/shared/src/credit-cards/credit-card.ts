@@ -13,6 +13,7 @@ import {
 import { exactIntegerStringSchema } from '../money';
 import { INSTALLMENTS_MAX, INSTALLMENTS_MIN } from '../money/split-installments';
 import { isCalendarDate } from './statement-cycle';
+import { statementPaymentsSchema } from './statement-payment';
 
 /** Suffixes of the two linked accounts; their names are "<card name> ARS" and "<card name> USD". */
 export const LINKED_ACCOUNT_SUFFIXES = { ARS: ' ARS', USD: ' USD' } as const;
@@ -144,6 +145,8 @@ export const statementResponseSchema = z.object({
   status: statementStatusSchema,
   totals: statementTotalsSchema,
   installments: z.array(statementInstallmentSchema),
+  /** Paid amount and status per currency; `null` while the statement is open (spec D3). */
+  payments: statementPaymentsSchema.nullable(),
 });
 
 export type StatementResponse = z.infer<typeof statementResponseSchema>;

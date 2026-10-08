@@ -136,6 +136,7 @@ describe('params and responses', () => {
         status: 'pending',
         totals: { ARS: '0', USD: '0' },
         installments: [],
+        payments: null,
       }).success,
     ).toBe(false);
   });
@@ -149,6 +150,7 @@ const STATEMENT = {
   dueDate: '2026-11-05',
   status: 'open',
   installments: [],
+  payments: null,
 };
 
 const CARD_EXPENSE = {
