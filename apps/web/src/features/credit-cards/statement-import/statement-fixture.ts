@@ -1,0 +1,50 @@
+import type { StatementCell } from './parse-statement-rows';
+
+/**
+ * A synthetic statement with the layout of the real Visa export (single sheet, text cells,
+ * Argentine number formats) and invented values only.
+ */
+export function syntheticStatementRows(): StatementCell[][] {
+  return [
+    [],
+    ['Movimientos del resumen'],
+    ['Tarjeta Visa Crédito terminada en 1234'],
+    [],
+    ['Fecha de cierre', 'Fecha de vencimiento'],
+    ['24/09/2026', '05/10/2026'],
+    ['Total a pagar'],
+    ['$1.236.973,76', 'U$S20,50'],
+    ['Mínimo a pagar'],
+    ['$1.000,00', 'U$S1,00'],
+    [],
+    ['Tarjetas incluidas en el resumen', 'Tarjeta de', 'Total en pesos', 'Total en dólares'],
+    ['Visa Crédito', 'Persona Ejemplo', '$1.235.872,50', 'U$S20,50'],
+    [],
+    ['Cierres y vencimientos'],
+    ['Resumen actual', 'Próximo resumen'],
+    ['Cierre: 24/09/2026', 'Cierre: 22/10/2026'],
+    ['Vencimiento: 05/10/2026', 'Vencimiento: 03/11/2026'],
+    [],
+    ['Pago de tarjeta y devoluciones'],
+    ['Fecha', 'Descripción', 'Cuotas', 'Comprobante', 'Monto en pesos', 'Monto en dólares'],
+    ['01/09/2026', 'Su pago en pesos', '', '-', '$-5.000,00'],
+    [],
+    ['Tarjeta de Persona Ejemplo - 9999'],
+    ['Fecha', 'Descripción', 'Cuotas', 'Comprobante', 'Monto en pesos', 'Monto en dólares'],
+    ['30/04/2026', 'Tienda uno', '5 de 6', '000111*', '$1.234,56'],
+    ['03/08/2026', 'Tienda dos', '2 de 12', '000222*', '$1.234.567,89'],
+    ['22/08/2026', 'Servicio en dolares', '', '000333K', null, 'U$S20,00'],
+    ['01/09/2026', 'Compra uno', '', '', '$100,00'],
+    [null, 'Compra misma fecha', '', '-', '$50,05'],
+    ['08/09/2026', 'Compra tres', '1 de 3', '000444*', '$10,00'],
+    ['22/09/2026', 'Servicio en dolares', '', '000333K', null, 'U$S0,50'],
+    ['Total de Visa Crédito terminada en 9999', null, null, null, '$1.235.872,50', 'U$S20,50'],
+    [],
+    ['Otros conceptos'],
+    ['Descripción', 'Monto en pesos'],
+    ['Impuesto de sellos', '$11,26'],
+    ['Percepcion de ejemplo', '$1.000,00'],
+    [],
+    ['Aviso importante: texto legal de ejemplo sin importes.'],
+  ];
+}
