@@ -311,3 +311,23 @@ export async function archiveAccount(email: string, name: string): Promise<void>
   );
   if (result.rows.length !== 1) throw new Error(`No account named ${name} for ${email}`);
 }
+
+/**
+ * Closes the oldest statement of the card named `cardName` of `email` by moving its dates into the
+ * past, because a statement only closes as days pass and a flow cannot wait for them.
+ */
+export async function closeFirstStatement(email: string, cardName: string): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update credit_card_statements s
+          set closing_date = current_date - 10, due_date = current_date - 3
+         from credit_cards c join users u on u.id = c.owner_id
+        where s.card_id = c.id and u.email = $1 and c.name = $2
+          and s.id = (select id from credit_card_statements
+                       where card_id = c.id order by closing_date limit 1)
+       returning s.id`,
+      [email, cardName],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No statement of ${cardName} for ${email}`);
+}
