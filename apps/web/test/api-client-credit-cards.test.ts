@@ -257,6 +257,7 @@ describe('credit cards api client', () => {
       accountId: card.arsAccountId,
       currency: 'ARS',
       amount: '6000000',
+      exchange: { pesosAmount: '9147065', rate: '15350000' },
       occurredAt: '2026-10-05T15:00:00.000Z',
     };
     const { client, fetch } = clientWith(jsonResponse(201, answer));
