@@ -73,6 +73,15 @@ import {
   listStatementsResponseSchema,
   statementPaymentResponseSchema,
   statementResponseSchema,
+  listRecurringPaymentsResponseSchema,
+  recurringPaymentResponseSchema,
+  upcomingResponseSchema,
+  type ConfirmOccurrence,
+  type CreateRecurringPayment,
+  type ListRecurringPaymentsResponse,
+  type RecurringPaymentResponse,
+  type UpcomingResponse,
+  type UpdateRecurringPayment,
   type CardExpenseResponse,
   type CreateCardExpenseRequest,
   type CreateStatementImportRequest,
@@ -350,6 +359,24 @@ export interface ApiClient {
     includeInAvailable: boolean,
   ): Promise<ApiResult<AccountResponse>>;
   deleteAccount(id: string): Promise<ApiResult<undefined>>;
+  listRecurringPayments(): Promise<ApiResult<ListRecurringPaymentsResponse>>;
+  createRecurringPayment(
+    body: CreateRecurringPayment,
+  ): Promise<ApiResult<RecurringPaymentResponse>>;
+  getRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  updateRecurringPayment(
+    id: string,
+    body: UpdateRecurringPayment,
+  ): Promise<ApiResult<RecurringPaymentResponse>>;
+  pauseRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  resumeRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  /** Deletes the payment and its pending and future occurrences; recorded expenses stay. */
+  deleteRecurringPayment(id: string): Promise<ApiResult<undefined>>;
+  /** Overdue and pending occurrences first, then the next 30 days; needs a connection. */
+  getUpcomingRecurring(): Promise<ApiResult<UpcomingResponse>>;
+  /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
+  confirmOccurrence(occurrenceId: string, body: ConfirmOccurrence): Promise<ApiResult<undefined>>;
+  skipOccurrence(occurrenceId: string): Promise<ApiResult<undefined>>;
   listCreditCards(): Promise<ApiResult<ListCreditCardsResponse>>;
   createCreditCard(body: CreateCreditCardRequest): Promise<ApiResult<CreditCardResponse>>;
   getCreditCard(id: string): Promise<ApiResult<CreditCardResponse>>;
@@ -531,6 +558,22 @@ export function createApiClient({
     build: (path: string) => Promise<ApiResult<T>>,
   ): Promise<ApiResult<T>> {
     const path = resourcePath('credit-cards', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onRecurringPayment<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('recurring/payments', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onOccurrence<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('recurring/occurrences', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
   }
 
@@ -740,6 +783,91 @@ export function createApiClient({
         request({
           method: 'DELETE',
           path,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listRecurringPayments: () =>
+      request({
+        method: 'GET',
+        path: '/recurring/payments',
+        response: listRecurringPaymentsResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    createRecurringPayment: (body) =>
+      request({
+        method: 'POST',
+        path: '/recurring/payments',
+        body,
+        response: recurringPaymentResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateRecurringPayment: (id, body) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    pauseRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/pause`,
+          body: {},
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    resumeRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/resume`,
+          body: {},
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    getUpcomingRecurring: () =>
+      request({
+        method: 'GET',
+        path: '/recurring/upcoming',
+        response: upcomingResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    confirmOccurrence: (occurrenceId, body) =>
+      onOccurrence(occurrenceId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/confirm`,
+          body,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    skipOccurrence: (occurrenceId) =>
+      onOccurrence(occurrenceId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/skip`,
+          body: {},
           response: null,
           refreshOnUnauthenticated: true,
         }),

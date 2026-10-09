@@ -56,6 +56,12 @@ describe('no floating-point money arithmetic in the web app (NFR-01, NFR-02) (AC
     expect(offendersIn(investments)).toEqual([]);
   });
 
+  it('features/recurring contains no float conversions or rounding (NFR-01)', () => {
+    const recurring = join(webSrc, 'features/recurring');
+    expect(sources(recurring).length).toBeGreaterThanOrEqual(1);
+    expect(offendersIn(recurring)).toEqual([]);
+  });
+
   it('movement-request.ts contains no float conversions or rounding (DISC-001-03c)', () => {
     expect(offendersIn(movementRequest)).toEqual([]);
   });

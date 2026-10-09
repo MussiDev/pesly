@@ -73,7 +73,8 @@
       "investments": "Investments",
       "more": "More",
       "addMovement": "Add movement",
-      "cards": "Cards"
+      "cards": "Cards",
+      "recurring": "Recurring"
     },
     "more": {
       "title": "More",
@@ -1144,6 +1145,118 @@
       "notPositive": "The number must be greater than zero.",
       "quantityInvalid": "Enter a valid quantity.",
       "amountInvalid": "Enter an amount within the allowed range."
+    }
+  },
+  "recurring": {
+    "title": "Recurring payments",
+    "description": "Rent, subscriptions and services that repeat. Confirm each one when it is due.",
+    "nav": {
+      "upcoming": "Upcoming",
+      "all": "All payments"
+    },
+    "list": {
+      "newPayment": "New recurring payment",
+      "emptyTitle": "No recurring payments yet",
+      "empty": "Add the payments that repeat, like rent or a subscription, and they will show up here when they are due.",
+      "upcomingLabel": "Upcoming payments",
+      "paymentsLabel": "Your recurring payments",
+      "dueOn": "Due {date}",
+      "nextDue": "Next: {date}",
+      "noNextDue": "No upcoming date",
+      "unknownAccount": "Unknown account",
+      "unknownCategory": "Unknown category"
+    },
+    "frequency": {
+      "label": "Frequency",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "weekday": {
+      "label": "Day of the week",
+      "0": "Monday",
+      "1": "Tuesday",
+      "2": "Wednesday",
+      "3": "Thursday",
+      "4": "Friday",
+      "5": "Saturday",
+      "6": "Sunday"
+    },
+    "month": {
+      "label": "Month",
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    },
+    "mode": {
+      "label": "When it is due",
+      "automatic": "Record it automatically",
+      "confirmation": "Ask me to confirm",
+      "hint": "With confirmation, the expense is only recorded after you confirm it."
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "confirmed": "Confirmed",
+      "skipped": "Skipped",
+      "paused": "Paused",
+      "active": "Active"
+    },
+    "fields": {
+      "name": "Name",
+      "amount": "Amount",
+      "account": "Account",
+      "category": "Category",
+      "dayOfMonth": "Day of the month",
+      "startDate": "Start date",
+      "endDate": "End date (optional)"
+    },
+    "actions": {
+      "create": "Create payment",
+      "edit": "Edit",
+      "save": "Save changes",
+      "pause": "Pause",
+      "resume": "Resume",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "skip": "Skip",
+      "cancel": "Cancel",
+      "saving": "Saving…"
+    },
+    "confirm": {
+      "title": "Confirm payment",
+      "description": "This records an expense for {name}. You can change the amount and the date.",
+      "amount": "Amount paid",
+      "date": "Payment date",
+      "submit": "Confirm and record"
+    },
+    "deleteConfirm": {
+      "title": "Delete this recurring payment?",
+      "description": "Its pending and future occurrences are removed. Expenses already recorded stay in your movements.",
+      "confirm": "Yes, delete",
+      "cancel": "Keep it"
+    },
+    "pauseHint": "While paused, nothing is scheduled. When you resume, it continues from today.",
+    "errors": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "The name can have up to 80 characters.",
+      "frequencyRequired": "Choose how often it repeats.",
+      "weekdayRequired": "Choose a day of the week.",
+      "dayOfMonthRequired": "Enter a day of the month from 1 to 31.",
+      "monthRequired": "Choose a month.",
+      "dateInvalid": "Enter a valid date.",
+      "endBeforeStart": "The end date cannot be before the start date.",
+      "modeRequired": "Choose how it is recorded."
     }
   }
 }
