@@ -323,6 +323,14 @@ All notable changes to this project are documented in this file. The format foll
   an "Edit opening balance" action with the current value, an explanation and a preview of the new
   balance. No migration and no new dependency.
 
+- DISC-001-08a Recurring payments: create, edit, pause, resume and delete payments that repeat
+  weekly, monthly or yearly, with a name, amount, account, expense category, start and optional end
+  date and an automatic or confirmation mode. Monthly days that a month lacks fall on its last day.
+  A new "Recurring" screen lists overdue, pending and the next 30 days of occurrences; confirming
+  a pending one records the expense (amount and date editable) and skipping it records nothing.
+  Due dates follow the user's time zone. Migration `0023_recurring_payments` adds two tables;
+  automatic recording, reminders and push notifications arrive in DISC-001-08b, 08c and 08d.
+
 ### Changed
 
 - FEAT-004 Every screen uses the design system: the auth, profile, security, delete-account,
