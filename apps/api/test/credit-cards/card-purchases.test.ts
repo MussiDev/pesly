@@ -89,7 +89,7 @@ describe('createCardPurchases.dailyPurchases', () => {
     ]);
   });
 
-  it('uses the time zone it is given, bound as a parameter', async () => {
+  it('uses the time zone it is given and never puts it in the statement', async () => {
     const ownerId = await newUserId(connection.db);
     const card = await newCard(ownerId);
     const categoryId = await newCategory(connection.pool, ownerId, 'expense');
@@ -102,9 +102,19 @@ describe('createCardPurchases.dailyPurchases', () => {
     expect(await purchases.dailyPurchases(await readScope(ownerId), card, 'UTC')).toEqual([
       { day: '2026-10-25', currency: 'ARS', amount: 5n },
     ]);
-    await expect(
-      purchases.dailyPurchases(await readScope(ownerId), card, "UTC'; drop table movements;--"),
-    ).rejects.toThrow();
+    // A hostile name is never part of a statement: it falls back to the default zone.
+    expect(
+      await purchases.dailyPurchases(
+        await readScope(ownerId),
+        card,
+        "UTC'; drop table movements;--",
+      ),
+    ).toEqual([{ day: '2026-10-24', currency: 'ARS', amount: 5n }]);
+    const stored = await connection.pool.query<{ n: string }>(
+      'select count(*) as n from movements where owner_id = $1',
+      [ownerId],
+    );
+    expect(Number(stored.rows[0]?.n)).toBe(1);
   });
 
   it('does not sum income, transfers, exchanges or expenses on other accounts (FR-03)', async () => {
@@ -196,5 +206,61 @@ describe('createCardPurchases.dailyPurchases', () => {
         BUENOS_AIRES,
       ),
     ).toEqual([{ day: '2026-10-20', currency: 'ARS', amount: expected }]);
+  });
+});
+
+describe('createCardPurchases.dailyPurchases without the database tz names', () => {
+  async function seeded() {
+    const ownerId = await newUserId(connection.db);
+    const card = await newCard(ownerId);
+    const categoryId = await newCategory(connection.pool, ownerId, 'expense');
+    const base = { ownerId, categoryId, type: 'expense' as const };
+    // 2026-10-24T18:30Z is 2026-10-25 00:00 in UTC+5:30 and 2026-10-24 15:30 in Buenos Aires.
+    await insert({ ...base, accountId: card.arsAccountId, amount: 10n }, '2026-10-24T18:29:59Z');
+    await insert({ ...base, accountId: card.arsAccountId, amount: 20n }, '2026-10-24T18:30:00Z');
+    await insert({ ...base, accountId: card.arsAccountId, amount: 5n }, '2026-10-24T18:45:00Z');
+    return { card, scope: await readScope(ownerId) };
+  }
+
+  it('splits the day at a half-hour offset exactly (Asia/Kolkata)', async () => {
+    const { card, scope } = await seeded();
+
+    const result = await createCardPurchases(connection.db).dailyPurchases(
+      scope,
+      card,
+      'Asia/Kolkata',
+    );
+
+    expect(result).toEqual(
+      expect.arrayContaining([
+        { day: '2026-10-24', currency: 'ARS', amount: 10n },
+        { day: '2026-10-25', currency: 'ARS', amount: 25n },
+      ]),
+    );
+    expect(result).toHaveLength(2);
+  });
+
+  it('answers for the legacy alias the browsers report (America/Buenos_Aires)', async () => {
+    const { card, scope } = await seeded();
+
+    const result = await createCardPurchases(connection.db).dailyPurchases(
+      scope,
+      card,
+      'America/Buenos_Aires',
+    );
+
+    expect(result).toEqual([{ day: '2026-10-24', currency: 'ARS', amount: 35n }]);
+  });
+
+  it('never sends the zone name to the database: a name it cannot decode does not fail (22023)', async () => {
+    const { card, scope } = await seeded();
+
+    const result = await createCardPurchases(connection.db).dailyPurchases(
+      scope,
+      card,
+      'Not/A_Zone',
+    );
+
+    expect(result).toEqual([{ day: '2026-10-24', currency: 'ARS', amount: 35n }]);
   });
 });
