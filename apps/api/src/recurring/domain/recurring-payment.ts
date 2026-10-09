@@ -20,6 +20,28 @@ export interface RecurringPayment {
   createdAt: Date;
 }
 
+/** Defensive per-user cap that keeps the on-read materialization bounded (NFR-02, NFR-03). */
+export const MAX_RECURRING_PAYMENTS = 200;
+
+/** How far back materialization looks, so an old payment cannot flood the table. */
+export const MATERIALIZE_LOOKBACK_DAYS = 366;
+
+/** How far ahead the upcoming list projects scheduled dates (AC-11). */
+export const UPCOMING_HORIZON_DAYS = 30;
+
+/** An upcoming list entry; the presenter turns `amount` into the API decimal string. */
+export interface UpcomingEntry {
+  kind: 'pending' | 'overdue' | 'scheduled';
+  dueDate: string;
+  paymentId: string;
+  name: string;
+  amount: bigint;
+  accountId: string;
+  categoryId: string;
+  /** Set for pending and overdue entries, `null` for scheduled ones. */
+  occurrenceId: string | null;
+}
+
 export type OccurrenceStatus = 'pending' | 'confirmed' | 'skipped';
 
 /** One due date of a payment. */
