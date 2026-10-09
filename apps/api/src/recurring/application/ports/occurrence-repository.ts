@@ -16,6 +16,13 @@ export interface OccurrenceRepository {
   insertIgnore(rows: readonly NewOccurrence[]): Promise<void>;
   /** The caller's pending occurrences, ordered by due date. */
   listPending(scope: AccessScope): Promise<RecurringOccurrence[]>;
+  /** The payment's pending occurrences due in `from`..`to` inclusive, oldest first. */
+  listRecordable(
+    scope: AccessScope,
+    paymentId: string,
+    from: string,
+    to: string,
+  ): Promise<RecurringOccurrence[]>;
   /** Used when a schedule edit invalidates what was materialized; resolved rows stay. */
   deletePendingFor(scope: AccessScope<'write'>, paymentId: string): Promise<void>;
   /**

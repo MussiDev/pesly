@@ -1,4 +1,4 @@
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { notFoundUnlessAllowed, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
@@ -49,6 +49,27 @@ export class DrizzleOccurrenceRepository implements OccurrenceRepository {
         ),
       )
       .orderBy(asc(recurringOccurrences.dueDate), asc(recurringOccurrences.id));
+  }
+
+  listRecordable(
+    scope: AccessScope,
+    paymentId: string,
+    from: string,
+    to: string,
+  ): Promise<RecurringOccurrence[]> {
+    return this.db
+      .select(occurrenceColumns)
+      .from(recurringOccurrences)
+      .where(
+        and(
+          eq(recurringOccurrences.paymentId, paymentId),
+          eq(recurringOccurrences.status, 'pending'),
+          gte(recurringOccurrences.dueDate, from),
+          lte(recurringOccurrences.dueDate, to),
+          scopedTo(scope, { owner: recurringOccurrences.ownerId }),
+        ),
+      )
+      .orderBy(asc(recurringOccurrences.dueDate));
   }
 
   async deletePendingFor(scope: AccessScope<'write'>, paymentId: string): Promise<void> {

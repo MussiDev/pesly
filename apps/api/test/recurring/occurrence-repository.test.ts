@@ -223,3 +223,37 @@ describe('DrizzleOccurrenceRepository.withLockedPending', () => {
     expect(await rowsOf(paymentId)).toEqual([{ due_date: '2026-10-05', status: 'pending' }]);
   });
 });
+
+describe('DrizzleOccurrenceRepository.listRecordable', () => {
+  it('lists only the pending rows of the payment inside the window, oldest first, owner scoped', async () => {
+    const { ana, paymentId } = await rent();
+    const bea = await newRecurringOwner(connection.db, connection.pool);
+    await occurrences.insertIgnore(
+      ['2026-08-05', '2026-09-05', '2026-10-05', '2026-11-05'].map((dueDate) => ({
+        paymentId,
+        ownerId: ana.ownerId,
+        dueDate,
+      })),
+    );
+    const scope = await writeScope(ana.ownerId);
+    const [september] = await occurrences.listRecordable(
+      scope,
+      paymentId,
+      '2026-09-05',
+      '2026-09-05',
+    );
+    await occurrences.withLockedPending(scope, september?.id ?? MISSING_ID, skip);
+
+    const listed = await occurrences.listRecordable(scope, paymentId, '2026-09-01', '2026-10-31');
+    const foreign = await occurrences.listRecordable(
+      await writeScope(bea.ownerId),
+      paymentId,
+      '2026-01-01',
+      '2026-12-31',
+    );
+
+    expect(listed.map((row) => row.dueDate)).toEqual(['2026-10-05']);
+    expect(listed[0]).toMatchObject({ paymentId, status: 'pending', movementId: null });
+    expect(foreign).toEqual([]);
+  });
+});

@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { AppError } from '@pesly/shared';
+import { AppError, dateInTimeZone } from '@pesly/shared';
 import type { Clock } from '../../src/recurring/application/ports/clock';
+import type {
+  AutomaticPaymentEntry,
+  AutomaticPaymentSource,
+} from '../../src/recurring/application/ports/automatic-payment-source';
 import type {
   ExpenseRecorder,
   ExpenseToRecord,
@@ -36,9 +40,13 @@ export class FakeClock implements Clock {
 
 export class FakeTimeZones implements UserTimeZone {
   zone = 'America/Argentina/Buenos_Aires';
+  /** Per-user zones that win over `zone`. */
+  readonly byUser = new Map<string, string>();
 
-  timeZoneOf(): Promise<string> {
-    return Promise.resolve(this.zone);
+  timeZoneOf(userId?: string): Promise<string> {
+    return Promise.resolve(
+      (userId === undefined ? undefined : this.byUser.get(userId)) ?? this.zone,
+    );
   }
 }
 
@@ -79,6 +87,27 @@ export class InMemoryOccurrences implements OccurrenceRepository {
     return Promise.resolve(
       this.rows
         .filter((row) => row.ownerId === scope.userId && row.occurrence.status === 'pending')
+        .map((row) => row.occurrence)
+        .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    );
+  }
+
+  listRecordable(
+    scope: AccessScope,
+    paymentId: string,
+    from: string,
+    to: string,
+  ): Promise<RecurringOccurrence[]> {
+    return Promise.resolve(
+      this.rows
+        .filter(
+          (row) =>
+            row.ownerId === scope.userId &&
+            row.occurrence.paymentId === paymentId &&
+            row.occurrence.status === 'pending' &&
+            row.occurrence.dueDate >= from &&
+            row.occurrence.dueDate <= to,
+        )
         .map((row) => row.occurrence)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
     );
@@ -222,15 +251,21 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
   readonly expenses: RecordedExpense[] = [];
   /** When set, the next calls reject with it and store nothing. */
   failWith: Error | null = null;
+  /** The owner's zone: like the movements rules, "future" means a later calendar day there. */
+  zone = 'America/Argentina/Buenos_Aires';
 
   constructor(private readonly clock: Clock) {}
+
+  private isFuture(occurredAt: Date): boolean {
+    return dateInTimeZone(occurredAt, this.zone) > dateInTimeZone(this.clock.now(), this.zone);
+  }
 
   record(
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }> {
     if (this.failWith) return Promise.reject(this.failWith);
-    if (expense.occurredAt.getTime() > this.clock.now().getTime()) {
+    if (this.isFuture(expense.occurredAt)) {
       return Promise.reject(new AppError('MOVEMENT_DATE_IN_FUTURE'));
     }
     const id = randomUUID();
@@ -250,11 +285,38 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
       return Promise.resolve({ id, occurredAt: stored.occurredAt });
     }
     if (this.failWith) return Promise.reject(this.failWith);
-    if (expense.occurredAt.getTime() > this.clock.now().getTime()) {
+    if (this.isFuture(expense.occurredAt)) {
       return Promise.reject(new AppError('MOVEMENT_DATE_IN_FUTURE'));
     }
     this.expenses.push({ ownerId: scope.userId, id, ...expense });
     return Promise.resolve({ id, occurredAt: expense.occurredAt });
+  }
+}
+
+/** Active automatic payments of every owner, keyset-paged by id, with the owner's zone. */
+export class FakeAutomaticPaymentSource implements AutomaticPaymentSource {
+  constructor(
+    private readonly payments: InMemoryPayments,
+    private readonly timeZones: FakeTimeZones,
+  ) {}
+
+  async page(afterId: string | null, limit: number): Promise<AutomaticPaymentEntry[]> {
+    const rows = this.payments.rows
+      .filter(
+        (row) =>
+          row.payment.status === 'active' &&
+          row.payment.mode === 'automatic' &&
+          (afterId === null || row.payment.id > afterId),
+      )
+      .sort((a, b) => a.payment.id.localeCompare(b.payment.id))
+      .slice(0, limit);
+    return Promise.all(
+      rows.map(async (row) => ({
+        ownerId: row.ownerId,
+        timeZone: await this.timeZones.timeZoneOf(row.ownerId),
+        payment: row.payment,
+      })),
+    );
   }
 }
 
@@ -264,5 +326,6 @@ export function recurringFakes(now: string) {
   const payments = new InMemoryPayments(occurrences);
   const timeZones = new FakeTimeZones();
   const expenses = new FakeExpenseRecorder(clock);
-  return { clock, occurrences, payments, timeZones, expenses };
+  const source = new FakeAutomaticPaymentSource(payments, timeZones);
+  return { clock, occurrences, payments, timeZones, expenses, source };
 }

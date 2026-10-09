@@ -170,7 +170,7 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
     expect(await paymentColumns()).toContain('auto_recording_from');
     const failure = await client.query('select 1 / 0').then(
       () => null,
-      (error: { code?: string }) => error,
+      (error: unknown) => error as { code?: string },
     );
     await client.query('rollback');
 
