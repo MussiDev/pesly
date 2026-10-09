@@ -14,6 +14,7 @@ import type {
   NewRecurringPayment,
   RecurringPaymentChanges,
   RecurringPaymentRepository,
+  RecurringStatusChanges,
 } from '../../src/recurring/application/ports/recurring-payment-repository';
 import type { UserTimeZone } from '../../src/recurring/application/ports/user-time-zone';
 import { OccurrenceNotPending } from '../../src/recurring/domain/errors';
@@ -185,15 +186,22 @@ export class InMemoryPayments implements RecurringPaymentRepository {
     return Promise.resolve(row.payment);
   }
 
-  setStatus(
+  // eslint-disable-next-line @typescript-eslint/require-await -- keeps a not-found a rejection, like the database repository
+  async setStatus(
     scope: AccessScope<'write'>,
     id: string,
-    status: RecurringPayment['status'],
-    scheduleFrom: string,
+    changes: RecurringStatusChanges,
   ): Promise<RecurringPayment> {
     const row = notFoundUnlessAllowed(this.find(scope, id));
-    row.payment = { ...row.payment, status, scheduleFrom };
-    return Promise.resolve(row.payment);
+    row.payment = {
+      ...row.payment,
+      status: changes.status,
+      scheduleFrom: changes.scheduleFrom,
+      ...(changes.autoRecordingFrom === undefined
+        ? {}
+        : { autoRecordingFrom: changes.autoRecordingFrom }),
+    };
+    return row.payment;
   }
 
   // eslint-disable-next-line @typescript-eslint/require-await -- keeps a not-found a rejection, like the database repository

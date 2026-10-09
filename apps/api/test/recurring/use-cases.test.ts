@@ -78,6 +78,66 @@ async function firstOccurrenceId(app: App, userId = ANA): Promise<string> {
   return item.occurrenceId;
 }
 
+describe('auto-recording start day (AC-06, AC-07, FR-05)', () => {
+  it('a new payment stores today in the owner zone, not the start date or the UTC day (AC-06)', async () => {
+    const app = setup('2026-10-09T02:00:00.000Z');
+
+    const past = await createFor(app, ANA, { mode: 'automatic', startDate: '2026-09-01' });
+    app.timeZones.zone = 'Asia/Tokyo';
+    const tokyo = await createFor(app, BEA, { mode: 'automatic', startDate: '2026-09-01' });
+
+    expect(past).toMatchObject({ scheduleFrom: '2026-09-01', autoRecordingFrom: '2026-10-08' });
+    expect(tokyo.autoRecordingFrom).toBe('2026-10-09');
+  });
+
+  it('switching confirmation to automatic sets the field to today (AC-06)', async () => {
+    const app = setup('2026-10-09T15:00:00.000Z');
+    const payment = await createFor(app, ANA);
+    expect(payment.autoRecordingFrom).toBe('2026-10-09');
+    app.clock.current = new Date('2026-10-20T15:00:00.000Z');
+
+    const updated = await app.update.execute(await writeScopeFor(ANA), payment.id, {
+      mode: 'automatic',
+    });
+
+    expect(updated).toMatchObject({ mode: 'automatic', autoRecordingFrom: '2026-10-20' });
+  });
+
+  it('a schedule edit moves the field to today and a plain edit keeps it', async () => {
+    const app = setup('2026-10-09T15:00:00.000Z');
+    const payment = await createFor(app, ANA, { mode: 'automatic' });
+    const scope = await writeScopeFor(ANA);
+    app.clock.current = new Date('2026-10-20T15:00:00.000Z');
+
+    const renamed = await app.update.execute(scope, payment.id, { name: 'Rent 2', amount: 1n });
+    const stillAutomatic = await app.update.execute(scope, payment.id, { mode: 'automatic' });
+    const rescheduled = await app.update.execute(scope, payment.id, { dayOfMonth: 7 });
+
+    expect(renamed.autoRecordingFrom).toBe('2026-10-09');
+    expect(stillAutomatic.autoRecordingFrom).toBe('2026-10-09');
+    expect(rescheduled.autoRecordingFrom).toBe('2026-10-20');
+  });
+
+  it('sad path: resume and setStatus on another owner payment raise ResourceNotFound and change nothing', async () => {
+    const app = setup('2026-10-09T15:00:00.000Z');
+    const payment = await createFor(app, ANA, { mode: 'automatic' });
+
+    await expect(app.resume.execute(await writeScopeFor(BEA), payment.id)).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+    await expect(
+      app.payments.setStatus(await writeScopeFor(BEA), payment.id, {
+        status: 'paused',
+        scheduleFrom: '2026-10-09',
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    expect(app.payments.rows[0]?.payment).toMatchObject({
+      status: 'active',
+      autoRecordingFrom: '2026-10-09',
+    });
+  });
+});
+
 describe('CreateRecurringPayment and ListUpcoming (AC-01)', () => {
   it('stores the payment and shows its next occurrence as scheduled', async () => {
     const app = setup('2026-10-01T15:00:00.000Z');
@@ -458,9 +518,23 @@ describe('Pause, resume and delete (AC-13, AC-14, AC-15)', () => {
     const resumed = await app.resume.execute(scope, payment.id);
     const items = await app.upcoming.execute(scope);
 
-    expect(resumed).toMatchObject({ status: 'active', scheduleFrom: '2026-10-09' });
+    expect(resumed).toMatchObject({
+      status: 'active',
+      scheduleFrom: '2026-10-09',
+      autoRecordingFrom: '2026-10-09',
+    });
     expect(items.map((item) => [item.kind, item.dueDate])).toEqual([['scheduled', '2026-11-05']]);
     expect(app.occurrences.rows).toHaveLength(0);
+  });
+
+  it('pause keeps the auto-recording start day it had', async () => {
+    const app = setup('2026-10-09T15:00:00.000Z');
+    const payment = await createFor(app, ANA, { mode: 'automatic' });
+
+    app.clock.current = new Date('2026-10-20T15:00:00.000Z');
+    const paused = await app.pause.execute(await writeScopeFor(ANA), payment.id);
+
+    expect(paused).toMatchObject({ status: 'paused', autoRecordingFrom: '2026-10-09' });
   });
 
   it('resume computes today in the user zone', async () => {

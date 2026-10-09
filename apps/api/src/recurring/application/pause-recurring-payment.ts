@@ -8,6 +8,9 @@ export class PauseRecurringPayment {
   /** A paused payment materializes nothing and is not projected (AC-13); the cursor is kept. */
   async execute(scope: AccessScope<'write'>, id: string): Promise<RecurringPayment> {
     const payment = await this.deps.payments.get(scope, id);
-    return this.deps.payments.setStatus(scope, id, 'paused', payment.scheduleFrom);
+    return this.deps.payments.setStatus(scope, id, {
+      status: 'paused',
+      scheduleFrom: payment.scheduleFrom,
+    });
   }
 }

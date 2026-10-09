@@ -79,6 +79,21 @@ describe('recurring schema introspection', () => {
     ]);
   });
 
+  it('has auto_recording_from as a not null date defaulting to the session date (FR-05)', async () => {
+    const result = await connection.pool.query<{
+      data_type: string;
+      is_nullable: string;
+      column_default: string | null;
+    }>(
+      `select data_type, is_nullable, column_default from information_schema.columns
+        where table_schema = 'public' and table_name = 'recurring_payments'
+          and column_name = 'auto_recording_from'`,
+    );
+    expect(result.rows).toEqual([
+      { data_type: 'date', is_nullable: 'NO', column_default: 'CURRENT_DATE' },
+    ]);
+  });
+
   it('declares the check constraints of the data model', async () => {
     expect(await constraintNames('recurring_payments', 'c')).toEqual([
       'recurring_payments_amount_check',

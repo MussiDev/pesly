@@ -66,6 +66,7 @@ describe('upcoming latency (NFR-02)', () => {
           dayOfMonth: null,
           startDate: '2026-01-05',
           scheduleFrom: '2026-01-05',
+          autoRecordingFrom: '2026-01-05',
         }),
       );
     }

@@ -47,6 +47,14 @@ export const recurringPayments = pgTable(
     mode: text('mode').$type<'automatic' | 'confirmation'>().notNull(),
     status: text('status').$type<'active' | 'paused'>().notNull().default('active'),
     scheduleFrom: date('schedule_from', { mode: 'string' }).notNull(),
+    /**
+     * First day whose due dates the scheduler may record without the user (DISC-001-08b). The
+     * default is the database session date, only a safety net for raw inserts: the application
+     * always sets it in the owner's zone.
+     */
+    autoRecordingFrom: date('auto_recording_from', { mode: 'string' })
+      .notNull()
+      .default(sql`current_date`),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },

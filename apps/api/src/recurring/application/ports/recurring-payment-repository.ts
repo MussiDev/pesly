@@ -7,6 +7,13 @@ export type NewRecurringPayment = Omit<RecurringPayment, 'id' | 'status' | 'crea
 /** The editable fields, each optional; `scheduleFrom` moves when the schedule itself changes. */
 export type RecurringPaymentChanges = Partial<NewRecurringPayment>;
 
+/** What a pause or resume changes; `autoRecordingFrom` is left as it is when omitted. */
+export interface RecurringStatusChanges {
+  status: RecurringStatus;
+  scheduleFrom: string;
+  autoRecordingFrom?: string | undefined;
+}
+
 /** Every method answers `ResourceNotFound` for a missing or foreign payment. */
 export interface RecurringPaymentRepository {
   create(scope: AccessScope<'write'>, data: NewRecurringPayment): Promise<RecurringPayment>;
@@ -22,8 +29,7 @@ export interface RecurringPaymentRepository {
   setStatus(
     scope: AccessScope<'write'>,
     id: string,
-    status: RecurringStatus,
-    scheduleFrom: string,
+    changes: RecurringStatusChanges,
   ): Promise<RecurringPayment>;
   /** The payment's occurrences go with it; recorded movements stay. */
   delete(scope: AccessScope<'write'>, id: string): Promise<void>;

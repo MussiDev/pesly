@@ -2,7 +2,7 @@ import { AppError } from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import type { RecurringPayment } from '../domain/recurring-payment';
 import type { CreateRecurringPaymentInput } from './create-recurring-payment';
-import type { RecurringDependencies } from './dependencies';
+import { zoneAndToday, type RecurringDependencies } from './dependencies';
 import type { RecurringPaymentChanges } from './ports/recurring-payment-repository';
 
 export type UpdateRecurringPaymentInput = Partial<{
@@ -19,12 +19,19 @@ const SCHEDULE_FIELDS = [
 ] as const;
 
 export class UpdateRecurringPayment {
-  constructor(private readonly deps: Pick<RecurringDependencies, 'payments' | 'occurrences'>) {}
+  constructor(
+    private readonly deps: Pick<
+      RecurringDependencies,
+      'payments' | 'occurrences' | 'timeZones' | 'clock'
+    >,
+  ) {}
 
   /**
    * Applies a partial change. A change to any schedule field deletes the payment's pending
    * occurrences (materialization recreates them from the new rule); resolved ones stay (AC-12).
-   * Fields that do not belong to the resulting frequency are cleared.
+   * Fields that do not belong to the resulting frequency are cleared. Switching to automatic or
+   * editing the schedule moves the auto-recording start day to today in the owner's zone, so the
+   * dates before it stay pending for the user.
    */
   async execute(
     scope: AccessScope<'write'>,
@@ -55,6 +62,11 @@ export class UpdateRecurringPayment {
 
     const next = { frequency, weekday, dayOfMonth, month, startDate, endDate };
     const scheduleChanged = SCHEDULE_FIELDS.some((field) => next[field] !== current[field]);
+    const becameAutomatic = input.mode === 'automatic' && current.mode !== 'automatic';
+    const { today } =
+      becameAutomatic || scheduleChanged
+        ? await zoneAndToday(this.deps, scope.userId)
+        : { today: undefined };
     const changes: RecurringPaymentChanges = {
       ...(input.name === undefined ? {} : { name: input.name }),
       ...(input.amount === undefined ? {} : { amount: input.amount }),
@@ -62,6 +74,7 @@ export class UpdateRecurringPayment {
       ...(input.categoryId === undefined ? {} : { categoryId: input.categoryId }),
       ...(input.mode === undefined ? {} : { mode: input.mode }),
       ...(scheduleChanged ? next : {}),
+      ...(today === undefined ? {} : { autoRecordingFrom: today }),
     };
 
     const updated = await this.deps.payments.update(scope, id, changes);
