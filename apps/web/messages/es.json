@@ -394,6 +394,7 @@
     "actions": {
       "rename": "Renombrar",
       "renameField": "Nuevo nombre de {name}",
+      "editOpeningBalance": "Editar saldo inicial",
       "save": "Guardar",
       "cancel": "Cancelar",
       "archive": "Archivar",
@@ -402,6 +403,12 @@
       "confirmDelete": "¿Eliminar {name}? Esta acción no se puede deshacer.",
       "confirmDeleteYes": "Sí, eliminar",
       "archiveInstead": "Archivar en vez de eliminar"
+    },
+    "openingEdit": {
+      "current": "Saldo inicial actual: {amount}",
+      "field": "Nuevo saldo inicial de {name}",
+      "hint": "El saldo cambia por la diferencia. Los movimientos no se modifican.",
+      "preview": "Nuevo saldo: {amount}"
     },
     "errors": {
       "nameRequired": "Ingresa un nombre.",

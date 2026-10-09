@@ -63,6 +63,7 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type RenameAccountRequest,
+  type SetOpeningBalanceRequest,
   cardExpenseResponseSchema,
   statementImportResponseSchema,
   creditCardResponseSchema,
@@ -248,6 +249,9 @@ export type CreateAccountInput = z.input<typeof createAccountRequestSchema>;
 /** Only `name` is renameable; type and currency are immutable. */
 export type RenameAccountInput = Pick<RenameAccountRequest, 'name'>;
 
+/** Only the opening balance, as a minor-units integer string. */
+export type SetOpeningBalanceInput = SetOpeningBalanceRequest;
+
 export type ListAccountsParams = Partial<Pick<ListAccountsQuery, 'archived' | 'limit' | 'offset'>>;
 
 /** What the containers send to create a category: the validated body of `POST /categories`. */
@@ -330,6 +334,11 @@ export interface ApiClient {
   createAccount(body: CreateAccountInput): Promise<ApiResult<AccountResponse>>;
   getAccount(id: string): Promise<ApiResult<AccountResponse>>;
   renameAccount(id: string, body: RenameAccountInput): Promise<ApiResult<AccountResponse>>;
+  /** Changes the opening balance; the balance moves by the difference and no movement is touched. */
+  setAccountOpeningBalance(
+    id: string,
+    body: SetOpeningBalanceInput,
+  ): Promise<ApiResult<AccountResponse>>;
   archiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   unarchiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   setIncludeInAvailable(
@@ -677,6 +686,16 @@ export function createApiClient({
         request({
           method: 'PATCH',
           path,
+          body,
+          response: accountResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    setAccountOpeningBalance: (id, body) =>
+      onAccount(id, (path) =>
+        request({
+          method: 'PATCH',
+          path: `${path}/opening-balance`,
           body,
           response: accountResponseSchema,
           refreshOnUnauthenticated: true,
