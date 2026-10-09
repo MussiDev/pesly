@@ -77,6 +77,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 120000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: 'TV',
       installments: installmentsOf(12),
@@ -99,6 +100,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: ana.card.id,
       categoryId: ana.categoryId,
       totalAmount: 20000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: installmentsOf(2),
@@ -127,6 +129,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 120000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: installmentsOf(12),
@@ -152,6 +155,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 20000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: installmentsOf(2),
@@ -169,6 +173,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 20000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: 'a',
       installments: installmentsOf(2),
@@ -193,6 +198,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 20000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: installmentsOf(2),
@@ -209,6 +215,7 @@ describe('DrizzleInstallmentRepository', () => {
         count: 2,
         period: '2026-10',
         amount: 10000n,
+        currency: 'ARS',
         categoryId,
       },
     ]);
@@ -223,6 +230,7 @@ describe('DrizzleInstallmentRepository', () => {
         cardId: card.id,
         categoryId,
         totalAmount: 20000n,
+        currency: 'ARS',
         purchasedOn: '2026-10-07',
         note: null,
         installments: [
@@ -245,6 +253,7 @@ describe('DrizzleInstallmentRepository', () => {
       cardId: card.id,
       categoryId,
       totalAmount: 20000n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: installmentsOf(2),
@@ -254,12 +263,35 @@ describe('DrizzleInstallmentRepository', () => {
     expect(await pgCodeOf(repository.create(scope, data(foreign)))).toBe('23503');
   });
 
+  it('stores the purchase currency and carries it to the purchase and its rows (USD)', async () => {
+    const { ownerId, scope, card } = await ownerWithCard();
+    const categoryId = await newCategory(connection.pool, ownerId, 'expense');
+
+    const created = await repository.create(scope, {
+      cardId: card.id,
+      categoryId,
+      totalAmount: 20000n,
+      currency: 'USD',
+      purchasedOn: '2026-10-07',
+      note: null,
+      installments: installmentsOf(2),
+    });
+
+    expect(created.currency).toBe('USD');
+    expect((await repository.findPurchase(scope, card.id, created.id))?.currency).toBe('USD');
+    expect((await repository.listRows(scope, card.id)).map((row) => row.currency)).toEqual([
+      'USD',
+      'USD',
+    ]);
+  });
+
   it('round-trips amounts above 2^53 exactly (NFR-01)', async () => {
     const { scope, card, categoryId } = await ownerWithCard();
     const purchase = await repository.create(scope, {
       cardId: card.id,
       categoryId,
       totalAmount: 999_999_999_999_999n,
+      currency: 'ARS' as const,
       purchasedOn: '2026-10-07',
       note: null,
       installments: [

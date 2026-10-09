@@ -121,15 +121,13 @@ test('records an installment purchase, sees the pending debt and the installment
   );
 });
 
-test('the installment form refuses one installment and creates nothing (AC-02)', async ({
-  page,
-}) => {
+test('the purchase form refuses 61 installments and creates nothing (AC-02)', async ({ page }) => {
   await signedInUser(page, 'installments-invalid');
   const cardId = await createVisa(page);
 
   await page.goto(`/es/cards/${cardId}/installments/new`);
   await page.getByLabel(t.installments.fields.amount, { exact: true }).fill('1.000,00');
-  await page.getByLabel(t.installments.fields.installments, { exact: true }).fill('1');
+  await page.getByLabel(t.installments.fields.installments, { exact: true }).fill('61');
   await page
     .getByLabel(t.installments.fields.category, { exact: true })
     .selectOption({ label: EXPENSE_CATEGORY });
@@ -142,4 +140,21 @@ test('the installment form refuses one installment and creates nothing (AC-02)',
   await expect(
     page.getByText(t.installments.pendingDebt, { exact: true }).locator('..'),
   ).toContainText(ZERO);
+});
+
+test('one installment is saved as a plain card expense, not an installment purchase', async ({
+  page,
+}) => {
+  await signedInUser(page, 'installments-single');
+  const cardId = await createVisa(page);
+
+  await page.goto(`/es/cards/${cardId}/installments/new`);
+  await page.getByLabel(t.installments.fields.amount, { exact: true }).fill('1.000,00');
+  await page.getByLabel(t.installments.fields.installments, { exact: true }).fill('1');
+  await page
+    .getByLabel(t.installments.fields.category, { exact: true })
+    .selectOption({ label: EXPENSE_CATEGORY });
+  await page.getByRole('button', { name: t.installments.submit }).click();
+  await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
+  await expect(page.getByText(t.installments.empty)).toBeVisible();
 });

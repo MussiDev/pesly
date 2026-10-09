@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { dateInTimeZone } from '@pesly/shared';
 import type { AccountActivity } from '../../src/credit-cards/application/ports/account-activity';
+import type { CardPayments } from '../../src/credit-cards/application/ports/card-payments';
 import type { CardPurchases } from '../../src/credit-cards/application/ports/card-purchases';
 import type { Clock } from '../../src/credit-cards/application/ports/clock';
 import type { ExpenseCategoryGuard } from '../../src/credit-cards/application/ports/expense-category-guard';
@@ -21,13 +22,22 @@ import type {
   ExpenseRecorder,
   ExpenseToRecord,
 } from '../../src/credit-cards/application/ports/expense-recorder';
-import type { DailyPurchase } from '../../src/credit-cards/domain/statement-assignment';
+import type {
+  DailyPurchase,
+  StatementTotals,
+} from '../../src/credit-cards/domain/statement-assignment';
 import type {
   CardDays,
   CreateCreditCardData,
   CreditCardRepository,
   StatementDates,
 } from '../../src/credit-cards/application/ports/credit-card-repository';
+import type {
+  PaymentToRecord,
+  RecordedPaymentMovement,
+  StatementPaymentRecorder,
+} from '../../src/credit-cards/application/ports/statement-payment-recorder';
+import type { StatementImportRepository } from '../../src/credit-cards/application/ports/statement-import-repository';
 import type { UserTimeZone } from '../../src/credit-cards/application/ports/user-time-zone';
 import {
   linkedAccountNames,
@@ -202,7 +212,18 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
   /** When set, the next call rejects with it and stores nothing. */
   failWith: Error | null = null;
 
+  /** How many expenses came through the path that spends no creation limit unit. */
+  unmetered = 0;
+
   constructor(private readonly clock: Clock) {}
+
+  recordUnmetered(
+    scope: AccessScope<'write'>,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }> {
+    this.unmetered += 1;
+    return this.record(scope, expense);
+  }
 
   record(
     scope: AccessScope<'write'>,
@@ -266,6 +287,7 @@ export class InMemoryInstallments implements InstallmentRepository {
       cardId: data.cardId,
       categoryId: data.categoryId,
       totalAmount: data.totalAmount,
+      currency: data.currency,
       installmentCount: data.installments.length,
       purchasedOn: data.purchasedOn,
       note: data.note,
@@ -346,6 +368,7 @@ export class InMemoryInstallments implements InstallmentRepository {
             count: row.purchase.installmentCount,
             period: installment.period,
             amount: installment.amount,
+            currency: row.purchase.currency,
             categoryId: row.purchase.categoryId,
           })),
         ),
@@ -390,11 +413,70 @@ export class FakeWriteLimit implements InstallmentWriteLimit {
   }
 }
 
+export interface RecordedPayment extends PaymentToRecord {
+  ownerId: string;
+  id: string;
+}
+
+/** Stores transfers in memory; the movements rules (currency, archived, future) are the adapter's. */
+export class FakePaymentRecorder implements StatementPaymentRecorder {
+  readonly payments: RecordedPayment[] = [];
+  /** When set, the next call rejects with it and stores nothing. */
+  failWith: Error | null = null;
+
+  record(scope: AccessScope<'write'>, payment: PaymentToRecord): Promise<RecordedPaymentMovement> {
+    if (this.failWith) return Promise.reject(this.failWith);
+    const id = randomUUID();
+    this.payments.push({ ownerId: scope.userId, id, ...payment });
+    const exchange =
+      payment.pesosDebited === undefined
+        ? null
+        : { pesosAmount: payment.pesosDebited, rate: 15_350_000n };
+    return Promise.resolve({ id, occurredAt: payment.occurredAt, exchange });
+  }
+}
+
+/** Sums the transfers a `FakePaymentRecorder` stored per linked account, as the SQL adapter does. */
+export class FakeCardPayments implements CardPayments {
+  constructor(private readonly recorder: FakePaymentRecorder) {}
+
+  receivedByCard(scope: AccessScope, card: CreditCard): Promise<StatementTotals> {
+    const received: StatementTotals = { ARS: 0n, USD: 0n };
+    for (const payment of this.recorder.payments) {
+      if (payment.ownerId !== scope.userId) continue;
+      if (payment.destinationAccountId === card.arsAccountId) received.ARS += payment.amount;
+      if (payment.destinationAccountId === card.usdAccountId) received.USD += payment.amount;
+    }
+    return Promise.resolve(received);
+  }
+}
+
+/** In-memory fingerprints, scoped by owner and card like the SQL table. */
+export class InMemoryStatementImports implements StatementImportRepository {
+  readonly claimed = new Set<string>();
+
+  claim(scope: AccessScope<'write'>, cardId: string, fingerprint: string): Promise<boolean> {
+    const key = `${scope.userId}|${cardId}|${fingerprint}`;
+    if (this.claimed.has(key)) return Promise.resolve(false);
+    this.claimed.add(key);
+    return Promise.resolve(true);
+  }
+
+  release(scope: AccessScope<'write'>, cardId: string, fingerprint: string): Promise<void> {
+    this.claimed.delete(`${scope.userId}|${cardId}|${fingerprint}`);
+    return Promise.resolve();
+  }
+}
+
 /** The collaborators of the installment use cases, with in-memory stand-ins. */
 export function installmentFakes() {
+  const paymentRecorder = new FakePaymentRecorder();
   return {
+    paymentRecorder,
+    cardPayments: new FakeCardPayments(paymentRecorder),
     installments: new InMemoryInstallments(),
     categories: new FakeCategoryGuard(),
     writeLimit: new FakeWriteLimit(),
+    statementImports: new InMemoryStatementImports(),
   };
 }

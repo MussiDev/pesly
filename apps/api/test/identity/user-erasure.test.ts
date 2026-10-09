@@ -417,6 +417,19 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'card_statement_import_lines',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after credit_cards: the fingerprint belongs to the card that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into card_statement_import_lines (owner_id, card_id, fingerprint) select owner_id, id, repeat('a', 64) from credit_cards where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
     table: 'installment_purchases',
     userColumn: 'owner_id',
     policy: 'erase-step',

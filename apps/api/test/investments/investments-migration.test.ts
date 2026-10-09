@@ -35,6 +35,8 @@ const LATER_MIGRATIONS = [
   '0018_device_write_limit',
   '0019_credit_cards',
   '0020_installments',
+  '0021_installment_currency',
+  '0022_card_statement_import_lines',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -45,6 +47,7 @@ const PRICE_TABLES = [
 ];
 const TAG_TABLES = ['movement_tags', 'tags'];
 const CREDIT_CARD_TABLES = [
+  'card_statement_import_lines',
   'credit_card_statements',
   'credit_cards',
   'installment_purchases',

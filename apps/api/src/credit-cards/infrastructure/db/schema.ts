@@ -113,6 +113,8 @@ export const installmentPurchases = pgTable(
     categoryId: uuid('category_id').notNull(),
     categoryKind: text('category_kind').notNull().default('expense'),
     totalAmount: bigint('total_amount', { mode: 'bigint' }).notNull(),
+    /** The purchase currency; its installments inherit it. */
+    currency: text('currency').$type<'ARS' | 'USD'>().notNull().default('ARS'),
     installmentCount: smallint('installment_count').notNull(),
     /** The calendar day of the purchase in the user's time zone. */
     purchasedOn: date('purchased_on', { mode: 'string' }).notNull(),
@@ -127,6 +129,7 @@ export const installmentPurchases = pgTable(
       'installment_purchases_total_range_check',
       sql`${table.totalAmount} between 1 and ${AMOUNT_MAX_LITERAL}`,
     ),
+    check('installment_purchases_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
     check('installment_purchases_count_check', sql`${table.installmentCount} between 2 and 60`),
     check(
       'installment_purchases_total_covers_count_check',
@@ -179,5 +182,34 @@ export const installments = pgTable(
       'installments_amount_range_check',
       sql`${table.amount} between 1 and ${AMOUNT_MAX_LITERAL}`,
     ),
+  ],
+);
+
+/**
+ * One line of an imported card statement, recorded by its fingerprint so importing the same file
+ * again creates nothing twice. Only the hash is kept: no description, amount or voucher.
+ */
+export const cardStatementImportLines = pgTable(
+  'card_statement_import_lines',
+  {
+    ownerId: uuid('owner_id').notNull(),
+    cardId: uuid('card_id').notNull(),
+    fingerprint: text('fingerprint').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'card_statement_import_lines_pk',
+      columns: [table.ownerId, table.cardId, table.fingerprint],
+    }),
+    check(
+      'card_statement_import_lines_fingerprint_check',
+      sql`${table.fingerprint} ~ '^[0-9a-f]{64}$'`,
+    ),
+    foreignKey({
+      name: 'card_statement_import_lines_card_owner_fk',
+      columns: [table.cardId, table.ownerId],
+      foreignColumns: [creditCards.id, creditCards.ownerId],
+    }).onDelete('cascade'),
   ],
 );

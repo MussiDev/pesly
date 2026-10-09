@@ -18,11 +18,13 @@ import {
 import { createAccountRoutes } from '../../src/accounts';
 import {
   createAccountMovements,
+  createCardPayments,
   createCardPurchases,
   createCategoryUsage,
   createExpenseCategoryGuard,
   createExpenseRecorder,
   createInstallmentWriteLimit,
+  createStatementPaymentRecorder,
 } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -79,6 +81,8 @@ async function setup() {
         activity: createAccountMovements(connection.db),
         expenses: createExpenseRecorder(connection.db, logger, { clock }),
         purchases: createCardPurchases(connection.db),
+        cardPayments: createCardPayments(connection.db),
+        paymentRecorder: createStatementPaymentRecorder(connection.db, logger, { clock }),
         categories: createExpenseCategoryGuard(connection.db),
         writeLimit: createInstallmentWriteLimit(connection.db, logger, { clock }),
         clock,
@@ -210,11 +214,47 @@ describe('POST /credit-cards/:id/installment-purchases', () => {
     expect(await countPurchases(s.anaId)).toBe(0);
   });
 
-  it('answers 400 for USD, an amount below the count and an unknown key and stores nothing (AC-03, invalid input)', async () => {
+  it('answers 201 for a USD purchase and carries the currency to the purchase, the totals and the expenses', async () => {
     const s = await setup();
     const { card, categoryId } = await cardWithCategory(s);
 
-    for (const overrides of [{ currency: 'USD' }, { amount: '5' }, { accountId: card.id }]) {
+    const purchase = await record(
+      s,
+      card.id,
+      purchaseBody(categoryId, { currency: 'USD', amount: '120000' }),
+    );
+
+    expect(purchase.currency).toBe('USD');
+    expect(purchase.installments.every((i) => i.amount === '10000')).toBe(true);
+    const listed = await listOf(s, card.id);
+    expect(listed.items[0]?.currency).toBe('USD');
+    expect(listed.pendingDebt).toEqual({ ARS: '0', USD: '120000' });
+    const statements = await call(s.app, 'get', `/credit-cards/${card.id}/statements`, s.ana);
+    expect(listStatementsResponseSchema.parse(statements.body).items[0]).toMatchObject({
+      totals: { ARS: '0', USD: '10000' },
+      installments: [expect.objectContaining({ currency: 'USD', amount: '10000' })],
+    });
+    const expenses = await call(
+      s.app,
+      'get',
+      '/credit-cards/installment-expenses?from=2026-11&to=2026-11',
+      s.ana,
+    );
+    expect(installmentExpensesResponseSchema.parse(expenses.body).items).toEqual([
+      { month: '2026-11', categoryId, currency: 'USD', amount: '10000' },
+    ]);
+  });
+
+  it('answers 400 for an unknown or missing currency, an amount below the count and an unknown key and stores nothing (AC-03, invalid input)', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+
+    for (const overrides of [
+      { currency: 'EUR' },
+      { currency: undefined },
+      { amount: '5' },
+      { accountId: card.id },
+    ]) {
       const response = await post(s, card.id, purchaseBody(categoryId, overrides));
       expect(response.status).toBe(400);
     }

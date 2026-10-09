@@ -12,12 +12,14 @@ import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/e
 import { createInvestmentsRoutes } from './investments';
 import {
   createAccountMovements,
+  createCardPayments,
   createCardPurchases,
   createCategoryUsage,
   createExpenseCategoryGuard,
   createExpenseRecorder,
   createInstallmentWriteLimit,
   createMovementRoutes,
+  createStatementPaymentRecorder,
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
@@ -62,6 +64,8 @@ const app = createApp({
       activity: createAccountMovements(db),
       expenses: createExpenseRecorder(db, logger),
       purchases: createCardPurchases(db),
+      cardPayments: createCardPayments(db),
+      paymentRecorder: createStatementPaymentRecorder(db, logger),
       categories: createExpenseCategoryGuard(db),
       writeLimit: createInstallmentWriteLimit(db, logger),
     }),

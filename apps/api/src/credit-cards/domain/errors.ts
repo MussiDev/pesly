@@ -45,3 +45,10 @@ export class InstallmentPurchaseDateInFuture extends AppError {
     super('MOVEMENT_DATE_IN_FUTURE', 'the purchase date is after today', ['body.purchasedOn']);
   }
 }
+
+/** The first period of an installment purchase is not a `YYYY-MM` month. */
+export class InvalidFirstPeriod extends AppError {
+  constructor() {
+    super('VALIDATION_FAILED', 'the first period must be a YYYY-MM month', ['body.firstPeriod']);
+  }
+}

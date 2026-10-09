@@ -3,6 +3,7 @@ import type { Statement, StatementView } from '../domain/credit-card';
 import type { StatementInstallmentView } from '../domain/installment';
 import type { StatementTotals } from '../domain/statement-assignment';
 import type { AccountActivity } from './ports/account-activity';
+import type { CardPayments } from './ports/card-payments';
 import type { CardPurchases } from './ports/card-purchases';
 import type { Clock } from './ports/clock';
 import type { CreditCardRepository } from './ports/credit-card-repository';
@@ -10,6 +11,8 @@ import type { ExpenseCategoryGuard } from './ports/expense-category-guard';
 import type { ExpenseRecorder } from './ports/expense-recorder';
 import type { InstallmentRepository } from './ports/installment-repository';
 import type { InstallmentWriteLimit } from './ports/installment-write-limit';
+import type { StatementImportRepository } from './ports/statement-import-repository';
+import type { StatementPaymentRecorder } from './ports/statement-payment-recorder';
 import type { UserTimeZone } from './ports/user-time-zone';
 
 export interface CreditCardDependencies {
@@ -22,6 +25,9 @@ export interface CreditCardDependencies {
   installments: InstallmentRepository;
   categories: ExpenseCategoryGuard;
   writeLimit: InstallmentWriteLimit;
+  cardPayments: CardPayments;
+  paymentRecorder: StatementPaymentRecorder;
+  statementImports: StatementImportRepository;
 }
 
 /** The caller's calendar date, `YYYY-MM-DD`, in their stored time zone (PRD 01 FR-24). */
@@ -51,6 +57,7 @@ export function withStatus(
     ...statement,
     totals,
     installments,
+    payments: null,
     status: isStatementClosed(statement.closingDate, today) ? 'closed' : 'open',
   };
 }

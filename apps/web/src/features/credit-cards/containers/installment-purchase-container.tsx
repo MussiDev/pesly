@@ -56,7 +56,7 @@ function failureAlert(failure: ApiFailure): InstallmentAlertMessage {
 }
 
 /**
- * The installment purchase screen (10c FR-01). Online only, like the card expense: a missing
+ * The card purchase screen (10c FR-01): one payment or installments. Online only, like the card expense: a missing
  * connection is reported on the form and what was typed is kept.
  */
 export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
@@ -113,19 +113,23 @@ export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
     if (pending) return;
     // Only open expense categories can be picked, so the request builder never sees an archived one.
     const open = ready.categories.filter((item) => item.kind === 'expense' && !item.archived);
-    const { request, fields } = buildInstallmentPurchaseRequest(values, {
+    const { purchase, fields } = buildInstallmentPurchaseRequest(values, {
       categories: open,
       timeZone: ready.timeZone,
       locale,
       now: new Date(),
     });
-    if (request === undefined) {
+    if (purchase === undefined) {
       setErrors({ fields });
       return;
     }
     setPending(true);
     setErrors({});
-    const result = await api.createInstallmentPurchase(cardId, request);
+    // One payment is a plain card expense (10b); two or more are an installment purchase.
+    const result =
+      purchase.kind === 'single'
+        ? await api.createCardExpense(cardId, purchase.request)
+        : await api.createInstallmentPurchase(cardId, purchase.request);
     setPending(false);
     if (result.ok) {
       router.push(`/cards/${cardId}`);

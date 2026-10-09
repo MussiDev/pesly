@@ -40,6 +40,7 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
     status: 'open',
     totals: { ARS: '0', USD: '0' },
     installments: [],
+    payments: null,
     ...overrides,
   };
 }
@@ -134,20 +135,12 @@ describe('CreditCardDetailContainer', () => {
     ).toBe(`0.00${NBSP}USD`);
   });
 
-  it('links the card page to the installment screen of the card (FR-01)', async () => {
+  it('links the card page to the unified purchase screen of the card (FR-01)', async () => {
     stubApi(loaded());
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
 
-    const link = await screen.findByRole('link', { name: en.creditCards.detail.addInstallments });
+    const link = await screen.findByRole('link', { name: en.creditCards.detail.addPurchase });
     expect(link.getAttribute('href')).toBe(`/en/cards/${ID}/installments/new`);
-  });
-
-  it('links the card page to the expense screen of the card (FR-01)', async () => {
-    stubApi(loaded());
-    renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
-
-    const link = await screen.findByRole('link', { name: en.creditCards.detail.addExpense });
-    expect(link.getAttribute('href')).toBe(`/en/cards/${ID}/expense`);
   });
 
   it('shows the load-failure state when a statement comes without totals (error path)', async () => {

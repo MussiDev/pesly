@@ -23,6 +23,15 @@ const CARD = `GET ${CARD_PATH}`;
 const PROFILE = 'GET /profile';
 const CATEGORIES = 'GET /categories?kind=expense&archived=false&limit=100';
 const POST = `POST ${CARD_PATH}/installment-purchases`;
+const POST_EXPENSE = `POST ${CARD_PATH}/expenses`;
+const SAVED_EXPENSE = {
+  movementId: uuid(99),
+  accountId: '11111111-1111-4111-8111-111111111111',
+  currency: 'ARS',
+  amount: '100000',
+  occurredAt: NOW,
+  statementId: uuid(98),
+};
 const COMIDA_ID = uuid(11);
 
 const card: CreditCardResponse = {
@@ -85,6 +94,7 @@ function formRoutes(overrides: Record<string, Parameters<typeof stubApi>[0][stri
       category({ id: uuid(13), kind: 'expense', name: 'Vieja', archived: true }),
     ]),
     [POST]: { status: 201, body: purchase() },
+    [POST_EXPENSE]: { status: 201, body: SAVED_EXPENSE },
     ...overrides,
   };
 }
@@ -143,9 +153,47 @@ describe('InstallmentPurchaseContainer', () => {
     ]);
   });
 
-  it('shows the field message for 1 and for 61 installments and sends nothing (AC-02)', async () => {
-    const { calls } = await open();
+  it('calls the card expense endpoint for one payment, as a plain expense (single payment)', async () => {
+    const { calls, router } = await open();
     const user = await fill('1000', '1');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/es/cards/${ID}`);
+    });
+    expect(posts(calls)).toEqual([
+      {
+        method: 'POST',
+        path: `${CARD_PATH}/expenses`,
+        body: {
+          currency: 'ARS',
+          categoryId: COMIDA_ID,
+          amount: '100000',
+          occurredAt: NOW,
+          rate: { source: 'automatic' },
+        },
+      },
+    ]);
+  });
+
+  it('posts a USD installment purchase when USD is chosen (USD installments)', async () => {
+    const { calls } = await open();
+    const user = await fill('1200', '12');
+    await user.selectOptions(field(t.fields.currency), 'USD');
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(posts(calls)).toHaveLength(1);
+    });
+    expect(posts(calls)[0]).toMatchObject({
+      path: `${CARD_PATH}/installment-purchases`,
+      body: { currency: 'USD', amount: '120000', installments: 12 },
+    });
+  });
+
+  it('shows the field message for 0 and for 61 installments and sends nothing (AC-02)', async () => {
+    const { calls } = await open();
+    const user = await fill('1000', '0');
     await user.click(submit());
 
     expect(await screen.findByText(t.errors.installmentsInvalid)).toBeDefined();
@@ -157,11 +205,11 @@ describe('InstallmentPurchaseContainer', () => {
     expect(posts(calls)).toEqual([]);
   });
 
-  it('has no currency choice and offers only open expense categories (AC-03)', async () => {
+  it('offers ARS (default) and USD, and only open expense categories (AC-03)', async () => {
     await open();
 
-    expect(screen.queryByLabelText(es.creditCards.expense.fields.currency)).toBeNull();
-    expect(screen.queryByRole('option', { name: 'USD' })).toBeNull();
+    expect(field(t.fields.currency).value).toBe('ARS');
+    expect(screen.getByRole('option', { name: 'USD' })).toBeDefined();
     expect(screen.getByRole('option', { name: 'Comida' })).toBeDefined();
     expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
   });
@@ -230,8 +278,16 @@ const STATEMENT: StatementResponse = {
   status: 'open',
   totals: { ARS: '6000000', USD: '2000' },
   installments: [
-    { purchaseId: PURCHASE_ID, number: 1, count: 12, amount: '1000000', categoryId: COMIDA_ID },
+    {
+      purchaseId: PURCHASE_ID,
+      number: 1,
+      count: 12,
+      amount: '1000000',
+      currency: 'ARS',
+      categoryId: COMIDA_ID,
+    },
   ],
+  payments: null,
 };
 
 const PENDING_11 = { ARS: '11000000', USD: '0' };

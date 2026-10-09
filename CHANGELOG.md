@@ -306,6 +306,15 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-10c Installments by category and month: `GET /credit-cards/installment-expenses` returns each
   installment as an expense of the purchase's category in the due-date month of its statement, for
   budgets (PRD 06) and reports (PRD 09) to read when they are built.
+- DISC-001-10d Statement payments: `POST /credit-cards/:id/payments` and a "Pay statement" screen move
+  money from one of your accounts to the card's linked account of the same currency as a transfer, never
+  an expense; a source in another currency is refused. It reuses the transfer rules and the movement
+  write limit. No migration.
+- DISC-001-10d Statement status: each closed statement shows, per currency, the amount paid and whether it
+  is paid, partially paid or unpaid. The status is derived on read: the transfers received by the card
+  account are allocated to the closed statements oldest first, so editing or deleting a payment moves
+  the status. An installment purchase is still not a movement, so after paying a statement that
+  includes installments the card's ARS account balance exceeds its purchases by the installments paid.
 
 ### Changed
 

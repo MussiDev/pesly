@@ -3,6 +3,8 @@ import {
   createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
   createInstallmentPurchaseRequestSchema,
+  createStatementImportRequestSchema,
+  createStatementPaymentRequestSchema,
   creditCardIdParamsSchema,
   creditCardResponseSchema,
   installmentExpensesQuerySchema,
@@ -12,7 +14,9 @@ import {
   listCreditCardsResponseSchema,
   listInstallmentPurchasesResponseSchema,
   listStatementsResponseSchema,
+  statementImportResponseSchema,
   statementParamsSchema,
+  statementPaymentResponseSchema,
   statementResponseSchema,
   updateCreditCardRequestSchema,
   updateInstallmentPurchaseRequestSchema,
@@ -39,22 +43,27 @@ import { DeleteCreditCard } from '../../application/delete-credit-card';
 import { DeleteInstallmentPurchase } from '../../application/delete-installment-purchase';
 import { GetCreditCard } from '../../application/get-credit-card';
 import { GetInstallmentPurchase } from '../../application/get-installment-purchase';
+import { ImportCardStatement } from '../../application/import-card-statement';
 import { ListInstallmentExpenses } from '../../application/list-installment-expenses';
 import { ListInstallmentPurchases } from '../../application/list-installment-purchases';
 import { ListCreditCards } from '../../application/list-credit-cards';
 import { ListStatements } from '../../application/list-statements';
 import type { AccountActivity } from '../../application/ports/account-activity';
+import type { CardPayments } from '../../application/ports/card-payments';
 import type { CardPurchases } from '../../application/ports/card-purchases';
 import type { Clock } from '../../application/ports/clock';
 import type { ExpenseCategoryGuard } from '../../application/ports/expense-category-guard';
 import type { ExpenseRecorder } from '../../application/ports/expense-recorder';
 import type { InstallmentWriteLimit } from '../../application/ports/installment-write-limit';
+import type { StatementPaymentRecorder } from '../../application/ports/statement-payment-recorder';
 import { RecordCardExpense } from '../../application/record-card-expense';
+import { RecordStatementPayment } from '../../application/record-statement-payment';
 import { UpdateCreditCardDays } from '../../application/update-credit-card-days';
 import { UpdateInstallmentPurchase } from '../../application/update-installment-purchase';
 import { UpdateStatementDates } from '../../application/update-statement-dates';
 import { DrizzleCreditCardRepository } from '../db/drizzle-credit-card-repository';
 import { DrizzleInstallmentRepository } from '../db/drizzle-installment-repository';
+import { DrizzleStatementImportRepository } from '../db/drizzle-statement-import-repository';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
 import { SystemClock } from '../system-clock';
 import {
@@ -64,6 +73,7 @@ import {
   presentInstallmentPurchase,
   presentInstallmentPurchaseList,
   presentStatement,
+  presentStatementPayment,
 } from './credit-card-presenter';
 
 export interface CreditCardRoutesOptions {
@@ -80,6 +90,10 @@ export interface CreditCardRoutesOptions {
   categories: ExpenseCategoryGuard;
   /** The per-user creation limit shared with the movements routes; the movements module provides it. */
   writeLimit: InstallmentWriteLimit;
+  /** What each card received, behind the statement status; the movements module provides it (spec D2). */
+  cardPayments: CardPayments;
+  /** Records a statement payment as a transfer through the movements rules; the movements module provides it (spec D5). */
+  paymentRecorder: StatementPaymentRecorder;
   /** Defaults to the system clock; tests inject one to move "today". */
   clock?: Clock;
 }
@@ -103,6 +117,8 @@ export function createCreditCardRoutes({
   purchases,
   categories,
   writeLimit,
+  cardPayments,
+  paymentRecorder,
   clock = new SystemClock(),
 }: CreditCardRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
@@ -113,7 +129,10 @@ export function createCreditCardRoutes({
     purchases,
     categories,
     writeLimit,
+    cardPayments,
+    paymentRecorder,
     installments: new DrizzleInstallmentRepository(db),
+    statementImports: new DrizzleStatementImportRepository(db),
     timeZones: new DrizzleUserTimeZone(db),
     clock,
   };
@@ -125,7 +144,9 @@ export function createCreditCardRoutes({
   const listStatements = new ListStatements(deps);
   const updateStatement = new UpdateStatementDates(deps);
   const recordExpense = new RecordCardExpense(deps);
+  const recordPayment = new RecordStatementPayment(deps);
   const createPurchase = new CreateInstallmentPurchase(deps);
+  const importStatement = new ImportCardStatement(deps, createPurchase);
   const listPurchases = new ListInstallmentPurchases(deps);
   const getPurchase = new GetInstallmentPurchase(deps);
   const updatePurchase = new UpdateInstallmentPurchase(deps);
@@ -290,6 +311,58 @@ export function createCreditCardRoutes({
     );
 
     router.post(
+      '/credit-cards/:id/statement-imports',
+      validate(
+        {
+          params: creditCardIdParamsSchema,
+          body: createStatementImportRequestSchema,
+          response: statementImportResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const outcome = await importStatement.execute(scope, params.id, {
+            closingDate: body.closingDate,
+            ...(body.dueDate === undefined ? {} : { dueDate: body.dueDate }),
+            categoryId: body.categoryId,
+            lines: body.lines.map((line) => ({ ...line, amount: BigInt(line.amount) })),
+          });
+          // Counts and ids only: never a description, an amount or a voucher.
+          audit('card statement imported', requestId, auth, { cardId: params.id, ...outcome });
+          res.status(201).json(outcome);
+        },
+      ),
+    );
+
+    router.post(
+      '/credit-cards/:id/payments',
+      validate(
+        {
+          params: creditCardIdParamsSchema,
+          body: createStatementPaymentRequestSchema,
+          response: statementPaymentResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const payment = await recordPayment.execute(scope, params.id, {
+            currency: body.currency,
+            sourceAccountId: body.sourceAccountId,
+            amount: BigInt(body.amount),
+            ...(body.pesosAmount === undefined ? {} : { pesosAmount: BigInt(body.pesosAmount) }),
+            ...(body.rate === undefined ? {} : { rate: BigInt(body.rate) }),
+            occurredAt: new Date(body.occurredAt),
+            ...(body.note === undefined ? {} : { note: body.note }),
+          });
+          // Ids only: never the amount or the note.
+          audit('statement payment recorded', requestId, auth, {
+            cardId: params.id,
+            movementId: payment.movementId,
+          });
+          res.status(201).json(presentStatementPayment(payment));
+        },
+      ),
+    );
+
+    router.post(
       '/credit-cards/:id/installment-purchases',
       validate(
         {
@@ -301,6 +374,7 @@ export function createCreditCardRoutes({
           const scope = await scopeOf(policy, auth, 'write');
           const purchase = await createPurchase.execute(scope, params.id, {
             categoryId: body.categoryId,
+            currency: body.currency,
             amount: BigInt(body.amount),
             installments: body.installments,
             purchasedOn: body.purchasedOn,

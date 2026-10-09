@@ -19,6 +19,7 @@ const purchaseColumns = {
   cardId: installmentPurchases.cardId,
   categoryId: installmentPurchases.categoryId,
   totalAmount: installmentPurchases.totalAmount,
+  currency: installmentPurchases.currency,
   installmentCount: installmentPurchases.installmentCount,
   purchasedOn: installmentPurchases.purchasedOn,
   note: installmentPurchases.note,
@@ -82,6 +83,7 @@ export class DrizzleInstallmentRepository implements InstallmentRepository {
           cardId: data.cardId,
           categoryId: data.categoryId,
           totalAmount: data.totalAmount,
+          currency: data.currency,
           installmentCount: data.installments.length,
           purchasedOn: data.purchasedOn,
           note: data.note,
@@ -188,6 +190,7 @@ export class DrizzleInstallmentRepository implements InstallmentRepository {
         count: installmentPurchases.installmentCount,
         period: installments.period,
         amount: installments.amount,
+        currency: installmentPurchases.currency,
         categoryId: installmentPurchases.categoryId,
       })
       .from(installments)

@@ -4,10 +4,12 @@ import type {
   InstallmentExpensesResponse,
   InstallmentPurchaseResponse,
   ListInstallmentPurchasesResponse,
+  StatementPaymentResponse,
   StatementResponse,
 } from '@pesly/shared';
 import type { InstallmentPurchaseList } from '../../application/list-installment-purchases';
 import type { RecordedCardExpense } from '../../application/record-card-expense';
+import type { RecordedStatementPayment } from '../../application/record-statement-payment';
 import type { CreditCard, StatementView } from '../../domain/credit-card';
 import type { InstallmentPurchaseView, MonthlyInstallmentExpense } from '../../domain/installment';
 
@@ -40,8 +42,36 @@ export function presentStatement(statement: StatementView): StatementResponse {
       number: installment.number,
       count: installment.count,
       amount: installment.amount.toString(),
+      currency: installment.currency,
       categoryId: installment.categoryId,
     })),
+    payments: statement.payments && {
+      ARS: {
+        paid: statement.payments.ARS.paid.toString(),
+        status: statement.payments.ARS.status,
+      },
+      USD: {
+        paid: statement.payments.USD.paid.toString(),
+        status: statement.payments.USD.status,
+      },
+    },
+  };
+}
+
+export function presentStatementPayment(
+  payment: RecordedStatementPayment,
+): StatementPaymentResponse {
+  return {
+    movementId: payment.movementId,
+    sourceAccountId: payment.sourceAccountId,
+    accountId: payment.accountId,
+    currency: payment.currency,
+    amount: payment.amount.toString(),
+    exchange: payment.exchange && {
+      pesosAmount: payment.exchange.pesosAmount.toString(),
+      rate: payment.exchange.rate.toString(),
+    },
+    occurredAt: payment.occurredAt.toISOString(),
   };
 }
 
@@ -64,7 +94,7 @@ export function presentInstallmentPurchase(
     cardId: purchase.cardId,
     categoryId: purchase.categoryId,
     amount: purchase.totalAmount.toString(),
-    currency: 'ARS',
+    currency: purchase.currency,
     installmentCount: purchase.installmentCount,
     purchasedOn: purchase.purchasedOn,
     note: purchase.note,
@@ -96,7 +126,7 @@ export function presentInstallmentExpenses(
     items: items.map((item) => ({
       month: item.month,
       categoryId: item.categoryId,
-      currency: 'ARS',
+      currency: item.currency,
       amount: item.amount.toString(),
     })),
   };

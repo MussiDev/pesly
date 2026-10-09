@@ -1,5 +1,6 @@
 import {
   isStatementClosed,
+  type InstallmentCurrency,
   nextPeriod,
   splitInstallments,
   statementDatesFor,
@@ -21,6 +22,8 @@ export interface InstallmentPurchase {
   cardId: string;
   categoryId: string;
   totalAmount: bigint;
+  /** The purchase currency; its installments are in the same one. */
+  currency: InstallmentCurrency;
   installmentCount: number;
   /** Calendar day of the purchase in the user's time zone, `YYYY-MM-DD`. */
   purchasedOn: string;
@@ -47,6 +50,7 @@ export interface InstallmentRow {
   count: number;
   period: string;
   amount: bigint;
+  currency: InstallmentCurrency;
   categoryId: string;
 }
 
@@ -56,6 +60,7 @@ export interface StatementInstallmentView {
   number: number;
   count: number;
   amount: bigint;
+  currency: InstallmentCurrency;
   categoryId: string;
 }
 
@@ -67,6 +72,7 @@ export interface PendingDebt {
 export interface MonthlyInstallmentExpense {
   month: string;
   categoryId: string;
+  currency: InstallmentCurrency;
   amount: bigint;
 }
 
@@ -117,15 +123,15 @@ export function viewPurchase(
   };
 }
 
-/** Installments in statements that are not closed, per currency (FR-07); there are no USD installments. */
+/** Installments in statements that are not closed, per currency (FR-07). */
 export function pendingDebt(purchases: readonly InstallmentPurchaseView[]): PendingDebt {
-  let ars = 0n;
+  const debt: PendingDebt = { ARS: 0n, USD: 0n };
   for (const purchase of purchases) {
     for (const installment of purchase.installments) {
-      if (installment.status === 'open') ars += installment.amount;
+      if (installment.status === 'open') debt[purchase.currency] += installment.amount;
     }
   }
-  return { ARS: ars, USD: 0n };
+  return debt;
 }
 
 /** The numbers of the installments whose statement is not closed: what a deletion removes (FR-08). */
@@ -145,7 +151,7 @@ export function addInstallmentTotals(
   for (const row of rows) {
     const id = byPeriod.get(row.period);
     const total = id === undefined ? undefined : totals.get(id);
-    if (total) total.ARS += row.amount;
+    if (total) total[row.currency] += row.amount;
   }
 }
 
@@ -161,13 +167,21 @@ export function monthlyInstallmentExpenses(
     if (!owner) continue;
     const month = datesOfPeriod(row.period, owner.statements, owner.card).dueDate.slice(0, 7);
     if (month < range.from || month > range.to) continue;
-    const key = `${month}|${row.categoryId}`;
-    const sum = sums.get(key) ?? { month, categoryId: row.categoryId, amount: 0n };
+    const key = `${month}|${row.categoryId}|${row.currency}`;
+    const sum = sums.get(key) ?? {
+      month,
+      categoryId: row.categoryId,
+      currency: row.currency,
+      amount: 0n,
+    };
     sum.amount += row.amount;
     sums.set(key, sum);
   }
   return [...sums.values()].sort(
-    (a, b) => a.month.localeCompare(b.month) || a.categoryId.localeCompare(b.categoryId),
+    (a, b) =>
+      a.month.localeCompare(b.month) ||
+      a.categoryId.localeCompare(b.categoryId) ||
+      a.currency.localeCompare(b.currency),
   );
 }
 
@@ -178,11 +192,12 @@ export function installmentsOfPeriod(
 ): StatementInstallmentView[] {
   return rows
     .filter((row) => row.period === period)
-    .map(({ purchaseId, number, count, amount, categoryId }) => ({
+    .map(({ purchaseId, number, count, amount, currency, categoryId }) => ({
       purchaseId,
       number,
       count,
       amount,
+      currency,
       categoryId,
     }));
 }

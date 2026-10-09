@@ -92,6 +92,7 @@ describe('eraseUserCreditCards', () => {
       cardId: card.id,
       categoryId: await newCategory(connection.pool, ana, 'expense'),
       totalAmount: 1000n,
+      currency: 'ARS',
       purchasedOn: '2026-10-01',
       note: null,
       installments: [

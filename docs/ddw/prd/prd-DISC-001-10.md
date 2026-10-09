@@ -13,7 +13,7 @@
 | DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | done: merged to `main` in PR #35 (migration 0019, journal `when` 1791246865297); the `/cards` screen and its navigation entry shipped with it, so pending decision 4 is open for the owner (the entry stays until the owner decides otherwise) |
 | DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | done: branch `feat/DISC-001-10b-card-expenses` (from `main` 663f747, not pushed, no PR yet); no migration; the purchase's statement is derived from its day and the closing dates, not stored; the card expense screen is online only (offline entry still goes through the ordinary movement form on the linked accounts); the Playwright flow `credit-cards-expenses.spec.ts` is written and is run by the orchestrator; next: 10c |
 | DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | done: branch `feat/DISC-001-10c-installments` (from `main` 77d55f1, not pushed, no PR yet); migration 0020 (journal `when` 1791419213992, to be checked again at merge); installment purchases are not movements (no expense on the linked accounts), the statement of an installment is stored as its period; the monthly installment expenses by category are exposed by `GET /credit-cards/installment-expenses`; the Playwright flow `credit-cards-installments.spec.ts` is written and is run by the orchestrator; next: d |
-| DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | pending |
+| DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | done: branch `feat/DISC-001-10d-statement-payments` (stacked on `feat/DISC-001-10c-installments` 2f0434f, not pushed, no PR yet); no migration and no dependency; a payment is a transfer to the card's linked account, and the paid status of a closed statement is derived on read by allocating the transfers received by the card to its closed statements oldest first; the payment screen is online only; the Playwright flow `credit-cards-payments.spec.ts` is written and is run by the orchestrator; next: e |
 | DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d; the scheduler is an open decision (PRD 08 is not built) | pending |
 | DISC-001-10f | Statement Due-Date Reminders | prd-DISC-001-10f.md | PRD 08 (Recurring Payments & Reminders), which is not built | blocked: needs PRD 08 |
 
@@ -50,6 +50,20 @@ needs only a besides PRD 08.
 - **`next` raised to 16.3.8** to clear GHSA-cjq9-62q9-8jv4 so the audit gate passes; not part of the spec.
 - **A deleted purchase with closed installments** stays as a cancelled row (hidden, answering 404) so
   its closed installments keep counting; a card or a category used by a purchase cannot be deleted.
+
+## Open for the owner after DISC-001-10d
+- **Payments are not linked to one statement.** The paid amount is the transfers received by the card's
+  linked account, allocated to the closed statements oldest first (spec D1, D2). Any transfer into the card
+  account counts, including one made with the ordinary movement form. Alternative: a link table from a
+  payment to the statement the user chose (one migration, atomic write across two modules).
+- **Installments and the card account balance** (the open point of 10c). Installments are not movements,
+  so the linked ARS account holds the purchases only; the statement total includes the installments and
+  the payment is the full statement amount, so the account balance exceeds the debt by the installments
+  paid and is not the debt of the card (spec D4). Alternative: record each installment as an expense on
+  the card account when its statement closes (needs a scheduled job).
+- **Payment status of an open statement.** It is not defined (`payments` is `null`): the status exists for
+  closed statements only (PRD FR-02). A payment made before the close counts when the statement closes.
+- **Offline.** The payment screen is online only, like the expense and installment screens.
 
 ## Added while splitting (not in the original text)
 Each addition is derived from an obligation or decision already on record in the original PRD;

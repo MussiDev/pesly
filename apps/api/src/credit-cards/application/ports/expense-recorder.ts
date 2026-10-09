@@ -18,4 +18,13 @@ export interface ExpenseRecorder {
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }>;
+  /**
+   * The same recording without spending a unit of the creation limit. Only for a caller that has
+   * taken its own unit for the whole request, like the statement import (one unit for up to 300
+   * lines); every other movement rule still applies.
+   */
+  recordUnmetered(
+    scope: AccessScope<'write'>,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }>;
 }
