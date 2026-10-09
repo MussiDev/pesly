@@ -174,7 +174,7 @@ export function parseSantanderVisaLines(lines: readonly PdfLine[]): ParsedStatem
       continue;
     }
 
-    const rowDate = date ?? lastDate ?? (section === 'fee' ? closingDate : null);
+    const rowDate: string | null = date ?? lastDate ?? (section === 'fee' ? closingDate : null);
     if (rowDate === null) throw new StatementParseError('invalidRow');
     lastDate = rowDate;
 
