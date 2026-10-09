@@ -88,6 +88,13 @@ const workerFields = {
   COINGECKO_BASE_URL: z.url().default(COINGECKO_BASE_URL_DEFAULT),
   /** Optional Demo plan key: a missing key never blocks startup; only a malformed one does. */
   COINGECKO_API_KEY: coingeckoKeySchema,
+  /** Seconds between passes of the recurring payments job; an integer from 1 to 300. */
+  RECURRING_JOB_INTERVAL_SECONDS: z
+    .string()
+    .regex(/^\d+$/, 'must be an integer')
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(300))
+    .default(60),
   /** Sender of auth emails; required with Resend, whose sending domain must be verified. */
   EMAIL_FROM: z
     .string()
@@ -107,6 +114,7 @@ interface RawWorkerEnv {
   DOLARAPI_BASE_URL: string;
   PRICE_PROVIDER: string;
   COINGECKO_BASE_URL: string;
+  RECURRING_JOB_INTERVAL_SECONDS: number;
 }
 
 interface RawEnv extends RawWorkerEnv {
