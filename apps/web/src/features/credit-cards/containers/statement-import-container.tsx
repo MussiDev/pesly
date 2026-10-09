@@ -20,7 +20,7 @@ import {
   type StatementImportAlert,
 } from '../components/statement-import-view';
 import { buildStatementImportRequest, tooManyLines } from '../statement-import/import-request';
-import { xlsxStatementParser } from '../statement-import/parse-statement-xlsx';
+import { statementParser } from '../statement-import/statement-parser';
 import {
   StatementParseError,
   type ParsedStatement,
@@ -45,12 +45,12 @@ function failureAlert(failure: ApiFailure): StatementImportAlert {
 
 /**
  * The statement import screen: parses the chosen file on the device, previews its lines and sends
- * them in one request. Online only, like the other card writes. A PDF parser can be passed in the
- * same `StatementParser` shape.
+ * them in one request. Online only, like the other card writes. The parser is chosen by the file
+ * type; a test can pass its own in the `StatementParser` shape.
  */
 export function StatementImportContainer({
   cardId,
-  parser = xlsxStatementParser,
+  parser = statementParser,
 }: {
   cardId: string;
   parser?: StatementParser;

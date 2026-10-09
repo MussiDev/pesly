@@ -419,12 +419,14 @@
       "description": "Upload the statement file of this card. Its purchases, installments and fees are added to the card, and lines that were imported before are skipped.",
       "file": {
         "label": "Statement file",
-        "hint": "Only .xlsx files up to 2 MB. The file is read on your device."
+        "hint": "Excel (.xlsx, up to 2 MB) or PDF (up to 5 MB) statements. The file is read on your device."
       },
       "parsing": "Reading the file…",
       "errors": {
-        "tooLarge": "The file is larger than 2 MB.",
-        "unreadable": "The file could not be read. Choose an .xlsx statement file.",
+        "tooLarge": "The file is too large. Excel files can be up to 2 MB and PDF files up to 5 MB.",
+        "unreadable": "The file could not be read. Choose an Excel (.xlsx) or PDF statement file.",
+        "unrecognizedFormat": "Unrecognized statement format. Only Banco Macro Visa PDF statements and Excel statement files are supported.",
+        "noTextLayer": "This PDF has no selectable text (it looks like a scanned image). Download the statement from your bank again and upload that file.",
         "unrecognized": "The file does not look like a card statement: the closing and due dates were not found.",
         "invalidRow": "A row of the statement could not be understood. Check the file and try again.",
         "invalidAmount": "An amount of the statement could not be read. Check the file and try again.",

@@ -76,7 +76,7 @@ async function open(parser: StatementParser, answers = routes(), locale: 'es' | 
 const t = es.creditCards.import;
 
 describe('StatementImportContainer', () => {
-  it('shows the xlsx-only restriction before any file is chosen', async () => {
+  it('shows the accepted file types before any file is chosen', async () => {
     await open(parserOf(statement()));
     expect(screen.getByText(t.file.hint)).toBeTruthy();
     expect(screen.queryByText(t.preview.title)).toBeNull();
@@ -150,6 +150,8 @@ describe('StatementImportContainer', () => {
     ['tooLarge', t.errors.tooLarge],
     ['unreadable', t.errors.unreadable],
     ['unrecognized', t.errors.unrecognized],
+    ['unrecognizedFormat', t.errors.unrecognizedFormat],
+    ['noTextLayer', t.errors.noTextLayer],
     ['noLines', t.errors.noLines],
   ] as const)('shows a localized error for a %s file and sends nothing', async (code, message) => {
     const { input, calls } = await open(parserOf(new StatementParseError(code)));

@@ -419,12 +419,14 @@
       "description": "Subí el archivo del resumen de esta tarjeta. Sus compras, cuotas y cargos se agregan a la tarjeta, y las líneas que ya se importaron antes se omiten.",
       "file": {
         "label": "Archivo del resumen",
-        "hint": "Solo archivos .xlsx de hasta 2 MB. El archivo se lee en tu dispositivo."
+        "hint": "Resúmenes en Excel (.xlsx, hasta 2 MB) o PDF (hasta 5 MB). El archivo se lee en tu dispositivo."
       },
       "parsing": "Leyendo el archivo…",
       "errors": {
-        "tooLarge": "El archivo pesa más de 2 MB.",
-        "unreadable": "No se pudo leer el archivo. Elegí un resumen en formato .xlsx.",
+        "tooLarge": "El archivo es demasiado grande. Los de Excel pueden pesar hasta 2 MB y los PDF hasta 5 MB.",
+        "unreadable": "No se pudo leer el archivo. Elegí un resumen en formato Excel (.xlsx) o PDF.",
+        "unrecognizedFormat": "Formato de resumen no reconocido. Solo se admiten resúmenes PDF de Banco Macro Visa y archivos de Excel.",
+        "noTextLayer": "Este PDF no tiene texto seleccionable (parece una imagen escaneada). Volvé a descargar el resumen desde tu banco y subí ese archivo.",
         "unrecognized": "El archivo no parece un resumen de tarjeta: no se encontraron las fechas de cierre y vencimiento.",
         "invalidRow": "No se pudo entender una fila del resumen. Revisá el archivo y probá de nuevo.",
         "invalidAmount": "No se pudo leer un importe del resumen. Revisá el archivo y probá de nuevo.",
