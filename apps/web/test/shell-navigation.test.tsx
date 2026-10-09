@@ -198,6 +198,9 @@ describe('TopNav (AC-11, AC-12)', () => {
     expect(nav.getByRole('link', { name: en.app.nav.cards }).getAttribute('href')).toBe(
       '/en/cards',
     );
+    expect(nav.getByRole('link', { name: en.app.nav.recurring }).getAttribute('href')).toBe(
+      '/en/recurring',
+    );
     expect(nav.getByRole('link', { name: en.app.nav.profile }).getAttribute('href')).toBe(
       '/en/settings/profile',
     );
@@ -336,7 +339,7 @@ describe('MoreMenu (FR-07)', () => {
     return { ...result, onSignOut };
   }
 
-  it('lists accounts first, then categories, profile and security', () => {
+  it('lists accounts first, then categories, cards, recurring payments, profile and security', () => {
     renderMore();
 
     const main = within(screen.getByRole('main'));
@@ -344,6 +347,7 @@ describe('MoreMenu (FR-07)', () => {
       '/en/accounts',
       '/en/categories',
       '/en/cards',
+      '/en/recurring',
       '/en/settings/profile',
       '/en/settings/security',
     ]);

@@ -4,6 +4,7 @@ import {
   Ellipsis,
   House,
   Landmark,
+  Repeat,
   ShieldCheck,
   Tags,
   UserRound,
@@ -20,6 +21,7 @@ export type NavLabelKey =
   | 'more'
   | 'categories'
   | 'cards'
+  | 'recurring'
   | 'profile'
   | 'security';
 
@@ -56,6 +58,7 @@ export const PRIMARY_ITEMS: readonly NavItem[] = [
 export const SECONDARY_ITEMS: readonly NavItem[] = [
   { href: '/categories', labelKey: 'categories', icon: Tags },
   { href: '/cards', labelKey: 'cards', icon: CreditCard },
+  { href: '/recurring', labelKey: 'recurring', icon: Repeat },
   { href: '/settings/profile', labelKey: 'profile', icon: UserRound },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
 ];

@@ -36,3 +36,4 @@ export * from './credit-cards/credit-card';
 export * from './credit-cards/installment';
 export * from './credit-cards/statement-payment';
 export * from './credit-cards/statement-import';
+export * from './recurring';

@@ -73,7 +73,8 @@
       "investments": "Inversiones",
       "more": "Más",
       "addMovement": "Agregar movimiento",
-      "cards": "Tarjetas"
+      "cards": "Tarjetas",
+      "recurring": "Recurrentes"
     },
     "more": {
       "title": "Más",
@@ -336,6 +337,8 @@
     "accountLinkedToCard": "Esta cuenta pertenece a una tarjeta de crédito, por eso no se puede eliminar sola. Elimina la tarjeta en su lugar.",
     "cardHasMovements": "Las cuentas de esta tarjeta tienen movimientos, por eso la tarjeta no se puede eliminar.",
     "statementClosed": "Este resumen ya cerró, por eso sus fechas ya no pueden cambiar.",
+    "recurringOccurrenceNotPending": "Este vencimiento ya se resolvió, por eso ya no se puede confirmar ni omitir.",
+    "recurringLimitReached": "Llegaste al límite de 200 pagos recurrentes. Eliminá uno para crear otro.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
     "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
@@ -1142,6 +1145,132 @@
       "notPositive": "El número debe ser mayor que cero.",
       "quantityInvalid": "Ingresa una cantidad válida.",
       "amountInvalid": "Ingresa un monto dentro del rango permitido."
+    }
+  },
+  "recurring": {
+    "title": "Pagos recurrentes",
+    "description": "Alquiler, suscripciones y servicios que se repiten. Confirmá cada uno cuando venza.",
+    "nav": {
+      "upcoming": "Próximos",
+      "all": "Todos los pagos"
+    },
+    "list": {
+      "newPayment": "Nuevo pago recurrente",
+      "emptyTitle": "Todavía no tenés pagos recurrentes",
+      "empty": "Agregá los pagos que se repiten, como el alquiler o una suscripción, y van a aparecer acá cuando venzan.",
+      "upcomingLabel": "Próximos pagos",
+      "paymentsLabel": "Tus pagos recurrentes",
+      "dueOn": "Vence el {date}",
+      "nextDue": "Próximo: {date}",
+      "noNextDue": "Sin próxima fecha",
+      "unknownAccount": "Cuenta desconocida",
+      "unknownCategory": "Categoría desconocida"
+    },
+    "frequency": {
+      "label": "Frecuencia",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "weekday": {
+      "label": "Día de la semana",
+      "0": "Lunes",
+      "1": "Martes",
+      "2": "Miércoles",
+      "3": "Jueves",
+      "4": "Viernes",
+      "5": "Sábado",
+      "6": "Domingo"
+    },
+    "month": {
+      "label": "Mes",
+      "1": "Enero",
+      "2": "Febrero",
+      "3": "Marzo",
+      "4": "Abril",
+      "5": "Mayo",
+      "6": "Junio",
+      "7": "Julio",
+      "8": "Agosto",
+      "9": "Septiembre",
+      "10": "Octubre",
+      "11": "Noviembre",
+      "12": "Diciembre"
+    },
+    "mode": {
+      "label": "Cuando vence",
+      "automatic": "Registrarlo automáticamente",
+      "confirmation": "Pedime confirmación",
+      "hint": "Con confirmación, el gasto se registra recién cuando lo confirmás."
+    },
+    "status": {
+      "scheduled": "Programado",
+      "pending": "Pendiente",
+      "overdue": "Vencido",
+      "confirmed": "Confirmado",
+      "skipped": "Omitido",
+      "paused": "Pausado",
+      "active": "Activo"
+    },
+    "fields": {
+      "name": "Nombre",
+      "amount": "Monto",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "dayOfMonth": "Día del mes",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin (opcional)"
+    },
+    "actions": {
+      "create": "Crear pago",
+      "edit": "Editar",
+      "save": "Guardar cambios",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "delete": "Eliminar",
+      "confirm": "Confirmar",
+      "skip": "Omitir",
+      "cancel": "Cancelar",
+      "saving": "Guardando…"
+    },
+    "confirm": {
+      "title": "Confirmar pago",
+      "description": "Esto registra un gasto de {name}. Podés cambiar el monto y la fecha.",
+      "amount": "Monto pagado",
+      "date": "Fecha del pago",
+      "submit": "Confirmar y registrar"
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar este pago recurrente?",
+      "description": "Se borran sus vencimientos pendientes y futuros. Los gastos ya registrados siguen en tus movimientos.",
+      "confirm": "Sí, eliminar",
+      "cancel": "Conservarlo"
+    },
+    "back": "Volver a los pagos recurrentes",
+    "notFound": "Este pago recurrente no existe.",
+    "form": {
+      "editTitle": "Editar pago recurrente",
+      "placeholder": "Elegí…",
+      "noAccounts": "Necesitás una cuenta abierta para agregar un pago recurrente."
+    },
+    "detail": {
+      "dayOfMonthValue": "Día {day}",
+      "yearlyValue": "{day} de {month}",
+      "nextDue": "Próximo vencimiento",
+      "noEnd": "Sin fecha de fin"
+    },
+    "listNoUpcoming": "No vence nada en los próximos 30 días.",
+    "pauseHint": "Mientras está pausado no se programa nada. Al reanudarlo, sigue desde hoy.",
+    "errors": {
+      "nameRequired": "Ingresá un nombre.",
+      "nameTooLong": "El nombre puede tener hasta 80 caracteres.",
+      "frequencyRequired": "Elegí cada cuánto se repite.",
+      "weekdayRequired": "Elegí un día de la semana.",
+      "dayOfMonthRequired": "Ingresá un día del mes entre 1 y 31.",
+      "monthRequired": "Elegí un mes.",
+      "dateInvalid": "Ingresá una fecha válida.",
+      "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
+      "modeRequired": "Elegí cómo se registra."
     }
   }
 }

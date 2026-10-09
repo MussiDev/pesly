@@ -19,10 +19,12 @@ import {
   createExpenseRecorder,
   createInstallmentWriteLimit,
   createMovementRoutes,
+  createRecurringExpenseRecorder,
   createStatementPaymentRecorder,
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
+import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
 import { createLogger } from './shared/logging/logger';
@@ -44,11 +46,11 @@ const app = createApp({
   logger,
   // The composition root is the only place that knows these modules: new accounts get their default
   // categories in the transaction that creates them, and erasing a user deletes their movements
-  // and then their cards first, because their keys to accounts and categories restrict.
+  // then their cards, and first their recurring payments, because their keys to accounts and categories restrict.
   identity: {
     db,
     onUserCreated: [seedDefaultCategories],
-    beforeUserErased: [eraseUserMovements, eraseUserCreditCards],
+    beforeUserErased: [eraseUserRecurring, eraseUserMovements, eraseUserCreditCards],
   },
   routerFactories: [
     createAccountRoutes({
@@ -72,6 +74,11 @@ const app = createApp({
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
+    createRecurringRoutes({
+      db,
+      logger,
+      expenses: createRecurringExpenseRecorder(db, logger),
+    }),
     createTagRoutes({ db }),
   ],
 });

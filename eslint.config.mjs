@@ -40,14 +40,14 @@ const CATEGORIES_IMPORTS = {
     'Identity must not import the categories module; the composition root registers a hook instead.',
 };
 
-// Identity, accounts, categories and credit-cards declare ports; only the composition root wires movements in.
+// Identity, accounts, categories, credit-cards and recurring declare ports; only the composition root wires movements in.
 // A regex, not a glob: accounts has its own `infrastructure/movements` adapter folder, and a glob
 // that matches the folder name would also match everything inside it. This matches only the
 // movements module barrel and its layers.
 const MOVEMENTS_IMPORTS = {
   regex: '^(\\.\\./)+movements(/(domain|application|infrastructure|index)(/.*)?)?$',
   message:
-    'Identity, accounts, categories and credit-cards must not import the movements module; the composition root wires it in.',
+    'Identity, accounts, categories, credit-cards and recurring must not import the movements module; the composition root wires it in.',
 };
 
 export default defineConfig(
@@ -205,6 +205,33 @@ export default defineConfig(
   },
   {
     files: ['apps/api/src/credit-cards/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [INFRASTRUCTURE_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+      ],
+    },
+  },
+
+  // Recurring declares the expense port that a movements adapter implements; recurring never
+  // imports movements.
+  {
+    files: ['apps/api/src/recurring/**/*.ts'],
+    rules: {
+      'no-restricted-imports': ['error', { patterns: [TEST_IMPORTS, MOVEMENTS_IMPORTS] }],
+    },
+  },
+  {
+    files: ['apps/api/src/recurring/domain/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: [INFRASTRUCTURE_IMPORTS, IO_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+      ],
+    },
+  },
+  {
+    files: ['apps/api/src/recurring/application/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
