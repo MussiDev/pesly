@@ -18,4 +18,15 @@ export interface ExpenseRecorder {
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }>;
+
+  /**
+   * Records the expense with `id` as the movement id, without the manual write limit. A repeat with
+   * the same id returns the stored movement and writes nothing; an id owned by someone else raises
+   * `ResourceNotFound`.
+   */
+  recordOnce(
+    scope: AccessScope<'write'>,
+    id: string,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }>;
 }

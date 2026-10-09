@@ -22,7 +22,7 @@ import type {
   RecurringOccurrence,
   RecurringPayment,
 } from '../../src/recurring/domain/recurring-payment';
-import { notFoundUnlessAllowed, type AccessScope } from '../../src/shared/access';
+import { notFoundUnlessAllowed, ResourceNotFound, type AccessScope } from '../../src/shared/access';
 
 export { readScopeFor, writeScopeFor } from '../accounts/fakes';
 
@@ -234,6 +234,25 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
       return Promise.reject(new AppError('MOVEMENT_DATE_IN_FUTURE'));
     }
     const id = randomUUID();
+    this.expenses.push({ ownerId: scope.userId, id, ...expense });
+    return Promise.resolve({ id, occurredAt: expense.occurredAt });
+  }
+
+  /** Idempotent by id: a repeat returns the stored expense; another owner's id is not found. */
+  recordOnce(
+    scope: AccessScope<'write'>,
+    id: string,
+    expense: ExpenseToRecord,
+  ): Promise<{ id: string; occurredAt: Date }> {
+    const stored = this.expenses.find((e) => e.id === id);
+    if (stored) {
+      if (stored.ownerId !== scope.userId) return Promise.reject(new ResourceNotFound());
+      return Promise.resolve({ id, occurredAt: stored.occurredAt });
+    }
+    if (this.failWith) return Promise.reject(this.failWith);
+    if (expense.occurredAt.getTime() > this.clock.now().getTime()) {
+      return Promise.reject(new AppError('MOVEMENT_DATE_IN_FUTURE'));
+    }
     this.expenses.push({ ownerId: scope.userId, id, ...expense });
     return Promise.resolve({ id, occurredAt: expense.occurredAt });
   }
