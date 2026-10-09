@@ -229,6 +229,118 @@ describe('AccountsContainer', () => {
     expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
   });
 
+  describe('edit opening balance (FEAT-006)', () => {
+    const PATCH = 'PATCH /accounts/a1/opening-balance';
+    const fieldLabel = es.accounts.openingEdit.field.replace('{name}', 'Caja');
+
+    async function openForm() {
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /^Editar saldo inicial/ }));
+      return { user, field: screen.getByLabelText(fieldLabel) };
+    }
+
+    it('sends the parsed amount, shows the updated row, closes the form and reads the totals again (AC-19)', async () => {
+      const updated = account({ openingBalance: '500000', balance: '650000' });
+      const { calls } = stubApi({
+        [ACTIVE]: [list([CAJA]), list([updated])],
+        [PATCH]: { status: 200, body: updated },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user, field } = await openForm();
+      await user.clear(field);
+      await user.type(field, '5000');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+
+      const row = await screen.findByRole('listitem', { name: 'Caja' });
+      expect(await within(row).findByText(money(650000n, 'ARS', 'es'))).toBeDefined();
+      expect(screen.queryByLabelText(fieldLabel)).toBeNull();
+      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
+        openingBalance: '500000',
+      });
+      await waitFor(() => {
+        expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+      });
+    });
+
+    it('error: does not send an empty or malformed amount and says why (AC-17)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
+      renderApp(<AccountsContainer />);
+
+      const { user, field } = await openForm();
+      await user.clear(field);
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      expect(await screen.findByText(es.accounts.errors.amountInvalid)).toBeDefined();
+      expect(field.getAttribute('aria-invalid')).toBe('true');
+
+      await user.type(field, 'abc');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      expect(screen.getByText(es.accounts.errors.amountInvalid)).toBeDefined();
+      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    });
+
+    it('error: does not send an amount above the limit and shows the formatted limit (AC-18)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
+      renderApp(<AccountsContainer />);
+
+      const { user, field } = await openForm();
+      await user.clear(field);
+      await user.type(field, '10000000000000,01');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+
+      const message = await screen.findByText(/no puede superar/);
+      expect(message.textContent.replace(/\s/g, ' ')).toContain(
+        money(1_000_000_000_000_000n, 'ARS', 'es'),
+      );
+      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    });
+
+    it('error: keeps the form open and shows the mapped message when the API refuses (AC-20)', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [PATCH]: { status: 400, body: { code: 'VALIDATION_FAILED' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user, field } = await openForm();
+      await user.clear(field);
+      await user.type(field, '10');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+
+      expect(await screen.findByText(es.errors.validationFailed)).toBeDefined();
+      expect(screen.getByLabelText(fieldLabel)).toBeDefined();
+    });
+
+    it('error: sends the user to sign-in when the session is gone (AC-20)', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [PATCH]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+        'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      });
+      const { router } = renderApp(<AccountsContainer />);
+
+      const { user, field } = await openForm();
+      await user.clear(field);
+      await user.type(field, '10');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+
+      await waitFor(() => {
+        expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+      });
+    });
+
+    it('cancels without calling the API (AC-21)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openForm();
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.cancel }));
+
+      expect(screen.queryByLabelText(fieldLabel)).toBeNull();
+      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+    });
+  });
+
   it('archives an account out of the active view and unarchives it from the archived view (AC-07, AC-08)', async () => {
     const archived = account({ archived: true, archivedAt: '2026-10-02T00:00:00.000Z' });
     const { calls } = stubApi({

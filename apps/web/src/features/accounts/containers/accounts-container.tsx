@@ -1,12 +1,14 @@
 'use client';
 
 import { renameAccountRequestSchema, type AccountResponse } from '@pesly/shared';
+import { useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiFailure } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { nameErrorMessage, type AccountFieldMessage } from '../account-form-errors';
+import { buildOpeningBalanceRequest } from '../opening-balance-request';
 import type { CurrencyTotals } from '../totals';
 import { AccountList } from '../components/account-list';
 import { AccountsLoadStateView, type AccountsLoadState } from '../components/accounts-load-state';
@@ -32,6 +34,7 @@ type ListState =
 export function AccountsContainer() {
   const api = useApiClient();
   const router = useRouter();
+  const locale = useLocale();
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [showArchived, setShowArchived] = useState(false);
   // `silent` reloads (after an action) keep the list on screen and report failures as an alert.
@@ -41,6 +44,8 @@ export function AccountsContainer() {
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
   const [blockedDeleteId, setBlockedDeleteId] = useState<string | undefined>();
   const [renameError, setRenameError] = useState<AccountFieldMessage | undefined>();
+  const [editingOpeningId, setEditingOpeningId] = useState<string | undefined>();
+  const [openingError, setOpeningError] = useState<AccountFieldMessage | undefined>();
   const [actionError, setActionError] = useState<ErrorMessageKey | undefined>();
 
   useEffect(() => {
@@ -74,6 +79,8 @@ export function AccountsContainer() {
     setConfirmingDeleteId(undefined);
     setBlockedDeleteId(undefined);
     setRenameError(undefined);
+    setEditingOpeningId(undefined);
+    setOpeningError(undefined);
     setActionError(undefined);
   }
 
@@ -132,6 +139,35 @@ export function AccountsContainer() {
     } else if (result.code === 'ACCOUNT_NAME_TAKEN') {
       setRenameError('errors.accountNameTaken');
     } else {
+      setActionError(result.messageKey);
+    }
+  }
+
+  async function setOpeningBalance(id: string, text: string) {
+    const built = buildOpeningBalanceRequest(text, locale);
+    if (built.request === undefined) {
+      setOpeningError(built.error);
+      return;
+    }
+    setPending(true);
+    setOpeningError(undefined);
+    setActionError(undefined);
+    const result = await api.setAccountOpeningBalance(id, built.request);
+    setPending(false);
+    if (result.ok) {
+      const updated = result.data;
+      setState((current) =>
+        current.kind === 'ready'
+          ? {
+              ...current,
+              accounts: current.accounts.map((account) => (account.id === id ? updated : account)),
+            }
+          : current,
+      );
+      setEditingOpeningId(undefined);
+      // The totals are the API's: read them again instead of adding up on the client.
+      setRequest((current) => ({ id: current.id + 1, silent: true }));
+    } else if (!handleSharedFailure(result)) {
       setActionError(result.messageKey);
     }
   }
@@ -209,6 +245,19 @@ export function AccountsContainer() {
       confirmingDeleteId={confirmingDeleteId}
       blockedDeleteId={blockedDeleteId}
       renameError={renameError}
+      editingOpeningId={editingOpeningId}
+      openingError={openingError}
+      onStartEditOpening={(id) => {
+        clearTransient();
+        setEditingOpeningId(id);
+      }}
+      onCancelEditOpening={() => {
+        setEditingOpeningId(undefined);
+        setOpeningError(undefined);
+      }}
+      onSetOpening={(id, text) => {
+        void setOpeningBalance(id, text);
+      }}
       actionError={actionError}
       onToggleArchived={toggleArchived}
       onStartRename={(id) => {
