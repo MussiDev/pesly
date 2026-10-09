@@ -77,7 +77,7 @@ describe('extractPdfLines', () => {
 
   describe('encrypted files', () => {
     type Loader = Parameters<typeof extractPdfLines>[1];
-    const failingWith = (error: unknown, seen: unknown[] = []): Loader => ({
+    const failingWith = (error: Error, seen: unknown[] = []): Loader => ({
       getDocument: ((params: unknown) => {
         seen.push(params);
         return { promise: Promise.reject(error) };
