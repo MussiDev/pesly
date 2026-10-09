@@ -1,7 +1,26 @@
 import pg from 'pg';
 
-export const testDatabaseUrl =
+const baseTestDatabaseUrl =
   process.env.TEST_DATABASE_URL ?? 'postgres://argent:argent@localhost:5434/argent_test';
+
+/**
+ * Test files run in parallel workers, and each worker owns its database (`argent_w1_test`,
+ * `argent_w2_test`, ...): the files of one worker run one after another, so the truncate before
+ * every test never touches data of a file running elsewhere. Vitest numbers its workers from 1 to
+ * `maxWorkers` and reuses the number, so the databases are created once and reused.
+ */
+function databaseUrlForWorker(url: string, workerId: string | undefined): string {
+  if (workerId === undefined || workerId === '') return url;
+  const parsed = new URL(url);
+  const name = parsed.pathname.replace(/^\//, '').replace(/_test$/, '');
+  parsed.pathname = `/${name}_w${workerId}_test`;
+  return parsed.toString();
+}
+
+export const testDatabaseUrl = databaseUrlForWorker(
+  baseTestDatabaseUrl,
+  process.env.VITEST_POOL_ID,
+);
 
 export function assertIsTestDatabase(url: string): string {
   const name = new URL(url).pathname.replace(/^\//, '');

@@ -80,6 +80,14 @@ jobs:
           cache: pnpm
       - name: Install
         run: pnpm install --frozen-lockfile
+      # Durability is irrelevant for a throwaway test database; these settings reload without a restart.
+      - name: Relax Postgres durability for the test database
+        run: >-
+          psql postgres://argent:argent@localhost:5432/argent_test
+          -c "alter system set fsync = off"
+          -c "alter system set synchronous_commit = off"
+          -c "alter system set full_page_writes = off"
+          -c "select pg_reload_conf()"
       - name: Unit and integration tests with coverage floor
         run: pnpm test:coverage
 
