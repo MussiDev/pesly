@@ -119,12 +119,12 @@
 
 ## Accepted risks
 ### R-05
-- **Accepted by:** the orchestrator on the user's go-ahead to start PRD 08, pending the user's review of this model
+- **Accepted by:** Joako (project owner), 2026-10-09
 - **Justification:** the lock covers one row for one request and only the owner can hit it, so the worst case is that the owner's own retry waits.
 - **Review conditions:** revisit if a confirmation ever calls an external service or if lock waits appear in production logs.
 
 ### R-08
-- **Accepted by:** the orchestrator on the user's go-ahead to start PRD 08, pending the user's review of this model
+- **Accepted by:** Joako (project owner), 2026-10-09
 - **Justification:** the two writes sit in different modules and transactions; the window is one process crash between two statements. The user sees both the expense and the still-pending row and can delete the expense or skip the occurrence.
 - **Review conditions:** revisit when DISC-001-08b adds the automatic recording, which needs a stronger idempotency key on the movement.
 
