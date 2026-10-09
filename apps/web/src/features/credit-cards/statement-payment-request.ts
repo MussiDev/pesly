@@ -14,7 +14,7 @@ const LOCAL_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 const CONTROL_OR_FORMAT = /[\p{Cc}\p{Cf}]/u;
 
 export type StatementPaymentFieldName =
-  'currency' | 'sourceAccount' | 'amount' | 'occurredAt' | 'note';
+  'currency' | 'sourceAccount' | 'amount' | 'pesosAmount' | 'occurredAt' | 'note';
 
 /** Catalog paths: the movement validation wordings, plus the card's own currency one. */
 export type StatementPaymentFieldMessage =
@@ -28,6 +28,8 @@ export interface StatementPaymentFormValues {
   currency: string;
   sourceAccountId: string;
   amount: string;
+  /** Pesos debited; read only when a USD payment is paid from an ARS account. */
+  pesosAmount?: string;
   /** `datetime-local` value, in the user's time zone. */
   occurredAt: string;
   note: string;
@@ -51,8 +53,8 @@ function toCurrency(value: string): CreateStatementPaymentRequest['currency'] | 
 
 /**
  * The request to send for what the user entered, or the per-field messages explaining why there is
- * none. The source account has to be open and in the chosen currency (AC-02), which the server
- * checks again.
+ * none. The source account has to be open; an ARS payment needs an ARS one (AC-02), which the
+ * server checks again.
  */
 export function buildStatementPaymentRequest(
   values: StatementPaymentFormValues,
@@ -66,12 +68,22 @@ export function buildStatementPaymentRequest(
 
   const source = accounts.find((item) => item.id === values.sourceAccountId && !item.archived);
   if (source === undefined) fields.sourceAccount = 'movements.errors.accountRequired';
-  else if (currency !== undefined && source.currency !== currency) {
+  // A USD payment may come from either currency; an ARS one only from pesos (the API checks too).
+  else if (currency === 'ARS' && source.currency !== 'ARS') {
     fields.sourceAccount = 'errors.movementCurrencyMismatch';
   }
 
   const amount = parseAmountField(values.amount, locale);
   if (amount.message !== undefined) fields.amount = amount.message;
+
+  // Paying USD with pesos is an exchange: the pesos debited travel with the USD received.
+  const exchange = currency === 'USD' && source?.currency === 'ARS';
+  let pesosAmount: bigint | undefined;
+  if (exchange) {
+    const pesos = parseAmountField(values.pesosAmount ?? '', locale);
+    if (pesos.message !== undefined) fields.pesosAmount = pesos.message;
+    else pesosAmount = pesos.amount;
+  }
 
   let occurredAt: string | undefined;
   if (!LOCAL_DATE_TIME.test(values.occurredAt)) {
@@ -98,6 +110,7 @@ export function buildStatementPaymentRequest(
     currency === undefined ||
     source === undefined ||
     amount.amount === undefined ||
+    (exchange && pesosAmount === undefined) ||
     occurredAt === undefined ||
     !note.success
   ) {
@@ -109,6 +122,7 @@ export function buildStatementPaymentRequest(
       currency,
       sourceAccountId: source.id,
       amount: formatMinorUnitsString(amount.amount),
+      ...(pesosAmount === undefined ? {} : { pesosAmount: formatMinorUnitsString(pesosAmount) }),
       occurredAt,
       ...(note.data === undefined ? {} : { note: note.data }),
     },

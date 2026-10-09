@@ -146,3 +146,30 @@ test('the payment form refuses an empty amount and records nothing (AC-02)', asy
   await expect(page.getByText(es.movements.errors.amountInvalid)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}/payments/new$`));
 });
+
+test('pays the USD part of a statement from a peso account, showing the derived rate', async ({
+  page,
+}) => {
+  await signedInUser(page, 'card-payments-usd-from-ars');
+  await createBank(page);
+  const cardId = await createVisa(page);
+
+  await page.goto(`/es/cards/${cardId}/payments/new`);
+  await page.getByLabel(t.payments.fields.currency, { exact: true }).selectOption('USD');
+  await page.getByLabel(t.payments.fields.sourceAccount, { exact: true }).selectOption({
+    label: 'Banco',
+  });
+  await page.getByLabel(t.payments.fields.amount, { exact: true }).fill('59,59');
+  await page.getByLabel(t.payments.fields.pesosAmount, { exact: true }).fill('91.470,65');
+  await expect(
+    page.getByRole('status').filter({
+      hasText: es.movements.exchange.impliedRate.replace('{rate}', '1535,0000'),
+    }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: t.payments.submit }).click();
+  await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
+
+  // The payment is a currency exchange into the card USD account.
+  await page.goto('/es/movements');
+  await expect(page.getByRole('listitem').filter({ hasText: 'Visa USD' }).first()).toBeVisible();
+});

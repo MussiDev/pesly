@@ -56,6 +56,46 @@ describe('createStatementPaymentRequestSchema', () => {
   });
 });
 
+describe('createStatementPaymentRequestSchema, USD from pesos', () => {
+  const USD = { ...VALID, currency: 'USD', amount: '5959' };
+
+  it('accepts the pesos debited or the rate, one of them', () => {
+    expect(
+      createStatementPaymentRequestSchema.safeParse({ ...USD, pesosAmount: '9147065' }).success,
+    ).toBe(true);
+    expect(
+      createStatementPaymentRequestSchema.safeParse({ ...USD, rate: '15350000' }).success,
+    ).toBe(true);
+  });
+
+  it.each([
+    ['both the pesos and the rate', { ...USD, pesosAmount: '9147065', rate: '15350000' }],
+    ['pesos on an ARS payment', { ...VALID, pesosAmount: '100' }],
+    ['a rate on an ARS payment', { ...VALID, rate: '15350000' }],
+    ['zero pesos', { ...USD, pesosAmount: '0' }],
+    ['decimal pesos', { ...USD, pesosAmount: '10.5' }],
+    ['a zero rate', { ...USD, rate: '0' }],
+    ['a rate above the maximum', { ...USD, rate: '100000000001' }],
+    ['a float rate', { ...USD, rate: '1535.5' }],
+  ])('rejects %s', (_label, body) => {
+    expect(createStatementPaymentRequestSchema.safeParse(body).success).toBe(false);
+  });
+
+  it('parses the exchange data of a response', () => {
+    expect(
+      statementPaymentResponseSchema.safeParse({
+        movementId: UUID,
+        sourceAccountId: UUID,
+        accountId: UUID,
+        currency: 'USD',
+        amount: '5959',
+        exchange: { pesosAmount: '9147065', rate: '15350000' },
+        occurredAt: '2026-10-05T15:30:00.000Z',
+      }).success,
+    ).toBe(true);
+  });
+});
+
 describe('statement payments in the response', () => {
   it('parses the payment response', () => {
     expect(
@@ -65,6 +105,7 @@ describe('statement payments in the response', () => {
         accountId: UUID,
         currency: 'ARS',
         amount: '6000000',
+        exchange: null,
         occurredAt: '2026-10-05T15:30:00.000Z',
       }).success,
     ).toBe(true);

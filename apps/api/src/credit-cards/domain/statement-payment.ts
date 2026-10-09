@@ -1,4 +1,4 @@
-import type { PaymentStatus } from '@pesly/shared';
+import { RATE_SCALE, type PaymentStatus } from '@pesly/shared';
 import type { StatementTotals } from './statement-assignment';
 
 export type Currency = 'ARS' | 'USD';
@@ -56,4 +56,12 @@ export function allocatePayments(
     });
   }
   return views;
+}
+
+/**
+ * Pesos debited for a USD amount at a rate scaled by 10,000, in minor units, rounded half-up. Both
+ * amounts have two decimals, so the scale of the rate is the only one to remove.
+ */
+export function pesosForRate(usdMinor: bigint, rate: bigint): bigint {
+  return (usdMinor * rate + RATE_SCALE / 2n) / RATE_SCALE;
 }

@@ -586,12 +586,13 @@
     },
     "payments": {
       "title": "Pay a statement",
-      "description": "Move money from one of your accounts to this card. It is a transfer, not an expense, and it pays the oldest unpaid statement first.",
+      "description": "Move money from one of your accounts to this card. It is a transfer, not an expense, and it pays the oldest unpaid statement first. Paying dollars from a peso account records a currency exchange at the rate implied by the amounts.",
       "fields": {
         "currency": "Currency",
         "sourceAccount": "Pay from",
         "sourceAccountPlaceholder": "Choose an account",
         "amount": "Amount",
+        "pesosAmount": "Pesos debited",
         "occurredAt": "Date and time",
         "note": "Note (optional)"
       },
