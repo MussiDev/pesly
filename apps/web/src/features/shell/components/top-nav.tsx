@@ -22,9 +22,10 @@ export interface TopNavProps {
   onSignOut: () => void;
 }
 
-const DESTINATIONS: readonly NavItem[] = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS];
-
-/** The top navigation card from `lg`; below it the floating bottom bar and the More page take over. */
+/**
+ * The side menu from 900 px; below it the bottom bar and the More page take over. It keeps the
+ * `top-nav` slot name the shell tests and e2e flows already target.
+ */
 export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
@@ -38,12 +39,11 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-small font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none hover:bg-secondary hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring',
-            active &&
-              'bg-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground',
+            'flex h-11 items-center gap-3 rounded-xl px-3 text-small font-medium text-foreground transition-colors outline-none motion-reduce:transition-none hover:bg-surface focus-visible:ring-2 focus-visible:ring-ring',
+            active && 'bg-accent font-bold text-accent-foreground hover:bg-accent',
           )}
         >
-          <Icon aria-hidden className="hidden size-4 2xl:block" />
+          <Icon aria-hidden className="size-5 shrink-0" />
           {tNav(item.labelKey)}
         </Link>
       </li>
@@ -54,25 +54,28 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
     <nav
       data-slot="top-nav"
       aria-label={tNav('label')}
-      className="mx-4 mt-4 hidden flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-card bg-card px-4 py-3 shadow-xs lg:flex"
+      className="sticky top-0 hidden h-dvh w-66 shrink-0 flex-col gap-5 overflow-y-auto border-r bg-card px-4 py-5 desk:flex"
     >
-      <p className="flex items-center gap-2.5 text-heading">
+      <p className="flex items-center gap-2.5 px-2 py-1 text-heading font-bold tracking-tight">
         <span
           aria-hidden
-          className="inline-flex size-9 items-center justify-center rounded-xl bg-primary text-small font-semibold text-primary-foreground"
+          className="inline-flex size-8 items-center justify-center rounded-lg bg-primary text-body font-bold text-primary-foreground"
         >
           {t('brand').charAt(0)}
         </span>
         {t('brand')}
       </p>
-      <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-        {DESTINATIONS.map(destination)}
-      </ul>
-      <div className="flex shrink-0 items-center gap-2">
-        <Link href={ADD_MOVEMENT_HREF} className={buttonVariants({ variant: 'default' })}>
-          <Plus aria-hidden />
-          {tNav('addMovement')}
-        </Link>
+      <Link
+        href={ADD_MOVEMENT_HREF}
+        className={cn(buttonVariants({ variant: 'default' }), 'h-12 w-full font-bold')}
+      >
+        <Plus aria-hidden />
+        {tNav('addMovement')}
+      </Link>
+      <ul className="grid gap-0.5">{PRIMARY_ITEMS.map(destination)}</ul>
+      <ul className="grid gap-0.5">{SECONDARY_ITEMS.map(destination)}</ul>
+      <div className="flex-1" />
+      <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface p-3">
         <ThemeToggle />
         <SignOutButton pending={signingOut} onSignOut={onSignOut} iconOnly />
       </div>

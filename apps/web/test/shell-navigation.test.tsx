@@ -46,12 +46,12 @@ describe('SignOutButton', () => {
 });
 
 describe('BottomNav (AC-07, AC-08)', () => {
-  it('carries the lg:hidden class contract', () => {
+  it('carries the desk breakpoint class contract', () => {
     const { container } = renderApp(<BottomNav />);
 
     const nav = navOf(container, 'bottom-nav');
     expect(nav.tagName).toBe('NAV');
-    expect(nav.classList.contains('lg:hidden')).toBe(true);
+    expect(nav.classList.contains('desk:hidden')).toBe(true);
     expect(nav.classList.contains('hidden')).toBe(false);
   });
 
@@ -105,25 +105,25 @@ describe('BottomNav (AC-07, AC-08)', () => {
     expect(navOf(container, 'bottom-nav').classList.contains('pb-safe')).toBe(true);
   });
 
-  it('floats above the content as a rounded pill, inset from the edges', () => {
+  it('sits fixed at the bottom as a flat bar with a top border', () => {
     const { container } = renderApp(<BottomNav />);
 
     const nav = navOf(container, 'bottom-nav');
     expect(nav.classList.contains('fixed')).toBe(true);
     expect(nav.classList.contains('sticky')).toBe(false);
     const pill = nav.querySelector('ul');
-    expect(pill?.classList.contains('rounded-pill')).toBe(true);
+    expect(pill?.classList.contains('border-t')).toBe(true);
+    expect(pill?.classList.contains('rounded-pill')).toBe(false);
     expect(pill?.classList.contains('bg-card')).toBe(true);
-    expect(pill?.className).toMatch(/\bmx-4\b/);
   });
 
-  it('centres a circular add button of the circle-action size', () => {
+  it('centres a raised circular add button', () => {
     const { container } = renderApp(<BottomNav />);
 
     const add = within(navOf(container, 'bottom-nav')).getByRole('link', {
       name: es.app.nav.addMovement,
     });
-    expect(add.className).toMatch(/size-circle-action/);
+    expect(add.className).toMatch(/size-15/);
     expect(add.className).toMatch(/rounded-pill/);
   });
 
@@ -137,11 +137,11 @@ describe('BottomNav (AC-07, AC-08)', () => {
     expect(navOf(container, 'bottom-nav').querySelector('ul')?.className).not.toMatch(/\bgap-/);
     for (const link of labelled) {
       expect(link.className).not.toMatch(/\bpx-/);
-      const label = link.querySelector('span');
+      const label = link.querySelector('span:last-of-type');
       expect(label?.classList.contains('truncate'), link.textContent).toBe(true);
       expect(label?.classList.contains('min-w-0')).toBe(true);
       expect(link.classList.contains('min-w-0')).toBe(true);
-      expect(link.classList.contains('min-h-11')).toBe(true);
+      expect(link.classList.contains('h-14')).toBe(true);
     }
   });
 });
@@ -158,33 +158,33 @@ describe('TopNav (AC-11, AC-12)', () => {
     return { ...result, onSignOut };
   }
 
-  it('carries the hidden lg:flex class contract', () => {
+  it('carries the hidden desk:flex class contract', () => {
     const { container } = renderTop();
 
     const nav = navOf(container, 'top-nav');
     expect(nav.tagName).toBe('NAV');
     expect(nav.classList.contains('hidden')).toBe(true);
-    expect(nav.classList.contains('lg:flex')).toBe(true);
-    expect(nav.classList.contains('lg:hidden')).toBe(false);
+    expect(nav.classList.contains('desk:flex')).toBe(true);
+    expect(nav.classList.contains('desk:hidden')).toBe(false);
   });
 
-  it('is a rounded card at the top of the page', () => {
+  it('is a full-height side menu', () => {
     const { container } = renderTop();
 
     const nav = navOf(container, 'top-nav');
-    expect(nav.classList.contains('rounded-card')).toBe(true);
+    expect(nav.classList.contains('h-dvh')).toBe(true);
     expect(nav.classList.contains('bg-card')).toBe(true);
   });
 
-  it('scrolls away with the page, so it never covers a focused or scrolled-to element (AC-40)', () => {
+  it('stays beside the content, so it never covers a focused or scrolled-to element (AC-40)', () => {
     const { container } = renderTop();
 
     const nav = navOf(container, 'top-nav');
-    expect(nav.classList.contains('sticky')).toBe(false);
+    expect(nav.classList.contains('sticky')).toBe(true);
     expect(nav.classList.contains('fixed')).toBe(false);
   });
 
-  it('links to the destinations plus categories, profile and security as pills', () => {
+  it('links to the destinations plus categories, profile and security as rows', () => {
     const { container } = renderTop({ locale: 'en' });
 
     const nav = within(navOf(container, 'top-nav'));
@@ -199,7 +199,7 @@ describe('TopNav (AC-11, AC-12)', () => {
     );
     for (const key of ['home', 'accounts', 'movements', 'investments'] as const) {
       const link = nav.getByRole('link', { name: en.app.nav[key] });
-      expect(link.className, key).toMatch(/rounded-pill/);
+      expect(link.className, key).toMatch(/rounded-xl/);
     }
   });
 
@@ -465,7 +465,7 @@ describe('AuthenticatedShell session states', () => {
     expect(screen.getByRole('alert').textContent).toBe(es.errors.network);
   });
 
-  it('keeps the bottom bar out of the content and reserves room for it below lg only', () => {
+  it('keeps the bottom bar out of the content and reserves room for it below the desk breakpoint only', () => {
     const { container } = renderApp(
       <ThemeProvider>
         <AuthenticatedShell state={{ kind: 'ready' }} onRetry={vi.fn()} {...idle}>
@@ -478,7 +478,7 @@ describe('AuthenticatedShell session states', () => {
     expect(content?.contains(navOf(container, 'bottom-nav'))).toBe(false);
     const classes = Array.from(content?.classList ?? []);
     expect(classes.some((name) => /^pb-\d+$/.test(name))).toBe(true);
-    expect(classes).toContain('lg:pb-0');
+    expect(classes).toContain('desk:pb-0');
   });
 });
 

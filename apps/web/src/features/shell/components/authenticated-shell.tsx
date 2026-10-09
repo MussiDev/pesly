@@ -51,7 +51,7 @@ export function AuthenticatedShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col desk:flex-row">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-small focus:font-medium focus:text-primary-foreground"
@@ -64,10 +64,10 @@ export function AuthenticatedShell({
       <div
         id="main-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col pb-28 outline-none lg:pb-0"
+        className="flex min-w-0 flex-1 flex-col pb-28 outline-none desk:pb-0"
       >
         {state.kind === 'loading' ? (
-          <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 lg:p-8">
+          <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 desk:p-8">
             <p role="status" className="sr-only">
               {t('loading')}
             </p>

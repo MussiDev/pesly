@@ -46,7 +46,7 @@ test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
     return boxes;
   }
 
-  test('at 360 px the floating bottom bar is visible, inset from the edges, and the top navigation is hidden', async ({
+  test('at 360 px the flat bottom bar is visible, full width, and the side menu is hidden', async ({
     page,
   }) => {
     await page.setViewportSize(PHONE);
@@ -57,11 +57,11 @@ test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
     await expect(nav).toHaveCount(1);
     const [, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The pill floats: inset from both edges and in the lower half of the viewport.
-    const pill = await nav.locator('ul').boundingBox();
-    expect(pill?.x).toBeGreaterThan(0);
-    expect((pill?.x ?? 0) + (pill?.width ?? 0)).toBeLessThan(PHONE.width);
-    expect(pill?.y).toBeGreaterThan(PHONE.height / 2);
+    // The bar spans the viewport edge to edge and sits in the lower half of it.
+    const bar = await nav.locator('ul').boundingBox();
+    expect(bar?.x).toBe(0);
+    expect(bar?.width).toBe(PHONE.width);
+    expect(bar?.y).toBeGreaterThan(PHONE.height / 2);
     await expect(nav.getByRole('link', { name: es.app.nav.addMovement })).toBeVisible();
   });
 
@@ -84,9 +84,7 @@ test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
     expect((last?.y ?? 0) + (last?.height ?? 0)).toBeLessThanOrEqual((pill?.y ?? 0) + 1);
   });
 
-  test('at 1280 px the top navigation card is visible and the bottom bar is hidden', async ({
-    page,
-  }) => {
+  test('at 1280 px the side menu is visible and the bottom bar is hidden', async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await signedIn(page);
 
@@ -94,10 +92,11 @@ test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
     await expect(page.getByRole('navigation', { name: es.app.nav.label })).toHaveCount(1);
     const [box, ...others] = await visibleBoxes(page);
     expect(others).toHaveLength(0);
-    // The top navigation is a card across the top of the page, inset from the edges.
-    expect(box?.y).toBeLessThan(DESKTOP.height / 4);
-    expect(box?.x).toBeGreaterThan(0);
-    expect(box?.width).toBeGreaterThan(DESKTOP.width / 2);
+    // The side menu is a 264 px column down the left edge, as tall as the viewport.
+    expect(box?.x).toBe(0);
+    expect(box?.y).toBe(0);
+    expect(box?.width).toBe(264);
+    expect(box?.height).toBe(DESKTOP.height);
   });
 });
 

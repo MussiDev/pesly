@@ -26,16 +26,8 @@ export function BalanceCard({
       data-slot="balance-card"
       role="group"
       aria-label={label}
-      className="relative min-w-0 overflow-hidden rounded-card bg-hero p-6 text-hero-foreground shadow-md"
+      className="relative min-w-0 overflow-hidden rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-16 -right-14 size-52 rounded-pill bg-hero-foreground/10"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-16 right-10 size-36 rounded-pill border border-hero-foreground/20"
-      />
       <dl className="relative grid gap-4">
         <div className="grid min-w-0 gap-1">
           <dt className="text-small text-hero-muted">{primaryLabel}</dt>

@@ -48,19 +48,17 @@ describe('cn with the design-system type scale', () => {
 });
 
 describe('a component built with cn keeps its type size', () => {
-  it('bottom navigation labels stay at text-nav beside the colour classes', () => {
+  it('bottom navigation labels stay at text-caption beside the colour classes', () => {
     const { container } = renderApp(<BottomNav currentPath="/accounts" />, { locale: 'en' });
 
     const links = Array.from(container.querySelectorAll('nav li a'));
     expect(links.length).toBeGreaterThan(0);
     // The circular add button has no label, so only the destinations are checked.
-    for (const link of links.filter(
-      (a) => !a.getAttribute('class')?.includes('size-circle-action'),
-    )) {
-      expect(link.className).toContain('text-nav');
+    for (const link of links.filter((a) => !a.getAttribute('class')?.includes('size-15'))) {
+      expect(link.className).toContain('text-caption');
     }
     const active = container.querySelector('a[aria-current="page"]');
-    expect(active?.className).toContain('text-nav');
+    expect(active?.className).toContain('text-caption');
     expect(active?.className).toContain('text-accent-foreground');
     expect(active?.className).not.toContain('text-muted-foreground');
   });

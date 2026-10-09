@@ -17,7 +17,7 @@ export function HomeFrame({ children }: { children: ReactNode }) {
   return (
     <div className="grid gap-6">
       {/* The top navigation carries the brand from `lg`; below it the home does. */}
-      <p className="flex items-center gap-2.5 text-heading lg:hidden">
+      <p className="flex items-center gap-2.5 text-heading desk:hidden">
         <span
           aria-hidden
           className="inline-flex size-9 items-center justify-center rounded-xl bg-primary text-small font-semibold text-primary-foreground"
@@ -54,8 +54,8 @@ export function HomeScreen({
 }: HomeScreenProps) {
   return (
     <HomeFrame>
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="grid gap-6 lg:row-start-1">
+      <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="grid gap-6 desk:row-start-1">
           <BalanceSummary
             locale={locale}
             currencies={currencies}
@@ -64,10 +64,10 @@ export function HomeScreen({
           />
           <QuickActions />
         </div>
-        <div className="lg:col-span-2 lg:row-start-2">
+        <div className="desk:col-span-2 desk:row-start-2">
           <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
         </div>
-        <div className="lg:col-start-2 lg:row-start-1">
+        <div className="desk:col-start-2 desk:row-start-1">
           <HomeAccounts locale={locale} accounts={accounts} />
         </div>
       </div>
@@ -82,7 +82,7 @@ export function HomeSkeleton() {
   return (
     <HomeFrame>
       <div role="status" aria-label={t('loading')} className="grid gap-6">
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+        <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <div className="grid gap-6">
             <Skeleton className="h-52 rounded-card" />
             <div className="grid grid-cols-4 gap-3">
