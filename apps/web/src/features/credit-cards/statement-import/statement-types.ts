@@ -27,7 +27,14 @@ export interface ParsedStatement {
 }
 
 export type StatementParseErrorCode =
-  'tooLarge' | 'unreadable' | 'unrecognized' | 'invalidRow' | 'invalidAmount' | 'noLines';
+  | 'tooLarge'
+  | 'unreadable'
+  | 'unrecognized'
+  | 'unrecognizedFormat'
+  | 'noTextLayer'
+  | 'invalidRow'
+  | 'invalidAmount'
+  | 'noLines';
 
 export class StatementParseError extends Error {
   constructor(readonly code: StatementParseErrorCode) {
@@ -37,8 +44,8 @@ export class StatementParseError extends Error {
 }
 
 /**
- * Turns a statement file into its lines. The `.xlsx` parser is the only one today; a PDF parser
- * only has to implement this interface.
+ * Turns a statement file into its lines. There is one parser per file type (`.xlsx`, `.pdf`) and
+ * the screen picks one by the file type.
  */
 export interface StatementParser {
   /** The `accept` attribute of the file input. */
