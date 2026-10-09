@@ -11,7 +11,7 @@ import { cookieHeader, seedUser, sessionFrom, signIn } from '../helpers/session-
 import { testDatabaseUrl } from '../helpers/test-database';
 import { trustedHeaders } from '../helpers/test-env';
 import { newAccount, newCategory, writeScope } from '../movements/db-fixtures';
-import { rentOf } from './fixtures';
+import { rentOf } from '../recurring/fixtures';
 
 /** NFR-02: p95 of `GET /recurring/upcoming` for a user with 100 recurring payments. */
 const PAYMENTS = 100;
