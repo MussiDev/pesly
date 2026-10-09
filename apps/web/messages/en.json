@@ -336,6 +336,8 @@
     "accountLinkedToCard": "This account belongs to a credit card, so it cannot be deleted on its own. Delete the card instead.",
     "cardHasMovements": "The accounts of this card have movements, so the card cannot be deleted.",
     "statementClosed": "This statement is already closed, so its dates can no longer change.",
+    "recurringOccurrenceNotPending": "This occurrence was already resolved, so it can no longer be confirmed or skipped.",
+    "recurringLimitReached": "You reached the limit of 200 recurring payments. Delete one to create another.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
     "offlineSaveFailed": "We could not save this movement on your device. Check that it has free space and try again.",
     "totpCodeFormat": "Enter the 6 digits of the code.",

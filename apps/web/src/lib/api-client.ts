@@ -147,6 +147,8 @@ export type ApiErrorKey =
   | 'accountLinkedToCard'
   | 'cardHasMovements'
   | 'statementClosed'
+  | 'recurringOccurrenceNotPending'
+  | 'recurringLimitReached'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -205,6 +207,8 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   ACCOUNT_LINKED_TO_CARD: 'accountLinkedToCard',
   CARD_HAS_MOVEMENTS: 'cardHasMovements',
   STATEMENT_CLOSED: 'statementClosed',
+  RECURRING_OCCURRENCE_NOT_PENDING: 'recurringOccurrenceNotPending',
+  RECURRING_LIMIT_REACHED: 'recurringLimitReached',
 };
 
 /**

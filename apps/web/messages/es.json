@@ -336,6 +336,8 @@
     "accountLinkedToCard": "Esta cuenta pertenece a una tarjeta de crédito, por eso no se puede eliminar sola. Elimina la tarjeta en su lugar.",
     "cardHasMovements": "Las cuentas de esta tarjeta tienen movimientos, por eso la tarjeta no se puede eliminar.",
     "statementClosed": "Este resumen ya cerró, por eso sus fechas ya no pueden cambiar.",
+    "recurringOccurrenceNotPending": "Este vencimiento ya se resolvió, por eso ya no se puede confirmar ni omitir.",
+    "recurringLimitReached": "Llegaste al límite de 200 pagos recurrentes. Eliminá uno para crear otro.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
     "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
