@@ -169,7 +169,8 @@ function parseRow(line: PdfLine, columns: Columns): ParsedStatementLine | null {
 }
 
 /**
- * Reads the lines of a Banco Macro Visa statement (text layer of the PDF, grouped by
+ * NOT YET VERIFIED against a real file: built from a screenshot of the layout (the real PDF is
+ * password-protected and could not be inspected). Reads the lines of a Banco Macro Visa statement (text layer of the PDF, grouped by
  * `groupItemsIntoLines`). The header block gives the dates, the detail table between its header
  * and `SALDO ACTUAL` gives the lines, and `SALDO ACTUAL` is the total to reconcile with. The
  * `Cuotas a vencer` schedule, the legal text and the direct-debit line are never read.

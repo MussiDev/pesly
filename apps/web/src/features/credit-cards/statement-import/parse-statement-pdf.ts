@@ -1,5 +1,6 @@
 import { extractPdfLines } from './extract-pdf-lines';
 import { isMacroVisaStatement, parseMacroVisaLines } from './parse-macro-visa';
+import { isSantanderVisaStatement, parseSantanderVisaLines } from './parse-santander-visa';
 import type { PdfLine } from './pdf-lines';
 import { StatementParseError, type ParsedStatement, type StatementParser } from './statement-types';
 
@@ -12,6 +13,7 @@ interface BankFormat {
 
 /** One entry per supported bank statement layout; add the next bank here. */
 const FORMATS: readonly BankFormat[] = [
+  { matches: isSantanderVisaStatement, parse: parseSantanderVisaLines },
   { matches: isMacroVisaStatement, parse: parseMacroVisaLines },
 ];
 
