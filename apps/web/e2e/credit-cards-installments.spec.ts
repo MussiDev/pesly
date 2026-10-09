@@ -109,7 +109,7 @@ test('records an installment purchase, sees the pending debt and the installment
       .replace('{amount}', EACH),
   );
 
-  await page.getByRole('button', { name: t.installments.delete }).click();
+  await page.getByRole('button', { name: t.installments.delete, exact: true }).click();
   await page.getByRole('button', { name: t.installments.confirmDelete }).click();
   await expect(page.getByText(t.installments.empty)).toBeVisible();
   await expect(debt).toContainText(ZERO);
