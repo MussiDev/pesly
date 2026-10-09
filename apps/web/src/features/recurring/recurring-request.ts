@@ -73,8 +73,9 @@ export type ConfirmRequestResult =
 
 /** Reads a whole number in `min..max` from select-like text without going through a float. */
 function readInteger(text: string, min: number, max: number): number | undefined {
+  const digits = text.trim().replace(/^0+(?=\d)/, '');
   for (let candidate = min; candidate <= max; candidate += 1) {
-    if (String(candidate) === text) return candidate;
+    if (String(candidate) === digits) return candidate;
   }
   return undefined;
 }

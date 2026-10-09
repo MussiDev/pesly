@@ -71,6 +71,12 @@ describe('buildRecurringPaymentRequest', () => {
     expect(createRecurringPaymentSchema.safeParse(result.request).success).toBe(true);
   });
 
+  it('accepts a day typed with a leading zero', () => {
+    const result = buildRecurringPaymentRequest(rent({ dayOfMonth: '05' }), 'es');
+
+    expect(result.request).toMatchObject({ dayOfMonth: 5 });
+  });
+
   it('builds a yearly rule with month and day', () => {
     const result = buildRecurringPaymentRequest(
       rent({ frequency: 'yearly', month: '2', dayOfMonth: '29', weekday: '3' }),
