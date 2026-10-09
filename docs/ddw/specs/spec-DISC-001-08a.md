@@ -195,7 +195,7 @@ Use-case tests pass; coverage of `apps/api/src/recurring/application` at least 9
 - `apps/api/src/recurring/infrastructure/http/recurring-routes.ts`, `recurring-presenter.ts` (new); `apps/api/src/recurring/index.ts` (new barrel).
 - `apps/api/src/movements/infrastructure/recurring/drizzle-recurring-expense-recorder.ts` (new) and `apps/api/src/movements/index.ts` (modified) — adapter implementing the `recurring` port with `RecordManualMovement` (metered, as `createExpenseRecorder` does for cards).
 - `apps/api/src/server.ts` (modified) — registers `createRecurringRoutes` in `routerFactories` and wires the adapter.
-- `apps/api/test/recurring/recurring-routes.test.ts`, `recurring-perf.test.ts`, `no-float-money.test.ts` (new).
+- `apps/api/test/recurring/recurring-routes.test.ts`, `recurring-upcoming.perf.test.ts`, `no-float-money.test.ts` (new).
 
 **API contract** (all under `/recurring`, `requireSession`, `requireVerifiedEmail`, shared `validate`, origin guard on non-GET)
 - `POST /recurring/payments` body `createRecurringPaymentSchema` → 201 payment.
