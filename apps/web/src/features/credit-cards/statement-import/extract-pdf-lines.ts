@@ -22,19 +22,38 @@ async function loadPdfJs(): Promise<PdfJs> {
   return pdfjs;
 }
 
+/** pdf.js signals an encrypted file with a `PasswordException`: code 1 needs one, code 2 is wrong. */
+function statementErrorOf(error: unknown): StatementParseError {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'name' in error &&
+    error.name === 'PasswordException'
+  ) {
+    const code = 'code' in error ? error.code : undefined;
+    if (code === 1) return new StatementParseError('passwordRequired');
+    if (code === 2) return new StatementParseError('wrongPassword');
+  }
+  return new StatementParseError('unreadable');
+}
+
 /**
  * Reads every page's text and returns it as lines of positioned words, page after page. `pdfjs`
- * can be injected (the tests pass the Node build, which needs no worker file).
+ * can be injected (the tests pass the Node build, which needs no worker file). The password, when
+ * given, is only handed to pdf.js.
  */
 export async function extractPdfLines(
   data: ArrayBuffer,
   pdfjs?: Pick<PdfJs, 'getDocument'>,
+  password?: string,
 ): Promise<PdfLine[]> {
   try {
     const lib = pdfjs ?? (await loadPdfJs());
     const task = lib.getDocument({
       // pdf.js 6 has no eval-based code paths, so there is no `isEvalSupported` switch to turn off.
-      data: new Uint8Array(data),
+      // A copy: pdf.js may transfer (detach) the buffer it is given, and a retry needs the bytes.
+      data: new Uint8Array(data).slice(),
+      ...(password === undefined ? {} : { password }),
     });
     const document = await task.promise;
     const lines: PdfLine[] = [];
@@ -54,7 +73,7 @@ export async function extractPdfLines(
     }
     await task.destroy();
     return lines;
-  } catch {
-    throw new StatementParseError('unreadable');
+  } catch (error) {
+    throw statementErrorOf(error);
   }
 }

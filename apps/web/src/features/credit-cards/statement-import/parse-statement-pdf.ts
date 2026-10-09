@@ -2,7 +2,12 @@ import { extractPdfLines } from './extract-pdf-lines';
 import { isMacroVisaStatement, parseMacroVisaLines } from './parse-macro-visa';
 import { isSantanderVisaStatement, parseSantanderVisaLines } from './parse-santander-visa';
 import type { PdfLine } from './pdf-lines';
-import { StatementParseError, type ParsedStatement, type StatementParser } from './statement-types';
+import {
+  StatementParseError,
+  type ParsedStatement,
+  type StatementParseOptions,
+  type StatementParser,
+} from './statement-types';
 
 export const STATEMENT_PDF_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -29,7 +34,10 @@ export function parsePdfStatementLines(lines: readonly PdfLine[]): ParsedStateme
 }
 
 /** Reads a bank's PDF statement in the browser; the file never leaves the device. */
-export async function parseStatementPdf(file: File): Promise<ParsedStatement> {
+export async function parseStatementPdf(
+  file: File,
+  options: StatementParseOptions = {},
+): Promise<ParsedStatement> {
   if (file.size > STATEMENT_PDF_MAX_BYTES) throw new StatementParseError('tooLarge');
   let data: ArrayBuffer;
   try {
@@ -37,7 +45,7 @@ export async function parseStatementPdf(file: File): Promise<ParsedStatement> {
   } catch {
     throw new StatementParseError('unreadable');
   }
-  return parsePdfStatementLines(await extractPdfLines(data));
+  return parsePdfStatementLines(await extractPdfLines(data, undefined, options.password));
 }
 
 export const pdfStatementParser: StatementParser = {

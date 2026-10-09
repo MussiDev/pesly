@@ -74,4 +74,46 @@ describe('extractPdfLines', () => {
       StatementParseError,
     );
   });
+
+  describe('encrypted files', () => {
+    type Loader = Parameters<typeof extractPdfLines>[1];
+    const failingWith = (error: unknown, seen: unknown[] = []): Loader => ({
+      getDocument: ((params: unknown) => {
+        seen.push(params);
+        return { promise: Promise.reject(error) };
+      }) as unknown as NonNullable<Loader>['getDocument'],
+    });
+    const passwordError = (code: number) =>
+      Object.assign(new Error('x'), { name: 'PasswordException', code });
+    const data = new TextEncoder().encode('%PDF').buffer;
+
+    it('asks for a password when pdf.js needs one', async () => {
+      await expect(extractPdfLines(data, failingWith(passwordError(1)))).rejects.toMatchObject({
+        code: 'passwordRequired',
+      });
+    });
+
+    it('reports an incorrect password', async () => {
+      await expect(
+        extractPdfLines(data, failingWith(passwordError(2)), 'nope'),
+      ).rejects.toMatchObject({ code: 'wrongPassword' });
+    });
+
+    it('hands the password to pdf.js and only when there is one', async () => {
+      const seen: unknown[] = [];
+      await extractPdfLines(data, failingWith(passwordError(2), seen), 'secret').catch(() => null);
+      await extractPdfLines(data, failingWith(passwordError(1), seen)).catch(() => null);
+      expect(seen[0]).toMatchObject({ password: 'secret' });
+      expect(seen[1]).not.toHaveProperty('password');
+    });
+
+    it('treats any other failure as unreadable', async () => {
+      await expect(extractPdfLines(data, failingWith(new Error('boom')))).rejects.toMatchObject({
+        code: 'unreadable',
+      });
+      await expect(extractPdfLines(data, failingWith(passwordError(9)))).rejects.toMatchObject({
+        code: 'unreadable',
+      });
+    });
+  });
 });

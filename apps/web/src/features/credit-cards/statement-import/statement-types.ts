@@ -32,6 +32,8 @@ export type StatementParseErrorCode =
   | 'unrecognized'
   | 'unrecognizedFormat'
   | 'noTextLayer'
+  | 'passwordRequired'
+  | 'wrongPassword'
   | 'invalidRow'
   | 'invalidAmount'
   | 'noLines';
@@ -43,6 +45,11 @@ export class StatementParseError extends Error {
   }
 }
 
+/** The password of an encrypted file; it lives only for the one parse call and is never stored. */
+export interface StatementParseOptions {
+  password?: string;
+}
+
 /**
  * Turns a statement file into its lines. There is one parser per file type (`.xlsx`, `.pdf`) and
  * the screen picks one by the file type.
@@ -50,5 +57,5 @@ export class StatementParseError extends Error {
 export interface StatementParser {
   /** The `accept` attribute of the file input. */
   readonly accept: string;
-  parse(file: File): Promise<ParsedStatement>;
+  parse(file: File, options?: StatementParseOptions): Promise<ParsedStatement>;
 }

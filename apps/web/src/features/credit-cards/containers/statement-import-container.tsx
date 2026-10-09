@@ -64,6 +64,7 @@ export function StatementImportContainer({
   const [attempt, setAttempt] = useState(0);
   const [parsing, setParsing] = useState(false);
   const [fileError, setFileError] = useState<string | undefined>();
+  const [passwordFile, setPasswordFile] = useState<{ file: File; wrong: boolean } | undefined>();
   const [statement, setStatement] = useState<ParsedStatement | undefined>();
   const [includeFees, setIncludeFees] = useState(true);
   const [categoryId, setCategoryId] = useState('');
@@ -101,18 +102,24 @@ export function StatementImportContainer({
     };
   }, [api, router, cardId, attempt]);
 
-  async function chooseFile(file: File | undefined) {
+  /** The password is handed to the parser for this one attempt and kept nowhere. */
+  async function chooseFile(file: File | undefined, password?: string) {
     setStatement(undefined);
     setFileError(undefined);
     setAlert(undefined);
+    setPasswordFile(undefined);
     if (file === undefined) return;
     setParsing(true);
     try {
-      setStatement(await parser.parse(file));
+      setStatement(await parser.parse(file, password === undefined ? undefined : { password }));
     } catch (error) {
       // Any unexpected failure reads as an unreadable file: the person can only pick another one.
       const code = error instanceof StatementParseError ? error.code : 'unreadable';
-      setFileError(`creditCards.import.errors.${code}`);
+      if (code === 'passwordRequired' || code === 'wrongPassword') {
+        setPasswordFile({ file, wrong: code === 'wrongPassword' });
+      } else {
+        setFileError(`creditCards.import.errors.${code}`);
+      }
     } finally {
       setParsing(false);
     }
@@ -180,6 +187,13 @@ export function StatementImportContainer({
       tooMany={statement !== undefined && tooManyLines(statement, includeFees)}
       alert={alert}
       result={result}
+      passwordPrompt={passwordFile === undefined ? undefined : { wrong: passwordFile.wrong }}
+      onPassword={(password) => {
+        if (passwordFile) void chooseFile(passwordFile.file, password);
+      }}
+      onPasswordCancel={() => {
+        setPasswordFile(undefined);
+      }}
       onFile={(file) => {
         void chooseFile(file);
       }}

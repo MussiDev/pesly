@@ -45,10 +45,14 @@ export interface StatementImportViewProps {
   tooMany: boolean;
   alert: StatementImportAlert | undefined;
   result: StatementImportResponse | undefined;
+  /** Set while an encrypted PDF waits for its password; `wrong` after a failed attempt. */
+  passwordPrompt: { wrong: boolean } | undefined;
   onFile: (file: File | undefined) => void;
   onIncludeFees: (include: boolean) => void;
   onCategory: (categoryId: string) => void;
   onImport: () => void;
+  onPassword: (password: string) => void;
+  onPasswordCancel: () => void;
 }
 
 function statusKey(line: ParsedStatementLine, chosen: boolean): string {
@@ -82,6 +86,14 @@ export function StatementImportView(props: StatementImportViewProps) {
               />
             )}
           </MovementField>
+          {props.passwordPrompt ? (
+            <PasswordPrompt
+              wrong={props.passwordPrompt.wrong}
+              disabled={props.parsing}
+              onSubmit={props.onPassword}
+              onCancel={props.onPasswordCancel}
+            />
+          ) : null}
           {props.parsing ? (
             <p role="status" className="text-small text-muted-foreground">
               {t('parsing')}
@@ -121,6 +133,61 @@ export function StatementImportView(props: StatementImportViewProps) {
         {t('back')}
       </Link>
     </div>
+  );
+}
+
+/**
+ * Asks for the password of an encrypted PDF. The value lives only in the input until it is sent
+ * and the field is cleared right after, so it is never kept in state.
+ */
+function PasswordPrompt({
+  wrong,
+  disabled,
+  onSubmit,
+  onCancel,
+}: {
+  wrong: boolean;
+  disabled: boolean;
+  onSubmit: (password: string) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('creditCards.import.password');
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const value = new FormData(form).get('password');
+        form.reset();
+        if (typeof value === 'string' && value !== '') onSubmit(value);
+      }}
+    >
+      <p className="text-small text-muted-foreground">{t('description')}</p>
+      <MovementField
+        label={t('label')}
+        error={wrong ? 'creditCards.import.password.wrong' : undefined}
+      >
+        {(control) => (
+          <Input
+            type="password"
+            name="password"
+            autoComplete="off"
+            required
+            disabled={disabled}
+            {...control}
+          />
+        )}
+      </MovementField>
+      <div className="flex gap-2">
+        <Button type="submit" disabled={disabled}>
+          {t('submit')}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
+          {t('cancel')}
+        </Button>
+      </div>
+    </form>
   );
 }
 

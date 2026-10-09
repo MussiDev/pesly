@@ -19,10 +19,10 @@ export function parserForFile(file: File): StatementParser | null {
  */
 export const statementParser: StatementParser = {
   accept: `${xlsxStatementParser.accept},${pdfStatementParser.accept}`,
-  parse(file) {
+  parse(file, options) {
     const parser = parserForFile(file);
     return parser === null
       ? Promise.reject(new StatementParseError('unreadable'))
-      : parser.parse(file);
+      : parser.parse(file, options);
   },
 };

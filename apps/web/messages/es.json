@@ -421,6 +421,13 @@
         "label": "Archivo del resumen",
         "hint": "Resúmenes en Excel (.xlsx, hasta 2 MB) o PDF (hasta 5 MB). El archivo se lee en tu dispositivo."
       },
+      "password": {
+        "description": "Este PDF está protegido con contraseña. Ingresala para leer el resumen; se usa solo en este dispositivo y no se guarda.",
+        "label": "Contraseña del PDF",
+        "submit": "Desbloquear",
+        "cancel": "Cancelar",
+        "wrong": "La contraseña no es correcta. Probá de nuevo."
+      },
       "parsing": "Leyendo el archivo…",
       "errors": {
         "tooLarge": "El archivo es demasiado grande. Los de Excel pueden pesar hasta 2 MB y los PDF hasta 5 MB.",

@@ -131,4 +131,49 @@ describe('StatementImportContainer with a PDF statement', () => {
     expect(await screen.findByText(t.errors.tooLarge)).toBeTruthy();
     expect(extract).not.toHaveBeenCalled();
   });
+
+  describe('an encrypted PDF', () => {
+    it('asks for the password, retries with it and previews the statement', async () => {
+      extract
+        .mockRejectedValueOnce(new StatementParseError('passwordRequired'))
+        .mockResolvedValueOnce(macroVisaLines());
+      const { input } = await open();
+      await userEvent.upload(input, PDF);
+
+      const field = await screen.findByLabelText<HTMLInputElement>(t.password.label);
+      expect(field.type).toBe('password');
+      expect(screen.queryByText(t.errors.unreadable)).toBeNull();
+      await userEvent.type(field, 'clave-secreta');
+      await userEvent.click(screen.getByRole('button', { name: t.password.submit }));
+
+      expect(await screen.findByRole('table', { name: t.preview.caption })).toBeTruthy();
+      expect(extract).toHaveBeenLastCalledWith(expect.anything(), undefined, 'clave-secreta');
+      expect(screen.queryByLabelText(t.password.label)).toBeNull();
+    });
+
+    it('shows a localized error and clears the field after a wrong password', async () => {
+      extract
+        .mockRejectedValueOnce(new StatementParseError('passwordRequired'))
+        .mockRejectedValueOnce(new StatementParseError('wrongPassword'));
+      const { input } = await open();
+      await userEvent.upload(input, PDF);
+      const field = await screen.findByLabelText<HTMLInputElement>(t.password.label);
+      await userEvent.type(field, 'mala');
+      await userEvent.click(screen.getByRole('button', { name: t.password.submit }));
+
+      expect(await screen.findByText(t.password.wrong)).toBeTruthy();
+      expect(screen.getByLabelText<HTMLInputElement>(t.password.label).value).toBe('');
+      expect(screen.queryByRole('table')).toBeNull();
+    });
+
+    it('drops the prompt when cancelled and never sends anything', async () => {
+      extract.mockRejectedValueOnce(new StatementParseError('passwordRequired'));
+      const { input, calls } = await open();
+      await userEvent.upload(input, PDF);
+      await screen.findByLabelText(t.password.label);
+      await userEvent.click(screen.getByRole('button', { name: t.password.cancel }));
+      expect(screen.queryByLabelText(t.password.label)).toBeNull();
+      expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);
+    });
+  });
 });

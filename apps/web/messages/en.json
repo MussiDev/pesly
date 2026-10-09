@@ -421,6 +421,13 @@
         "label": "Statement file",
         "hint": "Excel (.xlsx, up to 2 MB) or PDF (up to 5 MB) statements. The file is read on your device."
       },
+      "password": {
+        "description": "This PDF is protected with a password. Enter it to read the statement; it is used only on this device and is not saved.",
+        "label": "PDF password",
+        "submit": "Unlock",
+        "cancel": "Cancel",
+        "wrong": "That password is not correct. Try again."
+      },
       "parsing": "Reading the file…",
       "errors": {
         "tooLarge": "The file is too large. Excel files can be up to 2 MB and PDF files up to 5 MB.",
