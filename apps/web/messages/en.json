@@ -1246,6 +1246,20 @@
       "confirm": "Yes, delete",
       "cancel": "Keep it"
     },
+    "back": "Back to recurring payments",
+    "notFound": "This recurring payment does not exist.",
+    "form": {
+      "editTitle": "Edit recurring payment",
+      "placeholder": "Choose…",
+      "noAccounts": "You need an open account before you can add a recurring payment."
+    },
+    "detail": {
+      "dayOfMonthValue": "Day {day}",
+      "yearlyValue": "{month} {day}",
+      "nextDue": "Next due date",
+      "noEnd": "No end date"
+    },
+    "listNoUpcoming": "Nothing is due in the next 30 days.",
     "pauseHint": "While paused, nothing is scheduled. When you resume, it continues from today.",
     "errors": {
       "nameRequired": "Enter a name.",

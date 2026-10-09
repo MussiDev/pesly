@@ -1246,6 +1246,20 @@
       "confirm": "Sí, eliminar",
       "cancel": "Conservarlo"
     },
+    "back": "Volver a los pagos recurrentes",
+    "notFound": "Este pago recurrente no existe.",
+    "form": {
+      "editTitle": "Editar pago recurrente",
+      "placeholder": "Elegí…",
+      "noAccounts": "Necesitás una cuenta abierta para agregar un pago recurrente."
+    },
+    "detail": {
+      "dayOfMonthValue": "Día {day}",
+      "yearlyValue": "{day} de {month}",
+      "nextDue": "Próximo vencimiento",
+      "noEnd": "Sin fecha de fin"
+    },
+    "listNoUpcoming": "No vence nada en los próximos 30 días.",
     "pauseHint": "Mientras está pausado no se programa nada. Al reanudarlo, sigue desde hoy.",
     "errors": {
       "nameRequired": "Ingresá un nombre.",
