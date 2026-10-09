@@ -1,8 +1,9 @@
 import type { RecurringStatus } from '@pesly/shared';
 import { and, asc, count, eq } from 'drizzle-orm';
-import { notFoundUnlessAllowed, type AccessScope } from '../../../shared/access';
+import { notFoundUnlessAllowed, ResourceNotFound, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
+import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
   NewRecurringPayment,
   RecurringPaymentChanges,
@@ -29,6 +30,14 @@ const paymentColumns = {
   createdAt: recurringPayments.createdAt,
 };
 
+/**
+ * The composite keys to accounts and categories include the owner, so a foreign or income id
+ * violates a key (23503). It answers like a missing id, never revealing that the id exists (404).
+ */
+function foreignReferenceAsNotFound(error: unknown): unknown {
+  return violatedConstraint(error, '23503') === undefined ? error : new ResourceNotFound();
+}
+
 const ownPayment = (scope: AccessScope, id: string) =>
   and(eq(recurringPayments.id, id), scopedTo(scope, { owner: recurringPayments.ownerId }));
 
@@ -39,7 +48,10 @@ export class DrizzleRecurringPaymentRepository implements RecurringPaymentReposi
     const [row] = await this.db
       .insert(recurringPayments)
       .values({ ...data, ownerId: scope.userId })
-      .returning(paymentColumns);
+      .returning(paymentColumns)
+      .catch((error: unknown) => {
+        throw foreignReferenceAsNotFound(error);
+      });
     if (!row) throw new Error('Inserting a recurring payment returned no row');
     return row;
   }
@@ -78,7 +90,10 @@ export class DrizzleRecurringPaymentRepository implements RecurringPaymentReposi
       .update(recurringPayments)
       .set({ ...changes, updatedAt: new Date() })
       .where(ownPayment(scope, id))
-      .returning(paymentColumns);
+      .returning(paymentColumns)
+      .catch((error: unknown) => {
+        throw foreignReferenceAsNotFound(error);
+      });
     return notFoundUnlessAllowed(row);
   }
 

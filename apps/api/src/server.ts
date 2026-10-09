@@ -19,12 +19,12 @@ import {
   createExpenseRecorder,
   createInstallmentWriteLimit,
   createMovementRoutes,
+  createRecurringExpenseRecorder,
   createStatementPaymentRecorder,
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
-// Deep import until the recurring barrel exists; the step runs inside the identity erasure transaction.
-import { eraseUserRecurring } from './recurring/infrastructure/db/erase-user-recurring';
+import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
 import { createLogger } from './shared/logging/logger';
@@ -74,6 +74,11 @@ const app = createApp({
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
+    createRecurringRoutes({
+      db,
+      logger,
+      expenses: createRecurringExpenseRecorder(db, logger),
+    }),
     createTagRoutes({ db }),
   ],
 });

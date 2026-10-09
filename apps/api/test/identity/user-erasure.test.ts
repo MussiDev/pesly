@@ -7,6 +7,7 @@ import { DrizzleOAuthStateRepository } from '../../src/identity/infrastructure/d
 import { DrizzleSessionRepository } from '../../src/identity/infrastructure/db/drizzle-session-repository';
 import { eraseUserCreditCards } from '../../src/credit-cards';
 import { eraseUserMovements } from '../../src/movements';
+import { eraseUserRecurring } from '../../src/recurring';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createIdentityHarness, type IdentityHarness } from '../helpers/identity-harness';
 import {
@@ -75,6 +76,12 @@ const CREDIT_CARDS_STEP_CONSTRAINTS = [
 const INSTALLMENT_PURCHASES_STEP_CONSTRAINTS = [
   'installment_purchases_card_owner_fk',
   'installment_purchases_category_owner_kind_fk',
+] as const;
+
+/** The restricting composite keys from `recurring_payments` to the account and the category (migration 0023). */
+const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
+  'recurring_payments_account_owner_fk',
+  'recurring_payments_category_owner_fk',
 ] as const;
 
 /** The restricting composite keys of `movements` (migrations 0014 and 0016). */
@@ -461,6 +468,48 @@ const REGISTRY: readonly RegisteredTable[] = [
       );
     },
   },
+  {
+    table: 'recurring_payments',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The keys to the account and the category restrict, so the step deletes the payments before
+    // those go; the key to users itself cascades.
+    stepConstraints: RECURRING_PAYMENTS_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      const account = await query(
+        context,
+        "insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available) values ($1, 'Recurring account', 'cash', 'ARS', 0, true) returning id",
+        [context.userId],
+      );
+      const category = await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Recurring', 'wallet', 'blue') returning id",
+        [context.userId],
+      );
+      await query(
+        context,
+        "insert into recurring_payments (owner_id, name, amount, account_id, category_id, frequency, day_of_month, start_date, mode, schedule_from) values ($1, 'Rent', 35000000, $2, $3, 'monthly', 5, '2026-10-05', 'confirmation', '2026-10-05')",
+        [
+          context.userId,
+          (account.rows[0] as { id: string }).id,
+          (category.rows[0] as { id: string }).id,
+        ],
+      );
+    },
+  },
+  {
+    table: 'recurring_occurrences',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after recurring_payments: the occurrence belongs to the payment that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into recurring_occurrences (payment_id, owner_id, due_date) select id, owner_id, '2026-10-05' from recurring_payments where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
 ];
 
 /** Created by the access-control tests and never dropped; they are not user data of the product. */
@@ -778,11 +827,12 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
   };
 
   it('has 0 rows for the user in every registered table and its outbox, while another user keeps all of theirs', async () => {
+    const recurringStep = vi.fn(eraseUserRecurring);
     const movementsStep = vi.fn(eraseUserMovements);
     const cardsStep = vi.fn(eraseUserCreditCards);
     const harness = createIdentityHarness(connection, {
       realSessions: true,
-      beforeUserErased: [movementsStep, cardsStep],
+      beforeUserErased: [recurringStep, movementsStep, cardsStep],
     });
     const other = await seeded(harness, 'bea@example.com');
     // The deleting user signs in before 2FA is seeded, so the sign-in needs no second factor.
@@ -810,6 +860,8 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     });
 
     expect(response.status).toBe(204);
+    expect(recurringStep).toHaveBeenCalledTimes(1);
+    expect(recurringStep.mock.calls[0]?.[1]).toBe(userId);
     expect(movementsStep).toHaveBeenCalledTimes(1);
     expect(movementsStep.mock.calls[0]?.[1]).toBe(userId);
     expect(cardsStep).toHaveBeenCalledTimes(1);

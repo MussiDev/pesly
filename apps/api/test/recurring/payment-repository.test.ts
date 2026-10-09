@@ -35,6 +35,35 @@ const count = async (statement: string, params: unknown[]): Promise<number> => {
 const owner = () => newRecurringOwner(connection.db, connection.pool);
 
 describe('DrizzleRecurringPaymentRepository', () => {
+  it("answers ResourceNotFound when creating with another user's account or category", async () => {
+    const ana = await owner();
+    const bea = await owner();
+    const scope = await writeScope(ana.ownerId);
+
+    await expect(payments.create(scope, rentOf(ana, { accountId: bea.accountId }))).rejects.toThrow(
+      ResourceNotFound,
+    );
+    await expect(
+      payments.create(scope, rentOf(ana, { categoryId: bea.categoryId })),
+    ).rejects.toThrow(ResourceNotFound);
+    expect(await payments.count(scope)).toBe(0);
+  });
+
+  it("answers ResourceNotFound when updating to another user's account or category", async () => {
+    const ana = await owner();
+    const bea = await owner();
+    const scope = await writeScope(ana.ownerId);
+    const created = await payments.create(scope, rentOf(ana));
+
+    await expect(payments.update(scope, created.id, { accountId: bea.accountId })).rejects.toThrow(
+      ResourceNotFound,
+    );
+    await expect(
+      payments.update(scope, created.id, { categoryId: bea.categoryId }),
+    ).rejects.toThrow(ResourceNotFound);
+    expect(await payments.get(scope, created.id)).toEqual(created);
+  });
+
   it('stores the Rent payment and reads it back with bigint money (AC-01, NFR-01)', async () => {
     const ana = await owner();
     const scope = await writeScope(ana.ownerId);
@@ -99,16 +128,16 @@ describe('DrizzleRecurringPaymentRepository', () => {
     expect(resumed).toMatchObject({ status: 'active', scheduleFrom: '2026-11-20' });
   });
 
-  it('sad path: a payment on an account or category of another user fails the composite key (AC-02)', async () => {
+  it('sad path: a payment on an account or category of another user fails the composite key and answers not found (AC-02)', async () => {
     const ana = await owner();
     const bea = await owner();
 
     await expect(
       payments.create(await writeScope(ana.ownerId), rentOf(ana, { accountId: bea.accountId })),
-    ).rejects.toMatchObject({ cause: { code: '23503' } });
+    ).rejects.toBeInstanceOf(ResourceNotFound);
     await expect(
       payments.create(await writeScope(ana.ownerId), rentOf(ana, { categoryId: bea.categoryId })),
-    ).rejects.toMatchObject({ cause: { code: '23503' } });
+    ).rejects.toBeInstanceOf(ResourceNotFound);
     expect(await payments.count(await readScope(ana.ownerId))).toBe(0);
   });
 

@@ -6,6 +6,7 @@ import {
   createRecurringPaymentSchema,
   frequencySchema,
   modeSchema,
+  occurrenceParamsSchema,
   recurringPaymentResponseSchema,
   updateRecurringPaymentSchema,
   upcomingResponseSchema,
@@ -166,5 +167,15 @@ describe('error codes and exports', () => {
   it('re-exports the recurring module from the package index', () => {
     expect(shared.createRecurringPaymentSchema).toBe(createRecurringPaymentSchema);
     expect(shared.dueDatesBetween).toBeTypeOf('function');
+  });
+});
+
+describe('occurrenceParamsSchema', () => {
+  it('takes the occurrence id alone, as the web client builds /recurring/occurrences/:id', () => {
+    expect(occurrenceParamsSchema.parse({ id: ID })).toEqual({ id: ID });
+  });
+
+  it.each([{}, { id: 'not-a-uuid' }, { occurrenceId: ID }])('rejects %o', (value) => {
+    expect(occurrenceParamsSchema.safeParse(value).success).toBe(false);
   });
 });

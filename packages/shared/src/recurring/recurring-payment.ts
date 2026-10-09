@@ -76,14 +76,14 @@ function checkSchedule(value: ScheduleFields, ctx: z.RefinementCtx, requireAll: 
   }
 }
 
-/** `POST /recurring-payments`. */
+/** `POST /recurring/payments`. */
 export const createRecurringPaymentSchema = recurringFieldsSchema.superRefine((value, ctx) => {
   checkSchedule(value, ctx, true);
 });
 
 export type CreateRecurringPayment = z.infer<typeof createRecurringPaymentSchema>;
 
-/** `PATCH /recurring-payments/:id`: every field optional, at least one present. */
+/** `PATCH /recurring/payments/:id`: every field optional, at least one present. */
 export const updateRecurringPaymentSchema = recurringFieldsSchema
   .partial()
   .superRefine((value, ctx) => {
@@ -98,7 +98,7 @@ export type UpdateRecurringPayment = z.infer<typeof updateRecurringPaymentSchema
 export const recurringPaymentIdParamsSchema = z.object({ id: z.uuid() });
 export type RecurringPaymentIdParams = z.infer<typeof recurringPaymentIdParamsSchema>;
 
-export const occurrenceParamsSchema = z.object({ id: z.uuid(), occurrenceId: z.uuid() });
+export const occurrenceParamsSchema = z.object({ id: z.uuid() });
 export type OccurrenceParams = z.infer<typeof occurrenceParamsSchema>;
 
 export const recurringPaymentResponseSchema = z.object({
@@ -144,7 +144,7 @@ export const upcomingResponseSchema = z.object({ items: z.array(upcomingItemSche
 
 export type UpcomingResponse = z.infer<typeof upcomingResponseSchema>;
 
-/** `POST /recurring-payments/:id/occurrences/:occurrenceId/confirm`. */
+/** `POST /recurring/occurrences/:id/confirm`. */
 export const confirmOccurrenceSchema = z.strictObject({
   amount: movementAmountSchema.optional(),
   date: calendarDateSchema.optional(),

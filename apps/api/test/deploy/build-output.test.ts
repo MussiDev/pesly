@@ -43,6 +43,8 @@ const ALL_TABLES = [
   'portfolio_value_snapshots',
   'portfolios',
   'recovery_codes',
+  'recurring_occurrences',
+  'recurring_payments',
   'sessions',
   'sign_in_challenges',
   'tags',
