@@ -93,6 +93,18 @@ export class InMemoryAccountRepository implements AccountRepository {
     return row.account;
   }
 
+  async setOpeningBalance(
+    scope: AccessScope<'write'>,
+    id: string,
+    openingBalance: bigint,
+  ): Promise<Account | null> {
+    await Promise.resolve();
+    const row = this.visible(scope, id);
+    if (!row) return null;
+    row.account = { ...row.account, openingBalance };
+    return row.account;
+  }
+
   async setArchived(
     scope: AccessScope<'write'>,
     id: string,

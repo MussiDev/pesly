@@ -6,6 +6,7 @@ import {
   listAccountsResponseSchema,
   renameAccountRequestSchema,
   setIncludeInAvailableRequestSchema,
+  setOpeningBalanceRequestSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
 import type { RouterFactory } from '../../../app';
@@ -30,6 +31,7 @@ import { ListAccounts } from '../../application/list-accounts';
 import { RenameAccount } from '../../application/rename-account';
 import { SetAccountArchived } from '../../application/set-account-archived';
 import { SetIncludeInAvailable } from '../../application/set-include-in-available';
+import { SetOpeningBalance } from '../../application/set-opening-balance';
 import { DrizzleAccountRepository } from '../db/drizzle-account-repository';
 import type { AccountLinks } from '../../application/ports/account-links';
 import { NoLinksAdapter } from '../links/no-links-adapter';
@@ -71,6 +73,7 @@ export function createAccountRoutes({
   const renameAccount = new RenameAccount({ accounts, movements });
   const setArchived = new SetAccountArchived({ accounts, movements });
   const setIncludeInAvailable = new SetIncludeInAvailable({ accounts, movements });
+  const setOpeningBalance = new SetOpeningBalance({ accounts, movements });
   const deleteAccount = new DeleteAccount({ accounts, movements, links });
 
   // Audit lines carry ids only: never the name or any amount.
@@ -142,6 +145,28 @@ export function createAccountRoutes({
         async ({ params, body }, { res, auth }) => {
           const scope = await scopeOf(policy, auth, 'write');
           res.json(presentAccount(await renameAccount.execute(scope, params.id, body.name)));
+        },
+      ),
+    );
+
+    router.patch(
+      '/accounts/:id/opening-balance',
+      validate(
+        {
+          params: accountIdParamsSchema,
+          body: setOpeningBalanceRequestSchema,
+          response: accountResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const account = await setOpeningBalance.execute(
+            scope,
+            params.id,
+            BigInt(body.openingBalance),
+          );
+          // Ids only: the old and the new amount are financial data and stay out of the log.
+          audit('account opening balance changed', requestId, auth, account.id);
+          res.json(presentAccount(account));
         },
       ),
     );

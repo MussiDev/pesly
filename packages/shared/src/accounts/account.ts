@@ -116,6 +116,13 @@ export const renameAccountRequestSchema = z.object({
 
 export type RenameAccountRequest = z.infer<typeof renameAccountRequestSchema>;
 
+/** `PATCH /accounts/:id/opening-balance`. Same limits and sign rules as at creation. */
+export const setOpeningBalanceRequestSchema = z.object({
+  openingBalance: openingBalanceSchema,
+});
+
+export type SetOpeningBalanceRequest = z.infer<typeof setOpeningBalanceRequestSchema>;
+
 export const accountIdParamsSchema = z.object({
   id: z.uuid(),
 });

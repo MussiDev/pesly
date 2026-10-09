@@ -304,6 +304,34 @@ test('rename, archive, unarchive and delete update the list (AC-06, AC-07, AC-08
   await expect(page.getByText(t.list.empty)).toBeVisible();
 });
 
+test('editing the opening balance changes the balance and the headline (FEAT-006 AC-14, AC-15, AC-16, AC-19)', async ({
+  page,
+}) => {
+  await signedInUser(page, 'opening-balance');
+  await createAccount(page, {
+    name: 'Billetera',
+    type: 'digital_wallet',
+    currency: 'ARS',
+    openingBalance: '100,00',
+  });
+
+  await rowButton(page, t.actions.editOpeningBalance, 'Billetera').click();
+  const field = page.getByLabel(t.openingEdit.field.replace('{name}', 'Billetera'));
+  await expect(field).toHaveValue('100,00');
+  await field.fill('250,50');
+  await expect(
+    page.getByText(t.openingEdit.preview.replace('{amount}', money(25_050n, 'ARS'))),
+  ).toBeVisible();
+  await page.getByRole('button', { name: t.actions.save }).click();
+
+  await expect(page.getByLabel(t.openingEdit.field.replace('{name}', 'Billetera'))).toHaveCount(0);
+  await expect(row(page, 'Billetera').getByText(money(25_050n, 'ARS'))).toBeVisible();
+  await expect(headline(page, 'ARS', 'netWorth')).toHaveText(money(25_050n, 'ARS'));
+
+  await page.reload();
+  await expect(row(page, 'Billetera').getByText(money(25_050n, 'ARS'))).toBeVisible();
+});
+
 test('a duplicate name shows an error message (AC-13)', async ({ page }) => {
   await signedInUser(page, 'duplicate');
   await createAccount(page, { name: 'Sueldo', type: 'bank_account', currency: 'ARS' });

@@ -372,6 +372,21 @@ describe('available balance labels (FEAT-003 AC-23, NFR-05)', () => {
   });
 });
 
+describe('opening balance edit strings (FEAT-006 AC-22)', () => {
+  const KEYS = [
+    'accounts.actions.editOpeningBalance',
+    'accounts.openingEdit.current',
+    'accounts.openingEdit.field',
+    'accounts.openingEdit.hint',
+    'accounts.openingEdit.preview',
+  ];
+
+  it.each(LOCALES)('has every new string in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+    expect(KEYS.filter((key) => !readString(catalog, key))).toEqual([]);
+  });
+});
+
 describe('investments catalog (DISC-001-07a)', () => {
   it.each(LOCALES)('has the investments namespace and the navigation label in %s', (locale) => {
     const catalog = loadCatalog(locale);

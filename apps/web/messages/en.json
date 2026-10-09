@@ -394,6 +394,7 @@
     "actions": {
       "rename": "Rename",
       "renameField": "New name for {name}",
+      "editOpeningBalance": "Edit opening balance",
       "save": "Save",
       "cancel": "Cancel",
       "archive": "Archive",
@@ -402,6 +403,12 @@
       "confirmDelete": "Delete {name}? This cannot be undone.",
       "confirmDeleteYes": "Yes, delete",
       "archiveInstead": "Archive instead"
+    },
+    "openingEdit": {
+      "current": "Current opening balance: {amount}",
+      "field": "New opening balance for {name}",
+      "hint": "The balance changes by the difference. Movements are not touched.",
+      "preview": "New balance: {amount}"
     },
     "errors": {
       "nameRequired": "Enter a name.",

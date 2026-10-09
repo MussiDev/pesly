@@ -109,12 +109,17 @@ function listProps(overrides: Partial<AccountListProps> = {}): AccountListProps 
     confirmingDeleteId: undefined,
     blockedDeleteId: undefined,
     renameError: undefined,
+    editingOpeningId: undefined,
+    openingError: undefined,
     actionError: undefined,
     onToggleArchived: noop,
     onToggleAvailable: noop,
     onStartRename: noop,
     onCancelRename: noop,
     onRename: noop,
+    onStartEditOpening: noop,
+    onCancelEditOpening: noop,
+    onSetOpening: noop,
     onArchive: noop,
     onUnarchive: noop,
     onAskDelete: noop,
@@ -506,6 +511,125 @@ describe('AccountList', () => {
     renderIntl(<AccountList {...listProps({ showArchived: true, accounts: [] })} />);
     expect(screen.getByRole('button', { name: es.accounts.list.showActive })).toBeDefined();
     expect(screen.getByText(es.accounts.list.emptyArchived)).toBeDefined();
+  });
+
+  describe('edit opening balance (FEAT-006)', () => {
+    const NBSP = /\s/g;
+    const flat = (text: string | null | undefined) => (text ?? '').replace(NBSP, ' ');
+
+    it('offers the action on an active account, an archived account and a credit card (AC-14)', () => {
+      const accounts = [
+        account({ id: 'a1', name: 'Caja' }),
+        account({
+          id: 'a2',
+          name: 'Vieja',
+          archived: true,
+          archivedAt: '2026-10-02T00:00:00.000Z',
+        }),
+        account({ id: 'a3', name: 'Visa', type: 'credit_card', includeInAvailable: false }),
+      ];
+      renderIntl(<AccountList {...listProps({ accounts, creditCardCount: 1 })} />);
+
+      for (const name of ['Caja', 'Vieja', 'Visa']) {
+        const row = screen.getByRole('listitem', { name });
+        expect(
+          within(row).getByRole('button', { name: new RegExp(`^Editar saldo inicial.*${name}`) }),
+        ).toBeDefined();
+      }
+    });
+
+    it('reports the account id when the action is clicked', async () => {
+      const onStartEditOpening = vi.fn();
+      renderIntl(<AccountList {...listProps({ onStartEditOpening })} />);
+
+      await userEvent.setup().click(screen.getByRole('button', { name: /^Editar saldo inicial/ }));
+
+      expect(onStartEditOpening).toHaveBeenCalledExactlyOnceWith('a1');
+    });
+
+    it('shows the current value formatted for the currency, the pre-filled input and the hint (AC-15)', () => {
+      const usd = account({ currency: 'USD', openingBalance: '123456', balance: '123456' });
+      renderIntl(<AccountList {...listProps({ accounts: [usd], editingOpeningId: 'a1' })} />, 'en');
+
+      expect(flat(screen.getByText(/^Current opening balance:/).textContent)).toBe(
+        `Current opening balance: ${money(123456n, 'USD', 'en')}`,
+      );
+      const field = screen.getByLabelText<HTMLInputElement>(
+        en.accounts.openingEdit.field.replace('{name}', 'Caja'),
+      );
+      expect(field.value).toBe('1234.56');
+      expect(screen.getByText(en.accounts.openingEdit.hint)).toBeDefined();
+    });
+
+    it('previews the new balance as balance minus opening plus the typed amount, negatives included (AC-16)', async () => {
+      const row = account({ openingBalance: '100000', balance: '150000' });
+      renderIntl(<AccountList {...listProps({ accounts: [row], editingOpeningId: 'a1' })} />);
+      const user = userEvent.setup();
+      const field = screen.getByLabelText(es.accounts.openingEdit.field.replace('{name}', 'Caja'));
+
+      await user.clear(field);
+      await user.type(field, '2000');
+      expect(flat(screen.getByText(/^Nuevo saldo:/).textContent)).toBe(
+        `Nuevo saldo: ${money(250000n, 'ARS', 'es')}`,
+      );
+
+      await user.clear(field);
+      await user.type(field, '-1');
+      expect(flat(screen.getByText(/^Nuevo saldo:/).textContent)).toBe(
+        `Nuevo saldo: ${money(49900n, 'ARS', 'es')}`,
+      );
+
+      await user.clear(field);
+      await user.type(field, 'abc');
+      expect(screen.queryByText(/^Nuevo saldo:/)).toBeNull();
+    });
+
+    it('reports the typed text with the account id on save and closes on cancel (AC-21)', async () => {
+      const onSetOpening = vi.fn();
+      const onCancelEditOpening = vi.fn();
+      renderIntl(
+        <AccountList
+          {...listProps({ editingOpeningId: 'a1', onSetOpening, onCancelEditOpening })}
+        />,
+      );
+      const user = userEvent.setup();
+      const field = screen.getByLabelText(es.accounts.openingEdit.field.replace('{name}', 'Caja'));
+
+      await user.clear(field);
+      await user.type(field, '3500');
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      await user.click(screen.getByRole('button', { name: es.accounts.actions.cancel }));
+
+      expect(onSetOpening).toHaveBeenCalledExactlyOnceWith('a1', '3.500');
+      expect(onCancelEditOpening).toHaveBeenCalledOnce();
+    });
+
+    it('error: shows the invalid-amount message on the field (AC-17)', () => {
+      renderIntl(
+        <AccountList
+          {...listProps({ editingOpeningId: 'a1', openingError: 'accounts.errors.amountInvalid' })}
+        />,
+      );
+
+      const field = screen.getByLabelText(es.accounts.openingEdit.field.replace('{name}', 'Caja'));
+      expect(field.getAttribute('aria-invalid')).toBe('true');
+      expect(screen.getByText(es.accounts.errors.amountInvalid)).toBeDefined();
+    });
+
+    it('error: shows the out-of-range message with the limit formatted for the currency (AC-18)', () => {
+      renderIntl(
+        <AccountList
+          {...listProps({
+            editingOpeningId: 'a1',
+            openingError: 'accounts.errors.amountOutOfRange',
+          })}
+        />,
+      );
+
+      expect(flat(screen.getByText(/no puede superar/).textContent)).toContain(
+        money(1_000_000_000_000_000n, 'ARS', 'es'),
+      );
+    });
   });
 
   it('renames inline: the field holds the current name and reports the new one', async () => {

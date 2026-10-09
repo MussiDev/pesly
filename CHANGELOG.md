@@ -315,6 +315,13 @@ All notable changes to this project are documented in this file. The format foll
   account are allocated to the closed statements oldest first, so editing or deleting a payment moves
   the status. An installment purchase is still not a movement, so after paying a statement that
   includes installments the card's ARS account balance exceeds its purchases by the installments paid.
+- FEAT-006 Edit an account's opening balance: `PATCH /accounts/:id/opening-balance` with
+  `{ openingBalance }` changes the opening balance after creation, with the same limits as account
+  creation, and answers the account with the recomputed balance. The balance moves by the difference;
+  no movement or frozen rate is touched. Like rename, it works on archived and card-linked accounts, a
+  missing or foreign account answers 404, and the audit line carries ids only. The account list gets
+  an "Edit opening balance" action with the current value, an explanation and a preview of the new
+  balance. No migration and no new dependency.
 
 ### Changed
 
