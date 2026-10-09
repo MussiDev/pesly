@@ -330,4 +330,17 @@ export async function closeFirstStatement(email: string, cardName: string): Prom
     ),
   );
   if (result.rows.length !== 1) throw new Error(`No statement of ${cardName} for ${email}`);
+  // A purchase belongs to the first statement whose closing date is on or after its day, so the
+  // purchases of the card move back with the dates; otherwise they stay in the next statement.
+  await withE2eDatabase((client) =>
+    client.query(
+      `update movements m
+          set occurred_at = m.occurred_at - interval '15 days'
+         from credit_cards c join users u on u.id = c.owner_id
+        where u.email = $1 and c.name = $2 and m.owner_id = u.id
+          and m.account_id in (c.ars_account_id, c.usd_account_id)
+          and m.type = 'expense'`,
+      [email, cardName],
+    ),
+  );
 }
