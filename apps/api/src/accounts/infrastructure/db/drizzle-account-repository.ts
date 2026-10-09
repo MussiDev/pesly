@@ -111,6 +111,19 @@ export class DrizzleAccountRepository implements AccountRepository {
     }
   }
 
+  async setOpeningBalance(
+    scope: AccessScope<'write'>,
+    id: string,
+    openingBalance: bigint,
+  ): Promise<Account | null> {
+    const [row] = await this.db
+      .update(accounts)
+      .set({ openingBalance, updatedAt: sql`now()` })
+      .where(scopedRow(scope, id))
+      .returning(columns);
+    return row ?? null;
+  }
+
   async setArchived(
     scope: AccessScope<'write'>,
     id: string,

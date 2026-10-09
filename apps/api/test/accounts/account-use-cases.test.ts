@@ -13,6 +13,7 @@ import {
   RenameAccount,
   SetAccountArchived,
   SetIncludeInAvailable,
+  SetOpeningBalance,
 } from '../../src/accounts';
 import { balanceOf } from '../../src/accounts/domain/account';
 import { ResourceNotFound } from '../../src/shared/access';
@@ -37,6 +38,7 @@ let renameAccount: RenameAccount;
 let setArchived: SetAccountArchived;
 let deleteAccount: DeleteAccount;
 let setIncluded: SetIncludeInAvailable;
+let setOpening: SetOpeningBalance;
 
 const defaultList = { archived: false, limit: 50, offset: 0 };
 
@@ -52,6 +54,7 @@ beforeEach(() => {
   setArchived = new SetAccountArchived(deps);
   deleteAccount = new DeleteAccount(deps);
   setIncluded = new SetIncludeInAvailable(deps);
+  setOpening = new SetOpeningBalance(deps);
 });
 
 async function create(
@@ -139,6 +142,79 @@ describe('rename', () => {
     await expect(renameAccount.execute(scope, other.id, 'OTHER')).resolves.toMatchObject({
       name: 'OTHER',
     });
+  });
+});
+
+describe('setOpeningBalance', () => {
+  it('returns the new opening balance and a balance that moves by the difference (AC-05)', async () => {
+    const account = await create(ALICE, 'Caja', 1000n);
+    movements.sums.set(account.id, -250n);
+
+    const updated = await setOpening.execute(await writeScopeFor(ALICE), account.id, 4000n);
+
+    expect(updated.openingBalance).toBe(4000n);
+    expect(updated.balance).toBe(3750n);
+    const read = await getAccount.execute(await readScopeFor(ALICE), account.id);
+    expect(read.openingBalance).toBe(4000n);
+    expect(read.balance).toBe(3750n);
+  });
+
+  it('accepts a negative and a zero value and the value the account already has (AC-04, AC-06)', async () => {
+    const account = await create(ALICE, 'Caja', 700n);
+    const scope = await writeScopeFor(ALICE);
+
+    await expect(setOpening.execute(scope, account.id, -50n)).resolves.toMatchObject({
+      openingBalance: -50n,
+    });
+    await expect(setOpening.execute(scope, account.id, 0n)).resolves.toMatchObject({
+      openingBalance: 0n,
+    });
+    await expect(setOpening.execute(scope, account.id, 0n)).resolves.toMatchObject({
+      openingBalance: 0n,
+      balance: 0n,
+    });
+  });
+
+  it('changes nothing but the opening balance (AC-07)', async () => {
+    const account = await create(ALICE, 'Caja', 100n, 'USD');
+    const updated = await setOpening.execute(await writeScopeFor(ALICE), account.id, 5n);
+    expect(updated).toMatchObject({
+      name: 'Caja',
+      type: 'bank_account',
+      currency: 'USD',
+      includeInAvailable: account.includeInAvailable,
+      archivedAt: null,
+    });
+    expect(movements.sumCalls.flat()).toEqual([account.id]);
+  });
+
+  it('rejects a missing account and a foreign account with 404 and leaves the row alone (AC-08, AC-09)', async () => {
+    const bobs = await create(BOB, 'Bobs', 10n);
+    const scope = await writeScopeFor(ALICE);
+
+    await expect(
+      setOpening.execute(scope, '33333333-3333-4333-8333-333333333333', 1n),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    await expect(setOpening.execute(scope, bobs.id, 1n)).rejects.toBeInstanceOf(ResourceNotFound);
+    expect((await getAccount.execute(await readScopeFor(BOB), bobs.id)).openingBalance).toBe(10n);
+  });
+
+  it('allows archived, credit card and card-linked accounts like rename does (AC-11, AC-12)', async () => {
+    const scope = await writeScopeFor(ALICE);
+    const archived = accounts.seed(ALICE, { name: 'Vieja', archived: true });
+    const card = accounts.seed(ALICE, { name: 'Visa', type: 'credit_card' });
+    const linked = accounts.seed(ALICE, { name: 'Enlazada' });
+    links.linked.add(linked.id);
+
+    for (const account of [archived, card, linked]) {
+      await expect(setOpening.execute(scope, account.id, 9n)).resolves.toMatchObject({
+        id: account.id,
+        openingBalance: 9n,
+      });
+    }
+    expect(
+      (await getAccount.execute(await readScopeFor(ALICE), archived.id)).archivedAt,
+    ).toBeInstanceOf(Date);
   });
 });
 

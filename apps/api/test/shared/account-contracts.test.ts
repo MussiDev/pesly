@@ -14,6 +14,7 @@ import {
   listAccountsResponseSchema,
   renameAccountRequestSchema,
   setIncludeInAvailableRequestSchema,
+  setOpeningBalanceRequestSchema,
 } from '@pesly/shared';
 
 const valid = { name: 'Cash', type: 'cash', currency: 'ARS' } as const;
@@ -442,5 +443,33 @@ describe('response schemas', () => {
     expect(accountResponseSchema.safeParse({ ...account, openingBalance: beyond }).success).toBe(
       false,
     );
+  });
+});
+
+describe('setOpeningBalanceRequestSchema', () => {
+  it.each(['0', '-1500', '1000000000000000', '-1000000000000000'])(
+    'accepts %s, the same range as creation (AC-04, NFR-02)',
+    (openingBalance) => {
+      expect(setOpeningBalanceRequestSchema.safeParse({ openingBalance }).success).toBe(true);
+    },
+  );
+
+  it.each([
+    ['a missing field', {}],
+    ['a decimal string', { openingBalance: '1.5' }],
+    ['text', { openingBalance: 'abc' }],
+    ['a number instead of a string', { openingBalance: 100 }],
+    ['one above the limit', { openingBalance: '1000000000000001' }],
+    ['one below the negative limit', { openingBalance: '-1000000000000001' }],
+  ])('rejects %s and names the field (AC-02, NFR-02)', (_label, body) => {
+    const result = setOpeningBalanceRequestSchema.safeParse(body);
+    expect(result.success).toBe(false);
+    expect(failedPaths(result)).toEqual(['openingBalance']);
+  });
+
+  it('strips unknown keys', () => {
+    expect(setOpeningBalanceRequestSchema.parse({ openingBalance: '5', currency: 'USD' })).toEqual({
+      openingBalance: '5',
+    });
   });
 });
