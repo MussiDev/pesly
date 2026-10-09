@@ -5,7 +5,7 @@
 -- (psql -1 -f), then revert the commit that added the migration. Apply it BEFORE the rollback of
 -- 0023 (newest `when` first).
 
-ALTER TABLE "recurring_payments" DROP COLUMN IF EXISTS "auto_recording_from";
+ALTER TABLE IF EXISTS "recurring_payments" DROP COLUMN IF EXISTS "auto_recording_from";
 
 -- Forget the migration so `pnpm db:migrate` applies it again; `created_at` is the journal's
 -- `when` for 0024_recurring_auto_recording_from.

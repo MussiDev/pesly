@@ -15,6 +15,7 @@ const NEWER_TAGS = [
   '0021_installment_currency',
   '0022_card_statement_import_lines',
   '0023_recurring_payments',
+  '0024_recurring_auto_recording_from',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
