@@ -61,6 +61,7 @@ const payment: RecurringPaymentResponse = {
   startDate: '2026-10-05',
   endDate: null,
   mode: 'confirmation',
+  reminderDays: 3,
   status: 'active',
   nextDueDate: '2026-11-05',
 };
@@ -310,10 +311,90 @@ describe('PaymentFormContainer', () => {
           dayOfMonth: 5,
           startDate: '2026-10-09',
           mode: 'confirmation',
+          reminderDays: 3,
         },
       },
     ]);
   });
+
+  it('shows the reminder days field with 3 prefilled (AC-29)', async () => {
+    await openForm();
+    const field = screen.getByLabelText<HTMLInputElement>(en.recurring.fields.reminderDays);
+    expect(field.value).toBe('3');
+    expect(screen.getByText(en.recurring.reminderDaysHint)).toBeDefined();
+  });
+
+  it('sends reminderDays 3 when the field is left untouched (AC-01)', async () => {
+    const { calls } = await openForm();
+    await fillRequired();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: en.recurring.actions.create }));
+
+    await waitFor(() => {
+      expect(writes(calls)).toHaveLength(1);
+    });
+    expect(writes(calls)[0]).toMatchObject({ body: { reminderDays: 3 } });
+  });
+
+  it('sends a changed value, and 0 is allowed (AC-01)', async () => {
+    const { calls } = await openForm();
+    await fillRequired();
+    const user = userEvent.setup();
+    const field = screen.getByLabelText(en.recurring.fields.reminderDays);
+    await user.clear(field);
+    await user.type(field, '0');
+    await user.click(screen.getByRole('button', { name: en.recurring.actions.create }));
+
+    await waitFor(() => {
+      expect(writes(calls)).toHaveLength(1);
+    });
+    expect(writes(calls)[0]).toMatchObject({ body: { reminderDays: 0 } });
+  });
+
+  it.each(['-1', '31', '1.5'])(
+    'shows the field error and sends nothing for %s (AC-02)',
+    async (value) => {
+      const { calls } = await openForm();
+      await fillRequired();
+      const user = userEvent.setup();
+      const field = screen.getByLabelText(en.recurring.fields.reminderDays);
+      await user.clear(field);
+      await user.type(field, value);
+      await user.click(screen.getByRole('button', { name: en.recurring.actions.create }));
+
+      expect(await screen.findByText(en.recurring.errors.reminderDaysInvalid)).toBeDefined();
+      expect(writes(calls)).toEqual([]);
+    },
+  );
+
+  it('shows the same field error for a server VALIDATION_FAILED on reminderDays (AC-02)', async () => {
+    const stub = stubApi({
+      ...reference,
+      'POST /recurring/payments': {
+        status: 400,
+        body: { code: 'VALIDATION_FAILED', fields: ['body.reminderDays'] },
+      },
+    });
+    renderApp(<PaymentFormContainer />, { locale: 'en' });
+    await screen.findByLabelText(en.recurring.fields.name);
+    await fillRequired();
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: en.recurring.actions.create }));
+
+    expect(await screen.findByText(en.recurring.errors.reminderDaysInvalid)).toBeDefined();
+    expect(writes(stub.calls)).toHaveLength(1);
+  });
+
+  async function fillRequired() {
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(en.recurring.fields.name), 'Rent');
+    await user.type(screen.getByLabelText(en.recurring.fields.amount), '350000.00');
+    await user.selectOptions(screen.getByLabelText(en.recurring.fields.account), ACCOUNT_ID);
+    await user.selectOptions(screen.getByLabelText(en.recurring.fields.category), CATEGORY_ID);
+    await user.type(screen.getByLabelText(en.recurring.fields.dayOfMonth), '5');
+  }
 });
 
 describe('PaymentDetailContainer', () => {
@@ -396,6 +477,46 @@ describe('PaymentDetailContainer', () => {
       method: 'PATCH',
       body: { name: 'Rent', amount: '40000000', frequency: 'monthly', dayOfMonth: 5 },
     });
+  });
+
+  it('starts the edit form from the stored reminder days and sends the changed value (AC-03)', async () => {
+    const stored = { ...payment, reminderDays: 7 };
+    const { calls } = await openDetail(
+      detailRoutes({
+        [PAYMENT]: { status: 200, body: stored },
+        [`PATCH /recurring/payments/${PAYMENT_ID}`]: {
+          status: 200,
+          body: { ...stored, reminderDays: 10 },
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: en.recurring.actions.edit }));
+    const field = screen.getByLabelText<HTMLInputElement>(en.recurring.fields.reminderDays);
+    expect(field.value).toBe('7');
+    await user.clear(field);
+    await user.type(field, '10');
+    await user.click(screen.getByRole('button', { name: en.recurring.actions.save }));
+
+    await waitFor(() => {
+      expect(writes(calls)).toHaveLength(1);
+    });
+    expect(writes(calls)[0]).toMatchObject({ method: 'PATCH', body: { reminderDays: 10 } });
+  });
+
+  it('shows the field error when the server rejects reminderDays on update (AC-02)', async () => {
+    await openDetail(
+      detailRoutes({
+        [`PATCH /recurring/payments/${PAYMENT_ID}`]: {
+          status: 400,
+          body: { code: 'VALIDATION_FAILED', fields: ['body.reminderDays'] },
+        },
+      }),
+    );
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: en.recurring.actions.edit }));
+    await user.click(screen.getByRole('button', { name: en.recurring.actions.save }));
+    expect(await screen.findByText(en.recurring.errors.reminderDaysInvalid)).toBeDefined();
   });
 
   it("shows the not found message for a payment that is not the user's", async () => {

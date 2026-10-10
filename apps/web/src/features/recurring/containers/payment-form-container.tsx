@@ -15,7 +15,7 @@ import {
   RecurringPaymentForm,
   type RecurringFormErrors,
 } from '../components/recurring-payment-form';
-import { failurePath } from '../recurring-failure';
+import { saveFailureErrors } from '../recurring-failure';
 import {
   buildRecurringPaymentRequest,
   type RecurringPaymentFormValues,
@@ -81,7 +81,7 @@ export function PaymentFormContainer() {
     setPending(false);
     if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
     // The form stays mounted, so what the user typed is still there for a retry.
-    else setErrors({ form: failurePath(result) });
+    else setErrors(saveFailureErrors(result));
   }
 
   if (state.kind !== 'ready') {

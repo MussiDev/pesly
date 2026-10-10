@@ -118,6 +118,38 @@ describe('RecurringPaymentForm', () => {
     });
   });
 
+  it('prefills reminder days with 3 for a new payment and starts an edit from the stored value (AC-29, AC-03)', () => {
+    const view = renderApp(<RecurringPaymentForm {...formProps} />, { locale: 'en' });
+    expect(screen.getByLabelText<HTMLInputElement>(en.recurring.fields.reminderDays).value).toBe(
+      '3',
+    );
+    view.unmount();
+    renderApp(
+      <RecurringPaymentForm
+        {...formProps}
+        mode="edit"
+        initial={{
+          name: 'Gym',
+          amount: '1,500.00',
+          accountId: ACCOUNT_ID,
+          categoryId: CATEGORY_ID,
+          frequency: 'monthly',
+          weekday: '',
+          dayOfMonth: '5',
+          month: '',
+          startDate: '2026-10-01',
+          endDate: '',
+          mode: 'automatic',
+          reminderDays: '12',
+        }}
+      />,
+      { locale: 'en' },
+    );
+    expect(screen.getByLabelText<HTMLInputElement>(en.recurring.fields.reminderDays).value).toBe(
+      '12',
+    );
+  });
+
   it('shows per-field messages (AC-02)', () => {
     renderApp(
       <RecurringPaymentForm
@@ -146,6 +178,7 @@ describe('RecurringPaymentForm', () => {
           startDate: '2026-10-01',
           endDate: '',
           mode: 'automatic',
+          reminderDays: '5',
         }}
       />,
       { locale: 'en' },
@@ -292,6 +325,7 @@ describe('RecurringPaymentList', () => {
     startDate: '2026-10-05',
     endDate: null,
     mode: 'confirmation',
+    reminderDays: 3,
     status: 'active',
     nextDueDate: '2026-11-05',
     ...overrides,

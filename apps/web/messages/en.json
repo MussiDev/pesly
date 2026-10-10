@@ -1238,8 +1238,10 @@
       "category": "Category",
       "dayOfMonth": "Day of the month",
       "startDate": "Start date",
-      "endDate": "End date (optional)"
+      "endDate": "End date (optional)",
+      "reminderDays": "Remind me … days before"
     },
+    "reminderDaysHint": "We notify you this many days before each due date. Use 0 to be reminded only on the due date.",
     "actions": {
       "create": "Create payment",
       "edit": "Edit",
@@ -1289,7 +1291,8 @@
       "monthRequired": "Choose a month.",
       "dateInvalid": "Enter a valid date.",
       "endBeforeStart": "The end date cannot be before the start date.",
-      "modeRequired": "Choose how it is recorded."
+      "modeRequired": "Choose how it is recorded.",
+      "reminderDaysInvalid": "Enter a whole number of days from 0 to 30."
     }
   }
 }

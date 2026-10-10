@@ -1238,8 +1238,10 @@
       "category": "Categoría",
       "dayOfMonth": "Día del mes",
       "startDate": "Fecha de inicio",
-      "endDate": "Fecha de fin (opcional)"
+      "endDate": "Fecha de fin (opcional)",
+      "reminderDays": "Avisarme … días antes"
     },
+    "reminderDaysHint": "Te avisamos esta cantidad de días antes de cada vencimiento. Usa 0 para recibir el aviso solo el día del vencimiento.",
     "actions": {
       "create": "Crear pago",
       "edit": "Editar",
@@ -1289,7 +1291,8 @@
       "monthRequired": "Elegí un mes.",
       "dateInvalid": "Ingresá una fecha válida.",
       "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
-      "modeRequired": "Elegí cómo se registra."
+      "modeRequired": "Elegí cómo se registra.",
+      "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30."
     }
   }
 }

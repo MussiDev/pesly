@@ -22,6 +22,7 @@ function rent(overrides: Partial<RecurringPaymentFormValues> = {}): RecurringPay
     startDate: '2026-10-05',
     endDate: '',
     mode: 'confirmation',
+    reminderDays: '3',
     ...overrides,
   };
 }
@@ -39,6 +40,7 @@ describe('buildRecurringPaymentRequest', () => {
       dayOfMonth: 5,
       startDate: '2026-10-05',
       mode: 'confirmation',
+      reminderDays: 3,
     });
     expect(createRecurringPaymentSchema.safeParse(result.request).success).toBe(true);
   });
@@ -148,6 +150,24 @@ describe('buildRecurringPaymentRequest', () => {
     expect(
       buildRecurringPaymentRequest(rent({ frequency: 'yearly', month: '' }), 'en').fields?.month,
     ).toBe('recurring.errors.monthRequired');
+  });
+
+  it('reads reminder days as a whole number from 0 to 30 and defaults an empty one to 3 (AC-01)', () => {
+    expect(buildRecurringPaymentRequest(rent({ reminderDays: '' }), 'es').request).toMatchObject({
+      reminderDays: 3,
+    });
+    expect(buildRecurringPaymentRequest(rent({ reminderDays: '0' }), 'es').request).toMatchObject({
+      reminderDays: 0,
+    });
+    expect(buildRecurringPaymentRequest(rent({ reminderDays: '30' }), 'es').request).toMatchObject({
+      reminderDays: 30,
+    });
+  });
+
+  it.each(['-1', '31', '1.5', 'abc'])('rejects reminder days %s (AC-02)', (reminderDays) => {
+    const result = buildRecurringPaymentRequest(rent({ reminderDays }), 'en');
+    expect(result.request).toBeUndefined();
+    expect(result.fields?.reminderDays).toBe('recurring.errors.reminderDaysInvalid');
   });
 
   it('rejects out-of-range or non-integer weekday, day and month (AC-02)', () => {
