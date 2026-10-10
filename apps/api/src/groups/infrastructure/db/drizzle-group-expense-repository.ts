@@ -227,7 +227,8 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     query: ListPersonalSharesQuery,
   ): Promise<PersonalSharesPageResult> {
     const cursor = query.cursor === undefined ? null : decodeCursor(query.cursor);
-    // A registered member has at most one row per group, so each expense appears once.
+    // A user can have several member rows in one group (leaving and rejoining); each row only
+    // matches the expenses it paid or shared, so an expense still appears once per row involved.
     const rows = await this.db
       .select({
         id: groupExpenses.id,
@@ -296,6 +297,10 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
   async setDefaultSplit(groupId: string, split: DefaultSplit): Promise<DefaultSplit> {
     try {
       await this.db.transaction(async (tx) => {
+        // Same lock and recheck as an expense, so a member who leaves cannot be named (spec D10).
+        await lockGroup(tx, groupId, 'share');
+        const named = split.mode === 'percentage' ? split.shares.map((s) => s.memberId) : [];
+        if (!(await allActiveMembers(tx, groupId, named))) throw new GroupSplitMemberInvalid();
         await tx.update(groups).set({ defaultSplitMode: split.mode }).where(eq(groups.id, groupId));
         await tx
           .delete(groupDefaultSplitShares)

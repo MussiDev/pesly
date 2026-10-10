@@ -494,6 +494,27 @@ describe('consolidated settlements', () => {
     );
   });
 
+  it('answers 400 VALIDATION_FAILED when the converted cash exceeds the maximum and stores nothing (overflow)', async () => {
+    const w = await world();
+    // Ana owes Bob 5e14 USD while Bob owes Ana 500.00 ARS.
+    await expense(w, w.bobMember, '1000000000000000', 'USD', [w.anaMember, w.bobMember]);
+    await expense(w, w.anaMember, '100000', 'ARS', [w.anaMember, w.bobMember]);
+    const shown = await preview(w);
+
+    const response = await call(
+      w.api.app,
+      'post',
+      `/groups/${w.groupId}/settlements`,
+      w.ana.cookies,
+      consolidatedBody(w, shown.legs, { currency: 'ARS', rate: '999999999999' }),
+    );
+
+    expect(response.status).toBe(400);
+    expect((response.body as { code: string }).code).toBe('VALIDATION_FAILED');
+    const rows = await connection.pool.query('select 1 from group_settlements');
+    expect(rows.rowCount).toBe(0);
+  });
+
   it('answers 400 for a consolidation preview with the same member twice (invalid query)', async () => {
     const w = await world();
     const response = await call(

@@ -7,6 +7,7 @@ import {
   MAX_GROUP_MEMBERS,
   type NewGroupExpense,
 } from '../../src/groups';
+import { TokenInvalid } from '../../src/groups/domain/errors';
 import { DrizzleGroupExpenseRepository } from '../../src/groups/infrastructure/db/drizzle-group-expense-repository';
 import { DrizzleGroupMembershipReader } from '../../src/groups/infrastructure/db/drizzle-group-membership-reader';
 import { DrizzleGroupRepository } from '../../src/groups/infrastructure/db/drizzle-group-repository';
@@ -490,6 +491,82 @@ describe('removal against a concurrent expense', () => {
         );
         expect(stored).toBe(1);
       }
+    }
+  });
+});
+
+interface ErrorWithCode {
+  code?: string;
+  cause?: { code?: string };
+}
+
+describe('removal against a concurrent claim or link replacement of the same ghost', () => {
+  const ROUNDS = 25;
+  const unusedLinks = (memberId: string) =>
+    scalar('select count(*) as n from group_claim_links where member_id = $1 and used_at is null', [
+      memberId,
+    ]);
+  /** drizzle wraps the driver error, so the SQLSTATE sits on `cause`. */
+  const noDeadlock = (result: PromiseSettledResult<unknown>) => {
+    const reason = result.status === 'rejected' ? (result.reason as ErrorWithCode) : null;
+    expect(reason?.code).not.toBe('40P01');
+    expect(reason?.cause?.code).not.toBe('40P01');
+  };
+
+  it('never deadlocks and leaves no usable link on a ghost who left (claim)', async () => {
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const w = await world();
+      const token = tokens.generate();
+      await repository.replaceClaimLink({
+        groupId: w.groupId,
+        memberId: w.ghostMember,
+        tokenHash: token.hash,
+      });
+      const claimer = await newUserId(connection.db);
+
+      const [removal, claim] = await Promise.allSettled([
+        remove(w, w.ghostMember),
+        repository.claimGhost({ tokenHash: token.hash, userId: claimer, now: NOW }),
+      ]);
+
+      noDeadlock(removal);
+      noDeadlock(claim);
+      expect(removal.status).toBe('fulfilled');
+      expect(await leftAtOf(w.ghostMember)).not.toBeNull();
+      expect(await unusedLinks(w.ghostMember)).toBe(0);
+      const owner = await connection.pool.query<{ user_id: string | null }>(
+        'select user_id from group_members where id = $1',
+        [w.ghostMember],
+      );
+      expect(owner.rows[0]?.user_id ?? null).toBe(claim.status === 'fulfilled' ? claimer : null);
+      if (claim.status === 'rejected') expect(claim.reason).toBeInstanceOf(TokenInvalid);
+    }
+  });
+
+  it('never deadlocks and leaves no usable link on a ghost who left (replace link)', async () => {
+    for (let round = 0; round < ROUNDS; round += 1) {
+      const w = await world();
+      await repository.replaceClaimLink({
+        groupId: w.groupId,
+        memberId: w.ghostMember,
+        tokenHash: tokens.generate().hash,
+      });
+
+      const [removal, replaced] = await Promise.allSettled([
+        remove(w, w.ghostMember),
+        repository.replaceClaimLink({
+          groupId: w.groupId,
+          memberId: w.ghostMember,
+          tokenHash: tokens.generate().hash,
+        }),
+      ]);
+
+      noDeadlock(removal);
+      noDeadlock(replaced);
+      expect(removal.status).toBe('fulfilled');
+      if (replaced.status === 'rejected') expect(replaced.reason).toBeInstanceOf(ResourceNotFound);
+      expect(await leftAtOf(w.ghostMember)).not.toBeNull();
+      expect(await unusedLinks(w.ghostMember)).toBe(0);
     }
   });
 });

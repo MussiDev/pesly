@@ -1,6 +1,7 @@
 import {
   AppError,
   convertMinorUnits,
+  MOVEMENT_AMOUNT_MAX_MINOR_UNITS,
   simplifyDebts,
   type AccountCurrency,
   type DebtPayment,
@@ -162,7 +163,14 @@ export function consolidate(
   rate: bigint,
 ): Consolidation {
   const other: AccountCurrency = currency === 'ARS' ? 'USD' : 'ARS';
-  const cash = legs[currency] + convertMinorUnits(legs[other], other, rate);
+  const converted = convertMinorUnits(legs[other], other, rate);
+  const cash = legs[currency] + converted;
+  if (
+    abs(converted) > MOVEMENT_AMOUNT_MAX_MINOR_UNITS ||
+    abs(cash) > MOVEMENT_AMOUNT_MAX_MINOR_UNITS
+  ) {
+    throw new SettlementCashTooLarge();
+  }
   const sign = cash < 0n ? -1n : 1n;
   return {
     fromMemberId: sign === 1n ? a : b,
@@ -174,6 +182,18 @@ export function consolidate(
       { currency: 'USD', amount: legs.USD * sign },
     ],
   };
+}
+
+const abs = (value: bigint): bigint => (value < 0n ? -value : value);
+
+/** The cash of a consolidation, or a converted leg, is above the movement maximum (400, spec D7). */
+export class SettlementCashTooLarge extends AppError {
+  constructor() {
+    super('VALIDATION_FAILED', 'The consolidated amount exceeds the maximum', [
+      'body.legs',
+      'body.rate',
+    ]);
+  }
 }
 
 /** A settlement amount that is zero or negative (400 `VALIDATION_FAILED`, spec D4). */

@@ -444,6 +444,36 @@ describe('listPersonalShares', () => {
     expect(asMember).toMatchObject({ shareAmount: 2_000_000n, receivableAmount: null });
   });
 
+  it('lists the shares of both member rows of a user who left at balance 0 and rejoined, each once', async () => {
+    const w = await newWorld();
+    const before = await repository.saveExpense(
+      expenseOf(w, {
+        payerMemberId: w.beaMember,
+        members: [w.beaMember],
+        amount: 1_000_000n,
+      }),
+    );
+    await groupsRepo.removeMember({ groupId: w.groupId, memberId: w.beaMember, leftAt: NOW });
+    const rejoined = await connection.pool.query<{ id: string }>(
+      'insert into group_members (group_id, user_id) values ($1, $2) returning id',
+      [w.groupId, w.bea],
+    );
+    const newRow = rejoined.rows[0]?.id ?? '';
+    const after = await repository.saveExpense(expenseOf(w, { members: [w.anaMember, newRow] }));
+
+    const view = await repository.listPersonalShares(w.bea, { limit: 10 });
+
+    expect(view.items.map((i) => i.expenseId).sort()).toEqual([before.id, after.id].sort());
+    expect(view.items.find((i) => i.expenseId === before.id)).toMatchObject({
+      shareAmount: 1_000_000n,
+      receivableAmount: 0n,
+    });
+    expect(view.items.find((i) => i.expenseId === after.id)).toMatchObject({
+      shareAmount: 2_000_000n,
+      receivableAmount: null,
+    });
+  });
+
   it('answers a validation error for an invalid cursor (sad path)', async () => {
     const w = await newWorld();
 
@@ -499,6 +529,30 @@ describe('default split', () => {
       repository.setDefaultSplit(w.groupId, {
         mode: 'percentage',
         shares: [{ memberId: other.anaMember, basisPoints: 10_000 }],
+      }),
+    ).rejects.toBeInstanceOf(GroupSplitMemberInvalid);
+
+    expect(await repository.getDefaultSplit(w.groupId)).toEqual({
+      mode: 'percentage',
+      shares: [{ memberId: w.anaMember, basisPoints: 10_000 }],
+    });
+  });
+
+  it('answers an invalid-member error for a member who left and keeps the previous split', async () => {
+    const w = await newWorld();
+    await repository.setDefaultSplit(w.groupId, {
+      mode: 'percentage',
+      shares: [{ memberId: w.anaMember, basisPoints: 10_000 }],
+    });
+    await groupsRepo.removeMember({ groupId: w.groupId, memberId: w.beaMember, leftAt: NOW });
+
+    await expect(
+      repository.setDefaultSplit(w.groupId, {
+        mode: 'percentage',
+        shares: [
+          { memberId: w.anaMember, basisPoints: 5_000 },
+          { memberId: w.beaMember, basisPoints: 5_000 },
+        ],
       }),
     ).rejects.toBeInstanceOf(GroupSplitMemberInvalid);
 

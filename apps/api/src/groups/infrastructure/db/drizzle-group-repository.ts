@@ -286,14 +286,18 @@ export class DrizzleGroupRepository implements GroupRepository {
 
   async replaceClaimLink(data: ReplaceClaimLinkData): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // Group first, then member, then link: the order removeMember follows (spec D10).
+      await lockGroup(tx, data.groupId);
       // Serializes concurrent replacements of one ghost's link; the unique index is the backstop.
-      await tx
+      const [locked] = await tx
         .select({ id: groupMembers.id })
         .from(groupMembers)
         .where(
           and(eq(groupMembers.id, data.memberId), eq(groupMembers.groupId, data.groupId), active),
         )
         .for('update');
+      // The ghost left while this request waited: no link for a member who is gone.
+      if (!locked) throw new ResourceNotFound();
       await tx
         .delete(groupClaimLinks)
         .where(and(eq(groupClaimLinks.memberId, data.memberId), isNull(groupClaimLinks.usedAt)));
@@ -308,7 +312,16 @@ export class DrizzleGroupRepository implements GroupRepository {
   async claimGhost(data: ClaimGhostData): Promise<Member> {
     try {
       return await this.db.transaction(async (tx) => {
-        // A concurrent claim of the same link waits on this row, then finds `used_at` set.
+        // The group lock comes before any member or link row, as in removeMember (spec D10); the
+        // link is only read here to find the group.
+        const [found] = await tx
+          .select({ groupId: groupClaimLinks.groupId })
+          .from(groupClaimLinks)
+          .where(and(eq(groupClaimLinks.tokenHash, data.tokenHash), isNull(groupClaimLinks.usedAt)))
+          .limit(1);
+        if (!found) throw new TokenInvalid();
+        await lockGroup(tx, found.groupId);
+        // A concurrent claim of the same link waits on the group lock, then finds `used_at` set.
         const [link] = await tx
           .update(groupClaimLinks)
           .set({ usedAt: data.now })

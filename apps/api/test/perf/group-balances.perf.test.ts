@@ -1,4 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GetBalances } from '../../src/groups';
+import { DrizzleGroupRepository } from '../../src/groups/infrastructure/db/drizzle-group-repository';
 import { DrizzleGroupSettlementRepository } from '../../src/groups/infrastructure/db/drizzle-group-settlement-repository';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
@@ -12,7 +14,8 @@ import {
 } from '../groups/settlement-db-world';
 
 /**
- * NFR-03 of DISC-001-05c: the balances query of a group with 50 members and 10,000 expenses
+ * NFR-03 of DISC-001-05c: the `GetBalances` use case (membership check, group read, balance
+ * aggregates and debt simplification) of a group with 50 members and 10,000 expenses
  * answers in under 500 ms at p95 over 20 runs. Run it alone with
  * `pnpm --filter ./apps/api test:perf group-balances`.
  */
@@ -44,6 +47,10 @@ describe('group balances latency (NFR-03)', () => {
   it('keeps p95 of 20 balance reads with 50 members and 10,000 expenses below 500 ms', async () => {
     const w = await newDbWorld(connection.db, connection.pool, { ghosts: MEMBERS - 1 });
     const repository = new DrizzleGroupSettlementRepository(connection.db);
+    const getBalances = new GetBalances({
+      groups: new DrizzleGroupRepository(connection.db),
+      settlements: repository,
+    });
     const random = seededRandom(5003);
     const int = (max: number) => Math.floor(random() * max);
     const expenses: SqlExpense[] = [];
@@ -78,9 +85,9 @@ describe('group balances latency (NFR-03)', () => {
     const latencies: number[] = [];
     for (let run = 0; run < RUNS; run += 1) {
       const started = performance.now();
-      const sources = await repository.readBalanceSources(w.groupId);
+      const balances = await getBalances.execute(w.userId, w.groupId);
       latencies.push(performance.now() - started);
-      expect(sources.ARS.paid.size).toBeGreaterThan(0);
+      expect(balances.ARS.members).toHaveLength(MEMBERS);
     }
 
     const p95 = percentile(latencies, 95);
