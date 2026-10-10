@@ -510,6 +510,19 @@ const REGISTRY: readonly RegisteredTable[] = [
       );
     },
   },
+  {
+    table: 'notices',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // No foreign key to the payment, so the notice needs no seeded payment of its own.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into notices (owner_id, kind, payment_id, due_date, text) values ($1, 'reminder', gen_random_uuid(), '2026-10-05', 'Rent is due tomorrow')",
+        [context.userId],
+      );
+    },
+  },
 ];
 
 /** Created by the access-control tests and never dropped; they are not user data of the product. */
