@@ -52,6 +52,10 @@ function renderShell() {
   );
 }
 
+/** The unread badge asks for its own count; these tests are about the other calls. */
+const withoutNotices = <T extends { path: string }>(calls: T[]) =>
+  calls.filter((call) => !call.path.startsWith('/notices'));
+
 describe('AuthenticatedShellContainer', () => {
   it('shows the app only after the API confirms a verified session', async () => {
     const { calls } = stubApi({ 'GET /auth/session': session(true) });
@@ -65,7 +69,9 @@ describe('AuthenticatedShellContainer', () => {
     expect(await screen.findByText('private content')).toBeDefined();
     expect(document.querySelector('[data-slot="skeleton"]')).toBeNull();
     expect(screen.getByRole('button', { name: es.auth.signOut.label })).toBeDefined();
-    expect(calls).toEqual([{ method: 'GET', path: '/auth/session', body: undefined }]);
+    expect(withoutNotices(calls)).toEqual([
+      { method: 'GET', path: '/auth/session', body: undefined },
+    ]);
   });
 
   it('refreshes an expired access token before deciding', async () => {
@@ -77,7 +83,7 @@ describe('AuthenticatedShellContainer', () => {
 
     expect(await screen.findByText('private content')).toBeDefined();
     expect(router.replace).not.toHaveBeenCalled();
-    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+    expect(withoutNotices(calls).map((call) => `${call.method} ${call.path}`)).toEqual([
       'GET /auth/session',
       'GET /auth/session',
       'POST /auth/refresh',
@@ -538,7 +544,7 @@ describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
     renderShell();
     expect(await screen.findByText('private content')).toBeDefined();
     await queue(1);
-    expect(calls).toEqual([]);
+    expect(withoutNotices(calls)).toEqual([]);
 
     setOnline(true);
     window.dispatchEvent(new Event('online'));
@@ -546,7 +552,7 @@ describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
     await waitFor(async () => {
       expect(await queued()).toBe(0);
     });
-    expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+    expect(withoutNotices(calls).map((call) => `${call.method} ${call.path}`)).toEqual([
       'GET /auth/session',
       'POST /movements',
     ]);
@@ -580,11 +586,11 @@ describe('AuthenticatedShellContainer sending the queue (DISC-001-04b)', () => {
     await waitFor(async () => {
       expect(await queued()).toBe(0);
     });
-    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual([
-      `DELETE /movements/${id(2)}`,
-      'GET /auth/session',
-      `PUT /movements/${id(1)}`,
-    ]);
+    expect(
+      withoutNotices(calls)
+        .map((call) => `${call.method} ${call.path}`)
+        .sort(),
+    ).toEqual([`DELETE /movements/${id(2)}`, 'GET /auth/session', `PUT /movements/${id(1)}`]);
   });
 
   it('starts a pass when a save fell back to the queue while online, and not while offline (FR-04)', async () => {

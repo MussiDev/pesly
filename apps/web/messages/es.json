@@ -74,7 +74,8 @@
       "more": "Más",
       "addMovement": "Agregar movimiento",
       "cards": "Tarjetas",
-      "recurring": "Recurrentes"
+      "recurring": "Recurrentes",
+      "notices": "Avisos"
     },
     "more": {
       "title": "Más",
@@ -1145,6 +1146,24 @@
       "notPositive": "El número debe ser mayor que cero.",
       "quantityInvalid": "Ingresa una cantidad válida.",
       "amountInvalid": "Ingresa un monto dentro del rango permitido."
+    }
+  },
+  "notices": {
+    "title": "Avisos",
+    "description": "Recordatorios y resultados de tus pagos recurrentes.",
+    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes aparecerán aquí.",
+    "markAllRead": "Marcar todos como leídos",
+    "loadMore": "Cargar más",
+    "retry": "Reintentar",
+    "unread": "Sin leer",
+    "unreadCount": "{count, plural, =0 {No hay avisos sin leer} one {# aviso sin leer} other {# avisos sin leer}}",
+    "linkLabel": "Avisos, {count} sin leer",
+    "overflow": "{max}+",
+    "dueOn": "Vence el {date}",
+    "listLabel": "Tus avisos",
+    "errors": {
+      "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
+      "markRead": "No pudimos marcar el aviso como leído. Inténtalo de nuevo."
     }
   },
   "recurring": {

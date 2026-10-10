@@ -76,6 +76,12 @@ import {
   listRecurringPaymentsResponseSchema,
   recurringPaymentResponseSchema,
   upcomingResponseSchema,
+  listNoticesResponseSchema,
+  markAllReadResponseSchema,
+  noticeSchema,
+  type ListNoticesResponse,
+  type MarkAllReadResponse,
+  type Notice,
   type ConfirmOccurrence,
   type CreateRecurringPayment,
   type ListRecurringPaymentsResponse,
@@ -377,6 +383,10 @@ export interface ApiClient {
   /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
   confirmOccurrence(occurrenceId: string, body: ConfirmOccurrence): Promise<ApiResult<undefined>>;
   skipOccurrence(occurrenceId: string): Promise<ApiResult<undefined>>;
+  /** Newest first; `cursor` is the `nextCursor` of the previous page, passed back untouched. */
+  listNotices(query?: { limit?: number; cursor?: string }): Promise<ApiResult<ListNoticesResponse>>;
+  markNoticeRead(id: string): Promise<ApiResult<Notice>>;
+  markAllNoticesRead(): Promise<ApiResult<MarkAllReadResponse>>;
   listCreditCards(): Promise<ApiResult<ListCreditCardsResponse>>;
   createCreditCard(body: CreateCreditCardRequest): Promise<ApiResult<CreditCardResponse>>;
   getCreditCard(id: string): Promise<ApiResult<CreditCardResponse>>;
@@ -872,6 +882,38 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
+    listNotices: (query) => {
+      const params = new URLSearchParams();
+      if (query?.limit !== undefined) params.set('limit', String(query.limit));
+      if (query?.cursor !== undefined) params.set('cursor', query.cursor);
+      const queryString = params.toString();
+      return request({
+        method: 'GET',
+        path: queryString ? `/notices?${queryString}` : '/notices',
+        response: listNoticesResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    markNoticeRead: (id) => {
+      const path = resourcePath('notices', id);
+      return path === null
+        ? Promise.resolve(failure('VALIDATION_FAILED'))
+        : request({
+            method: 'POST',
+            path: `${path}/read`,
+            body: {},
+            response: noticeSchema,
+            refreshOnUnauthenticated: true,
+          });
+    },
+    markAllNoticesRead: () =>
+      request({
+        method: 'POST',
+        path: '/notices/read-all',
+        body: {},
+        response: markAllReadResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
     listCreditCards: () =>
       request({
         method: 'GET',

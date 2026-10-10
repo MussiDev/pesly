@@ -1,6 +1,7 @@
 'use client';
 
 import { Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useTranslations } from 'next-intl';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { buttonVariants } from '@/components/ui/button';
@@ -9,6 +10,7 @@ import { cn } from '@/lib/utils';
 import {
   ADD_MOVEMENT_HREF,
   isActivePath,
+  NOTICES_ITEM,
   PRIMARY_ITEMS,
   SECONDARY_ITEMS,
   type NavItem,
@@ -20,12 +22,16 @@ export interface TopNavProps {
   currentPath?: string;
   signingOut: boolean;
   onSignOut: () => void;
+  /** The notices link with its unread badge; it replaces the text destination of the notices. */
+  notices?: ReactNode;
 }
 
-const DESTINATIONS: readonly NavItem[] = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS];
+const DESTINATIONS: readonly NavItem[] = [...PRIMARY_ITEMS, ...SECONDARY_ITEMS].filter(
+  (item) => item.href !== NOTICES_ITEM.href,
+);
 
 /** The top navigation card from `lg`; below it the floating bottom bar and the More page take over. */
-export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
+export function TopNav({ currentPath, signingOut, onSignOut, notices }: TopNavProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
 
@@ -73,6 +79,7 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
           <Plus aria-hidden />
           {tNav('addMovement')}
         </Link>
+        {notices}
         <ThemeToggle />
         <SignOutButton pending={signingOut} onSignOut={onSignOut} iconOnly />
       </div>

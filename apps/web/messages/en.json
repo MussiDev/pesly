@@ -74,7 +74,8 @@
       "more": "More",
       "addMovement": "Add movement",
       "cards": "Cards",
-      "recurring": "Recurring"
+      "recurring": "Recurring",
+      "notices": "Notices"
     },
     "more": {
       "title": "More",
@@ -1145,6 +1146,24 @@
       "notPositive": "The number must be greater than zero.",
       "quantityInvalid": "Enter a valid quantity.",
       "amountInvalid": "Enter an amount within the allowed range."
+    }
+  },
+  "notices": {
+    "title": "Notices",
+    "description": "Reminders and results of your recurring payments.",
+    "empty": "You have no notices yet. Reminders about your recurring payments will show up here.",
+    "markAllRead": "Mark all as read",
+    "loadMore": "Load more",
+    "retry": "Try again",
+    "unread": "Unread",
+    "unreadCount": "{count, plural, =0 {No unread notices} one {# unread notice} other {# unread notices}}",
+    "linkLabel": "Notices, {count} unread",
+    "overflow": "{max}+",
+    "dueOn": "Due {date}",
+    "listLabel": "Your notices",
+    "errors": {
+      "load": "We could not load your notices. Check your connection and try again.",
+      "markRead": "We could not mark the notice as read. Try again."
     }
   },
   "recurring": {

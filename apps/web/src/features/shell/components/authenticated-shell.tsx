@@ -24,6 +24,8 @@ export interface AuthenticatedShellProps {
   syncStatus?: ReactNode;
   /** The warning before a sign out that would lose changes not yet synced. */
   signOutConfirmation?: ReactNode;
+  /** The notices link with its unread badge, shown in the top navigation. */
+  notices?: ReactNode;
   children: ReactNode;
 }
 
@@ -37,6 +39,7 @@ export function AuthenticatedShell({
   onSignOut,
   syncStatus,
   signOutConfirmation,
+  notices,
   children,
 }: AuthenticatedShellProps) {
   const t = useTranslations('app');
@@ -64,7 +67,12 @@ export function AuthenticatedShell({
       >
         {t('skipToContent')}
       </a>
-      <TopNav currentPath={currentPath} signingOut={signingOut} onSignOut={onSignOut} />
+      <TopNav
+        currentPath={currentPath}
+        signingOut={signingOut}
+        onSignOut={onSignOut}
+        notices={notices}
+      />
       {/* The pages bring their own <main>; this wrapper is only the skip link's target. The bottom
           padding keeps the last element clear of the floating bar below md. */}
       <div

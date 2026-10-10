@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  Bell,
   CreditCard,
   Ellipsis,
   House,
@@ -22,6 +23,7 @@ export type NavLabelKey =
   | 'categories'
   | 'cards'
   | 'recurring'
+  | 'notices'
   | 'profile'
   | 'security';
 
@@ -54,11 +56,14 @@ export const PRIMARY_ITEMS: readonly NavItem[] = [
   INVESTMENTS_ITEM,
 ];
 
+export const NOTICES_ITEM: NavItem = { href: '/notices', labelKey: 'notices', icon: Bell };
+
 /** What "More" holds on small screens and the top navigation shows directly. */
 export const SECONDARY_ITEMS: readonly NavItem[] = [
   { href: '/categories', labelKey: 'categories', icon: Tags },
   { href: '/cards', labelKey: 'cards', icon: CreditCard },
   { href: '/recurring', labelKey: 'recurring', icon: Repeat },
+  NOTICES_ITEM,
   { href: '/settings/profile', labelKey: 'profile', icon: UserRound },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
 ];

@@ -22,6 +22,10 @@ import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es, en } = CATALOGS;
 
+/** The unread badge asks for its own count; these tests are about the other calls. */
+const withoutNotices = <T extends { path: string }>(calls: T[]) =>
+  calls.filter((call) => !call.path.startsWith('/notices'));
+
 type Slot = 'bottom-nav' | 'top-nav';
 
 function navOf(container: HTMLElement, slot: Slot): HTMLElement {
@@ -348,6 +352,7 @@ describe('MoreMenu (FR-07)', () => {
       '/en/categories',
       '/en/cards',
       '/en/recurring',
+      '/en/notices',
       '/en/settings/profile',
       '/en/settings/security',
     ]);
@@ -661,7 +666,7 @@ describe('MoreContainer and the /more page', () => {
     await vi.waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
     });
-    expect(calls).toEqual([{ method: 'POST', path: '/auth/sign-out', body: {} }]);
+    expect(withoutNotices(calls)).toEqual([{ method: 'POST', path: '/auth/sign-out', body: {} }]);
   });
 
   it('keeps the user in place and shows the alert when signing out fails', async () => {
@@ -709,14 +714,14 @@ describe('MoreContainer and the /more page', () => {
     expect(dialog.textContent).toContain(
       '1 change has not been sent yet. If you sign out now, it will be lost.',
     );
-    expect(calls).toEqual([]);
+    expect(withoutNotices(calls)).toEqual([]);
 
     await user.click(within(dialog).getByRole('button', { name: en.auth.signOut.confirm }));
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
     });
-    expect(calls).toEqual([{ method: 'POST', path: '/auth/sign-out', body: {} }]);
+    expect(withoutNotices(calls)).toEqual([{ method: 'POST', path: '/auth/sign-out', body: {} }]);
     expect(readSessionPointer()).toBeNull();
     await waitFor(async () => {
       const names = (await indexedDB.databases()).map((database) => database.name);
