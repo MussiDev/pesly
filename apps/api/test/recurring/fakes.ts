@@ -322,6 +322,9 @@ export class FakeExpenseRecorder implements ExpenseRecorder {
 
 /** Active automatic payments of every owner, keyset-paged by id, with the owner's zone. */
 export class FakeAutomaticPaymentSource implements AutomaticPaymentSource {
+  /** Per-user languages; owners without one write in Spanish. */
+  readonly languages = new Map<string, 'es' | 'en'>();
+
   constructor(
     private readonly payments: InMemoryPayments,
     private readonly timeZones: FakeTimeZones,
@@ -341,6 +344,7 @@ export class FakeAutomaticPaymentSource implements AutomaticPaymentSource {
       rows.map(async (row) => ({
         ownerId: row.ownerId,
         timeZone: await this.timeZones.timeZoneOf(row.ownerId),
+        language: this.languages.get(row.ownerId) ?? 'es',
         payment: row.payment,
       })),
     );

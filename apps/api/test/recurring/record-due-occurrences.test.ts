@@ -421,6 +421,163 @@ describe('RecordDueOccurrences', () => {
   });
 });
 
+class NoticeStoreDown extends Error {}
+
+describe('RecordDueOccurrences notices (FR-05, FR-06, FR-11, FR-12)', () => {
+  it('publishes one recorded notice with the name, the due date and the owner language, and no amount (AC-12)', async () => {
+    const app = setup();
+    app.source.languages.set(ANA, 'en');
+    const payment = await addPayment(app);
+
+    await app.job.execute();
+
+    expect(app.notices.published).toEqual([
+      {
+        ownerId: ANA,
+        kind: 'recorded',
+        paymentId: payment.id,
+        paymentName: 'Rent',
+        dueDate: '2026-10-05',
+        language: 'en',
+      },
+    ]);
+    expect(JSON.stringify(app.notices.published)).not.toMatch(/35000000|account-|category-/);
+  });
+
+  it('an archived account leaves the occurrence pending and publishes one not_recorded notice (AC-13)', async () => {
+    const app = setup();
+    const payment = await addPayment(app);
+    app.expenses.failWith = new AppError('ACCOUNT_ARCHIVED');
+
+    const summary = await app.job.execute();
+
+    expect(summary).toMatchObject({ recorded: 0, failed: 1 });
+    expect(statusesOf(app)).toEqual(['2026-10-05:pending']);
+    expect(app.notices.published).toEqual([
+      {
+        ownerId: ANA,
+        kind: 'not_recorded',
+        paymentId: payment.id,
+        paymentName: 'Rent',
+        dueDate: '2026-10-05',
+        language: 'es',
+      },
+    ]);
+  });
+
+  it('five more retries of that occurrence keep one not_recorded notice (AC-14)', async () => {
+    const app = setup();
+    await addPayment(app);
+    app.expenses.failWith = new AppError('ACCOUNT_ARCHIVED');
+
+    for (let pass = 0; pass < 6; pass++) await app.job.execute();
+
+    expect(app.notices.published.filter((n) => n.kind === 'not_recorded')).toHaveLength(1);
+    expect(app.failures).toHaveLength(6);
+  });
+
+  it('three passes over the same recorded occurrence keep one recorded notice (AC-23)', async () => {
+    const app = setup();
+    await addPayment(app);
+
+    await app.job.execute();
+    await app.job.execute();
+    await app.job.execute();
+
+    expect(app.notices.published.filter((n) => n.kind === 'recorded')).toHaveLength(1);
+  });
+
+  it('a recorded occurrence whose publisher insert reports a duplicate stays recorded and silent', async () => {
+    const app = setup();
+    await addPayment(app);
+    app.notices.publish = () => Promise.resolve(false);
+
+    const summary = await app.job.execute();
+
+    expect(summary).toMatchObject({ recorded: 1, failed: 0 });
+    expect(app.failures).toEqual([]);
+  });
+
+  it('sad path: a publisher failure keeps the expense, does not count as failed, does not stop the others and is reported with ids only (AC-25)', async () => {
+    const app = setup();
+    for (const id of [ANA, BEA, CAI]) await addPayment(app, id);
+    const original = app.notices.publish.bind(app.notices);
+    app.notices.publish = (input) =>
+      input.ownerId === BEA
+        ? Promise.reject(new NoticeStoreDown('Rent 35000000'))
+        : original(input);
+
+    const summary = await app.job.execute();
+
+    expect(summary).toMatchObject({ payments: 3, recorded: 3, failed: 0 });
+    expect(app.expenses.expenses).toHaveLength(3);
+    expect(statusesOf(app)).toEqual(Array(3).fill('2026-10-05:confirmed'));
+    expect(app.notices.published.map((n) => n.ownerId).sort()).toEqual([ANA, CAI]);
+    const beaOccurrence = app.occurrences.rows.find((row) => row.ownerId === BEA)?.occurrence;
+    expect(app.failures).toEqual([
+      {
+        paymentId: beaOccurrence?.paymentId,
+        occurrenceId: beaOccurrence?.id,
+        errorName: 'NoticeStoreDown',
+      },
+    ]);
+    expect(JSON.stringify(app.failures)).not.toMatch(/Rent|35000000/);
+  });
+
+  it('sad path: a publisher failure for a not_recorded notice is reported once and the expense failure is still counted once', async () => {
+    const app = setup();
+    await addPayment(app);
+    await addPayment(app, BEA);
+    app.expenses.failWith = new AppError('ACCOUNT_ARCHIVED');
+    app.notices.publish = () => Promise.reject(new NoticeStoreDown('down'));
+
+    const summary = await app.job.execute();
+
+    expect(summary).toMatchObject({ payments: 2, recorded: 0, failed: 2 });
+    expect(app.failures.map((f) => f.errorName)).toEqual([
+      'AppError',
+      'NoticeStoreDown',
+      'AppError',
+      'NoticeStoreDown',
+    ]);
+  });
+
+  it('sad path: a plain Error from the recorder is reported and creates no not_recorded notice (AC-13)', async () => {
+    const app = setup();
+    await addPayment(app);
+    app.expenses.failWith = new Error('connection reset');
+
+    const summary = await app.job.execute();
+
+    expect(summary).toMatchObject({ recorded: 0, failed: 1 });
+    expect(app.failures).toHaveLength(1);
+    expect(app.failures[0]?.errorName).toBe('Error');
+    expect(app.notices.published).toEqual([]);
+  });
+
+  it('sad path: a ResourceNotFound raised by the recorder (not by the lock) is a domain failure and publishes not_recorded', async () => {
+    const app = setup();
+    await addPayment(app);
+    app.expenses.recordOnce = () => Promise.reject(new ResourceNotFound());
+
+    await app.job.execute();
+
+    expect(app.notices.published.map((n) => n.kind)).toEqual(['not_recorded']);
+  });
+
+  it('sad path: an occurrence that vanished or was already resolved publishes nothing', async () => {
+    const app = setup();
+    await addPayment(app);
+    app.occurrences.withLockedPending = () => Promise.reject(new OccurrenceNotPending());
+
+    await app.job.execute();
+    app.occurrences.withLockedPending = () => Promise.reject(new ResourceNotFound());
+    await app.job.execute();
+
+    expect(app.notices.published).toEqual([]);
+  });
+});
+
 describe('MaterializeOccurrences for automatic payments (FR-05)', () => {
   it('creates pending rows only before autoRecordingFrom', async () => {
     const app = setup('2026-10-05T12:00:00.000Z');

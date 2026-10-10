@@ -1,9 +1,12 @@
 import type { RecurringPayment } from '../../domain/recurring-payment';
+import type { NoticePublisherLanguage } from './notice-publisher';
 
-/** An active automatic payment with the owner it belongs to and the owner's time zone. */
+/** An active automatic payment with the owner it belongs to, the owner's time zone and language. */
 export interface AutomaticPaymentEntry {
   ownerId: string;
   timeZone: string;
+  /** The language the owner's notices are written in. */
+  language: NoticePublisherLanguage;
   payment: RecurringPayment;
 }
 

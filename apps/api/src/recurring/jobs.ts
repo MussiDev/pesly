@@ -41,6 +41,7 @@ export function createRecordingJob({
   db,
   logger,
   recorder,
+  notices,
   clock = new SystemClock(),
   intervalSeconds,
 }: RecurringJobFactoryDependencies): RecordingJob {
@@ -50,6 +51,7 @@ export function createRecordingJob({
     source: new DrizzleAutomaticPaymentSource(db),
     occurrences: new DrizzleOccurrenceRepository(db),
     expenses: recorder,
+    notices,
     clock,
     // The only constructor of a write scope: `ownerId` comes from the source's `users` join.
     scopeFor: (ownerId) =>

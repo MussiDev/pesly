@@ -9,7 +9,7 @@ import {
   type ReminderFailure,
 } from '../../src/recurring/application/create-due-reminders';
 import { RecordDueOccurrences } from '../../src/recurring/application/record-due-occurrences';
-import { recurringFakes, writeScopeFor } from './fakes';
+import { FakeNoticePublisher, recurringFakes, writeScopeFor } from './fakes';
 
 const ANA = 'ana';
 const BEA = 'bea';
@@ -195,6 +195,8 @@ describe('CreateDueReminders', () => {
     );
     await new RecordDueOccurrences({
       ...app,
+      // Its own publisher: the recorded notice of this job is not what the reminders are counted on.
+      notices: new FakeNoticePublisher(),
       scopeFor: (ownerId) => writeScopeFor(ownerId),
       report: () => undefined,
       info: () => undefined,
