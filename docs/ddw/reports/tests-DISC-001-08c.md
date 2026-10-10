@@ -43,6 +43,16 @@ ones for this ticket (`recurring-reminders.perf.test.ts` and `notices-list.perf.
 - In the full benchmark run, 3 tests of `movements-save` and `movements-edit-delete` (not touched by this
   ticket) exceeded 300 ms while all the benchmark files ran at once; `movements-save` passed when run
   with the recurring and notices benchmarks, so I attribute it to the same contention.
-- Block tests were written before their code and seen failing first, except the ones that assert a
-  guard or an absence (the erasure cascade, the plain-error case and the migration tests that passed on
-  a database already migrated by an earlier run), as each implementer reported.
+- Failing-first evidence, as each implementer reported it (not recoverable from git, because each
+  block landed as one commit with its tests): Block 1, the whole new file failed to load (module
+  missing); Block 2, 13 of 13 on the first run, with 7 migration tests passing only because the
+  throwaway database had been migrated by an earlier run; Block 3, 4 of 6 (the other 2 are
+  regression guards); Block 4, 34 of 34; Block 5, 3 of 3 files failed to load; Block 6, 12 of 15 (the
+  other 3 assert an absence); Block 7, 10 of 11 (the erasure test proves the owner cascade that Block 2
+  already built); Block 8, 21 of 21; Block 9, 17 of 17; Block 10, benchmarks and guards passed on the
+  first run because the code already existed, and a mutation check (an amount added to a notice text)
+  made 2 of 5 guard tests fail.
+- After the green run two tests were changed: the AC-03 check in `create-due-reminders.test.ts` now also
+  steps through the old reminder day, and `notice-repository.test.ts` gained a storage-error test. Both
+  files were rerun alone (29 of 29 passing); the full suite was not rerun, so the totals above are those
+  of the green run.
