@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ListRow } from '@/components/ui/list-row';
-import { formatCalendarDate } from '@/features/credit-cards/format-dates';
+import { calendarDay, formatCalendarDate, shortMonth } from '@/features/credit-cards/format-dates';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatAmount, formatMoney } from '@/lib/format-amount';
@@ -43,53 +43,69 @@ export function OccurrenceRow({ item, lookups, pending, onConfirm, onSkip }: Occ
   const account = lookups.accounts[item.accountId]?.name ?? t('list.unknownAccount');
   const category = lookups.categories[item.categoryId] ?? t('list.unknownCategory');
 
+  const dueText = t('list.dueOn', { date: formatCalendarDate(item.dueDate, locale) });
+
   return (
-    <ListRow
-      title={
-        <Link href={`/recurring/${item.paymentId}`} className="rounded-md focus-visible:outline-2">
-          {item.name}
-        </Link>
-      }
-      description={
-        <>
-          <span>{t('list.dueOn', { date: formatCalendarDate(item.dueDate, locale) })}</span>
-          <span aria-hidden="true"> · </span>
-          <span className="tabular-nums">{amountText}</span>
-          <span className="block">
-            {account} · {category}
+    <>
+      <ListRow
+        leading={
+          <span aria-hidden="true" className="grid w-11 justify-items-center leading-tight">
+            <span className="text-heading font-bold">{calendarDay(item.dueDate)}</span>
+            <span className="text-nav text-muted-foreground">
+              {shortMonth(item.dueDate, locale)}
+            </span>
           </span>
-        </>
-      }
-      trailing={
-        <span className="flex flex-wrap items-center justify-end gap-2">
-          <Badge variant={BADGE_VARIANT[item.kind]}>{t(`status.${item.kind}`)}</Badge>
-          {actionable ? (
-            <>
-              <Button
-                size="sm"
-                disabled={pending}
-                aria-label={`${t('actions.confirm')} ${item.name}`}
-                onClick={() => {
-                  onConfirm(item);
-                }}
-              >
-                {t('actions.confirm')}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={pending}
-                aria-label={`${t('actions.skip')} ${item.name}`}
-                onClick={() => {
-                  onSkip(item);
-                }}
-              >
-                {t('actions.skip')}
-              </Button>
-            </>
-          ) : null}
-        </span>
-      }
-    />
+        }
+        title={
+          <Link
+            href={`/recurring/${item.paymentId}`}
+            className="rounded-md focus-visible:outline-2"
+          >
+            {item.name}
+          </Link>
+        }
+        description={
+          <>
+            <span className={item.kind === 'scheduled' ? undefined : 'font-semibold text-warning'}>
+              {dueText}
+            </span>
+            <span className="block">
+              {account} · {category}
+            </span>
+          </>
+        }
+        trailing={
+          <span className="grid justify-items-end gap-1">
+            <span className="font-bold tabular-nums">{amountText}</span>
+            <Badge variant={BADGE_VARIANT[item.kind]}>{t(`status.${item.kind}`)}</Badge>
+          </span>
+        }
+      />
+      {actionable ? (
+        <div className="flex flex-wrap justify-end gap-2 pb-3">
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={pending}
+            aria-label={`${t('actions.skip')} ${item.name}`}
+            onClick={() => {
+              onSkip(item);
+            }}
+          >
+            {t('actions.skip')}
+          </Button>
+          <Button
+            size="sm"
+            disabled={pending}
+            aria-label={`${t('actions.confirm')} ${item.name}`}
+            onClick={() => {
+              onConfirm(item);
+            }}
+          >
+            {t('actions.confirm')}
+          </Button>
+        </div>
+      ) : null}
+    </>
   );
 }

@@ -32,7 +32,7 @@ export function StatementList({
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
 
   return (
-    <ul className="divide-y rounded-xl border bg-card px-3">
+    <ul className="divide-y divide-border/70 rounded-card bg-card px-4">
       {statements.map((statement) => {
         const label = formatPeriod(statement.period, locale);
         const open = statement.status === 'open';

@@ -66,7 +66,7 @@ export function UpcomingList({
         <p className="text-small text-muted-foreground">{t('listNoUpcoming')}</p>
       ) : (
         <ul
-          className="divide-y rounded-xl border bg-card px-3"
+          className="divide-y divide-border/70 rounded-card bg-card px-4"
           aria-label={t('list.upcomingLabel')}
         >
           {ordered.map((item) => {
