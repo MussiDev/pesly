@@ -19,3 +19,8 @@ export * from './application/make-admin';
 export * from './application/list-group-categories';
 export * from './application/create-group-category';
 export * from './application/update-group-category';
+export { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository';
+export { DrizzleGroupMembershipReader } from './infrastructure/db/drizzle-group-membership-reader';
+export { eraseUserGroups } from './infrastructure/db/erase-user-groups';
+export { RandomTokenSource } from './infrastructure/crypto/random-token-source';
+export { SystemClock } from './infrastructure/clock/system-clock';
