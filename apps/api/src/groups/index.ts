@@ -41,6 +41,9 @@ export * from './application/leave-group';
 export { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository';
 export { DrizzleGroupMembershipReader } from './infrastructure/db/drizzle-group-membership-reader';
 export { DrizzleGroupExpenseRepository } from './infrastructure/db/drizzle-group-expense-repository';
+export { DrizzleGroupSettlementRepository } from './infrastructure/db/drizzle-group-settlement-repository';
+export { DrizzleSettlementAccountChecker } from './infrastructure/accounts/drizzle-settlement-account-checker';
+export { DrizzleRateReader } from './infrastructure/rates/drizzle-rate-reader';
 export {
   DrizzlePayerMovementRecorder,
   type PayerTx,

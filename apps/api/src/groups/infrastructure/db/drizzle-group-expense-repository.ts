@@ -1,4 +1,3 @@
-import { AppError } from '@pesly/shared';
 import { and, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
@@ -20,6 +19,8 @@ import {
   type GroupExpenseShare,
   type PersonalShare,
 } from '../../domain/group-expense';
+import { allActiveMembers, lockGroup } from './group-locks';
+import { decodeCursor, pageOf, type Cursor } from './keyset-cursor';
 import {
   groupActivityLog,
   groupDefaultSplitShares,
@@ -59,44 +60,6 @@ const expenseColumns = {
 };
 
 type ExpenseRow = typeof groupExpenses.$inferSelect;
-
-interface Cursor {
-  occurredAt: Date;
-  id: string;
-}
-
-const BASE64URL = /^[A-Za-z0-9_-]+$/;
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const CURSOR_MAX_LENGTH = 512;
-
-function encodeCursor(occurredAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ at: occurredAt.toISOString(), id }), 'utf8').toString(
-    'base64url',
-  );
-}
-
-function invalidCursor(): AppError {
-  return new AppError('VALIDATION_FAILED', 'Invalid cursor', ['query.cursor']);
-}
-
-/** Anything that is not a cursor this adapter produced answers the usual validation error. */
-function decodeCursor(value: string): Cursor {
-  if (value.length === 0 || value.length > CURSOR_MAX_LENGTH || !BASE64URL.test(value)) {
-    throw invalidCursor();
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
-  } catch {
-    throw invalidCursor();
-  }
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) throw invalidCursor();
-  const { at, id } = parsed as Record<string, unknown>;
-  if (typeof at !== 'string' || typeof id !== 'string' || !UUID.test(id)) throw invalidCursor();
-  const occurredAt = new Date(at);
-  if (Number.isNaN(occurredAt.getTime()) || occurredAt.toISOString() !== at) throw invalidCursor();
-  return { occurredAt, id };
-}
 
 function checkViolation(error: unknown): string | undefined {
   let current: unknown = error;
@@ -158,17 +121,6 @@ function afterCursor(cursor: Cursor | null): SQL | undefined {
     : sql`(${groupExpenses.occurredAt}, ${groupExpenses.id}) < (${cursor.occurredAt.toISOString()}::timestamptz, ${cursor.id}::uuid)`;
 }
 
-function pageOf<T extends { id: string; occurredAt: Date }>(
-  rows: T[],
-  limit: number,
-): { items: T[]; nextCursor: string | null } {
-  const items = rows.slice(0, limit);
-  const last = items[items.length - 1];
-  const nextCursor =
-    rows.length > limit && last !== undefined ? encodeCursor(last.occurredAt, last.id) : null;
-  return { items, nextCursor };
-}
-
 export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
   constructor(
     private readonly db: Database,
@@ -178,6 +130,18 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
   async saveExpense(data: NewGroupExpense): Promise<GroupExpense> {
     try {
       return await this.db.transaction(async (tx) => {
+        // Group lock first, then the members, like the settlement path (spec D10): an expense
+        // never lands beside a settlement that is reading the balances, nor for a member who left.
+        await lockGroup(tx, data.groupId, 'share');
+        const involved = [
+          data.payerMemberId,
+          data.createdByMemberId,
+          data.activity.memberId,
+          ...data.shares.map((share) => share.memberId),
+        ];
+        if (!(await allActiveMembers(tx, data.groupId, involved))) {
+          throw new GroupSplitMemberInvalid();
+        }
         const [row] = await tx
           .insert(groupExpenses)
           .values({
