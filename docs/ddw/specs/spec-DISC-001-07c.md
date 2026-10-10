@@ -153,6 +153,7 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — a body of 1,000 holdings is accepted (under 384 kb) and one of 1,001 answers 400 — validates NFR-01.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — an invalid body, a foreign portfolio (404, not 403), no session (401) and an unverified email each answer their code and leave the portfolio unchanged (invalid input) — validates AC-05.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — the log line contains the counts and none of the tickers or amounts of the request — validates NFR-02.
+- [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — a path that only contains the import path (for example `/x/investments/portfolios/<id>/holdings/import` or with a suffix) does not get the 384 kb limit and a 20 kb body to it is refused (invalid input) — validates NFR-01 and the threat R-03.
 - [ ] `apps/api/test/investments/request-path.test.ts` (modified) — the import route performs no external call — validates the "no external service in the request path" rule.
 
 **Completion criterion**
@@ -238,6 +239,7 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - [ ] `apps/web/test/import-holdings-dialog.test.tsx` — a wrong file shows the translated reason and no confirm button (invalid input) — validates AC-05 and AC-07.
 - [ ] `apps/web/test/investments-container-import.test.tsx` — confirm sends only parsed holdings, then renders the returned portfolio; an API 400 keeps the dialog open with the message (error path) — validates AC-03 and AC-05.
 - [ ] `apps/web/test/investments-container-import.test.tsx` — after confirm and after cancel, nothing about the file remains in IndexedDB or the sync queue — validates AC-06 and NFR-02.
+- [ ] `apps/web/test/import-holdings-dialog.test.tsx` — a ticker and a name such as `<img src=x onerror=alert(1)>` and `=HYPERLINK("x")` render as plain text and no `dangerouslySetInnerHTML` appears in the import components (invalid input) — validates AC-02 and the threat R-08.
 - [ ] `apps/web/test/import-holdings-dialog.test.tsx` — the dialog has labelled controls, is operable by keyboard and has no axe violations in English and Spanish — validates the accessibility rule of the web app.
 
 **Completion criterion**
