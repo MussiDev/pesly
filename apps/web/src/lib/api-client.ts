@@ -168,6 +168,11 @@ export type ApiErrorKey =
   | 'groupAlreadyMember'
   | 'groupMemberLimitReached'
   | 'groupMemberNotRegistered'
+  | 'groupSplitPercentageInvalid'
+  | 'groupSplitAmountMismatch'
+  | 'groupSplitMemberInvalid'
+  | 'groupExpenseCategoryInvalid'
+  | 'groupPayerAccountInvalid'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -232,6 +237,11 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GROUP_ALREADY_MEMBER: 'groupAlreadyMember',
   GROUP_MEMBER_LIMIT_REACHED: 'groupMemberLimitReached',
   GROUP_MEMBER_NOT_REGISTERED: 'groupMemberNotRegistered',
+  GROUP_SPLIT_PERCENTAGE_INVALID: 'groupSplitPercentageInvalid',
+  GROUP_SPLIT_AMOUNT_MISMATCH: 'groupSplitAmountMismatch',
+  GROUP_SPLIT_MEMBER_INVALID: 'groupSplitMemberInvalid',
+  GROUP_EXPENSE_CATEGORY_INVALID: 'groupExpenseCategoryInvalid',
+  GROUP_PAYER_ACCOUNT_INVALID: 'groupPayerAccountInvalid',
 };
 
 /**
