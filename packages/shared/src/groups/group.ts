@@ -110,8 +110,18 @@ export const groupMemberResponseSchema = z.object({
 
 export type GroupMemberResponse = z.infer<typeof groupMemberResponseSchema>;
 
+/** A member who left or was removed; kept so clients can name the history that mentions them. */
+export const formerGroupMemberResponseSchema = z.object({
+  id: z.string(),
+  displayName: z.string().nullable(),
+  leftAt: z.iso.datetime(),
+});
+
+export type FormerGroupMemberResponse = z.infer<typeof formerGroupMemberResponseSchema>;
+
 export const groupDetailResponseSchema = groupResponseSchema.extend({
   members: z.array(groupMemberResponseSchema),
+  formerMembers: z.array(formerGroupMemberResponseSchema),
 });
 
 export type GroupDetailResponse = z.infer<typeof groupDetailResponseSchema>;

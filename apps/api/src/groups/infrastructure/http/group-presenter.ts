@@ -40,7 +40,8 @@ export function presentGroup(summary: GroupSummary): GroupResponse {
 }
 
 export function presentGroupDetail(detail: GroupWithMembers): GroupDetailResponse {
-  return { ...presentGroup(detail), members: detail.members.map(presentMember) };
+  // Left members arrive with the membership adapters (spec Block 5); none exist before then.
+  return { ...presentGroup(detail), members: detail.members.map(presentMember), formerMembers: [] };
 }
 
 /** The raw token leaves the API here and only here; the database keeps its hash. */

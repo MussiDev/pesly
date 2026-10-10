@@ -56,3 +56,18 @@ describe('group expense error codes over HTTP', () => {
     });
   });
 });
+
+describe('group settlement and membership error codes over HTTP', () => {
+  it.each<[ErrorCode, number]>([
+    ['GROUP_SETTLEMENT_MEMBER_INVALID', 400],
+    ['GROUP_SETTLEMENT_ACCOUNT_INVALID', 400],
+    ['GROUP_SETTLEMENT_NOTHING_TO_CONSOLIDATE', 400],
+    ['GROUP_MEMBER_HAS_BALANCE', 409],
+    ['GROUP_LAST_ADMIN', 409],
+    ['GROUP_SETTLEMENT_STALE', 409],
+  ])('%s answers %i with its code in the body (AC-16, AC-19)', async (code, status) => {
+    const response = await request(appThrowing(code)).get('/boom');
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ code });
+  });
+});
