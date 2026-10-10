@@ -1180,6 +1180,42 @@
         "confirm": "Sí, eliminar"
       }
     },
+    "import": {
+      "action": "Importar desde Balanz",
+      "actionFor": "Importar tenencias de Balanz en {name}",
+      "title": "Importar tenencias de Balanz",
+      "description": "Elegí el archivo Excel (.xlsx) que Balanz exporta desde Mis Instrumentos. Se lee en tu dispositivo y nunca se sube.",
+      "fileLabel": "Archivo Excel de Balanz",
+      "reading": "Leyendo el archivo…",
+      "preview": {
+        "heading": "Revisá antes de importar",
+        "summary": "{created} para agregar, {updated} para actualizar, {removed} para quitar.",
+        "create": "Para agregar",
+        "update": "Para actualizar",
+        "remove": "Para quitar",
+        "none": "Ninguna",
+        "removeWarning": "Estas tenencias no están en el archivo. Al importar se eliminan de esta cartera, incluso las que cargaste a mano.",
+        "currencyFor": "Moneda de {ticker}",
+        "typeLabel": "Tipo: {type}",
+        "currencyNote": "Balanz no indica la moneda de cada tenencia. Todas empiezan en pesos; cambiá las que están en dólares."
+      },
+      "confirm": "Importar",
+      "pending": "Importando…",
+      "cancel": "Cancelar",
+      "done": "Importado: {created} agregadas, {updated} actualizadas, {removed} quitadas.",
+      "errors": {
+        "notExcel": "Este no es un archivo Excel. Exportá tus tenencias de Balanz como Excel (.xlsx).",
+        "tooLarge": "El archivo es demasiado grande. Puede pesar como máximo 1 MB.",
+        "wrongSheet": "El archivo no tiene la hoja \"Mis Instrumentos\". Exportá tus tenencias de Balanz como Excel.",
+        "missingColumns": "Al archivo le faltan estas columnas: {detail}.",
+        "badRow": "La fila {detail} del archivo no es válida. No se importó nada.",
+        "tooManyRows": "El archivo tiene más de 1.000 tenencias. No se importó nada.",
+        "empty": "El archivo no tiene tenencias.",
+        "unreadable": "No pudimos leer el archivo. Volvé a exportarlo desde Balanz.",
+        "duplicateTicker": "El archivo repite un ticker. No se importó nada.",
+        "rejected": "No pudimos importar estas tenencias. No se cambió nada."
+      }
+    },
     "errors": {
       "network": "No pudimos conectarnos con el servidor. Revisa tu conexión.",
       "retryLater": "Algo salió mal. Vuelve a intentarlo en un momento.",

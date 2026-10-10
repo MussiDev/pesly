@@ -1180,6 +1180,42 @@
         "confirm": "Yes, delete"
       }
     },
+    "import": {
+      "action": "Import from Balanz",
+      "actionFor": "Import holdings from Balanz into {name}",
+      "title": "Import holdings from Balanz",
+      "description": "Choose the Excel file (.xlsx) that Balanz exports from My Instruments. It is read on your device and never uploaded.",
+      "fileLabel": "Balanz Excel file",
+      "reading": "Reading the file…",
+      "preview": {
+        "heading": "Review before importing",
+        "summary": "{created} to add, {updated} to update, {removed} to remove.",
+        "create": "To add",
+        "update": "To update",
+        "remove": "To remove",
+        "none": "None",
+        "removeWarning": "These holdings are not in the file. Importing deletes them from this portfolio, including any you added by hand.",
+        "currencyFor": "Currency of {ticker}",
+        "typeLabel": "Type: {type}",
+        "currencyNote": "Balanz does not say the currency of each holding. Every holding starts in pesos; change the ones in dollars."
+      },
+      "confirm": "Import",
+      "pending": "Importing…",
+      "cancel": "Cancel",
+      "done": "Imported: {created} added, {updated} updated, {removed} removed.",
+      "errors": {
+        "notExcel": "This is not an Excel file. Export your holdings from Balanz as Excel (.xlsx).",
+        "tooLarge": "The file is too large. It can have at most 1 MB.",
+        "wrongSheet": "The file has no \"Mis Instrumentos\" sheet. Export your holdings from Balanz as Excel.",
+        "missingColumns": "The file is missing these columns: {detail}.",
+        "badRow": "Row {detail} of the file is not valid. Nothing was imported.",
+        "tooManyRows": "The file has more than 1,000 holdings. Nothing was imported.",
+        "empty": "The file has no holdings.",
+        "unreadable": "We could not read the file. Export it again from Balanz.",
+        "duplicateTicker": "The file repeats a ticker. Nothing was imported.",
+        "rejected": "We could not import these holdings. Nothing was changed."
+      }
+    },
     "errors": {
       "network": "We could not reach the server. Check your connection.",
       "retryLater": "Something went wrong. Try again in a moment.",

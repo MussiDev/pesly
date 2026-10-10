@@ -107,6 +107,56 @@ describe('investments api client', () => {
     expectGuarded(init);
   });
 
+  it('importHoldings posts only the parsed fields to the import path, never a file (AC-03)', async () => {
+    const response = { created: 1, updated: 0, removed: 0, portfolio };
+    const { client, fetch } = clientWith(jsonResponse(200, response));
+    const holdings = [
+      {
+        ticker: 'IBIT',
+        instrumentName: 'CEDEAR ISHARES BITCOIN TR (IBIT)',
+        instrumentType: 'cedear' as const,
+        valuationCurrency: 'USD' as const,
+        quantity: '4600000000',
+        totalCost: '41949600',
+        unitPrice: '753500',
+        pricedOn: '2026-10-09',
+      },
+    ];
+
+    const result = await client.importHoldings(PORTFOLIO_ID, { holdings });
+
+    expect(result).toEqual({ ok: true, data: response });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/investments/portfolios/${PORTFOLIO_ID}/holdings/import`);
+    expect(init.method).toBe('POST');
+    expect(typeof init.body).toBe('string');
+    expect(JSON.parse(init.body as string)).toEqual({ holdings });
+    expectGuarded(init);
+  });
+
+  it('importHoldings exposes the fields of a 400 and maps a 404 and a network error (AC-05)', async () => {
+    const { client } = clientWith(
+      jsonResponse(400, { code: 'VALIDATION_FAILED', fields: ['body.holdings'] }),
+      jsonResponse(404, { code: 'NOT_FOUND' }),
+      new TypeError('offline'),
+    );
+    const body = { holdings: [] };
+
+    expect(await client.importHoldings(PORTFOLIO_ID, body)).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+      fields: ['body.holdings'],
+    });
+    expect(await client.importHoldings(PORTFOLIO_ID, body)).toMatchObject({
+      ok: false,
+      code: 'NOT_FOUND',
+    });
+    expect(await client.importHoldings(PORTFOLIO_ID, body)).toMatchObject({
+      ok: false,
+      code: 'NETWORK',
+    });
+  });
+
   it('addHolding posts to the portfolio and exposes merged (AC-02, AC-05)', async () => {
     const { client, fetch } = clientWith(jsonResponse(200, { holding, merged: true }));
 
