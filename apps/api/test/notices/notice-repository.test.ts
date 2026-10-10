@@ -207,3 +207,14 @@ describe('MarkAllNoticesRead', () => {
     expect((await readAtOf(id ?? ''))?.getTime()).toBe(firstReadAt?.getTime());
   });
 });
+
+describe('storage errors', () => {
+  it('propagates a storage error from the repository unchanged (AC-25)', async () => {
+    const owner = await newUserId(connection.db);
+    const broken = createDatabase(testDatabaseUrl);
+    await broken.pool.end();
+    const failing = new ListNotices(new DrizzleNoticeRepository(broken.db));
+
+    await expect(failing.execute(readScope(owner), { limit: 10 })).rejects.toThrow();
+  });
+});

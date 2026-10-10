@@ -228,6 +228,11 @@ describe('CreateDueReminders', () => {
     await app.job.execute();
     expect(app.notices.published).toEqual([]);
 
+    // The old 3-day reminder day (10-07) has passed: with 3 days a catch-up would create it now.
+    app.clock.current = new Date('2026-10-08T12:00:00.000Z');
+    await app.job.execute();
+    expect(app.notices.published).toEqual([]);
+
     app.clock.current = new Date('2026-10-10T12:00:00.000Z');
     await app.job.execute();
 
