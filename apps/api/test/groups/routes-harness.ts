@@ -7,7 +7,9 @@ import {
 import type { Express } from 'express';
 import request from 'supertest';
 import { expect } from 'vitest';
+import { createAccountRoutes } from '../../src/accounts';
 import { createGroupRoutes } from '../../src/groups';
+import { createAccountMovements, createMovementRoutes } from '../../src/movements';
 import type { DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
 import { MutableClock } from '../fakes/mutable-clock';
@@ -30,7 +32,7 @@ export interface TestUser {
   cookies: SessionCookies;
 }
 
-export type Method = 'get' | 'post' | 'patch' | 'put';
+export type Method = 'get' | 'post' | 'patch' | 'put' | 'delete';
 
 export function call(
   app: Express,
@@ -41,11 +43,14 @@ export function call(
 ) {
   const req = request(app)[method](path).set(trustedHeaders);
   if (cookies) req.set('Cookie', cookieHeader(cookies));
-  return method === 'get' ? req : req.send(body ?? {});
+  return method === 'get' || method === 'delete' ? req : req.send(body ?? {});
 }
 
 /** The groups routes over a real session stack; the groups clock is movable. */
-export function setupGroupApi(connection: DatabaseConnection) {
+export function setupGroupApi(
+  connection: DatabaseConnection,
+  options: { withAccountRoutes?: boolean } = {},
+) {
   const groupLines: string[] = [];
   const logger = createLogger({
     level: 'debug',
@@ -54,7 +59,19 @@ export function setupGroupApi(connection: DatabaseConnection) {
   const clock = new MutableClock(new Date('2026-10-10T12:00:00.000Z'));
   const harness = createIdentityHarness(connection, {
     realSessions: true,
-    routerFactories: [createGroupRoutes({ db: connection.db, logger, clock })],
+    routerFactories: [
+      createGroupRoutes({ db: connection.db, logger, clock }),
+      ...(options.withAccountRoutes
+        ? [
+            createAccountRoutes({
+              db: connection.db,
+              logger,
+              movements: createAccountMovements(connection.db),
+            }),
+            createMovementRoutes({ db: connection.db, logger, clock }),
+          ]
+        : []),
+    ],
   });
 
   async function makeUser(name: string): Promise<TestUser> {
