@@ -44,6 +44,11 @@ export const ERROR_CODES = [
   'GROUP_ALREADY_MEMBER',
   'GROUP_MEMBER_LIMIT_REACHED',
   'GROUP_MEMBER_NOT_REGISTERED',
+  'GROUP_SPLIT_PERCENTAGE_INVALID',
+  'GROUP_SPLIT_AMOUNT_MISMATCH',
+  'GROUP_SPLIT_MEMBER_INVALID',
+  'GROUP_EXPENSE_CATEGORY_INVALID',
+  'GROUP_PAYER_ACCOUNT_INVALID',
   'INTERNAL',
 ] as const;
 
@@ -51,10 +56,15 @@ export const errorCodeSchema = z.enum(ERROR_CODES);
 
 export type ErrorCode = z.infer<typeof errorCodeSchema>;
 
-/** Body of every API error response. `fields` lists failing input paths, never their values. */
+/**
+ * Body of every API error response. `fields` lists failing input paths, never their values;
+ * `details` carries named integer values (as strings) a client needs to explain the failure, such
+ * as the total of a percentage split.
+ */
 export const errorResponseSchema = z.object({
   code: errorCodeSchema,
   fields: z.array(z.string()).optional(),
+  details: z.record(z.string(), z.string()).optional(),
 });
 
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
@@ -67,12 +77,20 @@ export class AppError extends Error {
   readonly code: ErrorCode;
   /** Failing input paths (`<part>.<path>`), never values; the error handler echoes them. */
   readonly fields: readonly string[] | undefined;
+  /** Named integer values as strings (never user text); the error handler echoes them. */
+  readonly details: Readonly<Record<string, string>> | undefined;
 
-  constructor(code: ErrorCode, message: string = code, fields?: string[]) {
+  constructor(
+    code: ErrorCode,
+    message: string = code,
+    fields?: string[],
+    details?: Record<string, string>,
+  ) {
     super(message);
     this.name = new.target.name;
     this.code = code;
     this.fields = fields;
+    this.details = details;
   }
 }
 

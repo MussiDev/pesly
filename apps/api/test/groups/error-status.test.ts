@@ -26,3 +26,33 @@ describe('group error codes over HTTP', () => {
     expect(response.body).toEqual({ code });
   });
 });
+
+describe('group expense error codes over HTTP', () => {
+  it.each<ErrorCode>([
+    'GROUP_SPLIT_PERCENTAGE_INVALID',
+    'GROUP_SPLIT_AMOUNT_MISMATCH',
+    'GROUP_SPLIT_MEMBER_INVALID',
+    'GROUP_EXPENSE_CATEGORY_INVALID',
+    'GROUP_PAYER_ACCOUNT_INVALID',
+  ])('%s answers 400 with its code in the body (AC-09, AC-11)', async (code) => {
+    const response = await request(appThrowing(code)).get('/boom');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({ code });
+  });
+
+  it('echoes the details of an error that carries them (AC-09, AC-11)', async () => {
+    const app = express();
+    app.get('/boom', () => {
+      throw new AppError('GROUP_SPLIT_AMOUNT_MISMATCH', 'mismatch', undefined, {
+        difference: '-300',
+      });
+    });
+    app.use(createErrorHandler(createLogger({ level: 'silent' })));
+    const response = await request(app).get('/boom');
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      code: 'GROUP_SPLIT_AMOUNT_MISMATCH',
+      details: { difference: '-300' },
+    });
+  });
+});

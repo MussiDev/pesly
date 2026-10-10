@@ -1,17 +1,20 @@
 import { CATEGORY_COLORS, RATE_TYPES, type CategoryIcon } from '@pesly/shared';
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   check,
   foreignKey,
   index,
+  integer,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { users } from './foreign-relations';
+import { movements, users } from './foreign-relations';
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
@@ -23,6 +26,10 @@ export const groups = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text('name').notNull(),
     defaultRateType: text('default_rate_type', { enum: RATE_TYPES }).notNull(),
+    // `equal` stores no rows in group_default_split_shares (spec D8).
+    defaultSplitMode: text('default_split_mode', { enum: ['equal', 'percentage'] })
+      .notNull()
+      .default('equal'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },
@@ -32,6 +39,10 @@ export const groups = pgTable(
     check(
       'groups_default_rate_type_check',
       sql`${table.defaultRateType} in (${RATE_TYPE_LITERALS})`,
+    ),
+    check(
+      'groups_default_split_mode_check',
+      sql`${table.defaultSplitMode} in ('equal', 'percentage')`,
     ),
   ],
 );
@@ -177,5 +188,150 @@ export const groupCategories = pgTable(
       .on(table.groupId, sql`lower(${table.name})`)
       .where(sql`${table.name} is not null`),
     index('group_categories_group_created_idx').on(table.groupId, table.createdAt, table.id),
+  ],
+);
+
+/**
+ * Amounts are minor units (bigint). Payer and creator are members of the same group through the
+ * composite keys, so an expense never points at another group's member (spec D1, D14). Members
+ * with expenses, shares or log entries cannot be deleted, so a group with expenses is not deleted.
+ */
+export const groupExpenses = pgTable(
+  'group_expenses',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    payerMemberId: uuid('payer_member_id').notNull(),
+    createdByMemberId: uuid('created_by_member_id').notNull(),
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+    currency: text('currency', { enum: ['ARS', 'USD'] }).notNull(),
+    occurredAt: timestamptz('occurred_at').notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => groupCategories.id),
+    description: text('description').notNull(),
+    splitMode: text('split_mode', { enum: ['equal', 'percentage', 'exact'] }).notNull(),
+    // Set null so account erasure (PRD 01f) does not fail on the movement (spec D6).
+    payerMovementId: uuid('payer_movement_id').references(() => movements.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    check('group_expenses_amount_check', sql`${table.amount} > 0`),
+    check('group_expenses_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
+    check(
+      'group_expenses_description_length_check',
+      sql`char_length(${table.description}) between 1 and 200`,
+    ),
+    check(
+      'group_expenses_split_mode_check',
+      sql`${table.splitMode} in ('equal', 'percentage', 'exact')`,
+    ),
+    unique('group_expenses_id_group_unique').on(table.id, table.groupId),
+    foreignKey({
+      name: 'group_expenses_payer_group_fk',
+      columns: [table.payerMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'group_expenses_creator_group_fk',
+      columns: [table.createdByMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    index('group_expenses_group_occurred_idx').on(
+      table.groupId,
+      table.occurredAt.desc(),
+      table.id.desc(),
+    ),
+    index('group_expenses_payer_idx').on(table.payerMemberId),
+  ],
+);
+
+/** One row per member of the split; `basis_points` is kept only for percentage splits (spec D2). */
+export const groupExpenseShares = pgTable(
+  'group_expense_shares',
+  {
+    expenseId: uuid('expense_id').notNull(),
+    memberId: uuid('member_id').notNull(),
+    groupId: uuid('group_id').notNull(),
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+    basisPoints: integer('basis_points'),
+  },
+  (table) => [
+    primaryKey({ name: 'group_expense_shares_pkey', columns: [table.expenseId, table.memberId] }),
+    check('group_expense_shares_amount_check', sql`${table.amount} >= 0`),
+    check(
+      'group_expense_shares_basis_points_check',
+      sql`${table.basisPoints} is null or ${table.basisPoints} between 0 and 10000`,
+    ),
+    foreignKey({
+      name: 'group_expense_shares_expense_group_fk',
+      columns: [table.expenseId, table.groupId],
+      foreignColumns: [groupExpenses.id, groupExpenses.groupId],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'group_expense_shares_member_group_fk',
+      columns: [table.memberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    index('group_expense_shares_member_idx').on(table.memberId, table.expenseId),
+  ],
+);
+
+/** The percentage default split of a group; an `equal` default stores no rows (spec D8). */
+export const groupDefaultSplitShares = pgTable(
+  'group_default_split_shares',
+  {
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id').notNull(),
+    basisPoints: integer('basis_points').notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'group_default_split_shares_pkey',
+      columns: [table.groupId, table.memberId],
+    }),
+    check(
+      'group_default_split_shares_basis_points_check',
+      sql`${table.basisPoints} between 0 and 10000`,
+    ),
+    foreignKey({
+      name: 'group_default_split_shares_member_group_fk',
+      columns: [table.memberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('cascade'),
+  ],
+);
+
+/** Written in the expense's transaction, so no expense exists without its entry (spec D10). */
+export const groupActivityLog = pgTable(
+  'group_activity_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    memberId: uuid('member_id').notNull(),
+    action: text('action', { enum: ['expense_created'] }).notNull(),
+    subjectId: uuid('subject_id').notNull(),
+    createdAt: timestamptz('created_at').notNull(),
+  },
+  (table) => [
+    check('group_activity_log_action_check', sql`${table.action} in ('expense_created')`),
+    foreignKey({
+      name: 'group_activity_log_member_group_fk',
+      columns: [table.memberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    index('group_activity_log_group_created_idx').on(
+      table.groupId,
+      table.createdAt.desc(),
+      table.id.desc(),
+    ),
   ],
 );

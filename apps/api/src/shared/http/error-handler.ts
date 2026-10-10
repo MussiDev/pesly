@@ -46,6 +46,11 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   GROUP_ALREADY_MEMBER: 409,
   GROUP_MEMBER_LIMIT_REACHED: 409,
   GROUP_MEMBER_NOT_REGISTERED: 409,
+  GROUP_SPLIT_PERCENTAGE_INVALID: 400,
+  GROUP_SPLIT_AMOUNT_MISMATCH: 400,
+  GROUP_SPLIT_MEMBER_INVALID: 400,
+  GROUP_EXPENSE_CATEGORY_INVALID: 400,
+  GROUP_PAYER_ACCOUNT_INVALID: 400,
   INTERNAL: 500,
 };
 
@@ -89,9 +94,9 @@ interface MappedError {
 function mapError(error: unknown): MappedError {
   if (error instanceof AppError) {
     const status = error instanceof HttpError ? error.status : STATUS_BY_CODE[error.code];
-    const body: ErrorResponse = error.fields
-      ? { code: error.code, fields: [...error.fields] }
-      : { code: error.code };
+    const body: ErrorResponse = { code: error.code };
+    if (error.fields) body.fields = [...error.fields];
+    if (error.details) body.details = { ...error.details };
     return error instanceof RetryableError
       ? { status, body, retryAfterSeconds: error.retryAfterSeconds }
       : { status, body };

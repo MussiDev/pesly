@@ -30,7 +30,7 @@ export interface TestUser {
   cookies: SessionCookies;
 }
 
-export type Method = 'get' | 'post' | 'patch';
+export type Method = 'get' | 'post' | 'patch' | 'put';
 
 export function call(
   app: Express,

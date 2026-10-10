@@ -361,6 +361,19 @@ All notable changes to this project are documented in this file. The format foll
   same 400. A non-member gets 404 on every group route. Deleting an account turns the user's memberships into
   "Former member" ghosts. Migration `0026_groups` adds five tables. Expenses, balances, settlements and the
   group screens arrive in DISC-001-05b to 05d. No new dependency.
+- DISC-001-05b Group expenses and splits: any member records an expense in ARS or USD with one payer
+  (any member, ghosts included), a non-archived group category and a split equal, by percentages (stored as
+  basis points) or by exact amounts. Shares always add up to the amount; the leftover minor units go one by
+  one to the payer first and then in joining order. A percentage total off 100% or an exact total off the
+  amount answers 400 with the total or the signed difference. When the caller is the payer, the full amount
+  leaves one of their accounts in the expense currency in the same transaction, as an expense movement with
+  the rate of the group's rate type; a ghost or another member as payer records no movement. Admins store a
+  default split that `GET /groups/:id/expense-options` returns with the members and the current categories;
+  `GET /groups/personal/shares` shows the caller's shares and, as payer, the receivable, which are neither
+  movements nor income. Shares follow a claimed ghost because they point to the member, and each expense adds
+  a creation entry to the group activity log. Non-members get 404 on every route. Migration
+  `0027_group_expenses` adds four tables and `groups.default_split_mode`. Balances and settlements arrive in
+  DISC-001-05c, editing and the log view in 05d, and the group screens in a later ticket. No new dependency.
 
 ### Changed
 
