@@ -730,6 +730,7 @@
     "fields": {
       "type": "Type",
       "account": "Account",
+      "accountChange": "Change",
       "accountPlaceholder": "Choose an account",
       "category": "Category",
       "categoryPlaceholder": "Choose a category",

@@ -27,6 +27,7 @@ import { MovementSaved } from '../src/features/movements/components/movement-sav
 import { MovementsLoadStateView } from '../src/features/movements/components/movements-load-state';
 import type { ApiFailure } from '../src/lib/api-client';
 import { typeButton } from './support/type-button';
+import { categoryGroup, categoryRadio } from './support/category-radio';
 
 afterEach(cleanup);
 
@@ -76,7 +77,6 @@ describe('MovementForm', () => {
     expect(screen.getByRole('heading', { level: 1, name: es.movements.new.title })).toBeDefined();
     for (const name of [
       es.movements.fields.account,
-      es.movements.fields.category,
       es.movements.fields.amount,
       es.movements.fields.occurredAt,
       es.movements.fields.rate,
@@ -98,16 +98,15 @@ describe('MovementForm', () => {
 
   it('lists only the categories of the chosen type and switches with the type (AC-03)', async () => {
     form();
-    const category = () => screen.getByLabelText(es.movements.fields.category);
     const names = () =>
-      within(category())
-        .getAllByRole('option')
-        .map((option) => option.textContent);
+      within(categoryGroup())
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent);
 
-    expect(names()).toEqual([es.movements.fields.categoryPlaceholder, 'Comida', 'Transporte']);
+    expect(names()).toEqual(['Comida', 'Transporte']);
     await userEvent.setup().click(typeButton('income'));
 
-    expect(names()).toEqual([es.movements.fields.categoryPlaceholder, 'Sueldo']);
+    expect(names()).toEqual(['Sueldo']);
   });
 
   it('submits what was typed, untouched, with the rate flagged as not edited', async () => {
@@ -115,7 +114,7 @@ describe('MovementForm', () => {
     const user = userEvent.setup();
 
     await user.selectOptions(label(es.movements.fields.account), 'a1');
-    await user.selectOptions(label(es.movements.fields.category), 'c1');
+    await user.click(categoryRadio('c1'));
     await user.type(label(es.movements.fields.amount), '1.500,50');
     await user.type(label(es.movements.fields.note), 'Almuerzo');
     await user.click(screen.getByRole('button', { name: es.movements.form.submit }));
@@ -666,7 +665,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
 
     expect(screen.queryByLabelText(es.movements.fields.destinationAccount)).toBeNull();
     expect(screen.queryByLabelText(es.movements.fields.amountIn)).toBeNull();
-    expect(screen.getByLabelText(es.movements.fields.category)).toBeDefined();
+    expect(categoryGroup()).toBeDefined();
     expect(screen.getByLabelText(es.movements.fields.rate)).toBeDefined();
   });
 

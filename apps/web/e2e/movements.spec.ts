@@ -9,7 +9,7 @@ import {
   withAgedRates,
   withoutStoredRates,
 } from './support/database';
-import { chooseMovementType } from './support/movement-type';
+import { chooseCategory, chooseMovementType } from './support/movement-type';
 
 const API_URL = 'http://localhost:4000';
 const WEB_URL = 'http://localhost:3000';
@@ -127,7 +127,7 @@ async function fillMovement(page: Page, entry: MovementEntry): Promise<void> {
   await page.goto('/es/movements/new');
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
   await chooseMovementType(page, t.fields.type, t.types[entry.type]);
-  await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: entry.category });
+  await chooseCategory(page, t.fields.category, entry.category);
   await page.getByLabel(t.fields.amount, { exact: true }).fill(entry.amount);
   if (entry.occurredAt !== undefined) {
     await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(entry.occurredAt);

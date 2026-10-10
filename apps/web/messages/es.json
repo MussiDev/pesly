@@ -730,6 +730,7 @@
     "fields": {
       "type": "Tipo",
       "account": "Cuenta",
+      "accountChange": "Cambiar",
       "accountPlaceholder": "Elige una cuenta",
       "category": "Categoría",
       "categoryPlaceholder": "Elige una categoría",

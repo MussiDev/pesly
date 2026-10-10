@@ -13,6 +13,7 @@ import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { category, uuid } from './support/category-fixtures';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 import { typeButton } from './support/type-button';
+import { categoryRadio } from './support/category-radio';
 
 const { es } = CATALOGS;
 
@@ -184,7 +185,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
   it('queues a valid expense, makes no request, says it is pending and clears the form (AC-01)', async () => {
     const { fetch, user } = await openOffline();
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '1.500,50');
 
     await user.click(submit());
@@ -236,7 +237,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
   it('gives every save a UUID, queued offline and sent online (AC-03)', async () => {
     const { user } = await openOffline();
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
     await user.click(submit());
     await screen.findByText(es.movements.saved.titleOffline);
@@ -251,7 +252,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
     await screen.findByLabelText(es.movements.fields.amount);
     const user = userEvent.setup();
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
 
     await user.click(submit());
@@ -272,7 +273,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
       await screen.findByLabelText(es.movements.fields.amount);
       const user = userEvent.setup();
       await user.selectOptions(field(es.movements.fields.account), CAJA);
-      await user.selectOptions(field(es.movements.fields.category), COMIDA);
+      await user.click(categoryRadio(COMIDA));
       await user.type(field(es.movements.fields.amount), '100');
 
       await user.click(submit());
@@ -290,7 +291,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
   it('refuses an expense with no stored rate and no typed rate, and queues nothing (AC-07)', async () => {
     const { user } = await openOffline(cached({ rates: [] }));
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
 
     await user.click(submit());
@@ -302,7 +303,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
   it('queues it once the person types a rate when none is stored (AC-07)', async () => {
     const { user } = await openOffline(cached({ rates: [] }));
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
     await user.type(field(es.movements.fields.rate), '1.300,25');
 
@@ -317,7 +318,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
   it('keeps the form filled and says the save failed when the device cannot store it (invalid input)', async () => {
     const { user } = await openOffline();
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
     // The screen is already built from the copy; from here on the device cannot write.
     Object.defineProperty(globalThis, 'indexedDB', {
@@ -339,7 +340,7 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
     await screen.findByLabelText(es.movements.fields.amount);
     const user = userEvent.setup();
     await user.selectOptions(field(es.movements.fields.account), CAJA);
-    await user.selectOptions(field(es.movements.fields.category), COMIDA);
+    await user.click(categoryRadio(COMIDA));
     await user.type(field(es.movements.fields.amount), '100');
 
     await user.click(submit());

@@ -15,6 +15,7 @@ import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
 import { typeButton } from './support/type-button';
+import { pickedCategory } from './support/category-radio';
 
 const { es } = CATALOGS;
 
@@ -172,7 +173,7 @@ describe('EditMovementContainer: the filled-in screen', () => {
     expect(field(es.movements.fields.amount).value).toBe('1.500,50');
     expect(field(es.movements.fields.occurredAt).value).toBe('2026-10-02T12:30');
     expect(field(es.movements.fields.account).value).toBe(CAJA_ID);
-    expect(field(es.movements.fields.category).value).toBe(COMIDA_ID);
+    expect(pickedCategory()).toBe(COMIDA_ID);
     expect(field(es.movements.fields.note).value).toBe('almuerzo');
     expect(field(es.movements.fields.rate).value).toBe(formatRateInput(9000000n, 'es'));
     expect(screen.getByText('Viaje')).toBeDefined();
@@ -198,7 +199,7 @@ describe('EditMovementContainer: the filled-in screen', () => {
     );
 
     expect(field(es.movements.fields.account).value).toBe(VIEJA_ID);
-    expect(field(es.movements.fields.category).value).toBe(VIEJA_CATEGORY_ID);
+    expect(pickedCategory()).toBe(VIEJA_CATEGORY_ID);
   });
 
   it('shows a transfer with its destination and without category or rate (FR-01)', async () => {

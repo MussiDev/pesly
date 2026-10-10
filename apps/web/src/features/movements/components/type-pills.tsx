@@ -33,7 +33,7 @@ export function TypePills({ value, onChange, disabled = false }: TypePillsProps)
               onChange(type);
             }}
             className={cn(
-              'min-h-11 min-w-0 rounded-pill px-1 text-nav font-semibold whitespace-nowrap transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed',
+              'min-h-11 min-w-0 rounded-pill px-1 text-center text-nav leading-tight font-semibold transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed',
               pressed
                 ? 'bg-primary text-primary-foreground'
                 : 'text-foreground enabled:hover:bg-card disabled:opacity-50',

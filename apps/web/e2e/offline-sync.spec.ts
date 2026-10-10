@@ -10,7 +10,7 @@ import {
   trackSameOriginFailures,
 } from './support/offline-visit';
 import { clearCachedRates, queuedIds, seedQueue } from './support/queue';
-import { chooseMovementType } from './support/movement-type';
+import { chooseCategory, chooseMovementType } from './support/movement-type';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 // Each flow registers a user, builds a copy of its data on the device and works with a real worker.
@@ -33,7 +33,7 @@ const submit = (page: Page) => page.getByRole('button', { name: t.form.submit })
 async function fillExpense(page: Page, amount: string, rate = '1250,50'): Promise<void> {
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
   await chooseMovementType(page, t.fields.type, t.types.expense);
-  await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: CATEGORY });
+  await chooseCategory(page, t.fields.category, CATEGORY);
   await page.getByLabel(t.fields.amount, { exact: true }).fill(amount);
   if (rate !== '') await page.getByLabel(t.fields.rate, { exact: true }).fill(rate);
 }

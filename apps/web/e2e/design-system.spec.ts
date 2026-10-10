@@ -364,6 +364,23 @@ test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
   });
 });
 
+test.describe('no horizontal scroll at 360 px', () => {
+  test.use({ viewport: PHONE });
+
+  for (const path of ['/es', '/es/movements', '/es/movements/new', '/es/accounts']) {
+    test(`${path} fits the width of the screen`, async ({ page }) => {
+      await signedIn(page);
+      await page.goto(path);
+      await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(0);
+    });
+  }
+});
+
 test.describe('layout shift at 360 px (NFR-03)', () => {
   test.use({ viewport: PHONE });
 

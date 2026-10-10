@@ -5,6 +5,7 @@ import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
@@ -24,6 +25,8 @@ import { Link } from '@/i18n/navigation';
 import { applyKey, writeLikeTyping } from '../keypad-input';
 import type { ImpliedRatePreview, ImpliedRatePreviewInput } from '../implied-rate-preview';
 import type { MovementFieldMessage, MovementFormErrors } from '../movement-form-errors';
+import { AccountPicker } from './account-picker';
+import { CategoryChips } from './category-chips';
 import { MovementField } from './movement-field';
 import { NumericKeypad } from './numeric-keypad';
 import { RateField } from './rate-field';
@@ -114,6 +117,8 @@ export function MovementForm({
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
+  const tAll = useTranslations();
+  const categoryId = useId();
   const locale = useLocale();
   const compact = useCompactViewport();
   const formRef = useRef<HTMLFormElement>(null);
@@ -193,7 +198,7 @@ export function MovementForm({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <form ref={formRef} className="grid min-w-0 gap-4" noValidate onSubmit={handleSubmit}>
           <FormAlert error={errors.form} />
           <RateLimitAlert rateLimit={errors.rateLimit} />
           <TypePills value={type} disabled={mode === 'edit'} onChange={handleTypeChange} />
@@ -257,12 +262,14 @@ export function MovementForm({
           <NumericKeypad onKey={pressKey} />
           <MovementField label={t('fields.account')} error={errors.fields?.account}>
             {(control) => (
-              <Select
+              <AccountPicker
+                id={control.id}
                 name="accountId"
+                picked={source}
                 defaultValue={initialValues?.accountId ?? ''}
-                required
+                invalid={control['aria-invalid']}
+                describedBy={control['aria-describedby']}
                 onChange={handleSourceChange}
-                {...control}
               >
                 <option value="">{t('fields.accountPlaceholder')}</option>
                 {accounts.map((account) => (
@@ -270,7 +277,7 @@ export function MovementForm({
                     {`${account.name} (${account.currency})`}
                   </option>
                 ))}
-              </Select>
+              </AccountPicker>
             )}
           </MovementField>
           {categorized ? null : (
@@ -315,27 +322,22 @@ export function MovementForm({
             </MovementField>
           )}
           {categorized ? (
-            <MovementField label={t('fields.category')} error={errors.fields?.category}>
-              {(control) => (
-                // Keyed by type so the picked category resets when the type changes.
-                <Select
-                  key={type}
-                  name="categoryId"
-                  defaultValue={initialValues?.categoryId ?? ''}
-                  required
-                  {...control}
-                >
-                  <option value="">{t('fields.categoryPlaceholder')}</option>
-                  {categories
-                    .filter((category) => category.kind === type)
-                    .map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.label}
-                      </option>
-                    ))}
-                </Select>
-              )}
-            </MovementField>
+            <div className="grid min-w-0 gap-2">
+              {/* Keyed by type so the picked category resets when the type changes. */}
+              <CategoryChips
+                key={type}
+                label={t('fields.category')}
+                categories={categories.filter((category) => category.kind === type)}
+                defaultValue={initialValues?.categoryId ?? ''}
+                invalid={Boolean(errors.fields?.category)}
+                describedBy={errors.fields?.category ? `${categoryId}-message` : undefined}
+              />
+              {errors.fields?.category ? (
+                <p id={`${categoryId}-message`} className="text-small text-destructive">
+                  {tAll(errors.fields.category)}
+                </p>
+              ) : null}
+            </div>
           ) : null}
           <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
             {(control) => (
