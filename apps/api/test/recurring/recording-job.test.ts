@@ -352,3 +352,17 @@ describe('createRecurringJobs', () => {
     expect(index).not.toMatch(/jobs|automatic-payment-source|recording-job/);
   });
 });
+
+describe('worker wiring', () => {
+  const worker = readFileSync(new URL('../../src/worker.ts', import.meta.url), 'utf8');
+
+  it('starts the recurring job and stops it in the shutdown Promise.all', () => {
+    expect(worker).toContain('recurringJobs.start();');
+    expect(worker).toMatch(/Promise\.all\(\[[^\]]*recurringJobs\.stop\(\)[^\]]*\]\)/);
+  });
+
+  it('sad path: injects the recorder from the movements module and imports no recurring internals', () => {
+    expect(worker).toContain('createRecurringExpenseRecorder');
+    expect(worker).not.toMatch(/recurring\/infrastructure/);
+  });
+});
