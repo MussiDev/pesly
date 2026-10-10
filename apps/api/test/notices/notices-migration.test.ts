@@ -6,6 +6,7 @@ import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0025_notices';
+const NEWER_TAG = '0026_groups';
 const PREVIOUS_WHEN = 1791585171427;
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -40,6 +41,11 @@ afterAll(async () => {
 }, HOOK_TIMEOUT_MS);
 
 const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`, 'utf8');
+
+/** 0026 has a greater journal `when`, so it goes first: the migrator replays only what is newer. */
+async function rollBackNewerThan0025(): Promise<void> {
+  await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
+}
 
 async function appliedMigrations(): Promise<number> {
   const result = await client.query<{ n: string }>(
@@ -121,6 +127,7 @@ const insertNotice = (owner: string, payment: string, kind: string, text = 'Rent
 
 describe('0025_notices migration', () => {
   it('gives existing recurring payments reminder_days 3 when it is applied after a rollback (AC-01)', async () => {
+    await rollBackNewerThan0025();
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     expect(await paymentColumns()).not.toContain('reminder_days');
     const owner = await createUser('existing@notices.test');
@@ -185,20 +192,22 @@ describe('0025_notices migration', () => {
 
   it('is reverted by its rollback, which runs twice, restoring the 0024 schema, and re-applies (NFR-02)', async () => {
     const before = await paymentColumns();
+    const countBefore = await appliedMigrations();
 
+    await rollBackNewerThan0025();
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await paymentColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticesTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(24);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
     await runMigrations(throwawayUrl);
-    expect(await appliedMigrations()).toBe(25);
+    expect(await appliedMigrations()).toBe(countBefore);
     expect(await paymentColumns()).toEqual(before);
     expect(await noticesTableExists()).toBe(true);
   });
 
-  it('has the journal entry at idx 25 with the greatest when, and chains its snapshot onto 0024 (NFR-02)', async () => {
+  it('has the journal entry at idx 25 with a when above 0024, and chains its snapshot onto 0024 (NFR-02)', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
@@ -207,7 +216,6 @@ describe('0025_notices migration', () => {
 
     expect(own?.idx).toBe(25);
     expect(own?.when).toBeGreaterThan(PREVIOUS_WHEN);
-    expect(Math.max(...journal.entries.map((entry) => entry.when))).toBe(own?.when);
     expect((await read<{ prevId: string }>('0025_snapshot.json')).prevId).toBe(
       (await read<{ id: string }>('0024_snapshot.json')).id,
     );

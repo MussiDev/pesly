@@ -164,6 +164,10 @@ export type ApiErrorKey =
   | 'statementClosed'
   | 'recurringOccurrenceNotPending'
   | 'recurringLimitReached'
+  | 'groupAdminRequired'
+  | 'groupAlreadyMember'
+  | 'groupMemberLimitReached'
+  | 'groupMemberNotRegistered'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -224,6 +228,10 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   STATEMENT_CLOSED: 'statementClosed',
   RECURRING_OCCURRENCE_NOT_PENDING: 'recurringOccurrenceNotPending',
   RECURRING_LIMIT_REACHED: 'recurringLimitReached',
+  GROUP_ADMIN_REQUIRED: 'groupAdminRequired',
+  GROUP_ALREADY_MEMBER: 'groupAlreadyMember',
+  GROUP_MEMBER_LIMIT_REACHED: 'groupMemberLimitReached',
+  GROUP_MEMBER_NOT_REGISTERED: 'groupMemberNotRegistered',
 };
 
 /**

@@ -38,3 +38,4 @@ export * from './credit-cards/statement-payment';
 export * from './credit-cards/statement-import';
 export * from './recurring';
 export * from './notices';
+export * from './groups/group';

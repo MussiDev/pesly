@@ -1,245 +1,152 @@
-# PRD DISC-001-05: Groups & Expense Splitting
+# Parent PRD: Groups & Expense Splitting
 
-| Field | Value |
-|-------|-------|
-| Ticket | DISC-001 |
-| Tracker | none |
-| Date | 2026-09-25 |
-| PRD loops | 2 |
-| Loops since last human decision | 0 |
+| Metric | Value |
+|--------|-------|
+| Ticket | DISC-001-05 |
+| Date | 2026-10-10 |
+| Status | Split |
 
-## Context and Problem
-Users of the finance PWA (see `docs/ddw/discovery/concept-DISC-001.md`) share expenses in two
-ways: households, where each member pays and costs are split (equally or in proportion to
-income) and settled periodically, and ad-hoc groups such as trips or roommates. In both cases
-people need to know who owes whom, in ARS and in USD, without their personal reports counting
-money they only lent as money they spent. Some group members will never install the app.
+## Sub-tickets
 
-## Goals
-- One "group" concept covering households and ad-hoc groups (concept decision).
-- Split each expense equally, by percentages or by exact amounts.
-- Keep balances per currency, and allow consolidating them into one currency when settling.
-- Reflect in each member's personal finances only their real share of each expense.
-- Let groups include people without an account, who can claim their place later.
-- Protect shared money: only the creator of an expense or an admin changes it, and every change
-  is visible to all members.
+| Sub-ticket | Title | PRD | Dependencies | Status |
+|---|---|---|---|---|
+| DISC-001-05a | Groups, Members and Roles | prd-DISC-001-05a.md | PRD 01, 02 and 03 (all merged); first to add group tables (migration number assigned at PLAN) | done: branch `feat/DISC-001-05a-groups` (stacked on `docs/DISC-001-05-split-prd`, not pushed, no PR yet); migration 0026 (journal `when` 1791661150964, to be checked again at merge); API only, no web screen; claim links do not expire, one invitation per member, account deletion turns memberships into "Former member" ghosts (all awaiting the owner's confirmation); next: 05b |
+| DISC-001-05b | Group Expenses and Splits | prd-DISC-001-05b.md | depends on a | pending |
+| DISC-001-05c | Balances and Settlements | prd-DISC-001-05c.md | depends on b | pending |
+| DISC-001-05d | Editing Rules and Activity Log | prd-DISC-001-05d.md | depends on b and c; unblocks DISC-001-04e | pending |
 
-## Functional Requirements
-- FR-01: The system must allow a user to create a group with a name and a default rate type, and
-  must make the creator an admin of that group.
-- FR-02: The system must allow an admin to set a default split for the group (equal, or a
-  percentage per member) that is prefilled on every new group expense.
-- FR-03: The system must allow any member to generate an invitation link to the group that
-  expires 7 days after it is generated.
-- FR-04: The system must add a registered user as a member of the group when they open a valid
-  invitation link and accept it.
-- FR-05: The system must allow any member to add a ghost member to the group with only a display
-  name.
-- FR-06: The system must allow any member to generate a claim link for a ghost member.
-- FR-07: The system must replace a ghost member with a registered user who opens and accepts a
-  valid claim link, and must transfer to that user every expense, share and settlement of the
-  ghost member.
-- FR-08: The system must allow an admin to make another registered member an admin.
-- FR-09: The system must allow an admin to remove a member whose balance is 0 in every currency.
-- FR-10: The system must allow a member whose balance is 0 in every currency to leave the group.
-- FR-11: The system must allow a member to record a group expense with an amount greater than 0,
-  a currency (ARS or USD), a date, a payer (any member, including ghost members), a group
-  category, a description and a split among members.
-- FR-12: The system must split an expense in equal parts among the selected members.
-- FR-13: The system must split an expense by percentages per member that add up to exactly 100%.
-- FR-14: The system must split an expense by exact amounts per member that add up to exactly the
-  expense amount.
-- FR-15: The system must assign the minor units left over by an equal or percentage split one by
-  one to the members in the split, starting with the payer and then in order of joining the
-  group.
-- FR-16: The system must require a registered payer who records their own payment to choose one
-  of their accounts in the expense currency, and must record the full amount as leaving that
-  account (PRD 03).
-- FR-17: The system must count the payer's own share as a personal expense and the rest of the
-  amount as a receivable, not as a personal expense.
-- FR-18: The system must count each non-payer registered member's share as a personal expense
-  of that member, with no movement in any of their accounts.
-- FR-19: The system must show the balance of each member per currency (ARS and USD separately).
-- FR-20: The system must show a simplified list of payments per currency that settles all
-  balances with the minimum number of transfers.
-- FR-21: The system must allow a member to record a settlement payment from one member to another
-  in one currency.
-- FR-22: The system must record a settlement paid or received by a registered member, when they
-  choose one of their accounts, as a transfer out of or into that account that is neither an
-  expense nor an income.
-- FR-23: The system must allow two members to settle all their balances in a single currency,
-  converting the other currency with the current rate of the group's default rate type.
-- FR-24: The system must allow the members settling to replace the conversion rate of a
-  consolidated settlement with a manual rate before recording it.
-- FR-25: The system must allow only the member who recorded a group expense or settlement, or an
-  admin, to edit or delete it.
-- FR-26: The system must record in a group activity log every creation, edit and deletion of
-  group expenses and settlements, with the member who did it and the date and time.
-- FR-27: The system must show the group activity log to every member of the group.
-- FR-28: The system must create for every new group the expense categories listed in Appendix A
-  of PRD 02 (top level only).
-- FR-29: The system must allow an admin to change the group's default rate type.
-- FR-30: The system must allow only members of a group to read or change any data of that group.
-- FR-31: The system must replace a member who deletes their account with a ghost member named
-  "Former member", keeping all of their group expenses, shares and settlements.
-- FR-32: The system must allow only admins to add, rename and archive group categories.
+## Suggested implementation order
+a → b → c → d, a chain: each one needs the one before it. DISC-001-04e (conflicts on group
+movements) starts when d is merged.
 
-## Non-Functional Requirements
-- NFR-01: Amounts must be stored as 64-bit integers in minor units, with 0 floating-point columns
-  or fields for money (concept decision).
-- NFR-02: For every group and every currency, the sum of all member balances must be exactly 0
-  after every operation, verified by an automated test over 10,000 random operations.
-- NFR-03: The balance view of a group with 50 members and 10,000 expenses must answer in
-  < 500 ms at p95, measured server-side.
-- NFR-04: A group must have at most 50 members, ghost members included.
-- NFR-05: Invitation and claim link tokens must carry at least 128 bits of randomness and be
-  single-use for claim links.
-- NFR-06: 100% of changes to group expenses and settlements must appear in the activity log, and
-  log entries must never be edited or deleted while the group exists.
+## Pending decisions (not resolved in the sub-PRDs)
+1. **Personal shares and receivables for reports and budgets.** Neither PRD 06 nor PRD 09 is built.
+   Recommended: 05b exposes each member's personal shares and receivables through the API (as 10c
+   did with `GET /credit-cards/installment-expenses`), and PRD 06 and PRD 09 consume them when they
+   are built, each stating the integration in its own PRD. Alternative: 05b waits for PRD 06 and
+   PRD 09.
+2. **The last admin leaving or being removed.** The original text does not say what happens when no
+   admin remains. Recommended: the last admin cannot leave while other members remain, and must
+   promote someone first (decided at 05c's PLAN, which owns leaving). Alternative: promote the
+   member who joined first automatically.
+3. **Offline entry of group expenses.** Whether group expenses can be recorded offline, and how, is
+   decided with DISC-001-04e after d. Until then the group expense screens are online only.
+4. **Release unit.** 05a creates groups that nothing can use until 05b records expenses on them.
+   Recommended: merge each sub-ticket to `main` as it finishes, but ship the group UI only with 05b.
+   Alternative: release a to c together.
 
-## Acceptance Criteria
-- AC-01 (FR-01): WHEN a user creates a group with a name and a default rate type, THE system
-  SHALL create it and make that user its first admin.
-- AC-02 (FR-02): WHEN an admin sets a default split of 60% / 40% for two members, THE system
-  SHALL prefill that split on every new expense of the group.
-- AC-03 (FR-03): WHEN a member generates an invitation link, THE system SHALL return a link that
-  expires 7 days later.
-- AC-04 (FR-04): WHEN a registered user opens a valid invitation link and accepts it, THE system
-  SHALL add them as a member of the group.
-- AC-05 (FR-04): IF a user opens an expired invitation link, THEN THE system SHALL reject it and
-  add no member.
-- AC-06 (FR-05): WHEN a member adds a ghost member named "Pedro", THE system SHALL add a member
-  "Pedro" with no account who can be payer and part of splits.
-- AC-07 (FR-06): WHEN a member generates a claim link for a ghost member, THE system SHALL return
-  a single-use link bound to that ghost member.
-- AC-08 (FR-07): WHEN a registered user opens a valid claim link and accepts it, THE system SHALL
-  replace the ghost member with that user and show that user every expense, share and settlement
-  previously assigned to the ghost member.
-- AC-09 (FR-07): IF a user opens a claim link that was already used, THEN THE system SHALL reject
-  it.
-- AC-10 (FR-08): WHEN an admin makes a registered member an admin, THE system SHALL grant that
-  member admin permissions in the group.
-- AC-11 (FR-09): WHEN an admin removes a member whose balance is 0 in ARS and in USD, THE system
-  SHALL remove that member from the group.
-- AC-12 (FR-09): IF an admin tries to remove a member with a balance other than 0 in any
-  currency, THEN THE system SHALL reject it and show the pending balance.
-- AC-13 (FR-10): WHEN a member with a balance of 0 in every currency leaves the group, THE system
-  SHALL remove them from the group.
-- AC-14 (FR-10): IF a member with a balance other than 0 in any currency tries to leave, THEN THE
-  system SHALL reject it and show the pending balance.
-- AC-15 (FR-11): WHEN a member records a group expense with all required fields and a valid
-  split, THE system SHALL store it and update the balances of the group.
-- AC-16 (FR-11): IF a member records a group expense with an amount of 0 or less, THEN THE system
-  SHALL reject it.
-- AC-17 (FR-12): WHEN an expense of 40,000.00 ARS is split equally among 4 members, THE system
-  SHALL assign 10,000.00 ARS to each.
-- AC-18 (FR-13): IF a member submits a percentage split that does not add up to exactly 100%,
-  THEN THE system SHALL reject it and show the current total.
-- AC-19 (FR-13): WHEN an expense of 100,000.00 ARS is split 60% / 40%, THE system SHALL assign
-  60,000.00 ARS and 40,000.00 ARS.
-- AC-20 (FR-14): IF a member submits an exact-amount split that does not add up to the expense
-  amount, THEN THE system SHALL reject it and show the difference.
-- AC-21 (FR-15): WHEN an expense of 100.00 ARS is split equally among 3 members with the payer
-  first, THE system SHALL assign 33.34 ARS to the payer and 33.33 ARS to each of the other two.
-- AC-22 (FR-16): WHEN a registered member records an expense of 40,000.00 ARS that they paid from
-  one of their ARS accounts, THE system SHALL subtract 40,000.00 ARS from that account.
-- AC-23 (FR-16): IF a registered payer recording their own payment chooses an account whose
-  currency differs from the expense currency, THEN THE system SHALL reject it.
-- AC-24 (FR-17): WHEN a registered member pays 40,000.00 ARS split equally among 4, THE system
-  SHALL count 10,000.00 ARS as that member's personal expense and 30,000.00 ARS as a receivable.
-- AC-25 (FR-18): WHEN another member pays an expense and a registered member's share is
-  10,000.00 ARS, THE system SHALL count 10,000.00 ARS as that member's personal expense and
-  SHALL not change any of their account balances.
-- AC-26 (FR-19): WHEN a member opens the group balances, THE system SHALL show each member's
-  balance in ARS and in USD separately.
-- AC-27 (FR-20): WHEN A owes B 100.00 ARS and B owes C 100.00 ARS, THE system SHALL show one
-  simplified payment of 100.00 ARS from A to C.
-- AC-28 (FR-21): WHEN a member records a settlement of 30,000.00 ARS from A to B, THE system
-  SHALL reduce what A owes B in ARS by 30,000.00.
-- AC-29 (FR-22): WHEN a registered member records a settlement they received into one of their
-  accounts, THE system SHALL add the amount to that account and SHALL not count it as an income.
-- AC-30 (FR-23): WHEN A owes B 100.00 USD and B owes A 50,000.00 ARS and they settle in USD at a
-  group rate of 1,000.0000 ARS per USD, THE system SHALL record one settlement of 50.00 USD from
-  A to B and leave both balances at 0.
-- AC-31 (FR-24): WHEN the members replace the conversion rate of a consolidated settlement with a
-  manual rate greater than 0, THE system SHALL use that rate and store it with source "manual".
-- AC-32 (FR-25): WHEN the member who recorded a group expense, or an admin, edits or deletes it,
-  THE system SHALL apply the change and update the balances.
-- AC-33 (FR-25): IF a member who is neither the one who recorded a group expense nor an admin
-  tries to edit or delete it, THEN THE system SHALL reject it and leave the expense unchanged.
-- AC-34 (FR-26): WHEN a group expense or settlement is created, edited or deleted, THE system
-  SHALL add a log entry with the action, the member and the date and time, including the values
-  before and after for edits.
-- AC-35 (FR-27): WHEN any member opens the group activity log, THE system SHALL show all its
-  entries, newest first.
-- AC-36 (FR-28): WHEN a group is created, THE system SHALL create for it the top-level expense
-  categories of PRD 02 Appendix A.
-- AC-37 (FR-32): IF a member who is not an admin tries to add, rename or archive a group
-  category, THEN THE system SHALL reject it.
-- AC-38 (FR-29): WHEN an admin changes the group's default rate type, THE system SHALL prefill
-  the new type's rate on the next consolidated settlement and leave existing records unchanged.
-- AC-39 (FR-30): IF a user who is not a member of a group requests any of its data, THEN THE
-  system SHALL answer 404 Not Found.
-- AC-40 (FR-30): WHEN a user opens their group list, THE system SHALL show only groups they are a
-  member of.
-- AC-41 (FR-31): WHEN a member deletes their account, THE system SHALL show a ghost member
-  "Former member" in their place, with the same expenses, shares, settlements and balances.
-- AC-42 (FR-32): WHEN an admin adds, renames or archives a group category, THE system SHALL apply
-  the change and offer the updated list on the next group expense.
+## Added while splitting (not in the original text)
+Each addition is derived from an obligation or decision already on record in the original PRD; none
+changes an original requirement. They await the human's acceptance with this split.
 
-## Out of Scope
-- Splitting by shares/weights ("2 parts for Juan") — equivalent results via percentages or exact
-  amounts.
-- Several payers for one expense.
-- Joint accounts or a shared pot (decision: households split, they do not pool money).
-- Payments between members through the app (Mercado Pago, bank transfers); settlements are only
-  recorded.
-- Recurring group expenses (PRD 08 covers personal recurring payments).
-- Comments, reactions or chat on expenses.
-- Receipt photos.
-- Email or push notifications of group activity (PRD 08 covers reminders).
-- Converting existing balances automatically when the default rate type changes.
-- Groups with more than 50 members.
+| New ID | What | Why |
+|---|---|---|
+| 05a FR-07, AC-12 | A claimed ghost member keeps its identity in the group | the original FR-07 transferred expenses, shares and settlements, which do not exist until 05b and 05c; keeping the member's identity lets each later ticket prove its own records follow |
+| 05b FR-11, AC-21 and 05c FR-11, AC-21 | The original AC-08 divided by what follows the user: expenses and shares (05b), settlements (05c) | the original AC mixed records owned by different sub-tickets |
+| 05b FR-12 and 05c FR-12 | Creation entries of the activity log are written where the record is created | the original FR-26 covers creation, edit and deletion; writing creation entries in 05d would leave expenses and settlements without log entries for two tickets |
+| 05d FR-03, NFR-01 | Edits and deletions are logged in 05d, and the 100% rule is verified over every write path | the original NFR-06 spans all four sub-tickets |
+| 05b NFR-02 | The shares of an expense add up to its amount exactly, tested over 10,000 random splits | the original NFR-02 (zero-sum balances) only holds if shares are exact; it moves to 05c as balances, and the exactness of the split is stated where splits are made |
+| 05a AC-02, AC-07, AC-08, AC-10, AC-14, AC-16, AC-18 | Sad-path criteria for empty names, repeated invitations, the 50-member limit, claiming by a current member and non-admin actions | the project rule is that every input has a sad-path test; the original only covered some |
+| 05b AC-03, AC-04, AC-06, AC-13, AC-16 | Sad-path and edge criteria for non-member splits, foreign categories, non-admin default split, leftover when the payer is not in the split, and ghost payers | same rule |
+| 05c AC-04, AC-06, AC-07, AC-09, AC-10, AC-13, AC-17 | Sad-path and edge criteria for empty balances, invalid settlements, account currency mismatch, invalid manual rates and non-admin removal | same rule |
+| 05d AC-02, AC-04, AC-06, AC-07, AC-11 | Criteria for admin edits, settlements, balance restoration, invalid edits and immutability of log entries | the original AC-32, AC-33 and AC-34 covered expenses and the log in general |
 
-## Risks and Mitigations
-- **Someone records expenses in the name of a ghost member who never sees them** → accepted by
-  decision; the activity log (FR-26) shows who recorded what, and claiming (FR-07) exposes the
-  full history to the real person.
-- **Disputes over the conversion rate when consolidating** → balances stay per currency until
-  settlement (FR-19); consolidation is opt-in with an editable rate (FR-23, FR-24).
-- **Rounding makes the group not add up** → deterministic leftover rule (FR-15) and the zero-sum
-  invariant (NFR-02).
-- **An admin abuses edit rights** → every change is logged with before/after values and visible
-  to all (FR-26, FR-27, AC-34).
-- **Concurrent offline edits on group expenses** → explicit conflicts per PRD 04.
-- **Double counting in personal reports** → only the member's share is an expense; receivables
-  and settlements are neither expense nor income (FR-17, FR-18, FR-22).
+## Original context
+PRD 05 of discovery DISC-001 defined groups and expense splitting for households and ad-hoc
+groups in the PWA: split modes (equal, percentages, exact amounts), ghost members, balances per
+currency with optional consolidation at settlement, and an immutable activity log. With 32
+functional requirements, 6 non-functional requirements and 42 acceptance criteria, it was too large
+for one ticket, so it was split on 2026-10-10 (user decision). The full original text, including its
+Decision Log, is in git history (file `docs/ddw/prd/prd-DISC-001-05.md` before the split). Its Out
+of Scope items are spread over the sub-PRDs: splitting by shares or weights, several payers, joint
+accounts or a shared pot, payments through the app, recurring group expenses, comments and
+reactions, receipt photos, notifications, automatic conversion of balances when the rate type
+changes, and groups with more than 50 members.
 
-## Dependencies
-- PRD 01 (Identity & Access) — registered users, account deletion (FR-04, FR-07, FR-31) and
-  access control (FR-30).
-- PRD 02 (Accounts & Categories) — accounts and the default category list (FR-16, FR-22, FR-28, FR-32).
-- PRD 03 (Movements & Exchange Rates) — account movements, stored rates and rate types (FR-16,
-  FR-22, FR-23, FR-29).
-- PRD 04 (Offline Entry & Sync) — conflict handling for group expenses edited offline.
-- PRD 09 (Dashboard & Reports) — how personal shares and receivables appear in reports (FR-17,
-  FR-18).
+## Traceability: original ID → sub-ticket ID
 
-## Decision Log
-- 2026-09-25: Households are permanent groups; no shared pot (concept).
-- 2026-09-25: Split modes: equal, percentages, exact amounts.
-- 2026-09-25: Balances per currency, with optional consolidation at settlement time using the
-  group's rate, editable.
-- 2026-09-25: Ghost members allowed, claimable by invitation.
-- 2026-09-25: Payer's account drops by the total; only each member's share counts as their
-  expense; the rest is a receivable; settlements are neither expense nor income.
-- 2026-09-25: Only the member who recorded an expense or an admin edits/deletes it; activity log
-  visible to all members.
-- 2026-09-25: Leftover minor units: the user questioned rounding and asked for exact splits.
-  Exact splits are impossible with a minimum currency unit; options were high internal precision
-  with rounding at settlement, a rotating leftover, or leftover to the payer first. User chose
-  leftover to the payer first (FR-15).
-- 2026-09-25: User approved the remaining decisions: 7-day invitation links, single-use claim
-  links, any member invites and adds ghosts, leaving/removal only with 0 balance, simplified
-  debts view, group-level categories managed by admins, deleted accounts become "Former member",
-  50 members max, one payer per expense, immutable activity log.
+Other PRDs of DISC-001 reference this PRD as "PRD 05, FR-xx"; use this table to resolve them. A row
+with several entries means the original requirement was divided.
+
+| Original | Now |
+|---|---|
+| FR-01 | DISC-001-05a FR-01 |
+| FR-02 | DISC-001-05b FR-02 |
+| FR-03 | DISC-001-05a FR-03 |
+| FR-04 | DISC-001-05a FR-04 |
+| FR-05 | DISC-001-05a FR-05 |
+| FR-06 | DISC-001-05a FR-06 |
+| FR-07 | DISC-001-05a FR-07 (identity), DISC-001-05b FR-11 (expenses and shares) and DISC-001-05c FR-11 (settlements) |
+| FR-08 | DISC-001-05a FR-08 |
+| FR-09 | DISC-001-05c FR-08 |
+| FR-10 | DISC-001-05c FR-09 |
+| FR-11 | DISC-001-05b FR-01 |
+| FR-12 | DISC-001-05b FR-03 |
+| FR-13 | DISC-001-05b FR-04 |
+| FR-14 | DISC-001-05b FR-05 |
+| FR-15 | DISC-001-05b FR-06 |
+| FR-16 | DISC-001-05b FR-07 |
+| FR-17 | DISC-001-05b FR-08 |
+| FR-18 | DISC-001-05b FR-09 |
+| FR-19 | DISC-001-05c FR-01 |
+| FR-20 | DISC-001-05c FR-02 |
+| FR-21 | DISC-001-05c FR-03 |
+| FR-22 | DISC-001-05c FR-04 |
+| FR-23 | DISC-001-05c FR-05 |
+| FR-24 | DISC-001-05c FR-06 |
+| FR-25 | DISC-001-05d FR-01 and FR-02 |
+| FR-26 | DISC-001-05b FR-12 and DISC-001-05c FR-12 (creation), DISC-001-05d FR-03 (edit and deletion) |
+| FR-27 | DISC-001-05d FR-04 |
+| FR-28 | DISC-001-05a FR-02 |
+| FR-29 | DISC-001-05a FR-09 (change) and DISC-001-05c FR-07 (prefill on settlements) |
+| FR-30 | DISC-001-05a FR-11, DISC-001-05b FR-13, DISC-001-05c FR-13 and DISC-001-05d FR-06 |
+| FR-31 | DISC-001-05c FR-10 |
+| FR-32 | DISC-001-05a FR-10 |
+| NFR-01 | DISC-001-05b, 05c and 05d NFR-01 or NFR-02 (restated in each that stores money) |
+| NFR-02 | DISC-001-05c NFR-02 |
+| NFR-03 | DISC-001-05c NFR-03 |
+| NFR-04 | DISC-001-05a NFR-01 |
+| NFR-05 | DISC-001-05a NFR-02 |
+| NFR-06 | DISC-001-05d NFR-01 |
+| AC-01 | DISC-001-05a AC-01 |
+| AC-02 | DISC-001-05b AC-05 |
+| AC-03 | DISC-001-05a AC-04 |
+| AC-04 | DISC-001-05a AC-05 |
+| AC-05 | DISC-001-05a AC-06 |
+| AC-06 | DISC-001-05a AC-09 |
+| AC-07 | DISC-001-05a AC-11 |
+| AC-08 | DISC-001-05a AC-12, DISC-001-05b AC-21 and DISC-001-05c AC-21 |
+| AC-09 | DISC-001-05a AC-13 |
+| AC-10 | DISC-001-05a AC-15 |
+| AC-11 | DISC-001-05c AC-15 |
+| AC-12 | DISC-001-05c AC-16 |
+| AC-13 | DISC-001-05c AC-18 |
+| AC-14 | DISC-001-05c AC-19 |
+| AC-15 | DISC-001-05b AC-01 (store) and DISC-001-05c AC-02 (balances) |
+| AC-16 | DISC-001-05b AC-02 |
+| AC-17 | DISC-001-05b AC-07 |
+| AC-18 | DISC-001-05b AC-09 |
+| AC-19 | DISC-001-05b AC-08 |
+| AC-20 | DISC-001-05b AC-11 |
+| AC-21 | DISC-001-05b AC-12 |
+| AC-22 | DISC-001-05b AC-14 |
+| AC-23 | DISC-001-05b AC-15 |
+| AC-24 | DISC-001-05b AC-17 |
+| AC-25 | DISC-001-05b AC-18 |
+| AC-26 | DISC-001-05c AC-01 |
+| AC-27 | DISC-001-05c AC-03 |
+| AC-28 | DISC-001-05c AC-05 |
+| AC-29 | DISC-001-05c AC-08 |
+| AC-30 | DISC-001-05c AC-11 |
+| AC-31 | DISC-001-05c AC-12 |
+| AC-32 | DISC-001-05d AC-01 and AC-05 |
+| AC-33 | DISC-001-05d AC-03 |
+| AC-34 | DISC-001-05b AC-22, DISC-001-05c AC-22 (creation), DISC-001-05d AC-08 and AC-09 (edit and deletion) |
+| AC-35 | DISC-001-05d AC-10 |
+| AC-36 | DISC-001-05a AC-03 |
+| AC-37 | DISC-001-05a AC-20 |
+| AC-38 | DISC-001-05a AC-17 (change) and DISC-001-05c AC-14 (prefill) |
+| AC-39 | DISC-001-05a AC-21 (the other sub-tickets restate it for their own data) |
+| AC-40 | DISC-001-05a AC-22 |
+| AC-41 | DISC-001-05c AC-20 |
+| AC-42 | DISC-001-05a AC-19 and DISC-001-05b AC-19 and AC-20 |
