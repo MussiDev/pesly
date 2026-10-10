@@ -116,6 +116,7 @@ describe('response schemas', () => {
       ...rent,
       weekday: null,
       month: null,
+      reminderDays: 3,
       endDate: null,
       status: 'active',
       nextDueDate: '2026-11-05',

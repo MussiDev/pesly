@@ -25,6 +25,9 @@ const weekdaySchema = z.number().int().min(0).max(6);
 const dayOfMonthSchema = z.number().int().min(1).max(31);
 const monthSchema = z.number().int().min(1).max(12);
 
+export const REMINDER_DAYS_DEFAULT = 3;
+export const reminderDaysSchema = z.number().int().min(0).max(30);
+
 const recurringFieldsSchema = z.strictObject({
   name: boundedNameSchema(RECURRING_NAME_MAX_LENGTH),
   amount: movementAmountSchema,
@@ -77,15 +80,18 @@ function checkSchedule(value: ScheduleFields, ctx: z.RefinementCtx, requireAll: 
 }
 
 /** `POST /recurring/payments`. */
-export const createRecurringPaymentSchema = recurringFieldsSchema.superRefine((value, ctx) => {
-  checkSchedule(value, ctx, true);
-});
+export const createRecurringPaymentSchema = recurringFieldsSchema
+  .extend({ reminderDays: reminderDaysSchema.default(REMINDER_DAYS_DEFAULT) })
+  .superRefine((value, ctx) => {
+    checkSchedule(value, ctx, true);
+  });
 
 export type CreateRecurringPayment = z.infer<typeof createRecurringPaymentSchema>;
 
 /** `PATCH /recurring/payments/:id`: every field optional, at least one present. */
 export const updateRecurringPaymentSchema = recurringFieldsSchema
   .partial()
+  .extend({ reminderDays: reminderDaysSchema.optional() })
   .superRefine((value, ctx) => {
     if (Object.keys(value).length === 0) {
       ctx.addIssue({ code: 'custom', message: 'At least one field is required' });
@@ -114,6 +120,7 @@ export const recurringPaymentResponseSchema = z.object({
   startDate: calendarDateSchema,
   endDate: calendarDateSchema.nullable(),
   mode: modeSchema,
+  reminderDays: reminderDaysSchema,
   status: recurringStatusSchema,
   nextDueDate: calendarDateSchema.nullable(),
 });
