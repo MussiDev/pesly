@@ -14,10 +14,10 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contract and error codes) (7 files, 343 words), Block 3 (Domain and use cases) (6 files, 544 words), Block 4 (Drizzle adapters and erasure step) (6 files, 417 words), Block 5 (Routes and composition root) (4 files, 624 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contract and error codes) (7 files, 343 words), Block 3 (Domain and use cases) (6 files, 564 words), Block 4 (Drizzle adapters and erasure step) (6 files, 424 words), Block 5 (Routes and composition root) (4 files, 624 words)
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
-  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 0 in total for this document
+  ✅ F-SPEC-LOOP: 1 loop(s) since a human decided, under the ceiling of 3; 1 in total for this document
 ────────────────────────────────────────────────────────────────
 Total: 13 passed, 0 failed, 1 warnings
 Result: PASSED

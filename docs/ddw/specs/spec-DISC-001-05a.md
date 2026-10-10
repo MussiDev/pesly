@@ -6,8 +6,8 @@
 | PRD | docs/ddw/prd/prd-DISC-001-05a.md |
 | Tier | FEATURE |
 | Date | 2026-10-10 |
-| Spec loops | 0 |
-| Loops since last human decision | 0 |
+| Spec loops | 1 |
+| Loops since last human decision | 1 |
 
 ## Summary
 A new hexagonal API module, `groups`, stores a group (name, default rate type), its members (a
@@ -94,6 +94,10 @@ screen is built: the group UI ships with 05b (parent pending decision 4, recomme
 - D15: Out of the PRD text, decided here and listed for the owner: a group name is 1 to 50
   characters (NFC, trimmed, no control or format characters, the account-name rules); a ghost
   display name uses the same rules; a group cannot be renamed or deleted (not in the PRD).
+- D16: Threat model mitigation (R-04). A member has at most one invitation at a time: creating a new
+  one replaces the previous one (`on conflict (created_by_member_id) do update`), so the table holds
+  at most one row per member (50 per group), a leaked link is revoked by asking for a new one, and the
+  7-day expiry of FR-03 is unchanged for the link in force.
 
 ## Open questions for the owner
 1. Claim links do not expire (D5). Alternative: expire them after 7 days like invitations, which
@@ -200,7 +204,7 @@ Generated with drizzle-kit from the schema file, then the journal `when` checked
   of later foreign keys); unique `(group_id, user_id) where user_id is not null`; indexes
   `(user_id)` and `(group_id, joined_at, id)`.
 - `group_invitations`: `id` uuid pk; `group_id` fk cascade; `token_hash` text not null unique;
-  `created_by_member_id` uuid not null; `expires_at`, `created_at` timestamptz not null; composite
+  `created_by_member_id` uuid not null unique; `expires_at`, `created_at` timestamptz not null; composite
   fk `(created_by_member_id, group_id) → group_members(id, group_id)` on delete cascade; index
   `(group_id)`.
 - `group_claim_links`: `id` uuid pk; `group_id` fk cascade; `member_id` uuid not null; `token_hash`
@@ -223,7 +227,8 @@ Generated with drizzle-kit from the schema file, then the journal `when` checked
       checks and unique indexes above exist, `user_id` restricts on delete
 - [ ] A second membership of the same user in a group is a duplicate error from the unique index — validates AC-07
 - [ ] A ghost with a role of `admin` is rejected by the check — validates AC-16 (backstop)
-- [ ] A second unused claim link for the same member is rejected by the unique index — validates AC-11
+- [ ] A second unused claim link for the same member is a duplicate error from the unique index — validates AC-11
+- [ ] A second invitation row for the same creating member is a duplicate error from the unique index — validates AC-04
 - [ ] The journal `when` is greater than 1791590000000
 
 **Completion criterion**
@@ -268,6 +273,7 @@ need state (limit, membership, ghost, name clash).
 - [ ] Creating a group makes the creator its only member and an admin — validates AC-01
 - [ ] Creating a group creates the Appendix A top-level expense categories — validates AC-03
 - [ ] An invitation expires exactly 7 days after creation, to the second — validates AC-04
+- [ ] A member's second invitation replaces the first: the first token now fails with 400 — validates AC-06
 - [ ] Accepting a valid invitation adds a member; an expired one fails with 400 and adds none — validates AC-05, AC-06
 - [ ] Accepting an invitation as a member adds no second membership — validates AC-07
 - [ ] The 51st member through an invitation or a ghost is a 409 conflict — validates AC-08, AC-10
@@ -308,7 +314,7 @@ member in the same transaction. `claim` runs `update group_claim_links set used_
 token_hash = $1 and used_at is null returning member_id`, then sets `user_id` and clears
 `display_name` on that member, in one transaction; if the user is already a member it rolls back so
 the link stays unused (D7). `createClaimLink` deletes the member's unused link and inserts the new
-one in one transaction (D5). Unique-violation errors map to the typed errors; no `catch` swallows
+one in one transaction (D5); `createInvitation` upserts on the creating member (D16). Unique-violation errors map to the typed errors; no `catch` swallows
 anything.
 
 **Data model**
