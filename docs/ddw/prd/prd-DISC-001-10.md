@@ -11,11 +11,11 @@
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
 | DISC-001-10a | Cards, Linked Accounts and Statement Cycles | prd-DISC-001-10a.md | PRD 01, 02 and 03 (all merged); first to add a migration, number 0019 reserved | done: merged to `main` in PR #35 (migration 0019, journal `when` 1791246865297); the `/cards` screen and its navigation entry shipped with it, so pending decision 4 is open for the owner (the entry stays until the owner decides otherwise) |
-| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | done: branch `feat/DISC-001-10b-card-expenses` (from `main` 663f747, not pushed, no PR yet); no migration; the purchase's statement is derived from its day and the closing dates, not stored; the card expense screen is online only (offline entry still goes through the ordinary movement form on the linked accounts); the Playwright flow `credit-cards-expenses.spec.ts` is written and is run by the orchestrator; next: 10c |
-| DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | done: branch `feat/DISC-001-10c-installments` (from `main` 77d55f1, not pushed, no PR yet); migration 0020 (journal `when` 1791419213992, to be checked again at merge); installment purchases are not movements (no expense on the linked accounts), the statement of an installment is stored as its period; the monthly installment expenses by category are exposed by `GET /credit-cards/installment-expenses`; the Playwright flow `credit-cards-installments.spec.ts` is written and is run by the orchestrator; next: d |
-| DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | done: branch `feat/DISC-001-10d-statement-payments` (stacked on `feat/DISC-001-10c-installments` 2f0434f, not pushed, no PR yet); no migration and no dependency; a payment is a transfer to the card's linked account, and the paid status of a closed statement is derived on read by allocating the transfers received by the card to its closed statements oldest first; the payment screen is online only; the Playwright flow `credit-cards-payments.spec.ts` is written and is run by the orchestrator; next: e |
-| DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d; the scheduler is an open decision (PRD 08 is not built) | pending |
-| DISC-001-10f | Statement Due-Date Reminders | prd-DISC-001-10f.md | PRD 08 (Recurring Payments & Reminders), which is not built | blocked: needs PRD 08 |
+| DISC-001-10b | Card Expenses and Statement Assignment | prd-DISC-001-10b.md | depends on a (merged) | done: merged to `main` in PR #36; no migration; the purchase's statement is derived from its day and the closing dates, not stored; the card expense screen is online only (offline entry still goes through the ordinary movement form on the linked accounts); the Playwright flow `credit-cards-expenses.spec.ts` is written and is run by the orchestrator; next: 10c |
+| DISC-001-10c | Installment Purchases, Statement Totals and Pending Debt | prd-DISC-001-10c.md | depends on b | done: merged to `main` in PR #37; migration 0020 (journal `when` 1791419213992, to be checked again at merge); installment purchases are not movements (no expense on the linked accounts), the statement of an installment is stored as its period; the monthly installment expenses by category are exposed by `GET /credit-cards/installment-expenses`; the Playwright flow `credit-cards-installments.spec.ts` is written and is run by the orchestrator; next: d |
+| DISC-001-10d | Statement Payments and Status | prd-DISC-001-10d.md | depends on c | done: merged to `main` in PR #38; no migration and no dependency; a payment is a transfer to the card's linked account, and the paid status of a closed statement is derived on read by allocating the transfers received by the card to its closed statements oldest first; the payment screen is online only; the Playwright flow `credit-cards-payments.spec.ts` is written and is run by the orchestrator; next: e |
+| DISC-001-10e | Automatic Debit | prd-DISC-001-10e.md | depends on d (merged); the scheduler is decided: a job of the existing worker, as in DISC-001-08b | in progress: PRD updated 2026-10-10 |
+| DISC-001-10f | Statement Due-Date Reminders | prd-DISC-001-10f.md | PRD 08 (merged: the in-app notices of DISC-001-08c) and a (merged) | pending: PRD updated 2026-10-10, starts after 10e |
 
 ## Suggested implementation order
 a → b → c → d → e, a chain: each one needs the one before it. f starts when PRD 08 is merged, and
@@ -28,13 +28,8 @@ needs only a besides PRD 08.
    the installments by category and month through the API and the movements model, and PRD 06 and
    PRD 09 consume them when they are built, each stating the integration in its own PRD.
    Alternative: 10c waits for PRD 06 and PRD 09.
-2. **Reminder channels** (for DISC-001-10f). The original FR-20 sends the reminder "through the
-   channels of PRD 08", which does not exist yet. Which channels exist, and how a reminder follows
-   a due date edited after scheduling, are decided when PRD 08 is built and 10f starts.
-3. **Scheduler of the automatic debit job** (for DISC-001-10e's PLAN). The original dependencies
-   list PRD 08 for scheduling (NFR-03, now 10e NFR-02), but 10e must not wait for it. Recommended:
-   a scheduled job inside the API, behind a port, replaceable by PRD 08's scheduler later.
-   Alternative: block 10e on PRD 08.
+2. **Reminder channels** (for DISC-001-10f) (resolved 2026-10-10: PRD 08 is built, so 10f creates in-app notices through the notices of DISC-001-08c, reminder days are stored per card, and a due date edited after scheduling is followed because the job reads the current due date on every pass; push delivery arrives with DISC-001-08d).
+3. **Scheduler of the automatic debit job** (for DISC-001-10e's PLAN) (resolved 2026-10-10: PRD 08 is built, so 10e is a job of the existing worker with the pattern of DISC-001-08b, with catch-up after downtime).
 4. **Release unit of 10a and the rest** (found while splitting). 10a creates cards and statements
    that nothing can use until 10b records expenses on them. Recommended: merge each sub-ticket to
    `main` as it finishes, but ship the card UI only with 10b. Alternative: release a to d together.
