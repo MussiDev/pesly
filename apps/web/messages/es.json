@@ -423,6 +423,8 @@
       "back": "Volver a las cuentas"
     },
     "list": {
+      "availableSection": "Cuentan como disponible",
+      "savingsSection": "Ahorro, fuera del disponible",
       "activeTitle": "Cuentas activas",
       "archivedTitle": "Cuentas archivadas",
       "newAccount": "Nueva cuenta",
@@ -666,6 +668,8 @@
   "movements": {
     "title": "Movimientos",
     "list": {
+      "searchLabel": "Buscar movimientos",
+      "searchPlaceholder": "Buscar por nombre o categoría",
       "newMovement": "Nuevo movimiento",
       "emptyTitle": "Registra tu primer movimiento",
       "empty": "Todavía no tienes movimientos.",
@@ -699,6 +703,8 @@
       "to": "Hasta",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas las categorías",
+      "all": "Todos",
+      "more": "Más filtros",
       "allTypes": "Todos los tipos",
       "archived": "{name} (archivada)",
       "clear": "Limpiar filtros",

@@ -1,9 +1,10 @@
 'use client';
 
 import type { MovementResponse } from '@pesly/shared';
-import { Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { exactIntegerStringSchema, formatMoney } from '@pesly/shared';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { FormAlert } from '@/features/auth/components/form-alert';
@@ -86,6 +87,44 @@ function groupByDay(items: readonly MovementListItem[], timeZone: string): DayGr
   return groups;
 }
 
+/**
+ * The day's net figure (income minus expenses) in the currency every one of those movements
+ * shares; transfers and exchanges are not spending, and mixed currencies are never added up.
+ */
+export function dayTotal(items: readonly MovementListItem[], locale: string): string | undefined {
+  const counted = items.filter(
+    (item) => item.movement.type === 'income' || item.movement.type === 'expense',
+  );
+  const currency = counted[0]?.currency;
+  if (currency === undefined || counted.some((item) => item.currency !== currency)) {
+    return undefined;
+  }
+  let total = 0n;
+  for (const item of counted) {
+    // A malformed amount is shown as a dash on its row; it makes the day's figure unknowable.
+    const parsed = exactIntegerStringSchema.safeParse(item.movement.amount);
+    if (!parsed.success) return undefined;
+    const amount = BigInt(parsed.data);
+    total += item.movement.type === 'income' ? amount : -amount;
+  }
+  return formatMoney(total, currency, locale);
+}
+
+/** Whether a loaded movement matches what was typed in the search box. */
+function matchesQuery(item: MovementListItem, query: string): boolean {
+  const haystack = [
+    item.categoryName,
+    item.accountName,
+    item.destinationAccountName,
+    item.movement.note,
+    ...item.movement.tags,
+  ]
+    .filter((value): value is string => typeof value === 'string')
+    .join(' ')
+    .toLowerCase();
+  return haystack.includes(query.trim().toLowerCase());
+}
+
 export function MovementList({
   items,
   timeZone,
@@ -104,9 +143,26 @@ export function MovementList({
   const t = useTranslations('movements.list');
   const tFilters = useTranslations('movements.filters');
   const locale = useLocale();
+  const [query, setQuery] = useState('');
+  const shown = query.trim() === '' ? items : items.filter((item) => matchesQuery(item, query));
 
   return (
     <section className="grid gap-4">
+      {items.length === 0 || loadState !== undefined ? null : (
+        <label className="flex h-12 items-center gap-2.5 rounded-pill bg-card px-4 text-muted-foreground">
+          <Search aria-hidden className="size-4.5 shrink-0" />
+          <span className="sr-only">{t('searchLabel')}</span>
+          <input
+            type="search"
+            value={query}
+            placeholder={t('searchPlaceholder')}
+            onChange={(event) => {
+              setQuery(event.currentTarget.value);
+            }}
+            className="h-11 min-w-0 flex-1 bg-transparent text-small text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+      )}
       {filterBar}
       {offlineNotice ? (
         <p role="status" className="text-small text-muted-foreground">
@@ -146,11 +202,19 @@ export function MovementList({
               {t('newMovement')}
             </Link>
           </div>
-          {groupByDay(items, timeZone).map((group) => (
+          {shown.length === 0 ? (
+            <p className="rounded-card bg-card px-4 py-8 text-center text-small text-muted-foreground">
+              {tFilters('noMatch')}
+            </p>
+          ) : null}
+          {groupByDay(shown, timeZone).map((group) => (
             <section key={group.key} className="grid gap-1">
-              <h2 className="px-1 text-small font-medium text-muted-foreground">
-                <time dateTime={group.key}>{formatDay(group.occurredAt, locale, timeZone)}</time>
-              </h2>
+              <div className="flex items-center justify-between gap-2 px-1 text-small font-semibold text-muted-foreground">
+                <h2 className="font-semibold">
+                  <time dateTime={group.key}>{formatDay(group.occurredAt, locale, timeZone)}</time>
+                </h2>
+                <span className="tabular-nums">{dayTotal(group.items, locale)}</span>
+              </div>
               {/* An explicit role: list-style reset classes can drop the implicit one in Safari. */}
               <ul
                 role="list"

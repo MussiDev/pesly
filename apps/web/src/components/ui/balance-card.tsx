@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface BalanceCardProps {
   /** The accessible name of the group, e.g. the currency. */
@@ -7,6 +8,8 @@ interface BalanceCardProps {
   primary: ReactNode;
   secondaryLabel: string;
   secondary: ReactNode;
+  /** No surface of its own: it sits inside a shared navy block that holds several cards. */
+  bare?: boolean;
 }
 
 /**
@@ -20,13 +23,19 @@ export function BalanceCard({
   primary,
   secondaryLabel,
   secondary,
+  bare = false,
 }: BalanceCardProps) {
   return (
     <div
       data-slot="balance-card"
       role="group"
       aria-label={label}
-      className="relative min-w-0 overflow-hidden rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground"
+      className={cn(
+        'relative min-w-0',
+        bare
+          ? 'text-hero-foreground'
+          : 'overflow-hidden rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground',
+      )}
     >
       <dl className="relative grid gap-4">
         <div className="grid min-w-0 gap-1">
@@ -35,7 +44,7 @@ export function BalanceCard({
             {primary}
           </dd>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-pill bg-hero-foreground/10 px-4 py-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-hero-foreground/20 pt-3">
           <dt className="text-small text-hero-muted">{secondaryLabel}</dt>
           <dd className="text-small font-semibold break-words [&_[data-slot=amount]]:whitespace-normal">
             {secondary}

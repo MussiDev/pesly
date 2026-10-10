@@ -136,8 +136,12 @@ describe('MovementFilters', () => {
       'Caja',
       'Dolares',
     ]);
-    expect(optionTexts(screen.getByLabelText(es.movements.filters.type))).toEqual([
-      es.movements.filters.allTypes,
+    expect(
+      within(screen.getByRole('group', { name: es.movements.filters.type }))
+        .getAllByRole('button')
+        .map((chip) => chip.textContent),
+    ).toEqual([
+      es.movements.filters.all,
       es.movements.types.expense,
       es.movements.types.income,
       es.movements.types.transfer,
@@ -164,11 +168,23 @@ describe('MovementFilters', () => {
 
     await user.selectOptions(screen.getByLabelText(es.movements.filters.account), CAJA);
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', accountId: CAJA });
-    await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'income');
+    await user.click(
+      within(screen.getByRole('group', { name: es.movements.filters.type })).getByRole('button', {
+        name: es.movements.types.income,
+      }),
+    );
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'income' });
-    await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'transfer');
+    await user.click(
+      within(screen.getByRole('group', { name: es.movements.filters.type })).getByRole('button', {
+        name: es.movements.types.transfer,
+      }),
+    );
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'transfer' });
-    await user.selectOptions(screen.getByLabelText(es.movements.filters.type), 'exchange');
+    await user.click(
+      within(screen.getByRole('group', { name: es.movements.filters.type })).getByRole('button', {
+        name: es.movements.types.exchange,
+      }),
+    );
     expect(onChange).toHaveBeenLastCalledWith({ tag: 'Viaje', type: 'exchange' });
     fireEvent.change(screen.getByLabelText(es.movements.filters.from), {
       target: { value: '2026-10-01' },
@@ -273,7 +289,8 @@ describe('movements.filters catalogs', () => {
     'to',
     'allAccounts',
     'allCategories',
-    'allTypes',
+    'all',
+    'more',
     'archived',
     'clear',
     'showAll',
