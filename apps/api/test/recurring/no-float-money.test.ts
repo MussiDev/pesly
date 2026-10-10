@@ -18,6 +18,16 @@ const trees = [
   'apps/api/src/recurring',
   'packages/shared/src/recurring',
   'apps/web/src/features/recurring',
+  'apps/api/src/notices',
+  'packages/shared/src/notices',
+  'apps/web/src/features/notices',
+];
+const noticeFiles = [
+  'apps/api/src/notices/domain/notice-text.ts',
+  'apps/api/src/notices/application/list-notices.ts',
+  'apps/api/src/notices/infrastructure/db/drizzle-notice-publisher.ts',
+  'apps/api/src/notices/infrastructure/db/drizzle-notice-repository.ts',
+  'apps/api/src/notices/infrastructure/http/notices-routes.ts',
 ];
 const jobFiles = [
   'apps/api/src/recurring/application/record-due-occurrences.ts',
@@ -62,6 +72,26 @@ describe('no floating-point money arithmetic (NFR-01)', () => {
         o.includes(file.split('/').pop() ?? ''),
       ),
     ).toEqual([]);
+  });
+
+  it.each(noticeFiles)('%s is part of the scan and has no float conversions', (file) => {
+    const scanned = sources(join(root, 'apps/api/src/notices'));
+    expect(scanned).toContain(join(root, file));
+    expect(offendersIn(join(root, 'apps/api/src/notices')).filter((o) => o.includes(file))).toEqual(
+      [],
+    );
+  });
+
+  it('fails naming the file and the token when a float is planted in a notices file', () => {
+    const probeRoot = mkdtempSync(join(tmpdir(), 'no-float-notices-'));
+    try {
+      mkdirSync(join(probeRoot, 'domain'), { recursive: true });
+      const file = join(probeRoot, 'domain', 'notice-text.ts');
+      writeFileSync(file, 'export const shown = Number("1.5").toFixed(2);');
+      expect(offendersIn(probeRoot)).toEqual([`${file}: Number(`, `${file}: toFixed`]);
+    } finally {
+      rmSync(probeRoot, { recursive: true, force: true });
+    }
   });
 
   it('fails when a float is introduced in a job file', () => {
