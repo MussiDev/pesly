@@ -38,6 +38,7 @@ const ALL_TABLES = [
   'movement_rate_limits',
   'movement_tags',
   'movements',
+  'notices',
   'oauth_states',
   'one_time_tokens',
   'portfolio_value_snapshots',

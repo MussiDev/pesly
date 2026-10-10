@@ -39,6 +39,7 @@ const LATER_MIGRATIONS = [
   '0022_card_statement_import_lines',
   '0023_recurring_payments',
   '0024_recurring_auto_recording_from',
+  '0025_notices',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -63,6 +64,7 @@ const LATER_TABLES = [
   ...CREDIT_CARD_TABLES,
   'recurring_occurrences',
   'recurring_payments',
+  'notices',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 

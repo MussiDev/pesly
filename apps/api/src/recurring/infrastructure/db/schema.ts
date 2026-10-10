@@ -55,10 +55,13 @@ export const recurringPayments = pgTable(
     autoRecordingFrom: date('auto_recording_from', { mode: 'string' })
       .notNull()
       .default(sql`current_date`),
+    /** Days before a due date on which the reminder notice is published (DISC-001-08c); 0 means the same day. */
+    reminderDays: smallint('reminder_days').notNull().default(3),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },
   (table) => [
+    check('recurring_payments_reminder_days_check', sql`${table.reminderDays} between 0 and 30`),
     check('recurring_payments_name_length_check', sql`char_length(${table.name}) between 1 and 80`),
     check(
       'recurring_payments_amount_check',
