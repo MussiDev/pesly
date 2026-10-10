@@ -30,16 +30,8 @@ export function BalanceSummary({
   return (
     <section
       aria-labelledby="home-balance-title"
-      className="relative grid min-w-0 gap-4 overflow-hidden rounded-card bg-hero p-5 text-hero-foreground shadow-md"
+      className="relative grid min-w-0 gap-4 overflow-hidden rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground"
     >
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-16 -right-14 size-52 rounded-pill bg-hero-foreground/10"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute top-16 right-10 size-36 rounded-pill border border-hero-foreground/20"
-      />
       <div className="relative grid min-w-0 gap-1">
         <h2 id="home-balance-title" className="text-small font-normal text-hero-muted">
           {t('netWorth')}

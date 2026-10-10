@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   ADD_MOVEMENT_HREF,
   HOME_ITEM,
-  INVESTMENTS_ITEM,
+  GROUPS_ITEM,
   isActiveInBottomNav,
   MORE_ITEM,
   MOVEMENTS_ITEM,
@@ -21,10 +21,10 @@ export interface BottomNavProps {
 
 // The add action sits between the two halves so it stays centered and reachable by thumb.
 const BEFORE_ADD: readonly NavItem[] = [HOME_ITEM, MOVEMENTS_ITEM];
-const AFTER_ADD: readonly NavItem[] = [INVESTMENTS_ITEM, MORE_ITEM];
+const AFTER_ADD: readonly NavItem[] = [GROUPS_ITEM, MORE_ITEM];
 
 /**
- * The floating pill bar below `lg`; the top navigation takes over from `lg`. The landmark spans
+ * The flat bar below 900 px, with the raised add action; the side menu takes over from 900 px. The landmark spans
  * the width and lets taps through, so only the pill itself catches them.
  */
 export function BottomNav({ currentPath }: BottomNavProps) {
@@ -34,16 +34,23 @@ export function BottomNav({ currentPath }: BottomNavProps) {
     const active = isActiveInBottomNav(item, currentPath);
     const Icon = item.icon;
     return (
-      <li key={item.href} className="min-w-0 flex-1">
+      <li key={item.href} className="min-w-0">
         <Link
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-pill py-1.5 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
-            active && 'bg-accent text-accent-foreground',
+            'flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+            active && 'font-bold text-accent-foreground',
           )}
         >
-          <Icon aria-hidden className="size-5 shrink-0" />
+          <span
+            className={cn(
+              'flex h-7.5 w-14 items-center justify-center rounded-pill transition-colors motion-reduce:transition-none',
+              active && 'bg-accent',
+            )}
+          >
+            <Icon aria-hidden className="size-5.5 shrink-0" />
+          </span>
           <span className="min-w-0 max-w-full truncate">{t(item.labelKey)}</span>
         </Link>
       </li>
@@ -54,17 +61,17 @@ export function BottomNav({ currentPath }: BottomNavProps) {
     <nav
       data-slot="bottom-nav"
       aria-label={t('label')}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe lg:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe desk:hidden"
     >
-      <ul className="pointer-events-auto mx-4 mb-4 flex items-center rounded-pill bg-card px-2 py-1.5 shadow-md sm:mx-auto sm:max-w-md">
+      <ul className="pointer-events-auto grid grid-cols-5 items-start border-t bg-card px-2 pt-1.5 pb-2">
         {BEFORE_ADD.map(destination)}
-        <li className="flex shrink-0 justify-center">
+        <li className="flex justify-center">
           <Link
             href={ADD_MOVEMENT_HREF}
             aria-label={t('addMovement')}
-            className="inline-flex size-circle-action items-center justify-center rounded-pill bg-primary text-primary-foreground shadow-md transition-colors outline-none hover:bg-primary/90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            className="-mt-5.5 inline-flex size-15 items-center justify-center rounded-pill bg-primary text-primary-foreground ring-4 ring-background transition-colors outline-none hover:bg-primary/90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
           >
-            <Plus aria-hidden className="size-6" />
+            <Plus aria-hidden className="size-6.5" />
           </Link>
         </li>
         {AFTER_ADD.map(destination)}

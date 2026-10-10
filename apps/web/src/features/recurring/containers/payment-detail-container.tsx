@@ -277,7 +277,7 @@ export function PaymentDetailContainer({ paymentId }: { paymentId: string }) {
           <div
             role="alertdialog"
             aria-label={t('deleteConfirm.title')}
-            className="grid gap-3 rounded-xl border border-destructive p-4"
+            className="grid gap-3 rounded-card border border-destructive p-4"
           >
             <p className="font-medium">{t('deleteConfirm.title')}</p>
             <p className="text-small text-muted-foreground">{t('deleteConfirm.description')}</p>

@@ -265,6 +265,7 @@ describe('UpcomingList', () => {
       screen.getByRole('button', { name: `${es.recurring.actions.confirm} Gym` }),
     ).toBeDefined();
     expect(screen.getByRole('button', { name: `${es.recurring.actions.skip} Gym` })).toBeDefined();
+    expect(screen.getByRole('list', { name: es.recurring.list.toConfirmLabel })).toBeDefined();
     expect(screen.getByRole('list', { name: es.recurring.list.upcomingLabel })).toBeDefined();
   });
 });

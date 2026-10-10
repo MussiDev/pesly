@@ -8,7 +8,7 @@ import { NoticesLink } from '../src/features/notices/components/notices-link';
 import { NoticesContainer } from '../src/features/notices/containers/notices-container';
 import { UnreadBadgeContainer } from '../src/features/notices/containers/unread-badge-container';
 import { MoreMenu } from '../src/features/shell/components/more-menu';
-import { TopNav } from '../src/features/shell/components/top-nav';
+import { TopBar } from '../src/features/shell/components/top-bar';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { en, es } = CATALOGS;
@@ -281,19 +281,18 @@ describe('NoticesContainer', () => {
 });
 
 describe('shell entries for the notices (AC-27)', () => {
-  it('shows the notices link with its badge slot in the top navigation', () => {
+  it('shows the notices link in the top bar, in place of the disabled bell', () => {
     const { container } = renderApp(
-      <TopNav
-        signingOut={false}
-        onSignOut={() => undefined}
-        notices={<span data-testid="slot">badge</span>}
-      />,
+      <TopBar online pending={0} notices={<span data-testid="slot">badge</span>} />,
       { locale: 'en' },
     );
 
-    const nav = container.querySelector<HTMLElement>('[data-slot="top-nav"]');
-    expect(nav).not.toBeNull();
-    expect(within(nav as HTMLElement).getByTestId('slot')).toBeTruthy();
+    const bar = container.querySelector<HTMLElement>('[data-slot="top-bar"]');
+    expect(bar).not.toBeNull();
+    expect(within(bar as HTMLElement).getByTestId('slot')).toBeTruthy();
+    expect(
+      within(bar as HTMLElement).queryByRole('button', { name: en.app.topBar.notifications }),
+    ).toBeNull();
   });
 
   it('lists the notices on the More page, carrying the badge', () => {

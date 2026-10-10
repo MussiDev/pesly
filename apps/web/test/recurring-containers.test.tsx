@@ -112,16 +112,9 @@ const count = (calls: ApiCall[], path: string) =>
 async function openUpcoming(routes = upcomingRoutes(), locale: 'en' | 'es' = 'en') {
   const stub = stubApi(routes);
   const view = renderApp(<UpcomingContainer />, { locale });
-  await screen.findByRole('list', { name: CATALOGS[locale].recurring.list.upcomingLabel });
+  await screen.findByRole('list', { name: CATALOGS[locale].recurring.list.toConfirmLabel });
   return { ...stub, ...view };
 }
-
-/** The Rent row of the upcoming list; the payments list below has a row with the same name. */
-const upcomingRent = () =>
-  within(screen.getByRole('list', { name: en.recurring.list.upcomingLabel })).getByRole(
-    'listitem',
-    { name: 'Rent' },
-  );
 
 const confirmButton = (locale: 'en' | 'es' = 'en') =>
   screen.getByRole('button', { name: `${CATALOGS[locale].recurring.actions.confirm} Rent` });
@@ -188,7 +181,11 @@ describe('UpcomingContainer', () => {
     await waitFor(() => {
       expect(count(calls, '/recurring/upcoming')).toBe(2);
     });
-    expect(within(upcomingRent()).queryByRole('button')).toBeNull();
+    // Once refreshed the payment is only scheduled: it moves to the upcoming list, with no actions.
+    const scheduledRent = within(
+      screen.getByRole('list', { name: en.recurring.list.upcomingLabel }),
+    ).getByRole('listitem', { name: 'Rent' });
+    expect(within(scheduledRent).queryByRole('button')).toBeNull();
   });
 
   it('keeps the form and its values when the request fails on the network', async () => {

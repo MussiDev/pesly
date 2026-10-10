@@ -3,6 +3,7 @@ import { expect, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './accounts';
 import { catalogs } from './catalogs';
 import { seedMovements } from './database';
+import { chooseCategory, chooseMovementType } from './movement-type';
 
 export const WEB_URL = 'http://localhost:3000';
 export const es = catalogs.es;
@@ -50,8 +51,8 @@ export async function createAccountAndMovement(page: Page): Promise<void> {
 
   await page.goto('/es/movements/new');
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.expense });
-  await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: CATEGORY });
+  await chooseMovementType(page, t.fields.type, t.types.expense);
+  await chooseCategory(page, t.fields.category, CATEGORY);
   await page.getByLabel(t.fields.amount, { exact: true }).fill('10,00');
   await page.getByLabel(t.tags.label, { exact: true }).fill(TAG);
   await page.getByLabel(t.tags.label, { exact: true }).press('Enter');

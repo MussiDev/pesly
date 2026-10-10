@@ -54,9 +54,7 @@ describe('a component built with cn keeps its type size', () => {
     const links = Array.from(container.querySelectorAll('nav li a'));
     expect(links.length).toBeGreaterThan(0);
     // The circular add button has no label, so only the destinations are checked.
-    for (const link of links.filter(
-      (a) => !a.getAttribute('class')?.includes('size-circle-action'),
-    )) {
+    for (const link of links.filter((a) => !a.getAttribute('class')?.includes('size-15'))) {
       expect(link.className).toContain('text-nav');
     }
     const active = container.querySelector('a[aria-current="page"]');

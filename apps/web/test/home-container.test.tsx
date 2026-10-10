@@ -16,6 +16,7 @@ const ACCOUNTS_PATH = '/accounts?archived=false&limit=100';
 const MOVEMENTS_PATH = '/movements?limit=5';
 const CATEGORIES_PATH = '/categories?archived=false&limit=100';
 const PROFILE_PATH = '/profile';
+const UPCOMING_PATH = '/recurring/upcoming';
 const ARCHIVED_ACCOUNTS_PATH = '/accounts?archived=true&limit=100';
 const ARCHIVED_CATEGORIES_PATH = '/categories?archived=true&limit=100';
 
@@ -127,6 +128,47 @@ function profileAnswer(timeZone: string) {
   };
 }
 
+describe('HomeContainer pending payment', () => {
+  const PENDING_ITEM = {
+    kind: 'pending',
+    dueDate: '2026-10-10',
+    paymentId: 'p1',
+    name: 'Alquiler',
+    amount: '45000000',
+    accountId: 'a1',
+    categoryId: 'c1',
+    occurrenceId: 'o1',
+  };
+
+  it('shows the next payment to confirm with a link to the recurring page', async () => {
+    stubApi({
+      ...loadedRoutes(),
+      [`GET ${UPCOMING_PATH}`]: { status: 200, body: { items: [PENDING_ITEM] } },
+    });
+    renderApp(<HomeContainer />);
+
+    const banner = await screen.findByRole('region', { name: es.home.pending.label });
+    expect(within(banner).getByText(/Alquiler/)).toBeDefined();
+    expect(
+      within(banner).getByRole('link', { name: es.home.pending.confirm }).getAttribute('href'),
+    ).toBe('/es/recurring');
+  });
+
+  it('shows nothing when only scheduled payments exist or the request fails', async () => {
+    stubApi({
+      ...loadedRoutes(),
+      [`GET ${UPCOMING_PATH}`]: {
+        status: 200,
+        body: { items: [{ ...PENDING_ITEM, kind: 'scheduled', occurrenceId: null }] },
+      },
+    });
+    renderApp(<HomeContainer />);
+
+    await screen.findByRole('list', { name: es.home.accounts.title });
+    expect(screen.queryByRole('region', { name: es.home.pending.label })).toBeNull();
+  });
+});
+
 describe('HomeContainer sections (AC-13)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -151,6 +193,7 @@ describe('HomeContainer sections (AC-13)', () => {
         CATEGORIES_PATH,
         ARCHIVED_CATEGORIES_PATH,
         PROFILE_PATH,
+        UPCOMING_PATH,
       ].sort(),
     );
   });
@@ -328,7 +371,7 @@ describe('HomeContainer', () => {
     expect(await screen.findByRole('list', { name: es.home.recent.title })).toBeDefined();
   });
 
-  it('shows a skeleton from the first render and starts all six requests before any resolves (AC-21, NFR-06)', async () => {
+  it('shows a skeleton from the first render and starts all seven requests before any resolves (AC-21, NFR-06)', async () => {
     const { calls, pending } = controlledApi();
     renderApp(<HomeContainer />);
 
@@ -344,9 +387,10 @@ describe('HomeContainer', () => {
         CATEGORIES_PATH,
         ARCHIVED_CATEGORIES_PATH,
         PROFILE_PATH,
+        UPCOMING_PATH,
       ].sort(),
     );
-    expect(pending).toHaveLength(6);
+    expect(pending).toHaveLength(7);
 
     for (const request of pending) request.release(500);
     expect(await screen.findByText(es.ui.error.title)).toBeDefined();

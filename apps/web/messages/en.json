@@ -40,6 +40,27 @@
       "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
       "action": "Create account"
     },
+    "month": {
+      "label": "This month",
+      "spent": "Spending",
+      "income": "Income",
+      "result": "Result",
+      "inCreation": "Monthly summary in progress"
+    },
+    "pending": {
+      "label": "Payment to confirm",
+      "due": "{name} is due soon",
+      "overdue": "{name} is overdue",
+      "detail": "{amount} · due {date} · payment to confirm",
+      "confirm": "Confirm payment"
+    },
+    "shortcuts": {
+      "label": "Shortcuts",
+      "inCreation": "In progress",
+      "budgets": { "title": "Budgets", "description": "Your limits per category" },
+      "groups": { "title": "Groups", "description": "Shared expenses and who owes whom" },
+      "cards": { "title": "Cards", "description": "Statements, closings and installments" }
+    },
     "quickActions": {
       "label": "Quick actions",
       "expense": "Expense",
@@ -75,7 +96,25 @@
       "addMovement": "Add movement",
       "cards": "Cards",
       "recurring": "Recurring",
-      "notices": "Notices"
+      "groups": "Groups",
+      "budgets": "Budgets",
+      "goals": "Savings goals",
+      "settings": "Settings",
+      "notices": "Notices",
+      "plan": "Plan"
+    },
+    "topBar": {
+      "upToDate": "Up to date",
+      "offline": "Offline",
+      "pending": "{count, plural, one {# pending} other {# pending}}",
+      "back": "Back",
+      "notifications": "Notifications",
+      "notificationsSoon": "Notifications · in progress"
+    },
+    "comingSoon": {
+      "badge": "In progress",
+      "title": "Screen in progress",
+      "description": "We are building this section. It will show up here as soon as it is ready."
     },
     "more": {
       "title": "More",
@@ -386,6 +425,8 @@
       "back": "Back to accounts"
     },
     "list": {
+      "availableSection": "Count as available",
+      "savingsSection": "Savings, outside available",
       "activeTitle": "Active accounts",
       "archivedTitle": "Archived accounts",
       "newAccount": "New account",
@@ -541,6 +582,9 @@
       "days": "Default days",
       "daysHint": "Changing a day also moves the dates of the open statements.",
       "saveDays": "Save days",
+      "accumulated": "Accrued",
+      "cycleDay": "Day {day} of {length} of the cycle",
+      "futureInstallments": "Future installments",
       "statements": "Statements",
       "closes": "Closes {date}",
       "due": "Due {date}",
@@ -625,7 +669,14 @@
   },
   "movements": {
     "title": "Movements",
+    "keypad": {
+      "label": "Number keypad",
+      "decimal": "Decimal point",
+      "backspace": "Delete a digit"
+    },
     "list": {
+      "searchLabel": "Search movements",
+      "searchPlaceholder": "Search by name or category",
       "newMovement": "New movement",
       "emptyTitle": "Record your first movement",
       "empty": "You have no movements yet.",
@@ -659,6 +710,8 @@
       "to": "To",
       "allAccounts": "All accounts",
       "allCategories": "All categories",
+      "all": "All",
+      "more": "More filters",
       "allTypes": "All types",
       "archived": "{name} (archived)",
       "clear": "Clear filters",
@@ -679,6 +732,7 @@
     "fields": {
       "type": "Type",
       "account": "Account",
+      "accountChange": "Change",
       "accountPlaceholder": "Choose an account",
       "category": "Category",
       "categoryPlaceholder": "Choose a category",
@@ -1173,10 +1227,15 @@
       "upcoming": "Upcoming",
       "all": "All payments"
     },
+    "sections": {
+      "toConfirm": "To confirm",
+      "upcoming": "Upcoming"
+    },
     "list": {
       "newPayment": "New recurring payment",
       "emptyTitle": "No recurring payments yet",
       "empty": "Add the payments that repeat, like rent or a subscription, and they will show up here when they are due.",
+      "toConfirmLabel": "Payments to confirm",
       "upcomingLabel": "Upcoming payments",
       "paymentsLabel": "Your recurring payments",
       "dueOn": "Due {date}",

@@ -2,9 +2,10 @@
 
 import { MOVEMENT_TYPES, type MovementType, type RateType } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ChangeEvent,
@@ -17,13 +18,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Select } from '@/components/ui/select';
+import { useCompactViewport } from '@/lib/use-compact-viewport';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import { Link } from '@/i18n/navigation';
+import { applyKey, writeLikeTyping } from '../keypad-input';
 import type { ImpliedRatePreview, ImpliedRatePreviewInput } from '../implied-rate-preview';
 import type { MovementFieldMessage, MovementFormErrors } from '../movement-form-errors';
+import { AccountPicker } from './account-picker';
+import { CategoryChips } from './category-chips';
 import { MovementField } from './movement-field';
+import { NumericKeypad } from './numeric-keypad';
 import { RateField } from './rate-field';
+import { TypePills } from './type-pills';
 
 /** What the user typed or picked, untouched: the container parses and validates it. */
 export interface MovementFormValues {
@@ -110,7 +117,15 @@ export function MovementForm({
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
+  const tAll = useTranslations();
+  const categoryId = useId();
+  const locale = useLocale();
+  const compact = useCompactViewport();
   const formRef = useRef<HTMLFormElement>(null);
+  const amountRef = useRef<HTMLInputElement>(null);
+  const destinationAmountRef = useRef<HTMLInputElement>(null);
+  // The keypad types into the amount that was touched last; the first one until another is.
+  const activeAmountRef = useRef<'amount' | 'destinationAmount'>('amount');
   const [type, setType] = useState<MovementType>(
     toMovementType(initialValues?.type ?? initialType ?? 'expense'),
   );
@@ -135,8 +150,16 @@ export function MovementForm({
     formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
   }, [errors]);
 
-  function handleTypeChange(event: ChangeEvent<HTMLSelectElement>) {
-    const next = toMovementType(event.currentTarget.value);
+  function pressKey(key: string) {
+    const input =
+      activeAmountRef.current === 'destinationAmount' && type === 'exchange'
+        ? destinationAmountRef.current
+        : amountRef.current;
+    if (input === null) return;
+    writeLikeTyping(input, applyKey(input.value, key, locale === 'en' ? '.' : ','));
+  }
+
+  function handleTypeChange(next: MovementType) {
     setType(next);
     setDestinationId('');
     // The rate field is unmounted for a transfer or an exchange, so its edit flag must not outlive it.
@@ -175,34 +198,78 @@ export function MovementForm({
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <form ref={formRef} className="grid min-w-0 gap-4" noValidate onSubmit={handleSubmit}>
           <FormAlert error={errors.form} />
           <RateLimitAlert rateLimit={errors.rateLimit} />
-          <MovementField label={t('fields.type')} error={errors.fields?.type}>
+          <TypePills value={type} disabled={mode === 'edit'} onChange={handleTypeChange} />
+          <MovementField
+            label={type === 'exchange' ? t('fields.amountOut') : t('fields.amount')}
+            error={errors.fields?.amount}
+          >
             {(control) => (
-              <Select
-                name="type"
-                value={type}
-                disabled={mode === 'edit'}
-                onChange={handleTypeChange}
+              <MoneyInput
+                ref={amountRef}
+                name="amount"
+                defaultValue={initialValues?.amount}
+                required
+                keyboard={compact ? 'none' : 'default'}
+                className="h-14 text-center text-title font-bold"
+                placeholder="0"
+                onFocus={() => {
+                  activeAmountRef.current = 'amount';
+                }}
+                onChange={(event) => {
+                  setAmount(event.currentTarget.value);
+                }}
                 {...control}
-              >
-                {MOVEMENT_TYPES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`types.${value}`)}
-                  </option>
-                ))}
-              </Select>
+              />
             )}
           </MovementField>
+          {type === 'exchange' ? (
+            <>
+              <MovementField label={t('fields.amountIn')} error={errors.fields?.destinationAmount}>
+                {(control) => (
+                  <MoneyInput
+                    ref={destinationAmountRef}
+                    name="destinationAmount"
+                    defaultValue={initialValues?.destinationAmount}
+                    required
+                    keyboard={compact ? 'none' : 'default'}
+                    className="h-14 text-center text-title font-bold"
+                    placeholder="0"
+                    onFocus={() => {
+                      activeAmountRef.current = 'destinationAmount';
+                    }}
+                    onChange={(event) => {
+                      setDestinationAmount(event.currentTarget.value);
+                    }}
+                    {...control}
+                  />
+                )}
+              </MovementField>
+              {previewRate === undefined ? null : (
+                <ImpliedRateLine
+                  preview={previewRate({
+                    accountId: sourceId,
+                    destinationAccountId: destinationId,
+                    amount,
+                    destinationAmount,
+                  })}
+                />
+              )}
+            </>
+          ) : null}
+          <NumericKeypad onKey={pressKey} />
           <MovementField label={t('fields.account')} error={errors.fields?.account}>
             {(control) => (
-              <Select
+              <AccountPicker
+                id={control.id}
                 name="accountId"
+                picked={source}
                 defaultValue={initialValues?.accountId ?? ''}
-                required
+                invalid={control['aria-invalid']}
+                describedBy={control['aria-describedby']}
                 onChange={handleSourceChange}
-                {...control}
               >
                 <option value="">{t('fields.accountPlaceholder')}</option>
                 {accounts.map((account) => (
@@ -210,7 +277,7 @@ export function MovementForm({
                     {`${account.name} (${account.currency})`}
                   </option>
                 ))}
-              </Select>
+              </AccountPicker>
             )}
           </MovementField>
           {categorized ? null : (
@@ -255,70 +322,22 @@ export function MovementForm({
             </MovementField>
           )}
           {categorized ? (
-            <MovementField label={t('fields.category')} error={errors.fields?.category}>
-              {(control) => (
-                // Keyed by type so the picked category resets when the type changes.
-                <Select
-                  key={type}
-                  name="categoryId"
-                  defaultValue={initialValues?.categoryId ?? ''}
-                  required
-                  {...control}
-                >
-                  <option value="">{t('fields.categoryPlaceholder')}</option>
-                  {categories
-                    .filter((category) => category.kind === type)
-                    .map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.label}
-                      </option>
-                    ))}
-                </Select>
-              )}
-            </MovementField>
-          ) : null}
-          <MovementField
-            label={type === 'exchange' ? t('fields.amountOut') : t('fields.amount')}
-            error={errors.fields?.amount}
-          >
-            {(control) => (
-              <MoneyInput
-                name="amount"
-                defaultValue={initialValues?.amount}
-                required
-                onChange={(event) => {
-                  setAmount(event.currentTarget.value);
-                }}
-                {...control}
+            <div className="grid min-w-0 gap-2">
+              {/* Keyed by type so the picked category resets when the type changes. */}
+              <CategoryChips
+                key={type}
+                label={t('fields.category')}
+                categories={categories.filter((category) => category.kind === type)}
+                defaultValue={initialValues?.categoryId ?? ''}
+                invalid={Boolean(errors.fields?.category)}
+                describedBy={errors.fields?.category ? `${categoryId}-message` : undefined}
               />
-            )}
-          </MovementField>
-          {type === 'exchange' ? (
-            <>
-              <MovementField label={t('fields.amountIn')} error={errors.fields?.destinationAmount}>
-                {(control) => (
-                  <MoneyInput
-                    name="destinationAmount"
-                    defaultValue={initialValues?.destinationAmount}
-                    required
-                    onChange={(event) => {
-                      setDestinationAmount(event.currentTarget.value);
-                    }}
-                    {...control}
-                  />
-                )}
-              </MovementField>
-              {previewRate === undefined ? null : (
-                <ImpliedRateLine
-                  preview={previewRate({
-                    accountId: sourceId,
-                    destinationAccountId: destinationId,
-                    amount,
-                    destinationAmount,
-                  })}
-                />
-              )}
-            </>
+              {errors.fields?.category ? (
+                <p id={`${categoryId}-message`} className="text-small text-destructive">
+                  {tAll(errors.fields.category)}
+                </p>
+              ) : null}
+            </div>
           ) : null}
           <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
             {(control) => (
@@ -357,7 +376,7 @@ export function MovementForm({
           {categorized
             ? renderTagField?.({ value: tags, onChange: setTags, error: errors.fields?.tags })
             : null}
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" size="lg" disabled={pending} className="h-14 text-body font-bold">
             {pending ? t('form.pending') : t(mode === 'edit' ? 'form.save' : 'form.submit')}
           </Button>
           <Link href="/movements" className={buttonVariants({ variant: 'ghost' })}>

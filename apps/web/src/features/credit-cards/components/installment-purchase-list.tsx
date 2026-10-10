@@ -49,7 +49,7 @@ export function InstallmentPurchaseList({
       {purchases.length === 0 ? (
         <p className="text-muted-foreground">{t('empty')}</p>
       ) : (
-        <ul className="divide-y rounded-xl border bg-card px-3">
+        <ul className="divide-y divide-border/70 rounded-card bg-card px-4">
           {purchases.map((purchase) => {
             const date = formatCalendarDate(purchase.purchasedOn, locale);
             const title = purchase.note ?? t('purchaseOn', { date });

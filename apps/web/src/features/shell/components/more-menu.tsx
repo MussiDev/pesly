@@ -38,7 +38,7 @@ export function MoreMenu({
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
       <PageHeader title={t('more.title')} description={t('more.description')} />
-      <ul className="divide-y rounded-card bg-card px-4 shadow-xs">
+      <ul className="divide-y divide-border/70 overflow-hidden rounded-card bg-card px-4 py-1">
         {MORE_LIST_ITEMS.map((item) => {
           const Icon = item.icon;
           return (
@@ -47,11 +47,16 @@ export function MoreMenu({
                 href={item.href}
                 className={cn(
                   listRowVariants({ interactive: true }),
-                  'outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'min-h-16 outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
-                <Icon aria-hidden className="size-4 text-muted-foreground" />
-                <span className="flex-1 text-body">{tNav(item.labelKey)}</span>
+                <span
+                  aria-hidden
+                  className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground"
+                >
+                  <Icon className="size-5" />
+                </span>
+                <span className="flex-1 text-small font-semibold">{tNav(item.labelKey)}</span>
                 {item.href === NOTICES_ITEM.href ? noticesBadge : null}
                 <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
               </Link>

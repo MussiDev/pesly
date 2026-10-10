@@ -40,6 +40,27 @@
       "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
       "action": "Crear cuenta"
     },
+    "month": {
+      "label": "Resumen del mes",
+      "spent": "Gastos",
+      "income": "Ingresos",
+      "result": "Resultado",
+      "inCreation": "Resumen del mes en creación"
+    },
+    "pending": {
+      "label": "Pago por confirmar",
+      "due": "{name} vence pronto",
+      "overdue": "{name} está vencido",
+      "detail": "{amount} · vence el {date} · pago por confirmar",
+      "confirm": "Confirmar pago"
+    },
+    "shortcuts": {
+      "label": "Accesos",
+      "inCreation": "En creación",
+      "budgets": { "title": "Presupuestos", "description": "Tus límites por categoría" },
+      "groups": { "title": "Grupos", "description": "Gastos compartidos y quién debe a quién" },
+      "cards": { "title": "Tarjetas", "description": "Resúmenes, cierres y cuotas" }
+    },
     "quickActions": {
       "label": "Acciones rápidas",
       "expense": "Gasto",
@@ -75,7 +96,25 @@
       "addMovement": "Agregar movimiento",
       "cards": "Tarjetas",
       "recurring": "Recurrentes",
-      "notices": "Avisos"
+      "groups": "Grupos",
+      "budgets": "Presupuestos",
+      "goals": "Metas de ahorro",
+      "settings": "Ajustes",
+      "notices": "Avisos",
+      "plan": "Planificar"
+    },
+    "topBar": {
+      "upToDate": "Al día",
+      "offline": "Sin conexión",
+      "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
+      "back": "Volver",
+      "notifications": "Notificaciones",
+      "notificationsSoon": "Notificaciones · en creación"
+    },
+    "comingSoon": {
+      "badge": "En creación",
+      "title": "Pantalla en creación",
+      "description": "Estamos construyendo esta sección. Va a aparecer acá apenas esté lista."
     },
     "more": {
       "title": "Más",
@@ -386,6 +425,8 @@
       "back": "Volver a las cuentas"
     },
     "list": {
+      "availableSection": "Cuentan como disponible",
+      "savingsSection": "Ahorro, fuera del disponible",
       "activeTitle": "Cuentas activas",
       "archivedTitle": "Cuentas archivadas",
       "newAccount": "Nueva cuenta",
@@ -541,6 +582,9 @@
       "days": "Días predeterminados",
       "daysHint": "Cambiar un día también mueve las fechas de los resúmenes abiertos.",
       "saveDays": "Guardar días",
+      "accumulated": "Acumulado",
+      "cycleDay": "Día {day} de {length} del ciclo",
+      "futureInstallments": "Cuotas a futuro",
       "statements": "Resúmenes",
       "closes": "Cierra el {date}",
       "due": "Vence el {date}",
@@ -625,7 +669,14 @@
   },
   "movements": {
     "title": "Movimientos",
+    "keypad": {
+      "label": "Teclado numérico",
+      "decimal": "Coma decimal",
+      "backspace": "Borrar un dígito"
+    },
     "list": {
+      "searchLabel": "Buscar movimientos",
+      "searchPlaceholder": "Buscar por nombre o categoría",
       "newMovement": "Nuevo movimiento",
       "emptyTitle": "Registra tu primer movimiento",
       "empty": "Todavía no tienes movimientos.",
@@ -659,6 +710,8 @@
       "to": "Hasta",
       "allAccounts": "Todas las cuentas",
       "allCategories": "Todas las categorías",
+      "all": "Todos",
+      "more": "Más filtros",
       "allTypes": "Todos los tipos",
       "archived": "{name} (archivada)",
       "clear": "Limpiar filtros",
@@ -679,6 +732,7 @@
     "fields": {
       "type": "Tipo",
       "account": "Cuenta",
+      "accountChange": "Cambiar",
       "accountPlaceholder": "Elige una cuenta",
       "category": "Categoría",
       "categoryPlaceholder": "Elige una categoría",
@@ -1173,10 +1227,15 @@
       "upcoming": "Próximos",
       "all": "Todos los pagos"
     },
+    "sections": {
+      "toConfirm": "Por confirmar",
+      "upcoming": "Próximos"
+    },
     "list": {
       "newPayment": "Nuevo pago recurrente",
       "emptyTitle": "Todavía no tenés pagos recurrentes",
       "empty": "Agregá los pagos que se repiten, como el alquiler o una suscripción, y van a aparecer acá cuando venzan.",
+      "toConfirmLabel": "Pagos por confirmar",
       "upcomingLabel": "Próximos pagos",
       "paymentsLabel": "Tus pagos recurrentes",
       "dueOn": "Vence el {date}",

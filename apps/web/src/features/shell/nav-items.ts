@@ -7,9 +7,12 @@ import {
   Landmark,
   Repeat,
   ShieldCheck,
+  SlidersHorizontal,
   Tags,
-  UserRound,
-  Wallet,
+  Target,
+  TrendingUp,
+  Users,
+  ChartPie,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,6 +26,10 @@ export type NavLabelKey =
   | 'categories'
   | 'cards'
   | 'recurring'
+  | 'groups'
+  | 'budgets'
+  | 'goals'
+  | 'settings'
   | 'notices'
   | 'profile'
   | 'security';
@@ -44,34 +51,73 @@ export const MOVEMENTS_ITEM: NavItem = {
 export const INVESTMENTS_ITEM: NavItem = {
   href: '/investments',
   labelKey: 'investments',
-  icon: Wallet,
+  icon: TrendingUp,
 };
+export const CARDS_ITEM: NavItem = { href: '/cards', labelKey: 'cards', icon: CreditCard };
+export const GROUPS_ITEM: NavItem = { href: '/groups', labelKey: 'groups', icon: Users };
+export const NOTICES_ITEM: NavItem = { href: '/notices', labelKey: 'notices', icon: Bell };
 export const MORE_ITEM: NavItem = { href: '/more', labelKey: 'more', icon: Ellipsis };
 
-/** The main destinations of the top navigation; the bottom bar keeps three of them plus "More". */
+/** The first block of the side menu, in the order of the design. */
 export const PRIMARY_ITEMS: readonly NavItem[] = [
   HOME_ITEM,
-  ACCOUNTS_ITEM,
   MOVEMENTS_ITEM,
-  INVESTMENTS_ITEM,
+  ACCOUNTS_ITEM,
+  CARDS_ITEM,
+  GROUPS_ITEM,
 ];
 
-export const NOTICES_ITEM: NavItem = { href: '/notices', labelKey: 'notices', icon: Bell };
-
-/** What "More" holds on small screens and the top navigation shows directly. */
-export const SECONDARY_ITEMS: readonly NavItem[] = [
-  { href: '/categories', labelKey: 'categories', icon: Tags },
-  { href: '/cards', labelKey: 'cards', icon: CreditCard },
+/** The "plan ahead" block of the side menu. */
+export const PLAN_ITEMS: readonly NavItem[] = [
+  { href: '/budgets', labelKey: 'budgets', icon: ChartPie },
+  { href: '/goals', labelKey: 'goals', icon: Target },
   { href: '/recurring', labelKey: 'recurring', icon: Repeat },
-  NOTICES_ITEM,
-  { href: '/settings/profile', labelKey: 'profile', icon: UserRound },
+  INVESTMENTS_ITEM,
+  { href: '/categories', labelKey: 'categories', icon: Tags },
+];
+
+/** The settings block: the profile page stands for "Settings", security is its sibling. */
+export const SETTINGS_ITEMS: readonly NavItem[] = [
+  { href: '/settings/profile', labelKey: 'settings', icon: SlidersHorizontal },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
 ];
 
-/** What the More page lists: Accounts has no room in the bottom bar, then the secondary ones. */
-export const MORE_LIST_ITEMS: readonly NavItem[] = [ACCOUNTS_ITEM, ...SECONDARY_ITEMS];
+/** What the bottom bar has no room for, so the More page lists it. */
+export const MORE_LIST_ITEMS: readonly NavItem[] = [
+  ACCOUNTS_ITEM,
+  CARDS_ITEM,
+  ...PLAN_ITEMS,
+  NOTICES_ITEM,
+  ...SETTINGS_ITEMS,
+];
 
 export const ADD_MOVEMENT_HREF = '/movements/new';
+
+/** The pages the bottom bar reaches directly: on a phone nothing sits "above" them to go back to. */
+const BOTTOM_ROOTS: readonly string[] = ['/', '/movements', '/groups', '/more'];
+
+/** Every page the side menu reaches directly. */
+const MENU_ROOTS: readonly string[] = [
+  ...PRIMARY_ITEMS,
+  ...PLAN_ITEMS,
+  ...SETTINGS_ITEMS,
+  MORE_ITEM,
+].map((item) => item.href);
+
+/**
+ * Where a back button is wanted: below the desk breakpoint on every page but the bottom bar's own,
+ * and from it only on pages the side menu does not already list.
+ */
+export function backButtonVisibility(currentPath: string | undefined): {
+  compact: boolean;
+  desk: boolean;
+} {
+  if (currentPath === undefined) return { compact: false, desk: false };
+  return {
+    compact: !BOTTOM_ROOTS.includes(currentPath),
+    desk: !MENU_ROOTS.includes(currentPath),
+  };
+}
 
 /**
  * The bottom bar has no room for the destinations the More page lists, so on small screens "More"

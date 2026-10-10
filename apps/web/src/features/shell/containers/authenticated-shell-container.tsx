@@ -182,6 +182,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
         ) : null
       }
       notices={state.kind === 'ready' ? <UnreadBadgeContainer /> : null}
+      connection={{ online, pending: queueCounts.pending }}
       syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
       {children}

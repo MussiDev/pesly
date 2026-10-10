@@ -32,13 +32,20 @@ export function CreditCardList({ cards }: { cards: readonly CreditCardResponse[]
   return (
     <section className="grid gap-3" aria-label={t('list.label')}>
       <div className="flex justify-end">{newCard}</div>
-      <ul className="divide-y rounded-xl border bg-card px-3">
+      <ul className="divide-y divide-border/70 rounded-card bg-card px-4">
         {cards.map((card) => (
           <li key={card.id} aria-label={card.name}>
             <Link href={`/cards/${card.id}`} className="block rounded-md focus-visible:outline-2">
               <ListRow
                 interactive
-                leading={<CreditCard aria-hidden="true" className="size-5 text-muted-foreground" />}
+                leading={
+                  <span
+                    aria-hidden="true"
+                    className="flex size-10 items-center justify-center rounded-pill bg-accent text-accent-foreground"
+                  >
+                    <CreditCard className="size-5" />
+                  </span>
+                }
                 title={card.name}
                 description={t('list.days', { closing: card.closingDay, due: card.dueDay })}
                 trailing={
