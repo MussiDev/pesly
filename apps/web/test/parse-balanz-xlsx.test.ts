@@ -62,6 +62,21 @@ describe('parseBalanzXlsx (DISC-001-07c FR-01)', () => {
     expect(await reason(file)).toBe('notExcel');
   });
 
+  it('rejects a zip that is not a readable workbook as unreadable (AC-07)', async () => {
+    // A valid zip directory with one empty entry: the limits pass, the workbook is not one.
+    const bytes = new Uint8Array(4 + 47 + 22);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint32(4, 0x02014b50, true);
+    view.setUint16(4 + 28, 1, true);
+    view.setUint32(51, 0x06054b50, true);
+    view.setUint16(51 + 10, 1, true);
+    view.setUint32(51 + 12, 47, true);
+    view.setUint32(51 + 16, 4, true);
+
+    expect(await reason(new File([bytes], 'broken.xlsx'))).toBe('unreadable');
+  });
+
   it('rejects a file above 1 MB before reading it (AC-08)', async () => {
     const file = new File([new Uint8Array(BALANZ_FILE_MAX_BYTES + 1)], 'big.xlsx');
 

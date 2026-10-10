@@ -12,7 +12,7 @@
 |---|---|---|---|---|
 | DISC-001-07a | Portfolios, Holdings and Manual Valuation | prd-DISC-001-07a.md | depends on DISC-001-01a (on main) | done — merges when its PR merges (draft PR; migration 0013) |
 | DISC-001-07b | Crypto Prices and Daily Portfolio Snapshots | prd-DISC-001-07b.md | depends on a (on main) | done — merges when its PR merges (draft PR; migration 0015) |
-| DISC-001-07c | Balanz Holdings Excel Import | prd-DISC-001-07c.md | depends on a (merged) | pending — changed from CSV to the real `.xlsx` export on 2026-10-10 (user decision); the anonymized sample exists; no new dependency (`read-excel-file` is already in the web app) |
+| DISC-001-07c | Balanz Holdings Excel Import | prd-DISC-001-07c.md | depends on a (merged) | done: branch `feat/DISC-001-07c-balanz-excel-import` (from `main` 4b6ed2d, not pushed, no PR yet); changed from CSV to the real `.xlsx` export on 2026-10-10 (user decision); the file is read in the browser with `read-excel-file` (already in the web app), no migration and no new dependency; every holding starts in ARS and is switched per holding in the preview, every instrument type is accepted and the cost is the file's "Valor inicial"; the Playwright flow `investments-import.spec.ts` passed |
 
 ## Suggested implementation order
 a → b → c (c can start only once the sample file exists)

@@ -101,6 +101,20 @@ describe('ImportHoldings', () => {
     expect(stored.find((holding) => holding.ticker === 'IBIT')?.valuationCurrency).toBe('ARS');
   });
 
+  it('answers not found and rolls back when a holding to remove vanished meanwhile (AC-05)', async () => {
+    const { importHoldings, add, portfolio, store } = await setup();
+    const scope = await scopeFor(ALICE, 'write');
+    await add.execute(scope, held(portfolio.id, 'AAPL'));
+    const before = structuredClone(await store.holdings.listByPortfolio(scope, portfolio.id));
+    store.holdings.delete = () => Promise.resolve(false);
+
+    await expect(importHoldings.execute(scope, portfolio.id, [row('IBIT')])).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+
+    expect(await store.holdings.listByPortfolio(scope, portfolio.id)).toEqual(before);
+  });
+
   it('keeps the cost empty when the file has none', async () => {
     const { importHoldings, portfolio, store } = await setup();
     const scope = await scopeFor(ALICE, 'write');
