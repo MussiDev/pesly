@@ -106,6 +106,7 @@
       "upToDate": "Al día",
       "offline": "Sin conexión",
       "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
+      "back": "Volver",
       "notifications": "Notificaciones",
       "notificationsSoon": "Notificaciones · en creación"
     },

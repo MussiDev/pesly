@@ -39,7 +39,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-caption font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
             active && 'font-bold text-accent-foreground',
           )}
         >
@@ -63,7 +63,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
       aria-label={t('label')}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe desk:hidden"
     >
-      <ul className="pointer-events-auto grid grid-cols-5 items-start border-t bg-card px-2 pt-1.5 pb-5">
+      <ul className="pointer-events-auto grid grid-cols-5 items-start border-t bg-card px-2 pt-1.5 pb-2">
         {BEFORE_ADD.map(destination)}
         <li className="flex justify-center">
           <Link

@@ -76,7 +76,8 @@ const SCREENS: [string, ReactElement][] = [
     <ThemeProvider key="shell">
       <AuthenticatedShell
         state={{ kind: 'ready' }}
-        currentPath="/settings/profile"
+        // The home has no back button, so the static render needs no router.
+        currentPath="/"
         signingOut={false}
         signOutError={undefined}
         onRetry={noop}

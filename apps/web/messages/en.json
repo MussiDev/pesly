@@ -106,6 +106,7 @@
       "upToDate": "Up to date",
       "offline": "Offline",
       "pending": "{count, plural, one {# pending} other {# pending}}",
+      "back": "Back",
       "notifications": "Notifications",
       "notificationsSoon": "Notifications · in progress"
     },

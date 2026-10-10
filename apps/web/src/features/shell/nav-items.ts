@@ -89,6 +89,32 @@ export const MORE_LIST_ITEMS: readonly NavItem[] = [
 
 export const ADD_MOVEMENT_HREF = '/movements/new';
 
+/** The pages the bottom bar reaches directly: on a phone nothing sits "above" them to go back to. */
+const BOTTOM_ROOTS: readonly string[] = ['/', '/movements', '/groups', '/more'];
+
+/** Every page the side menu reaches directly. */
+const MENU_ROOTS: readonly string[] = [
+  ...PRIMARY_ITEMS,
+  ...PLAN_ITEMS,
+  ...SETTINGS_ITEMS,
+  MORE_ITEM,
+].map((item) => item.href);
+
+/**
+ * Where a back button is wanted: below the desk breakpoint on every page but the bottom bar's own,
+ * and from it only on pages the side menu does not already list.
+ */
+export function backButtonVisibility(currentPath: string | undefined): {
+  compact: boolean;
+  desk: boolean;
+} {
+  if (currentPath === undefined) return { compact: false, desk: false };
+  return {
+    compact: !BOTTOM_ROOTS.includes(currentPath),
+    desk: !MENU_ROOTS.includes(currentPath),
+  };
+}
+
 /**
  * The bottom bar has no room for the destinations the More page lists, so on small screens "More"
  * stands for them: it is current on its own page and on every page it lists.

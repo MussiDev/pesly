@@ -92,7 +92,11 @@ export function AuthenticatedShell({
           </div>
         ) : (
           <>
-            <TopBar online={connection.online} pending={connection.pending} />
+            <TopBar
+              online={connection.online}
+              pending={connection.pending}
+              currentPath={currentPath}
+            />
             {signOutError ? (
               <div className="px-4 pt-4">
                 <SignOutAlert error={signOutError} />
