@@ -71,7 +71,7 @@ test('creates a monthly payment dated in the past, sees it overdue, confirms it 
   await page.getByRole('button', { name: t.actions.create }).click();
   await expect(page).toHaveURL(/\/es\/recurring$/);
 
-  const upcoming = page.getByRole('list', { name: t.list.upcomingLabel });
+  const upcoming = page.getByRole('list', { name: t.list.toConfirmLabel });
   const row = upcoming.getByRole('listitem', { name: 'Alquiler', exact: true });
   await expect(row.getByText(t.status.overdue)).toBeVisible();
 

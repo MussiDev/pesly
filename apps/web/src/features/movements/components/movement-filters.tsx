@@ -75,7 +75,7 @@ export function MovementFilters({
     <form
       role="search"
       aria-label={t('filters.title')}
-      className="grid gap-3 rounded-lg border bg-card p-4 text-card-foreground"
+      className="grid gap-3 rounded-card bg-card p-4 text-card-foreground"
       onSubmit={(event) => {
         event.preventDefault();
       }}

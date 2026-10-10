@@ -40,6 +40,27 @@
       "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
       "action": "Create account"
     },
+    "month": {
+      "label": "This month",
+      "spent": "Spending",
+      "income": "Income",
+      "result": "Result",
+      "inCreation": "Monthly summary in progress"
+    },
+    "pending": {
+      "label": "Payment to confirm",
+      "due": "{name} is due soon",
+      "overdue": "{name} is overdue",
+      "detail": "{amount} · due {date} · payment to confirm",
+      "confirm": "Confirm payment"
+    },
+    "shortcuts": {
+      "label": "Shortcuts",
+      "inCreation": "In progress",
+      "budgets": { "title": "Budgets", "description": "Your limits per category" },
+      "groups": { "title": "Groups", "description": "Shared expenses and who owes whom" },
+      "cards": { "title": "Cards", "description": "Statements, closings and installments" }
+    },
     "quickActions": {
       "label": "Quick actions",
       "expense": "Expense",
@@ -74,7 +95,24 @@
       "more": "More",
       "addMovement": "Add movement",
       "cards": "Cards",
-      "recurring": "Recurring"
+      "recurring": "Recurring",
+      "groups": "Groups",
+      "budgets": "Budgets",
+      "goals": "Savings goals",
+      "settings": "Settings",
+      "plan": "Plan"
+    },
+    "topBar": {
+      "upToDate": "Up to date",
+      "offline": "Offline",
+      "pending": "{count, plural, one {# pending} other {# pending}}",
+      "notifications": "Notifications",
+      "notificationsSoon": "Notifications · in progress"
+    },
+    "comingSoon": {
+      "badge": "In progress",
+      "title": "Screen in progress",
+      "description": "We are building this section. It will show up here as soon as it is ready."
     },
     "more": {
       "title": "More",
@@ -1157,10 +1195,15 @@
       "upcoming": "Upcoming",
       "all": "All payments"
     },
+    "sections": {
+      "toConfirm": "To confirm",
+      "upcoming": "Upcoming"
+    },
     "list": {
       "newPayment": "New recurring payment",
       "emptyTitle": "No recurring payments yet",
       "empty": "Add the payments that repeat, like rent or a subscription, and they will show up here when they are due.",
+      "toConfirmLabel": "Payments to confirm",
       "upcomingLabel": "Upcoming payments",
       "paymentsLabel": "Your recurring payments",
       "dueOn": "Due {date}",

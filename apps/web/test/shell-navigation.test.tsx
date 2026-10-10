@@ -59,7 +59,7 @@ describe('BottomNav (AC-07, AC-08)', () => {
     expect(nav.classList.contains('hidden')).toBe(false);
   });
 
-  it('has four destinations around the add action, in this order, with Investments and no Accounts', () => {
+  it('has four destinations around the add action, in this order, with Groups and no Accounts', () => {
     const { container } = renderApp(<BottomNav />, { locale: 'en' });
 
     const names = within(navOf(container, 'bottom-nav'))
@@ -69,7 +69,7 @@ describe('BottomNav (AC-07, AC-08)', () => {
       en.app.nav.home,
       en.app.nav.movements,
       en.app.nav.addMovement,
-      en.app.nav.investments,
+      en.app.nav.groups,
       en.app.nav.more,
     ]);
   });
@@ -82,9 +82,10 @@ describe('BottomNav (AC-07, AC-08)', () => {
     expect(nav.getByRole('link', { name: en.app.nav.movements }).getAttribute('href')).toBe(
       '/en/movements',
     );
-    expect(nav.getByRole('link', { name: en.app.nav.investments }).getAttribute('href')).toBe(
-      '/en/investments',
+    expect(nav.getByRole('link', { name: en.app.nav.groups }).getAttribute('href')).toBe(
+      '/en/groups',
     );
+    expect(nav.queryByRole('link', { name: en.app.nav.investments })).toBeNull();
     expect(nav.queryByRole('link', { name: en.app.nav.accounts })).toBeNull();
     expect(nav.getByRole('link', { name: en.app.nav.more }).getAttribute('href')).toBe('/en/more');
   });
@@ -188,7 +189,7 @@ describe('TopNav (AC-11, AC-12)', () => {
     expect(nav.classList.contains('fixed')).toBe(false);
   });
 
-  it('links to the destinations plus categories, profile and security as rows', () => {
+  it('links to every destination of the design, settings and security as rows', () => {
     const { container } = renderTop({ locale: 'en' });
 
     const nav = within(navOf(container, 'top-nav'));
@@ -201,12 +202,17 @@ describe('TopNav (AC-11, AC-12)', () => {
     expect(nav.getByRole('link', { name: en.app.nav.recurring }).getAttribute('href')).toBe(
       '/en/recurring',
     );
-    expect(nav.getByRole('link', { name: en.app.nav.profile }).getAttribute('href')).toBe(
+    expect(nav.getByRole('link', { name: en.app.nav.settings }).getAttribute('href')).toBe(
       '/en/settings/profile',
     );
     expect(nav.getByRole('link', { name: en.app.nav.security }).getAttribute('href')).toBe(
       '/en/settings/security',
     );
+    for (const key of ['groups', 'budgets', 'goals'] as const) {
+      expect(nav.getByRole('link', { name: en.app.nav[key] }).getAttribute('href')).toBe(
+        `/en/${key}`,
+      );
+    }
     for (const key of ['home', 'accounts', 'movements', 'investments'] as const) {
       const link = nav.getByRole('link', { name: en.app.nav[key] });
       expect(link.className, key).toMatch(/rounded-xl/);
@@ -266,8 +272,10 @@ describe('current destination (AC-14)', () => {
     ['/accounts', '/es/more', '/es/accounts'],
     ['/accounts/new', '/es/more', '/es/accounts'],
     ['/movements', '/es/movements', '/es/movements'],
-    ['/investments', '/es/investments', '/es/investments'],
-    ['/investments/abc', '/es/investments', '/es/investments'],
+    ['/investments', '/es/more', '/es/investments'],
+    ['/investments/abc', '/es/more', '/es/investments'],
+    ['/groups', '/es/groups', '/es/groups'],
+    ['/budgets', '/es/more', '/es/budgets'],
     ['/more', '/es/more', undefined],
     ['/categories', '/es/more', '/es/categories'],
     ['/settings/profile', '/es/more', '/es/settings/profile'],
@@ -339,15 +347,18 @@ describe('MoreMenu (FR-07)', () => {
     return { ...result, onSignOut };
   }
 
-  it('lists accounts first, then categories, cards, recurring payments, profile and security', () => {
+  it('lists accounts first, then cards, the planning block, settings and security', () => {
     renderMore();
 
     const main = within(screen.getByRole('main'));
     expect(main.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       '/en/accounts',
-      '/en/categories',
       '/en/cards',
+      '/en/budgets',
+      '/en/goals',
       '/en/recurring',
+      '/en/investments',
+      '/en/categories',
       '/en/settings/profile',
       '/en/settings/security',
     ]);
@@ -361,7 +372,7 @@ describe('MoreMenu (FR-07)', () => {
     expect(screen.getByRole('link', { name: en.app.nav.categories }).getAttribute('href')).toBe(
       '/en/categories',
     );
-    expect(screen.getByRole('link', { name: en.app.nav.profile }).getAttribute('href')).toBe(
+    expect(screen.getByRole('link', { name: en.app.nav.settings }).getAttribute('href')).toBe(
       '/en/settings/profile',
     );
     expect(screen.getByRole('link', { name: en.app.nav.security }).getAttribute('href')).toBe(

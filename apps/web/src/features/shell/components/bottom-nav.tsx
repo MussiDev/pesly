@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
   ADD_MOVEMENT_HREF,
   HOME_ITEM,
-  INVESTMENTS_ITEM,
+  GROUPS_ITEM,
   isActiveInBottomNav,
   MORE_ITEM,
   MOVEMENTS_ITEM,
@@ -21,7 +21,7 @@ export interface BottomNavProps {
 
 // The add action sits between the two halves so it stays centered and reachable by thumb.
 const BEFORE_ADD: readonly NavItem[] = [HOME_ITEM, MOVEMENTS_ITEM];
-const AFTER_ADD: readonly NavItem[] = [INVESTMENTS_ITEM, MORE_ITEM];
+const AFTER_ADD: readonly NavItem[] = [GROUPS_ITEM, MORE_ITEM];
 
 /**
  * The flat bar below 900 px, with the raised add action; the side menu takes over from 900 px. The landmark spans

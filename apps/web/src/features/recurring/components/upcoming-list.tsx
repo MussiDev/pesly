@@ -54,6 +54,45 @@ export function UpcomingList({
     )
     .map(({ item }) => item);
 
+  const toConfirm = ordered.filter((item) => item.kind !== 'scheduled');
+  const scheduled = ordered.filter((item) => item.kind === 'scheduled');
+
+  function list(entries: readonly UpcomingItem[], label: string) {
+    return (
+      <ul className="divide-y divide-border/70 rounded-card bg-card px-4" aria-label={label}>
+        {entries.map((item) => {
+          const open = item.occurrenceId !== null && item.occurrenceId === confirmingId;
+          return (
+            <li key={`${item.paymentId}-${item.dueDate}-${item.kind}`} aria-label={item.name}>
+              <OccurrenceRow
+                item={item}
+                lookups={lookups}
+                pending={pending}
+                onConfirm={onConfirmOpen}
+                onSkip={onSkip}
+              />
+              {open ? (
+                <div className="pb-3">
+                  <ConfirmOccurrenceForm
+                    name={item.name}
+                    defaultAmount={formatAmount(BigInt(item.amount), locale)}
+                    defaultDate={item.dueDate}
+                    pending={pending}
+                    errors={confirmErrors}
+                    onSubmit={(values) => {
+                      onConfirmSubmit(item, values);
+                    }}
+                    onCancel={onConfirmCancel}
+                  />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    );
+  }
+
   return (
     <div className="grid gap-3">
       {notice ? (
@@ -65,40 +104,30 @@ export function UpcomingList({
       {ordered.length === 0 ? (
         <p className="text-small text-muted-foreground">{t('listNoUpcoming')}</p>
       ) : (
-        <ul
-          className="divide-y divide-border/70 rounded-card bg-card px-4"
-          aria-label={t('list.upcomingLabel')}
-        >
-          {ordered.map((item) => {
-            const open = item.occurrenceId !== null && item.occurrenceId === confirmingId;
-            return (
-              <li key={`${item.paymentId}-${item.dueDate}-${item.kind}`} aria-label={item.name}>
-                <OccurrenceRow
-                  item={item}
-                  lookups={lookups}
-                  pending={pending}
-                  onConfirm={onConfirmOpen}
-                  onSkip={onSkip}
-                />
-                {open ? (
-                  <div className="pb-3">
-                    <ConfirmOccurrenceForm
-                      name={item.name}
-                      defaultAmount={formatAmount(BigInt(item.amount), locale)}
-                      defaultDate={item.dueDate}
-                      pending={pending}
-                      errors={confirmErrors}
-                      onSubmit={(values) => {
-                        onConfirmSubmit(item, values);
-                      }}
-                      onCancel={onConfirmCancel}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+        <>
+          {toConfirm.length === 0 ? null : (
+            <section aria-labelledby="recurring-to-confirm" className="grid gap-1.5">
+              <h2
+                id="recurring-to-confirm"
+                className="px-1 text-small font-semibold text-muted-foreground"
+              >
+                {t('sections.toConfirm')}
+              </h2>
+              {list(toConfirm, t('list.toConfirmLabel'))}
+            </section>
+          )}
+          {scheduled.length === 0 ? null : (
+            <section aria-labelledby="recurring-scheduled" className="grid gap-1.5">
+              <h2
+                id="recurring-scheduled"
+                className="px-1 text-small font-semibold text-muted-foreground"
+              >
+                {t('sections.upcoming')}
+              </h2>
+              {list(scheduled, t('list.upcomingLabel'))}
+            </section>
+          )}
+        </>
       )}
     </div>
   );

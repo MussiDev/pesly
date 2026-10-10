@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { BottomNav } from './bottom-nav';
 import { SignOutAlert } from './sign-out-alert';
+import { TopBar } from './top-bar';
 import { TopNav } from './top-nav';
 
 export type ShellState =
@@ -24,6 +25,8 @@ export interface AuthenticatedShellProps {
   syncStatus?: ReactNode;
   /** The warning before a sign out that would lose changes not yet synced. */
   signOutConfirmation?: ReactNode;
+  /** Connection and queue state for the top bar; without it the bar shows "up to date". */
+  connection?: { online: boolean; pending: number };
   children: ReactNode;
 }
 
@@ -37,6 +40,7 @@ export function AuthenticatedShell({
   onSignOut,
   syncStatus,
   signOutConfirmation,
+  connection = { online: true, pending: 0 },
   children,
 }: AuthenticatedShellProps) {
   const t = useTranslations('app');
@@ -88,6 +92,7 @@ export function AuthenticatedShell({
           </div>
         ) : (
           <>
+            <TopBar online={connection.online} pending={connection.pending} />
             {signOutError ? (
               <div className="px-4 pt-4">
                 <SignOutAlert error={signOutError} />

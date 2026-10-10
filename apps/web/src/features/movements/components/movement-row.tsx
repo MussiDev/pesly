@@ -172,7 +172,7 @@ export function MovementRow({
                     : 'neutral'
                 }
                 directionLabel={tTypes(movement.type)}
-                className="text-body font-semibold"
+                className="text-small font-bold"
               />
               {incoming?.success ? (
                 <span className="text-body font-semibold whitespace-nowrap tabular-nums text-income">

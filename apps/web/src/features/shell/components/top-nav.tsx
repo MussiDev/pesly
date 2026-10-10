@@ -9,8 +9,9 @@ import { cn } from '@/lib/utils';
 import {
   ADD_MOVEMENT_HREF,
   isActivePath,
+  PLAN_ITEMS,
   PRIMARY_ITEMS,
-  SECONDARY_ITEMS,
+  SETTINGS_ITEMS,
   type NavItem,
 } from '../nav-items';
 import { SignOutButton } from './sign-out-button';
@@ -73,8 +74,14 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
         {tNav('addMovement')}
       </Link>
       <ul className="grid gap-0.5">{PRIMARY_ITEMS.map(destination)}</ul>
-      <ul className="grid gap-0.5">{SECONDARY_ITEMS.map(destination)}</ul>
+      <div className="grid gap-0.5">
+        <p className="px-3 pb-1.5 text-caption font-semibold text-muted-foreground">
+          {tNav('plan')}
+        </p>
+        <ul className="grid gap-0.5">{PLAN_ITEMS.map(destination)}</ul>
+      </div>
       <div className="flex-1" />
+      <ul className="grid gap-0.5">{SETTINGS_ITEMS.map(destination)}</ul>
       <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface p-3">
         <ThemeToggle />
         <SignOutButton pending={signingOut} onSignOut={onSignOut} iconOnly />

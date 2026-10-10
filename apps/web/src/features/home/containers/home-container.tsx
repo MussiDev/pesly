@@ -6,6 +6,7 @@ import {
   type CategoryLanguage,
   type CategoryResponse,
   type MovementResponse,
+  type UpcomingItem,
 } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -17,7 +18,10 @@ import type { CurrencyTotals } from '@/features/accounts/totals';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { useApiClient } from '@/lib/api-client-provider';
+import { formatAmount, formatMoney } from '@/lib/format-amount';
+import { formatCalendarDate } from '@/features/credit-cards/format-dates';
 import { HomeFrame, HomeScreen, HomeSkeleton } from '../components/home-screen';
+import type { PendingPaymentProps } from '../components/pending-payment';
 import type { RecentMovementItem } from '../components/recent-movements';
 import { browserTimeZone } from '../time-zone';
 
@@ -44,6 +48,8 @@ type HomeState =
       movements: MovementResponse[];
       categories: Map<string, CategoryResponse>;
       timeZone: string;
+      /** The next payment to confirm; its absence (or a failed request) shows no banner. */
+      upcoming: UpcomingItem | undefined;
     };
 
 /**
@@ -65,15 +71,23 @@ export function HomeContainer() {
     // A function, not the variable: TypeScript would narrow `active` to `true` across the await.
     const isActive = () => active;
     void (async () => {
-      const [accounts, archivedAccounts, movements, profile, activeCategories, archivedCategories] =
-        await Promise.all([
-          api.listAccounts({ archived: false, limit: PAGE_SIZE }),
-          api.listAccounts({ archived: true, limit: PAGE_SIZE }),
-          api.listMovements({ limit: RECENT_LIMIT }),
-          api.getProfile(),
-          api.listCategories({ archived: false, limit: PAGE_SIZE }),
-          api.listCategories({ archived: true, limit: PAGE_SIZE }),
-        ]);
+      const [
+        accounts,
+        archivedAccounts,
+        movements,
+        profile,
+        activeCategories,
+        archivedCategories,
+        upcoming,
+      ] = await Promise.all([
+        api.listAccounts({ archived: false, limit: PAGE_SIZE }),
+        api.listAccounts({ archived: true, limit: PAGE_SIZE }),
+        api.listMovements({ limit: RECENT_LIMIT }),
+        api.getProfile(),
+        api.listCategories({ archived: false, limit: PAGE_SIZE }),
+        api.listCategories({ archived: true, limit: PAGE_SIZE }),
+        api.getUpcomingRecurring(),
+      ]);
       if (!isActive()) return;
       // Any expired session redirects, even from a request whose failure would otherwise degrade.
       const answers = [
@@ -114,6 +128,9 @@ export function HomeContainer() {
         movements: movements.data.items,
         categories,
         timeZone: profile.ok ? profile.data.preferences.timeZone : browserTimeZone(),
+        upcoming: upcoming.ok
+          ? upcoming.data.items.find((item) => item.kind !== 'scheduled')
+          : undefined,
       });
     })();
     return () => {
@@ -170,6 +187,22 @@ export function HomeContainer() {
     };
   });
 
+  const upcoming = state.upcoming;
+  const upcomingAccount =
+    upcoming === undefined ? undefined : state.knownAccounts.get(upcoming.accountId);
+  const pendingPayment: PendingPaymentProps | undefined =
+    upcoming === undefined
+      ? undefined
+      : {
+          name: upcoming.name,
+          amount:
+            upcomingAccount === undefined
+              ? formatAmount(BigInt(upcoming.amount), locale)
+              : formatMoney(BigInt(upcoming.amount), upcomingAccount.currency, locale),
+          dueDate: formatCalendarDate(upcoming.dueDate, locale),
+          overdue: upcoming.kind === 'overdue',
+        };
+
   return (
     <HomeScreen
       locale={locale}
@@ -183,6 +216,7 @@ export function HomeContainer() {
         .slice(0, HOME_ACCOUNTS_LIMIT)
         .map(({ id, name, currency, balance }) => ({ id, name, currency, balance }))}
       movements={movements}
+      pendingPayment={pendingPayment}
     />
   );
 }

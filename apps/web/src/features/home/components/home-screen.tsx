@@ -6,6 +6,9 @@ import type { CurrencyTotals } from '@/features/accounts/totals';
 import type { Locale } from '@/i18n/routing';
 import { BalanceSummary } from './balance-summary';
 import { HomeAccounts, type HomeAccountItem } from './home-accounts';
+import { HomeShortcuts } from './home-shortcuts';
+import { MonthSummary } from './month-summary';
+import { PendingPayment, type PendingPaymentProps } from './pending-payment';
 import { QuickActions } from './quick-actions';
 import { RecentMovements, type RecentMovementItem } from './recent-movements';
 
@@ -41,6 +44,8 @@ export interface HomeScreenProps {
   netWorthTotals: CurrencyTotals;
   accounts: readonly HomeAccountItem[];
   movements: readonly RecentMovementItem[];
+  /** The next recurring payment waiting for a confirmation, when there is one. */
+  pendingPayment?: PendingPaymentProps;
 }
 
 export function HomeScreen({
@@ -51,23 +56,23 @@ export function HomeScreen({
   netWorthTotals,
   accounts,
   movements,
+  pendingPayment,
 }: HomeScreenProps) {
   return (
     <HomeFrame>
-      <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="grid gap-6 desk:row-start-1">
-          <BalanceSummary
-            locale={locale}
-            currencies={currencies}
-            availableTotals={availableTotals}
-            netWorthTotals={netWorthTotals}
-          />
-          <QuickActions />
-        </div>
-        <div className="desk:col-span-2 desk:row-start-2">
-          <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
-        </div>
-        <div className="desk:col-start-2 desk:row-start-1">
+      <BalanceSummary
+        locale={locale}
+        currencies={currencies}
+        availableTotals={availableTotals}
+        netWorthTotals={netWorthTotals}
+      />
+      <MonthSummary />
+      {pendingPayment === undefined ? null : <PendingPayment {...pendingPayment} />}
+      <QuickActions />
+      <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+        <RecentMovements locale={locale} timeZone={timeZone} items={movements} />
+        <div className="grid gap-6">
+          <HomeShortcuts />
           <HomeAccounts locale={locale} accounts={accounts} />
         </div>
       </div>
@@ -82,23 +87,26 @@ export function HomeSkeleton() {
   return (
     <HomeFrame>
       <div role="status" aria-label={t('loading')} className="grid gap-6">
-        <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <div className="grid gap-6">
-            <Skeleton className="h-52 rounded-card" />
-            <div className="grid grid-cols-4 gap-3">
-              {[0, 1, 2, 3].map((index) => (
-                <div key={index} className="grid justify-items-center gap-2">
-                  <Skeleton className="size-circle-action rounded-pill" />
-                  <Skeleton className="h-3 w-12" />
-                </div>
-              ))}
+        <Skeleton className="h-44 rounded-card" />
+        <div className="grid grid-cols-3 gap-2 desk:gap-4">
+          {[0, 1, 2].map((index) => (
+            <Skeleton key={index} className="h-16 rounded-2xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-3">
+          {[0, 1, 2, 3].map((index) => (
+            <div key={index} className="grid justify-items-center gap-2">
+              <Skeleton className="size-circle-action rounded-pill" />
+              <Skeleton className="h-3 w-12" />
             </div>
+          ))}
+        </div>
+        <div className="grid items-start gap-6 desk:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          <div className="grid gap-2">
+            <Skeleton className="h-6 w-40" />
+            <Skeleton className="h-64 rounded-card" />
           </div>
           <Skeleton className="h-56 rounded-card" />
-        </div>
-        <div className="grid gap-2">
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-64 rounded-card" />
         </div>
       </div>
     </HomeFrame>

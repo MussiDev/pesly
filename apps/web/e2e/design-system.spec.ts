@@ -300,7 +300,9 @@ test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
     await page.getByRole('button', { name: accounts.form.submit }).click();
     await expect(page).toHaveURL(/\/es\/accounts$/);
     await page.goto('/es');
-    await expect(page.getByRole('link', { name: es.home.quickActions.expense })).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: es.home.quickActions.expense, exact: true }),
+    ).toBeVisible();
 
     const stops: string[] = [];
     const unindicated: string[] = [];
