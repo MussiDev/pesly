@@ -162,7 +162,8 @@ describe('notice response schemas', () => {
   it('validates params and the mark-all-read response', () => {
     expect(noticeIdParamsSchema.safeParse({ id: ID }).success).toBe(true);
     expect(noticeIdParamsSchema.safeParse({ id: 'x' }).success).toBe(false);
-    expect(markAllReadResponseSchema.safeParse({ updated: 4 }).success).toBe(true);
+    expect(markAllReadResponseSchema.safeParse({ unreadCount: 0 }).success).toBe(true);
+    expect(markAllReadResponseSchema.safeParse({ unreadCount: 2 }).success).toBe(false);
   });
 
   it('is exported from the package barrel', () => {

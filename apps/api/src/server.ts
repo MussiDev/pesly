@@ -24,6 +24,7 @@ import {
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
+import { createNoticesRoutes } from './notices';
 import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
@@ -74,6 +75,7 @@ const app = createApp({
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
+    createNoticesRoutes({ db, logger }),
     createRecurringRoutes({
       db,
       logger,

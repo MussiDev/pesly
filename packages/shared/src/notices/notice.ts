@@ -120,5 +120,5 @@ export type ListNoticesResponse = z.infer<typeof listNoticesResponseSchema>;
 export const noticeIdParamsSchema = z.object({ id: z.uuid() });
 export type NoticeIdParams = z.infer<typeof noticeIdParamsSchema>;
 
-export const markAllReadResponseSchema = z.object({ updated: z.number().int().min(0) });
+export const markAllReadResponseSchema = z.object({ unreadCount: z.literal(0) });
 export type MarkAllReadResponse = z.infer<typeof markAllReadResponseSchema>;
