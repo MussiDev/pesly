@@ -11,7 +11,7 @@
 | Sub-ticket | Title | PRD | Dependencies | Status |
 |---|---|---|---|---|
 | DISC-001-05a | Groups, Members and Roles | prd-DISC-001-05a.md | PRD 01, 02 and 03 (all merged); first to add group tables (migration number assigned at PLAN) | done: branch `feat/DISC-001-05a-groups` (stacked on `docs/DISC-001-05-split-prd`, not pushed, no PR yet); migration 0026 (journal `when` 1791661150964, to be checked again at merge); API only, no web screen; claim links do not expire, one invitation per member, account deletion turns memberships into "Former member" ghosts (all awaiting the owner's confirmation); next: 05b |
-| DISC-001-05b | Group Expenses and Splits | prd-DISC-001-05b.md | depends on a | pending |
+| DISC-001-05b | Group Expenses and Splits | prd-DISC-001-05b.md | depends on a | done: branch `feat/DISC-001-05b-group-expenses` (stacked on `feat/DISC-001-05a-groups`, not pushed, no PR yet); migration 0027 (journal `when` 1791667061357, to be checked again at merge); API only, no web screen (open question 3); the payer picks a personal expense category for the account movement (open question 1) and shares are exposed through `GET /groups/personal/shares`, not written as movements (open question 2), both awaiting the owner's confirmation; next: 05c |
 | DISC-001-05c | Balances and Settlements | prd-DISC-001-05c.md | depends on b | pending |
 | DISC-001-05d | Editing Rules and Activity Log | prd-DISC-001-05d.md | depends on b and c; unblocks DISC-001-04e | pending |
 

@@ -184,6 +184,65 @@ describe('RecordGroupExpense', () => {
     expect(byMember.get(s.bob.id)).toBe(3333n);
   });
 
+  describe('leftover order when the payer is not in the split (AC-13)', () => {
+    async function threeNonPayers(s: Setup): Promise<{ early: Member; mid: Member; late: Member }> {
+      const marta = await extraMember(s);
+      const members = groups.membersOf(s.groupId);
+      const find = (id: string) => members.find((m) => m.id === id) as Member;
+      return { early: find(marta.id), mid: find(s.ghost.id), late: find(s.bob.id) };
+    }
+
+    it('gives the 0.01 leftover of 100.00 ARS to the earliest joinedAt, whatever the insertion order', async () => {
+      const s = await setup();
+      const { early, mid, late } = await threeNonPayers(s);
+      const base = clock.now().getTime();
+      // Insertion order in the repository is bob, ghost, marta: the opposite of the joining order.
+      late.joinedAt = new Date(base + 3000);
+      mid.joinedAt = new Date(base + 2000);
+      early.joinedAt = new Date(base + 1000);
+
+      const expense = await record.execute(
+        ALICE,
+        s.groupId,
+        request(s, {
+          amount: '10000',
+          payerMemberId: s.alice.id,
+          payerAccount: { accountId: s.aliceArs, categoryId: s.aliceCategory },
+          split: { mode: 'equal', memberIds: [late.id, mid.id, early.id] },
+        }),
+      );
+
+      const byMember = new Map(expense.shares.map((share) => [share.memberId, share.amount]));
+      expect(expense.shares).toHaveLength(3);
+      expect(byMember.get(early.id)).toBe(3334n);
+      expect(byMember.get(mid.id)).toBe(3333n);
+      expect(byMember.get(late.id)).toBe(3333n);
+      expect(byMember.has(s.alice.id)).toBe(false);
+    });
+
+    it('breaks a joinedAt tie by member id', async () => {
+      const s = await setup();
+      const { early, mid, late } = await threeNonPayers(s);
+      const sameInstant = new Date(clock.now().getTime() + 1000);
+      for (const member of [early, mid, late]) member.joinedAt = sameInstant;
+      const lowest = [early, mid, late].map((m) => m.id).sort()[0];
+
+      const expense = await record.execute(
+        ALICE,
+        s.groupId,
+        request(s, {
+          amount: '10000',
+          payerMemberId: s.alice.id,
+          payerAccount: { accountId: s.aliceArs, categoryId: s.aliceCategory },
+          split: { mode: 'equal', memberIds: [late.id, mid.id, early.id] },
+        }),
+      );
+
+      const bigger = expense.shares.filter((share) => share.amount === 3334n);
+      expect(bigger.map((share) => share.memberId)).toEqual([lowest]);
+    });
+  });
+
   it('stores basis points on a percentage split and the amounts as given on an exact one (AC-08, AC-10)', async () => {
     const s = await setup();
 
@@ -735,6 +794,15 @@ describe('ListPersonalShares', () => {
       ALICE,
       s.groupId,
       request(s, {
+        amount: '800',
+        payerMemberId: s.ghost.id,
+        split: { mode: 'equal', memberIds: [s.ghost.id, s.bob.id] },
+      }),
+    );
+    await record.execute(
+      ALICE,
+      s.groupId,
+      request(s, {
         amount: '600',
         payerMemberId: s.alice.id,
         split: { mode: 'exact', shares: [{ memberId: s.ghost.id, amount: '600' }] },
@@ -747,10 +815,24 @@ describe('ListPersonalShares', () => {
     await claimGhost.execute(CAROL, link.token);
     const view = await personal.execute(CAROL, {});
 
-    expect(view.items).toHaveLength(2);
-    expect(view.items.map((item) => item.shareAmount).sort()).toEqual([500n, 600n]);
-    expect(view.items.find((item) => item.shareAmount === 500n)?.receivableAmount).toBe(500n);
-    expect(expenses.expenses.flatMap((e) => e.shares)).toHaveLength(3);
+    const byAmount = (amount: bigint) =>
+      expenses.expenses.find((e) => e.amount === amount)?.id as string;
+    const summary = view.items
+      .map((item) => ({
+        expenseId: item.expenseId,
+        shareAmount: item.shareAmount,
+        receivableAmount: item.receivableAmount,
+      }))
+      .sort((a, b) => Number(a.shareAmount - b.shareAmount));
+    expect(summary).toEqual([
+      { expenseId: byAmount(800n), shareAmount: 400n, receivableAmount: 400n },
+      { expenseId: byAmount(1000n), shareAmount: 500n, receivableAmount: 500n },
+      { expenseId: byAmount(600n), shareAmount: 600n, receivableAmount: null },
+    ]);
+    expect(expenses.expenses.filter((e) => e.payerMemberId === s.ghost.id)).toHaveLength(2);
+    expect(
+      expenses.expenses.flatMap((e) => e.shares).filter((share) => share.memberId === s.ghost.id),
+    ).toHaveLength(3);
   });
 
   it('paginates with a cursor, each expense once', async () => {
