@@ -85,7 +85,7 @@ export interface ActivityRow {
   id: string;
   groupId: string;
   memberId: string;
-  action: 'expense_created';
+  action: 'expense_created' | 'settlement_created';
   subjectId: string;
   createdAt: Date;
 }

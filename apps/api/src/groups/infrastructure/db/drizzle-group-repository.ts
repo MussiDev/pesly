@@ -368,4 +368,9 @@ export class DrizzleGroupRepository implements GroupRepository {
       return mapCategoryName(error);
     }
   }
+
+  /** Stub so the port compiles; DISC-001-05c Block 5 implements the transaction of spec D9, D10. */
+  removeMember(): Promise<Member> {
+    return Promise.reject(new Error('not implemented: Block 5'));
+  }
 }
