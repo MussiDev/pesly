@@ -1,5 +1,5 @@
 import type { GroupRole, RateType } from '@pesly/shared';
-import type { Member } from './member';
+import type { FormerMember, Member } from './member';
 
 /** Ghost members count (NFR-01, spec D6). */
 export const MAX_GROUP_MEMBERS = 50;
@@ -22,8 +22,9 @@ export interface GroupSummary {
   memberCount: number;
 }
 
-/** A group with its members, oldest first. */
+/** A group with its active members, oldest first, and the ones who left, by leaving date. */
 export interface GroupDetail {
   group: Group;
   members: Member[];
+  formerMembers: FormerMember[];
 }

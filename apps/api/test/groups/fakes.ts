@@ -106,7 +106,7 @@ export class InMemoryGroupRepository implements GroupRepository {
     await Promise.resolve();
     const group = this.groups.get(groupId);
     if (group === undefined) return null;
-    return { group, members: this.membersOf(groupId) };
+    return { group, members: this.membersOf(groupId), formerMembers: [] };
   }
 
   async getSummary(groupId: string, userId: string): Promise<GroupSummary | null> {

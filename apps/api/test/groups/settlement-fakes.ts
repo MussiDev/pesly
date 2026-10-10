@@ -11,6 +11,7 @@ import {
   type BalanceSources,
   type BalanceSourcesByCurrency,
   type DefaultSplit,
+  type GroupDetail,
   type GroupSettlement,
   type GroupSettlementPageResult,
   type GroupSettlementRepository,
@@ -43,6 +44,19 @@ export class InMemoryMembershipGroupRepository extends InMemoryGroupRepository {
   attach(balances: BalancesReader, defaultSplits: Map<string, DefaultSplit>): void {
     this.readBalances = balances;
     this.splits = defaultSplits;
+  }
+
+  override async getGroup(groupId: string): Promise<GroupDetail | null> {
+    const detail = await super.getGroup(groupId);
+    if (detail === null) return null;
+    const formerMembers = this.formerMembers
+      .filter((m) => m.groupId === groupId)
+      .map((m) => ({
+        id: m.id,
+        displayName: m.displayName,
+        leftAt: this.leftAt.get(m.id) ?? m.joinedAt,
+      }));
+    return { ...detail, formerMembers };
   }
 
   /** Same order and errors as the Drizzle `removeMember`: lock, balance, last admin, then write. */
