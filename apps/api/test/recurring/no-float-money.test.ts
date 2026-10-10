@@ -25,6 +25,10 @@ const jobFiles = [
   'apps/api/src/recurring/infrastructure/db/drizzle-automatic-payment-source.ts',
   'apps/api/src/recurring/infrastructure/jobs/recording-job.ts',
   'apps/api/src/recurring/jobs.ts',
+  'apps/api/src/recurring/application/create-due-reminders.ts',
+  'apps/api/src/recurring/application/ports/reminder-payment-source.ts',
+  'apps/api/src/recurring/infrastructure/db/drizzle-reminder-payment-source.ts',
+  'apps/api/src/recurring/infrastructure/jobs/reminder-job.ts',
 ];
 const forbidden = ['Number(', 'parseFloat', 'toFixed', 'Math.round'];
 

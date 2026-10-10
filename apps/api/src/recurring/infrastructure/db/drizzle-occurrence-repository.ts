@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lte } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lte, ne } from 'drizzle-orm';
 import { notFoundUnlessAllowed, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
@@ -6,6 +6,7 @@ import type {
   NewOccurrence,
   OccurrenceRepository,
   OccurrenceResolution,
+  ResolvedDueDate,
 } from '../../application/ports/occurrence-repository';
 import { OccurrenceNotPending } from '../../domain/errors';
 import type { RecurringOccurrence } from '../../domain/recurring-payment';
@@ -70,6 +71,28 @@ export class DrizzleOccurrenceRepository implements OccurrenceRepository {
         ),
       )
       .orderBy(asc(recurringOccurrences.dueDate));
+  }
+
+  listResolvedDueDates(
+    paymentIds: readonly string[],
+    from: string,
+    to: string,
+  ): Promise<ResolvedDueDate[]> {
+    if (paymentIds.length === 0) return Promise.resolve([]);
+    return this.db
+      .select({
+        paymentId: recurringOccurrences.paymentId,
+        dueDate: recurringOccurrences.dueDate,
+      })
+      .from(recurringOccurrences)
+      .where(
+        and(
+          inArray(recurringOccurrences.paymentId, [...paymentIds]),
+          ne(recurringOccurrences.status, 'pending'),
+          gte(recurringOccurrences.dueDate, from),
+          lte(recurringOccurrences.dueDate, to),
+        ),
+      );
   }
 
   async deletePendingFor(scope: AccessScope<'write'>, paymentId: string): Promise<void> {

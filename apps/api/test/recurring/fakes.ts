@@ -6,6 +6,14 @@ import type {
   AutomaticPaymentSource,
 } from '../../src/recurring/application/ports/automatic-payment-source';
 import type {
+  NoticePublisher,
+  PublishNoticeInput,
+} from '../../src/recurring/application/ports/notice-publisher';
+import type {
+  ReminderEntry,
+  ReminderPaymentSource,
+} from '../../src/recurring/application/ports/reminder-payment-source';
+import type {
   ExpenseRecorder,
   ExpenseToRecord,
 } from '../../src/recurring/application/ports/expense-recorder';
@@ -13,6 +21,7 @@ import type {
   NewOccurrence,
   OccurrenceRepository,
   OccurrenceResolution,
+  ResolvedDueDate,
 } from '../../src/recurring/application/ports/occurrence-repository';
 import type {
   NewRecurringPayment,
@@ -110,6 +119,24 @@ export class InMemoryOccurrences implements OccurrenceRepository {
         )
         .map((row) => row.occurrence)
         .sort((a, b) => a.dueDate.localeCompare(b.dueDate)),
+    );
+  }
+
+  listResolvedDueDates(
+    paymentIds: readonly string[],
+    from: string,
+    to: string,
+  ): Promise<ResolvedDueDate[]> {
+    return Promise.resolve(
+      this.rows
+        .filter(
+          (row) =>
+            paymentIds.includes(row.occurrence.paymentId) &&
+            row.occurrence.status !== 'pending' &&
+            row.occurrence.dueDate >= from &&
+            row.occurrence.dueDate <= to,
+        )
+        .map((row) => ({ paymentId: row.occurrence.paymentId, dueDate: row.occurrence.dueDate })),
     );
   }
 
@@ -320,6 +347,70 @@ export class FakeAutomaticPaymentSource implements AutomaticPaymentSource {
   }
 }
 
+/** Active payments of any mode, keyset-paged by id, with the owner's zone and language. */
+export class FakeReminderPaymentSource implements ReminderPaymentSource {
+  /** Per-user languages; owners without one write in Spanish. */
+  readonly languages = new Map<string, 'es' | 'en'>();
+  /** The `afterId` of every call, to assert paging. */
+  readonly calls: (string | null)[] = [];
+
+  constructor(
+    private readonly payments: InMemoryPayments,
+    private readonly timeZones: FakeTimeZones,
+  ) {}
+
+  async page(afterId: string | null, limit: number): Promise<ReminderEntry[]> {
+    this.calls.push(afterId);
+    const rows = this.payments.rows
+      .filter(
+        (row) => row.payment.status === 'active' && (afterId === null || row.payment.id > afterId),
+      )
+      .sort((a, b) => a.payment.id.localeCompare(b.payment.id))
+      .slice(0, limit);
+    return Promise.all(
+      rows.map(async (row) => ({
+        ownerId: row.ownerId,
+        timeZone: await this.timeZones.timeZoneOf(row.ownerId),
+        language: this.languages.get(row.ownerId) ?? 'es',
+        payment: row.payment,
+      })),
+    );
+  }
+}
+
+/** Keeps what was published, unique per (kind, payment, due date) like the database key. */
+export class FakeNoticePublisher implements NoticePublisher {
+  readonly published: PublishNoticeInput[] = [];
+  readonly manyCalls: PublishNoticeInput[][] = [];
+  /** When set, the next `publishMany` call rejects with it and stores nothing. */
+  failNextMany: Error | null = null;
+
+  private add(input: PublishNoticeInput): boolean {
+    const exists = this.published.some(
+      (item) =>
+        item.kind === input.kind &&
+        item.paymentId === input.paymentId &&
+        item.dueDate === input.dueDate,
+    );
+    if (!exists) this.published.push(input);
+    return !exists;
+  }
+
+  publish(input: PublishNoticeInput): Promise<boolean> {
+    return Promise.resolve(this.add(input));
+  }
+
+  publishMany(inputs: readonly PublishNoticeInput[]): Promise<number> {
+    this.manyCalls.push([...inputs]);
+    if (this.failNextMany) {
+      const error = this.failNextMany;
+      this.failNextMany = null;
+      return Promise.reject(error);
+    }
+    return Promise.resolve(inputs.filter((input) => this.add(input)).length);
+  }
+}
+
 export function recurringFakes(now: string) {
   const clock = new FakeClock(new Date(now));
   const occurrences = new InMemoryOccurrences();
@@ -327,5 +418,7 @@ export function recurringFakes(now: string) {
   const timeZones = new FakeTimeZones();
   const expenses = new FakeExpenseRecorder(clock);
   const source = new FakeAutomaticPaymentSource(payments, timeZones);
-  return { clock, occurrences, payments, timeZones, expenses, source };
+  const reminderSource = new FakeReminderPaymentSource(payments, timeZones);
+  const notices = new FakeNoticePublisher();
+  return { clock, occurrences, payments, timeZones, expenses, source, reminderSource, notices };
 }

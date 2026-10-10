@@ -7,6 +7,12 @@ export interface NewOccurrence {
   dueDate: string;
 }
 
+/** A due date of a payment that the owner already confirmed or skipped. */
+export interface ResolvedDueDate {
+  paymentId: string;
+  dueDate: string;
+}
+
 /** How a pending occurrence ends; the repository stores it together with the resolution time. */
 export type OccurrenceResolution =
   { status: 'confirmed'; confirmedAmount: bigint; movementId: string } | { status: 'skipped' };
@@ -23,6 +29,15 @@ export interface OccurrenceRepository {
     from: string,
     to: string,
   ): Promise<RecurringOccurrence[]>;
+  /**
+   * System path (the reminder pass, not scoped by a request): the confirmed or skipped due dates
+   * of `paymentIds` in `from`..`to` inclusive, in one query.
+   */
+  listResolvedDueDates(
+    paymentIds: readonly string[],
+    from: string,
+    to: string,
+  ): Promise<ResolvedDueDate[]>;
   /** Used when a schedule edit invalidates what was materialized; resolved rows stay. */
   deletePendingFor(scope: AccessScope<'write'>, paymentId: string): Promise<void>;
   /**
