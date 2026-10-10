@@ -96,7 +96,10 @@ export const groupResponseSchema = z.object({
 
 export type GroupResponse = z.infer<typeof groupResponseSchema>;
 
-/** `displayName` is null for a registered member: the web shows the user's own name. */
+/**
+ * `displayName` is the user's profile name for a registered member (null only when the user has
+ * none) and the stored name for a ghost.
+ */
 export const groupMemberResponseSchema = z.object({
   id: z.string(),
   displayName: z.string().nullable(),

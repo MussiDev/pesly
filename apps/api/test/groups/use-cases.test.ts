@@ -332,7 +332,7 @@ describe('group categories', () => {
     expect(listed.some((category) => category.id === created.id)).toBe(true);
   });
 
-  it('is 403 for a plain member on add, rename and archive (AC-19)', async () => {
+  it('is 403 for a plain member on add, rename and archive (AC-20)', async () => {
     const groupId = await newGroup();
     await joinAs(BOB, groupId);
     const [first] = await listCategories.execute(ALICE, groupId);

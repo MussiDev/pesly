@@ -440,6 +440,96 @@ describe('non-members (AC-21)', () => {
   });
 });
 
+describe('member names and ids from another group (AC-09, AC-12, AC-21)', () => {
+  it('shows a named user and a ghost by name, with no email and no user id', async () => {
+    const api = setupGroupApi(connection);
+    const ana = await api.makeUser('ana');
+    const bob = await api.makeUser('bob');
+    await connection.pool.query('update users set display_name = $1 where id = $2', [
+      'Bob Builder',
+      bob.id,
+    ]);
+    const group = await createGroup(api.app, ana);
+    await joinAs(api, ana, bob, group.id);
+    const ghost = await call(api.app, 'post', `/groups/${group.id}/ghost-members`, ana.cookies, {
+      displayName: 'Pedro',
+    });
+    expect(ghost.status).toBe(201);
+
+    const response = await call(api.app, 'get', `/groups/${group.id}`, ana.cookies);
+    expect(response.status).toBe(200);
+    const detail = groupDetailResponseSchema.parse(response.body);
+
+    const named = detail.members.find((member) => member.role === 'member' && !member.isGhost);
+    expect(named?.displayName).toBe('Bob Builder');
+    expect(detail.members.find((member) => member.isGhost)?.displayName).toBe('Pedro');
+    for (const member of detail.members) {
+      expect(Object.keys(member).sort()).toEqual([
+        'displayName',
+        'id',
+        'isGhost',
+        'joinedAt',
+        'role',
+      ]);
+    }
+    const raw = JSON.stringify(response.body);
+    expect(raw).not.toContain('@');
+    expect(raw).not.toContain(ana.id);
+    expect(raw).not.toContain(bob.id);
+  });
+
+  it('a member id of another group is 404 like an unknown id, and changes nothing', async () => {
+    const api = setupGroupApi(connection);
+    const ana = await api.makeUser('ana');
+    const bob = await api.makeUser('bob');
+    const groupA = await createGroup(api.app, ana);
+    const groupB = await createGroup(api.app, bob);
+    const ghostB = await call(api.app, 'post', `/groups/${groupB.id}/ghost-members`, bob.cookies, {
+      displayName: 'Pedro',
+    });
+    expect(ghostB.status).toBe(201);
+    const foreignIds = [
+      (ghostB.body as { id: string }).id,
+      (await readGroup(api.app, bob, groupB.id)).members[0]?.id ?? '',
+    ];
+    const countsBefore = await connection.pool.query<{ role: string; n: string }>(
+      'select role, count(*) as n from group_members group by role order by role',
+    );
+    const linksBefore = await connection.pool.query('select 1 from group_claim_links');
+
+    for (const action of ['admin', 'claim-links']) {
+      const unknown = await call(
+        api.app,
+        'post',
+        `/groups/${groupA.id}/members/${randomUUID()}/${action}`,
+        ana.cookies,
+      );
+      expect(unknown.status).toBe(404);
+      for (const foreignId of foreignIds) {
+        const response = await call(
+          api.app,
+          'post',
+          `/groups/${groupA.id}/members/${foreignId}/${action}`,
+          ana.cookies,
+        );
+        expect(response.status, `${action} ${foreignId}`).toBe(404);
+        expect(response.body).toEqual(unknown.body);
+      }
+    }
+
+    const countsAfter = await connection.pool.query<{ role: string; n: string }>(
+      'select role, count(*) as n from group_members group by role order by role',
+    );
+    expect(countsAfter.rows).toEqual(countsBefore.rows);
+    expect(await connection.pool.query('select 1 from group_claim_links')).toHaveProperty(
+      'rowCount',
+      linksBefore.rowCount,
+    );
+    expect((await readGroup(api.app, ana, groupA.id)).members).toHaveLength(1);
+    expect((await readGroup(api.app, bob, groupB.id)).members).toHaveLength(2);
+  });
+});
+
 describe('what responses and logs may contain (NFR-02)', () => {
   it('no response has an email or a stored token hash, and no log line has a token', async () => {
     const api = setupGroupApi(connection);

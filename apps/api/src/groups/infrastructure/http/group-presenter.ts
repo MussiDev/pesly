@@ -15,7 +15,8 @@ import { isGhost, type Member } from '../../domain/member';
 
 /**
  * The only place where dates become ISO strings. A member never carries an email or a user id: a
- * registered member has a null name and the web shows the user's own (spec D2).
+ * registered member shows the user's profile display name (null only when the user has none), a
+ * ghost shows its stored name (spec D2).
  */
 export function presentMember(member: Member): GroupMemberResponse {
   return {
