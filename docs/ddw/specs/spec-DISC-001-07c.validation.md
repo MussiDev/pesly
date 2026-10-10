@@ -14,7 +14,7 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 4 (Browser file parser) (4 files, 567 words), Block 6 (Import dialog and container) (4 files, 503 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 4 (Browser file parser) (4 files, 567 words), Block 6 (Import dialog and container) (4 files, 554 words)
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
   ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 0 in total for this document

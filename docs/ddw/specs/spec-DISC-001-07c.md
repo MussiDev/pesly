@@ -87,14 +87,14 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - `ImportPlanError` is a plain error the API use case maps to `VALIDATION_FAILED` with the field `holdings`.
 
 **Required tests**
-- [ ] `packages/shared/test/investments/import-plan.test.ts` — a file with one new, one kept and one absent ticker yields one create, one update and one remove, matching tickers ignoring case — validates AC-02.
-- [ ] `packages/shared/test/investments/import-plan.test.ts` — kept and new tickers both take the file's cost, currency and price, and a USD choice is carried through — validates AC-03 and AC-09.
-- [ ] `packages/shared/test/investments/import-plan.test.ts` — a repeated ticker (`ibit`, `IBIT`) throws `duplicateTicker`; a ticker equal to a crypto holding throws `cryptoTicker` (invalid input) — validates AC-05.
-- [ ] `packages/shared/test/investments/contracts-import.test.ts` — the request accepts 1,000 items and rejects 0 items, 1,001 items, `crypto`, `"12.5"` as a quantity and `2026-02-30` as a day (invalid input) — validates AC-05.
-- [ ] `packages/shared/test/investments/no-float-money.test.ts` — `import-plan.ts` contains no floating-point token — validates NFR-01.
+- [ ] `packages/shared/test/import-plan.test.ts` — a file with one new, one kept and one absent ticker yields one create, one update and one remove, matching tickers ignoring case — validates AC-02.
+- [ ] `packages/shared/test/import-plan.test.ts` — kept and new tickers both take the file's cost, currency and price, and a USD choice is carried through — validates AC-03 and AC-09.
+- [ ] `packages/shared/test/import-plan.test.ts` — a repeated ticker (`ibit`, `IBIT`) throws `duplicateTicker`; a ticker equal to a crypto holding throws `cryptoTicker` (invalid input) — validates AC-05.
+- [ ] `packages/shared/test/import-holdings-contracts.test.ts` — the request accepts 1,000 items and rejects 0 items, 1,001 items, `crypto`, `"12.5"` as a quantity and `2026-02-30` as a day (invalid input) — validates AC-05.
+- [ ] `apps/api/test/investments/no-float-money.test.ts` (unchanged) — its existing scan of `packages/shared/src/investments` now covers `import-plan.ts`, which contains no floating-point token — validates NFR-01.
 
 **Completion criterion**
-`pnpm --filter @pesly/shared exec vitest run test/investments` passes and `pnpm typecheck` passes.
+`pnpm exec vitest run packages/shared/test/import-plan.test.ts packages/shared/test/import-holdings-contracts.test.ts` passes and `pnpm typecheck` passes.
 
 ## Block 2 — `ImportHoldings` use case
 
@@ -154,7 +154,7 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — an invalid body, a foreign portfolio (404, not 403), no session (401) and an unverified email each answer their code and leave the portfolio unchanged (invalid input) — validates AC-05.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — the log line contains the counts and none of the tickers or amounts of the request — validates NFR-02.
 - [ ] `apps/api/test/investments/import-holdings-routes.test.ts` — a path that only contains the import path (for example `/x/investments/portfolios/<id>/holdings/import` or with a suffix) does not get the 384 kb limit and a 20 kb body to it is refused (invalid input) — validates NFR-01 and the threat R-03.
-- [ ] `apps/api/test/investments/request-path.test.ts` (modified) — the import route performs no external call — validates the "no external service in the request path" rule.
+- [ ] `apps/api/test/investments/request-path.test.ts` (unchanged) — still passes with the import route wired: the module imports no provider, job or worker repository, so the route performs no external call — validates the "no external service in the request path" rule.
 
 **Completion criterion**
 `pnpm --filter @pesly/api exec vitest run test/investments/import-holdings-routes.test.ts test/investments/request-path.test.ts` passes.
@@ -224,7 +224,7 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - `apps/web/src/features/investments/containers/investments-container.tsx` (modified) — owns the file reading, the plan, the request and the refresh.
 
 **Logic**
-- The container reads the chosen file with `parseBalanzXlsx` and computes the preview with `planHoldingsImport(portfolio.holdings, parsed)`, every holding in ARS until the user changes it; nothing is sent. Cancel or close discards the parsed rows and the `File` reference (the preview state is plain React state, never persisted to IndexedDB, local storage or the service worker queue).
+- The container (its tests mock `parseBalanzXlsx`; the real parser is covered by Block 4 and the end-to-end flow) reads the chosen file with `parseBalanzXlsx` and computes the preview with `planHoldingsImport(portfolio.holdings, parsed)`, every holding in ARS until the user changes it; nothing is sent. Cancel or close discards the parsed rows and the `File` reference (the preview state is plain React state, never persisted to IndexedDB, local storage or the service worker queue).
 - Confirm calls `importHoldings`, then replaces the portfolio on screen with the response and shows the counts.
 - The preview shows each holding's type and a currency selector (ARS or USD, ARS by default) whose choice is sent as `valuationCurrency`; it shows the removed holdings in a distinct list with a warning that manual holdings in that portfolio will be deleted (PRD risk), and disables confirm while the request is pending.
 - The dialog is presentational and pure; reading, planning and calling are in the container. It uses the existing shadcn components and theme tokens, with labelled controls, focus management and an error `alert` region like the other investment forms.
@@ -238,34 +238,34 @@ Block 7 depends on all. Execution order: 1, 2, 3, 4, 5, 6, 7.
 - [ ] `apps/web/test/import-holdings-dialog.test.tsx` — cancel calls no API and leaves the portfolio props unchanged — validates AC-04.
 - [ ] `apps/web/test/import-holdings-dialog.test.tsx` — a wrong file shows the translated reason and no confirm button (invalid input) — validates AC-05 and AC-07.
 - [ ] `apps/web/test/investments-container-import.test.tsx` — confirm sends only parsed holdings, then renders the returned portfolio; an API 400 keeps the dialog open with the message (error path) — validates AC-03 and AC-05.
-- [ ] `apps/web/test/investments-container-import.test.tsx` — after confirm and after cancel, nothing about the file remains in IndexedDB or the sync queue — validates AC-06 and NFR-02.
-- [ ] `apps/web/test/import-holdings-dialog.test.tsx` — a ticker and a name such as `<img src=x onerror=alert(1)>` and `=HYPERLINK("x")` render as plain text and no `dangerouslySetInnerHTML` appears in the import components (invalid input) — validates AC-02 and the threat R-08.
-- [ ] `apps/web/test/import-holdings-dialog.test.tsx` — the dialog has labelled controls, is operable by keyboard and has no axe violations in English and Spanish — validates the accessibility rule of the web app.
+- [ ] `apps/web/test/investments-container-import.test.tsx` — after confirm and after cancel, nothing is written to local or session storage and the file input is gone; the import never enters the offline queue — validates AC-06 and NFR-02.
+- [ ] `apps/web/test/import-holdings-dialog.test.tsx` — a name such as `<img src=x onerror=alert(1)>` renders as plain text and creates no element (invalid input) — validates AC-02 and the threat R-08; `apps/web/test/no-raw-html-investments.test.ts` scans the investments feature for raw HTML insertion.
+- [ ] `apps/web/test/import-holdings-dialog.test.tsx` — the file input and every currency select have a label, the file input takes only `.xlsx`, errors are an alert and the removal warning a note, in English and Spanish; no accessibility library is added, as the other forms are checked the same way — validates the accessibility rule of the web app.
 
 **Completion criterion**
-`pnpm --filter @pesly/web exec vitest run test/import-holdings-dialog.test.tsx test/investments-container-import.test.tsx` passes and `pnpm lint` passes.
+`pnpm exec vitest run apps/web/test/import-holdings-dialog.test.tsx apps/web/test/investments-container-import.test.tsx apps/web/test/no-raw-html-investments.test.ts` passes and `pnpm lint` passes.
 
 ## Block 7 — Fixture, benchmark and end-to-end flow
 
 **Files**
 - `apps/web/test/fixtures/balanz-holdings.xlsx` (new) — the sample workbook, which carries no personal data inside (verified: the sheet has only tickers and amounts; the file name is not kept).
-- `apps/web/test/perf/balanz-import.perf.test.ts` (new) — the NFR-01 benchmark.
+- `apps/web/test/balanz-import-performance.test.ts` (new) — the NFR-01 benchmark, a unit test because `pnpm test:perf` only runs the API benchmarks.
 - `apps/web/e2e/investments-import.spec.ts` (new) — the Playwright flow.
 
 **Logic**
-- The benchmark builds 1,000 rows in memory, runs the pure parser and `planHoldingsImport`, and asserts it finishes in < 5 s; it runs under `pnpm test:perf`.
+- The benchmark builds 1,000 rows in memory, runs the pure parser and `planHoldingsImport`, and asserts it finishes in < 5 s; it also reads a generated `.xlsx` of 1,000 rows under 1 MB end to end.
 - The end-to-end flow signs in, creates a portfolio, adds `AAPL` by hand, imports the fixture, sees the preview (2 to create, 1 to remove), switches SPY to USD, cancels (portfolio unchanged), imports again, switches SPY to USD and confirms (the portfolio shows IBIT in ARS and SPY in USD with source "import" and no AAPL), then uploads a PDF and sees the rejection.
 
 **Error handling**
 - The flow uses a unique email per run and waits for visible text, never for fixed time.
 
 **Required tests**
-- [ ] `apps/web/test/perf/balanz-import.perf.test.ts` — 1,000 rows parse and plan in < 5 s — validates NFR-01.
+- [ ] `apps/web/test/balanz-import-performance.test.ts` — 1,000 rows parse and plan, and a real 1,000-row `.xlsx` is read, each in < 5 s — validates NFR-01.
 - [ ] `apps/web/e2e/investments-import.spec.ts` — cancel at the preview leaves the portfolio unchanged, confirm leaves exactly the file's holdings — validates AC-02, AC-03 and AC-04.
 - [ ] `apps/web/e2e/investments-import.spec.ts` — a PDF upload is rejected with its reason and the portfolio is unchanged (invalid input) — validates AC-05 and AC-07.
 
 **Completion criterion**
-`pnpm test:perf` passes the benchmark and `pnpm e2e` passes `investments-import.spec.ts`.
+`pnpm exec vitest run apps/web/test/balanz-import-performance.test.ts` passes and `pnpm e2e` passes `investments-import.spec.ts`.
 
 ## Final verification
 - Every FR, NFR and AC of the PRD is covered by the table and by named tests.
