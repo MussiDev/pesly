@@ -162,6 +162,13 @@
       "when": 1791563194787,
       "tag": "0023_recurring_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791585171427,
+      "tag": "0024_recurring_auto_recording_from",
+      "breakpoints": true
     }
   ]
 }

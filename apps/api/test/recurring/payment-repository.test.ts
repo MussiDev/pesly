@@ -82,6 +82,7 @@ describe('DrizzleRecurringPaymentRepository', () => {
       mode: 'confirmation',
       status: 'active',
       scheduleFrom: '2026-10-05',
+      autoRecordingFrom: '2026-10-05',
     });
     expect(await payments.get(await readScope(ana.ownerId), created.id)).toEqual(created);
   });
@@ -121,11 +122,38 @@ describe('DrizzleRecurringPaymentRepository', () => {
     const scope = await writeScope(ana.ownerId);
     const created = await payments.create(scope, rentOf(ana));
 
-    const paused = await payments.setStatus(scope, created.id, 'paused', '2026-10-05');
-    const resumed = await payments.setStatus(scope, created.id, 'active', '2026-11-20');
+    const paused = await payments.setStatus(scope, created.id, {
+      status: 'paused',
+      scheduleFrom: '2026-10-05',
+    });
+    const resumed = await payments.setStatus(scope, created.id, {
+      status: 'active',
+      scheduleFrom: '2026-11-20',
+    });
 
     expect(paused.status).toBe('paused');
     expect(resumed).toMatchObject({ status: 'active', scheduleFrom: '2026-11-20' });
+  });
+
+  it('stores autoRecordingFrom on create and moves it only when setStatus is given one (FR-05)', async () => {
+    const ana = await owner();
+    const scope = await writeScope(ana.ownerId);
+    const created = await payments.create(scope, rentOf(ana, { autoRecordingFrom: '2026-10-09' }));
+
+    const paused = await payments.setStatus(scope, created.id, {
+      status: 'paused',
+      scheduleFrom: '2026-10-05',
+    });
+    const resumed = await payments.setStatus(scope, created.id, {
+      status: 'active',
+      scheduleFrom: '2026-11-20',
+      autoRecordingFrom: '2026-11-20',
+    });
+
+    expect(created.autoRecordingFrom).toBe('2026-10-09');
+    expect(paused.autoRecordingFrom).toBe('2026-10-09');
+    expect(resumed).toMatchObject({ scheduleFrom: '2026-11-20', autoRecordingFrom: '2026-11-20' });
+    expect(await payments.get(await readScope(ana.ownerId), created.id)).toEqual(resumed);
   });
 
   it('sad path: a payment on an account or category of another user fails the composite key and answers not found (AC-02)', async () => {
@@ -154,7 +182,11 @@ describe('DrizzleRecurringPaymentRepository', () => {
       ResourceNotFound,
     );
     await expect(
-      payments.setStatus(beaWrite, anas.id, 'paused', '2026-10-05'),
+      payments.setStatus(beaWrite, anas.id, {
+        status: 'paused',
+        scheduleFrom: '2026-10-05',
+        autoRecordingFrom: '2026-10-05',
+      }),
     ).rejects.toBeInstanceOf(ResourceNotFound);
     await expect(payments.delete(beaWrite, anas.id)).rejects.toBeInstanceOf(ResourceNotFound);
     await expect(

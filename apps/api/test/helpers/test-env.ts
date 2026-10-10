@@ -50,6 +50,7 @@ export function testEnvSource(
     LOG_LEVEL: 'silent',
     RATE_PROVIDER: 'fake',
     PRICE_PROVIDER: 'fake',
+    RECURRING_JOB_INTERVAL_SECONDS: '60',
     TOTP_ENCRYPTION_KEY: TEST_TOTP_ENCRYPTION_KEY,
     ...overrides,
   };

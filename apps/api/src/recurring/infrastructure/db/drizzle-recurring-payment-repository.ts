@@ -1,4 +1,3 @@
-import type { RecurringStatus } from '@pesly/shared';
 import { and, asc, count, eq } from 'drizzle-orm';
 import { notFoundUnlessAllowed, ResourceNotFound, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
@@ -8,6 +7,7 @@ import type {
   NewRecurringPayment,
   RecurringPaymentChanges,
   RecurringPaymentRepository,
+  RecurringStatusChanges,
 } from '../../application/ports/recurring-payment-repository';
 import type { RecurringPayment } from '../../domain/recurring-payment';
 import { recurringPayments } from './schema';
@@ -27,6 +27,7 @@ const paymentColumns = {
   mode: recurringPayments.mode,
   status: recurringPayments.status,
   scheduleFrom: recurringPayments.scheduleFrom,
+  autoRecordingFrom: recurringPayments.autoRecordingFrom,
   createdAt: recurringPayments.createdAt,
 };
 
@@ -100,12 +101,18 @@ export class DrizzleRecurringPaymentRepository implements RecurringPaymentReposi
   async setStatus(
     scope: AccessScope<'write'>,
     id: string,
-    status: RecurringStatus,
-    scheduleFrom: string,
+    changes: RecurringStatusChanges,
   ): Promise<RecurringPayment> {
     const [row] = await this.db
       .update(recurringPayments)
-      .set({ status, scheduleFrom, updatedAt: new Date() })
+      .set({
+        status: changes.status,
+        scheduleFrom: changes.scheduleFrom,
+        ...(changes.autoRecordingFrom === undefined
+          ? {}
+          : { autoRecordingFrom: changes.autoRecordingFrom }),
+        updatedAt: new Date(),
+      })
       .where(ownPayment(scope, id))
       .returning(paymentColumns);
     return notFoundUnlessAllowed(row);

@@ -19,6 +19,13 @@ const trees = [
   'packages/shared/src/recurring',
   'apps/web/src/features/recurring',
 ];
+const jobFiles = [
+  'apps/api/src/recurring/application/record-due-occurrences.ts',
+  'apps/api/src/recurring/application/ports/automatic-payment-source.ts',
+  'apps/api/src/recurring/infrastructure/db/drizzle-automatic-payment-source.ts',
+  'apps/api/src/recurring/infrastructure/jobs/recording-job.ts',
+  'apps/api/src/recurring/jobs.ts',
+];
 const forbidden = ['Number(', 'parseFloat', 'toFixed', 'Math.round'];
 
 function sources(dir: string): string[] {
@@ -41,6 +48,28 @@ describe('no floating-point money arithmetic (NFR-01)', () => {
   it.each(trees)('%s contains sources and no float conversions or rounding', (tree) => {
     expect(sources(join(root, tree)).length).toBeGreaterThan(0);
     expect(offendersIn(join(root, tree))).toEqual([]);
+  });
+
+  it.each(jobFiles)('%s is part of the scan and has no float conversions', (file) => {
+    const scanned = sources(join(root, 'apps/api/src/recurring'));
+    expect(scanned).toContain(join(root, file));
+    expect(
+      offendersIn(join(root, 'apps/api/src/recurring')).filter((o) =>
+        o.includes(file.split('/').pop() ?? ''),
+      ),
+    ).toEqual([]);
+  });
+
+  it('fails when a float is introduced in a job file', () => {
+    const probeRoot = mkdtempSync(join(tmpdir(), 'no-float-job-'));
+    try {
+      mkdirSync(join(probeRoot, 'infrastructure', 'jobs'), { recursive: true });
+      const file = join(probeRoot, 'infrastructure', 'jobs', 'recording-job.ts');
+      writeFileSync(file, 'export const total = parseFloat("1.5") + Math.round(2.4);');
+      expect(offendersIn(probeRoot)).toEqual([`${file}: parseFloat`, `${file}: Math.round`]);
+    } finally {
+      rmSync(probeRoot, { recursive: true, force: true });
+    }
   });
 
   // Proof that the scan can fail.

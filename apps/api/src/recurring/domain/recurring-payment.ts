@@ -17,6 +17,11 @@ export interface RecurringPayment {
   status: RecurringStatus;
   /** The day the schedule counts from: creation, resume or the last schedule edit. */
   scheduleFrom: string;
+  /**
+   * First day whose due dates an automatic payment may record without the user: set on creation,
+   * resume, switch to automatic and schedule edits. Earlier due dates stay pending (DISC-001-08b).
+   */
+  autoRecordingFrom: string;
   createdAt: Date;
 }
 

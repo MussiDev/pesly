@@ -168,4 +168,23 @@ describe('worker environment', () => {
       expect(message).not.toContain(value);
     }
   });
+
+  it('defaults RECURRING_JOB_INTERVAL_SECONDS to 60 and accepts 1 to 300', () => {
+    expect(parseWorkerEnv(WORKER_PRODUCTION).RECURRING_JOB_INTERVAL_SECONDS).toBe(60);
+    const bounds = [1, 300].map(
+      (value) =>
+        parseWorkerEnv({ ...WORKER_PRODUCTION, RECURRING_JOB_INTERVAL_SECONDS: String(value) })
+          .RECURRING_JOB_INTERVAL_SECONDS,
+    );
+    expect(bounds).toEqual([1, 300]);
+  });
+
+  it.each(['0', '301', 'abc', '1.5', '-1', '', '1e2', ' 60 '])(
+    'sad path: RECURRING_JOB_INTERVAL_SECONDS of %j fails the worker env, naming the variable',
+    (value) => {
+      expect(parseProduction({ RECURRING_JOB_INTERVAL_SECONDS: value })).toThrow(
+        /RECURRING_JOB_INTERVAL_SECONDS/,
+      );
+    },
+  );
 });

@@ -488,7 +488,7 @@ const REGISTRY: readonly RegisteredTable[] = [
       );
       await query(
         context,
-        "insert into recurring_payments (owner_id, name, amount, account_id, category_id, frequency, day_of_month, start_date, mode, schedule_from) values ($1, 'Rent', 35000000, $2, $3, 'monthly', 5, '2026-10-05', 'confirmation', '2026-10-05')",
+        "insert into recurring_payments (owner_id, name, amount, account_id, category_id, frequency, day_of_month, start_date, mode, schedule_from, auto_recording_from) values ($1, 'Rent', 35000000, $2, $3, 'monthly', 5, '2026-10-05', 'automatic', '2026-10-05', '2026-10-05')",
         [
           context.userId,
           (account.rows[0] as { id: string }).id,

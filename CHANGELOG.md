@@ -331,6 +331,16 @@ All notable changes to this project are documented in this file. The format foll
   Due dates follow the user's time zone. Migration `0023_recurring_payments` adds two tables;
   automatic recording, reminders and push notifications arrive in DISC-001-08b, 08c and 08d.
 
+- DISC-001-08b Automatic recording of recurring payments: a job in the worker process wakes every
+  60 seconds (`RECURRING_JOB_INTERVAL_SECONDS`, 1 to 300) and records the expense of each due
+  occurrence of an automatic payment from 06:00 in the owner's time zone, dated at noon of the due
+  date. The occurrence id is the movement id, so repeated, concurrent or interrupted runs record
+  exactly one expense. Missed dates are recorded on the next run, up to a year back; a failure on
+  one payment (archived account, missing rate) leaves it pending and never stops the others.
+  Due dates before a payment was created, resumed or switched to automatic stay pending for the
+  user. Migration `0024_recurring_auto_recording_from` adds `recurring_payments.auto_recording_from`.
+  A pass over 10,000 payments with 1,000 due is benchmarked under 60 seconds. No new dependency.
+
 ### Changed
 
 - FEAT-004 Every screen uses the design system: the auth, profile, security, delete-account,

@@ -289,6 +289,21 @@ describe('exchange rate provider settings', () => {
 describe('crypto price provider settings', () => {
   const DEFAULT_BASE_URL = 'https://api.coingecko.com/api/v3';
 
+  it('reads RECURRING_JOB_INTERVAL_SECONDS in the API env too, default 60, and refuses 0 and 301', () => {
+    const source = testEnvSource();
+    delete source.RECURRING_JOB_INTERVAL_SECONDS;
+    expect(parseEnv(source).RECURRING_JOB_INTERVAL_SECONDS).toBe(60);
+    expect(
+      parseEnv(testEnvSource({ RECURRING_JOB_INTERVAL_SECONDS: '300' }))
+        .RECURRING_JOB_INTERVAL_SECONDS,
+    ).toBe(300);
+    for (const bad of ['0', '301', 'abc']) {
+      expect(() => parseEnv(testEnvSource({ RECURRING_JOB_INTERVAL_SECONDS: bad }))).toThrow(
+        /RECURRING_JOB_INTERVAL_SECONDS/,
+      );
+    }
+  });
+
   it('defaults PRICE_PROVIDER to coingecko, the base URL to the public API and no key', () => {
     const source = testEnvSource();
     delete source.PRICE_PROVIDER;

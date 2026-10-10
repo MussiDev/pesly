@@ -2,7 +2,7 @@ import type { RecurringFrequencyValue, RecurringMode } from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import { RecurringLimitReached } from '../domain/errors';
 import { MAX_RECURRING_PAYMENTS, type RecurringPayment } from '../domain/recurring-payment';
-import type { RecurringDependencies } from './dependencies';
+import { zoneAndToday, type RecurringDependencies } from './dependencies';
 
 export interface CreateRecurringPaymentInput {
   name: string;
@@ -19,7 +19,9 @@ export interface CreateRecurringPaymentInput {
 }
 
 export class CreateRecurringPayment {
-  constructor(private readonly deps: Pick<RecurringDependencies, 'payments'>) {}
+  constructor(
+    private readonly deps: Pick<RecurringDependencies, 'payments' | 'timeZones' | 'clock'>,
+  ) {}
 
   /**
    * Ownership of the account and the expense category is enforced by the composite foreign keys,
@@ -32,6 +34,7 @@ export class CreateRecurringPayment {
     if ((await this.deps.payments.count(scope)) >= MAX_RECURRING_PAYMENTS) {
       throw new RecurringLimitReached();
     }
+    const { today } = await zoneAndToday(this.deps, scope.userId);
     return this.deps.payments.create(scope, {
       name: input.name,
       amount: input.amount,
@@ -45,6 +48,7 @@ export class CreateRecurringPayment {
       endDate: input.endDate ?? null,
       mode: input.mode,
       scheduleFrom: input.startDate,
+      autoRecordingFrom: today,
     });
   }
 }
