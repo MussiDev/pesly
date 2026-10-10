@@ -645,6 +645,51 @@ const listCalls = (calls: { method: string; path: string }[]) =>
   calls.filter((call) => call.path.startsWith('/movements')).map((call) => call.path);
 
 const filterField = (name: string) => screen.getByLabelText<HTMLSelectElement>(name);
+const typeChip = (type: 'expense' | 'income' | 'transfer' | 'exchange') =>
+  within(screen.getByRole('group', { name: es.movements.filters.type })).getByRole('button', {
+    name: es.movements.types[type],
+  });
+
+describe('day totals', () => {
+  it('shows the net figure of a day, and nothing when currencies are mixed or none is spending', async () => {
+    const stubs = routes({
+      [FIRST_PAGE]: movementPage([
+        movement({ id: uuid(611), note: 'Cena', amount: '150050' }),
+        movement({ id: uuid(612), type: 'income', note: 'Cobro', amount: '50050' }),
+      ]),
+    });
+    stubApi(stubs);
+    renderApp(<MovementsContainer />);
+
+    await screen.findByText('Cena');
+    expect(screen.getByText(plain(formatMoney(-100000n, 'ARS', 'es')))).toBeDefined();
+  });
+});
+
+describe('MovementsContainer search', () => {
+  it('narrows the loaded rows by note or category as the user types, and says so when nothing matches', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([
+          movement({ id: uuid(601), note: 'Almuerzo' }),
+          movement({ id: uuid(602), note: 'Cine' }),
+        ]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Almuerzo');
+    const search = screen.getByRole('searchbox', { name: es.movements.list.searchLabel });
+    await user.type(search, 'cine');
+    expect(screen.queryByText('Almuerzo')).toBeNull();
+    expect(screen.getByText('Cine')).toBeDefined();
+
+    await user.clear(search);
+    await user.type(search, 'zzz');
+    expect(screen.getByText(es.movements.filters.noMatch)).toBeDefined();
+  });
+});
 
 describe('MovementsContainer filters (DISC-001-03d)', () => {
   const filteredRoutes = (extra: Record<string, Parameters<typeof stubApi>[0][string]> = {}) =>
@@ -686,7 +731,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     await user.selectOptions(filterField(es.movements.filters.category), COMIDA_ID);
     fireEvent.change(filterField(es.movements.filters.from), { target: { value: '2026-10-01' } });
     fireEvent.change(filterField(es.movements.filters.to), { target: { value: '2026-10-31' } });
-    await user.selectOptions(filterField(es.movements.filters.type), 'expense');
+    await user.click(typeChip('expense'));
     await user.type(screen.getByLabelText(es.movements.tags.label), 'Viaje{Enter}');
 
     expect(await screen.findByText('Con filtro')).toBeDefined();
@@ -761,7 +806,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const user = userEvent.setup();
 
     await screen.findByText('Todo');
-    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(typeChip('income'));
 
     expect(await screen.findByText(es.movements.filters.noMatch)).toBeDefined();
     expect(screen.queryByText(es.movements.list.empty)).toBeNull();
@@ -836,7 +881,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
 
     await screen.findByText(es.movements.list.empty);
     await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
-    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(typeChip('income'));
     expect(await screen.findByText('Respuesta nueva')).toBeDefined();
     release();
     await new Promise((resolve) => setTimeout(resolve, 20));
@@ -854,7 +899,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const { router } = renderApp(<MovementsContainer />);
 
     await screen.findByText(es.movements.list.empty);
-    await userEvent.setup().selectOptions(filterField(es.movements.filters.type), 'income');
+    await userEvent.setup().click(typeChip('income'));
 
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(SIGN_IN);
@@ -877,7 +922,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     expect(listCalls(calls)).toEqual([listPath(`accountId=${CAJA_ID}&from=2026-10-01`)]);
     expect(filterField(es.movements.filters.account).value).toBe(CAJA_ID);
     expect(filterField(es.movements.filters.category).value).toBe('');
-    expect(filterField(es.movements.filters.type).value).toBe('');
+    expect(typeChip('income').getAttribute('aria-pressed')).toBe('false');
   });
 
   it('writes the filters to the URL so a reload or the back button keeps them', async () => {
@@ -905,12 +950,12 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const user = userEvent.setup();
 
     await screen.findByText(es.movements.list.empty);
-    const type = filterField(es.movements.filters.type);
+    const type = typeChip('income');
     type.focus();
-    await user.selectOptions(type, 'income');
+    await user.click(type);
     await screen.findByText('Nota de ingreso');
 
-    expect(filterField(es.movements.filters.type)).toBe(type);
+    expect(typeChip('income')).toBe(type);
     expect(document.activeElement).toBe(type);
     const reference = calls.filter((call) => !call.path.startsWith('/movements'));
     expect(reference).toHaveLength(5);
@@ -923,7 +968,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const user = userEvent.setup();
 
     await screen.findByText(es.movements.list.empty);
-    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(typeChip('income'));
     await user.click(await screen.findByRole('button', { name: es.movements.filters.clear }));
 
     await waitFor(() => {
@@ -943,7 +988,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     const user = userEvent.setup();
 
     await screen.findByText('Todo');
-    await user.selectOptions(filterField(es.movements.filters.type), 'income');
+    await user.click(typeChip('income'));
     await user.click(await screen.findByRole('button', { name: es.movements.filters.showAll }));
 
     expect(await screen.findByText('Todo')).toBeDefined();
@@ -962,9 +1007,9 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     await screen.findByText(es.movements.list.empty);
     expect(document.activeElement).toBe(document.body);
 
-    await userEvent.setup().selectOptions(filterField(es.movements.filters.type), 'income');
+    await userEvent.setup().click(typeChip('income'));
     await screen.findByText('Nota recibida');
-    expect(document.activeElement).toBe(filterField(es.movements.filters.type));
+    expect(document.activeElement).toBe(typeChip('income'));
   });
 
   it('each row shows its tags as chips (AC-03)', async () => {

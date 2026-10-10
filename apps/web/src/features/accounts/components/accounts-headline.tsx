@@ -53,9 +53,10 @@ export function AccountsHeadline({ availableTotals, netWorthTotals }: AccountsHe
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid gap-5 rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground sm:grid-cols-2 sm:gap-8">
       {ACCOUNT_CURRENCIES.map((currency) => (
         <BalanceCard
+          bare
           key={currency}
           label={t(`currencies.${currency}`)}
           primaryLabel={t('headline.available')}

@@ -54,6 +54,27 @@ function RowList({ children }: { children: ReactNode }) {
   return <ul className="grid gap-3 md:grid-cols-2">{children}</ul>;
 }
 
+interface AccountGroupProps {
+  title: string;
+  accounts: readonly AccountResponse[];
+  renderRow: (account: AccountResponse) => ReactNode;
+}
+
+/** A titled block of accounts; with none in it nothing is drawn. */
+function AccountGroup({ title, accounts, renderRow }: AccountGroupProps) {
+  const titleId = useId();
+  if (accounts.length === 0) return null;
+
+  return (
+    <section aria-labelledby={titleId} className="grid gap-2">
+      <h3 id={titleId} className="px-1 text-small font-semibold text-muted-foreground">
+        {title}
+      </h3>
+      <RowList>{accounts.map(renderRow)}</RowList>
+    </section>
+  );
+}
+
 interface DebtSectionProps {
   cards: readonly AccountResponse[];
   debtTotals: CurrencyTotals;
@@ -188,7 +209,24 @@ export function AccountList(props: AccountListProps) {
           />
         )
       ) : null}
-      {others.length === 0 ? null : <RowList>{others.map(renderRow)}</RowList>}
+      {showArchived ? (
+        others.length === 0 ? null : (
+          <RowList>{others.map(renderRow)}</RowList>
+        )
+      ) : (
+        <>
+          <AccountGroup
+            title={t('list.availableSection')}
+            accounts={others.filter((account) => account.includeInAvailable)}
+            renderRow={renderRow}
+          />
+          <AccountGroup
+            title={t('list.savingsSection')}
+            accounts={others.filter((account) => !account.includeInAvailable)}
+            renderRow={renderRow}
+          />
+        </>
+      )}
       {showDebt ? (
         <DebtSection cards={cards} debtTotals={debtTotals} renderRow={renderRow} />
       ) : null}

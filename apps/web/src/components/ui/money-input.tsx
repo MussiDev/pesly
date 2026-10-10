@@ -7,6 +7,8 @@ import { Input } from './input';
 
 interface MoneyInputProps extends Omit<ComponentProps<typeof Input>, 'type' | 'inputMode'> {
   allowNegative?: boolean;
+  /** `none` keeps the system keyboard away when the screen offers its own keys. */
+  keyboard?: 'default' | 'none';
 }
 
 /**
@@ -15,7 +17,13 @@ interface MoneyInputProps extends Omit<ComponentProps<typeof Input>, 'type' | 'i
  * uncontrolled field: the form still reads the formatted text and `parseAmountInput` still owns
  * the validation.
  */
-export function MoneyInput({ allowNegative = false, onChange, onBlur, ...props }: MoneyInputProps) {
+export function MoneyInput({
+  allowNegative = false,
+  keyboard = 'default',
+  onChange,
+  onBlur,
+  ...props
+}: MoneyInputProps) {
   const locale = useLocale();
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -45,7 +53,7 @@ export function MoneyInput({ allowNegative = false, onChange, onBlur, ...props }
   return (
     <Input
       type="text"
-      inputMode={allowNegative ? 'text' : 'decimal'}
+      inputMode={keyboard === 'none' ? 'none' : allowNegative ? 'text' : 'decimal'}
       autoComplete="off"
       {...props}
       onChange={handleChange}

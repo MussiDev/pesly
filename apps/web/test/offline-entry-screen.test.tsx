@@ -145,7 +145,7 @@ describe('entry screen without connectivity', () => {
 
     await screen.findByLabelText(es.movements.fields.amount);
     expect(screen.getByRole('option', { name: 'Caja (ARS)' })).toBeDefined();
-    expect(screen.getByRole('option', { name: 'Comida' })).toBeDefined();
+    expect(screen.getByRole('radio', { name: 'Comida' })).toBeDefined();
     expect(screen.getByLabelText<HTMLInputElement>(es.movements.fields.rate).value).toBe('1250,5');
   });
 

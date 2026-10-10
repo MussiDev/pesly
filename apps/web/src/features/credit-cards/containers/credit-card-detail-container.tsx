@@ -22,6 +22,7 @@ import {
   CreditCardsLoadStateView,
   type CreditCardsLoadState,
 } from '../components/credit-cards-load-state';
+import { CardSummary } from '../components/card-summary';
 import { InstallmentPurchaseList } from '../components/installment-purchase-list';
 import type { StatementDatesValues } from '../components/statement-dates-form';
 import { StatementList } from '../components/statement-list';
@@ -266,6 +267,11 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           <AlertDescription>{t(notice)}</AlertDescription>
         </Alert>
       ) : null}
+      <CardSummary
+        cardName={state.card.name}
+        statements={state.statements}
+        pendingDebt={state.pendingDebt}
+      />
       <CardDaysForm
         key={`${String(state.card.closingDay)}-${String(state.card.dueDay)}`}
         card={state.card}
@@ -311,7 +317,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
       </section>
       <section className="grid gap-3">
         {confirmingDelete ? (
-          <div className="grid gap-3 rounded-xl border border-destructive/40 p-4">
+          <div className="grid gap-3 rounded-card border border-destructive/40 p-4">
             <p>{t('creditCards.detail.confirmDelete', { name: state.card.name })}</p>
             <div className="flex gap-2">
               <Button

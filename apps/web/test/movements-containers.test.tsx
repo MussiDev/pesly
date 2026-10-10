@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateMovementContainer } from '../src/features/movements/containers/create-movement-container';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
+import { typeButton } from './support/type-button';
+import { categoryGroup, categoryRadio } from './support/category-radio';
 
 const { es, en } = CATALOGS;
 
@@ -156,7 +158,7 @@ async function open(answers = routes(), locale: 'es' | 'en' = 'es') {
 /** Picks the Caja account and the Comida category and types an amount, leaving the rest as is. */
 async function fill(amount: string, user = userEvent.setup()) {
   await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
-  await user.selectOptions(field(es.movements.fields.category), COMIDA_ID);
+  await user.click(categoryRadio(COMIDA_ID));
   if (amount !== '') await user.type(field(es.movements.fields.amount), amount);
   return user;
 }
@@ -190,7 +192,7 @@ describe('CreateMovementContainer: loading', () => {
     expect(calls.map((call) => call.path)).toContain(
       '/categories?archived=false&limit=100&offset=100',
     );
-    expect(screen.getByRole('option', { name: 'Ultima' })).toBeDefined();
+    expect(screen.getByRole('radio', { name: 'Ultima' })).toBeDefined();
   });
 
   it('shows the generic message with a retry when loading fails, and loads on retry (error path)', async () => {
@@ -224,13 +226,13 @@ describe('CreateMovementContainer: preselected type (AC-14)', () => {
     renderApp(<CreateMovementContainer initialType="income" />);
     await screen.findByLabelText(es.movements.fields.amount);
 
-    expect(field(es.movements.fields.type).value).toBe('income');
+    expect(typeButton('income').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('starts on expense when it receives no type', async () => {
     await open();
 
-    expect(field(es.movements.fields.type).value).toBe('expense');
+    expect(typeButton('expense').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('error: after saving, the next movement starts again on the type the screen was opened with', async () => {
@@ -239,7 +241,7 @@ describe('CreateMovementContainer: preselected type (AC-14)', () => {
     await screen.findByLabelText(es.movements.fields.amount);
     const user = userEvent.setup();
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
-    await user.selectOptions(field(es.movements.fields.category), SUELDO_ID);
+    await user.click(categoryRadio(SUELDO_ID));
     await user.type(field(es.movements.fields.amount), '100');
 
     await user.click(submit());
@@ -247,7 +249,7 @@ describe('CreateMovementContainer: preselected type (AC-14)', () => {
     await waitFor(() => {
       expect(screen.getByRole('status')).toBeDefined();
     });
-    expect(field(es.movements.fields.type).value).toBe('income');
+    expect(typeButton('income').getAttribute('aria-pressed')).toBe('true');
   });
 });
 
@@ -402,7 +404,7 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
     await screen.findByLabelText(en.movements.fields.amount);
     const user = userEvent.setup();
     await user.selectOptions(screen.getByLabelText(en.movements.fields.account), CAJA_ID);
-    await user.selectOptions(screen.getByLabelText(en.movements.fields.category), COMIDA_ID);
+    await user.click(categoryRadio(COMIDA_ID));
     await user.type(screen.getByLabelText(en.movements.fields.amount), '0');
     await user.click(screen.getByRole('button', { name: en.movements.form.submit }));
 
@@ -438,13 +440,13 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
   it('filters the category picker by type and hides archived categories (AC-03, AC-05)', async () => {
     await open();
     const options = () =>
-      screen
-        .getAllByRole('option')
-        .map((option) => option.textContent)
-        .filter((text) => ['Comida', 'Sueldo', 'Vieja'].includes(text));
+      within(categoryGroup())
+        .getAllByRole('radio')
+        .map((radio) => radio.closest('label')?.textContent)
+        .filter((text) => ['Comida', 'Sueldo', 'Vieja'].includes(text ?? ''));
 
     expect(options()).toEqual(['Comida']);
-    await userEvent.setup().selectOptions(field(es.movements.fields.type), 'income');
+    await userEvent.setup().click(typeButton('income'));
 
     expect(options()).toEqual(['Sueldo']);
   });
@@ -456,7 +458,7 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
       }),
     );
 
-    expect(screen.getByRole('option', { name: 'Comida' })).toBeDefined();
+    expect(screen.getByRole('radio', { name: 'Comida' })).toBeDefined();
   });
 
   it('shows default categories in English with the English locale (AC-03)', async () => {
@@ -468,15 +470,15 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
     renderApp(<CreateMovementContainer />, { locale: 'en' });
     await screen.findByLabelText(en.movements.fields.amount);
 
-    expect(screen.getByRole('option', { name: 'Food' })).toBeDefined();
+    expect(screen.getByRole('radio', { name: 'Food' })).toBeDefined();
   });
 
   it('sends an income with the income category (AC-03)', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'income');
+    await user.click(typeButton('income'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
-    await user.selectOptions(field(es.movements.fields.category), SUELDO_ID);
+    await user.click(categoryRadio(SUELDO_ID));
     await user.type(field(es.movements.fields.amount), '2.000');
     await user.click(submit());
 
@@ -624,9 +626,9 @@ describe('CreateMovementContainer: server answers (AC-01, AC-15, AC-21, AC-25, A
   it('shows the unarchive-first message on the category field for CATEGORY_ARCHIVED (AC-26)', async () => {
     await save({ status: 409, body: { code: 'CATEGORY_ARCHIVED' } });
 
-    const control = field(es.movements.fields.category);
+    const control = categoryGroup();
     await waitFor(() => {
-      expect(control.getAttribute('aria-invalid')).toBe('true');
+      expect(within(control).getAllByRole('radio')[0]?.getAttribute('aria-invalid')).toBe('true');
     });
     expect(describedBy(control)).toBe(es.errors.categoryArchived);
   });
@@ -654,9 +656,7 @@ describe('CreateMovementContainer: server answers (AC-01, AC-15, AC-21, AC-25, A
     await save({ status: 400, body: { code: 'MOVEMENT_CATEGORY_KIND_MISMATCH' } });
 
     await waitFor(() => {
-      expect(describedBy(field(es.movements.fields.category))).toBe(
-        es.errors.movementCategoryKindMismatch,
-      );
+      expect(describedBy(categoryGroup())).toBe(es.errors.movementCategoryKindMismatch);
     });
   });
 
@@ -763,7 +763,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   async function transfer(amount: string, answers = four()) {
     const stub = await open(answers);
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination(), BANCO_ID);
     if (amount !== '') await user.type(field(es.movements.fields.amount), amount);
@@ -773,7 +773,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   async function exchange(out: string, into: string, answers = four()) {
     const stub = await open(answers);
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination(), DOLARES_ID);
     if (out !== '') await user.type(field(es.movements.fields.amountOut), out);
@@ -855,7 +855,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
     renderApp(<CreateMovementContainer />, { locale: 'en' });
     await screen.findByLabelText(en.movements.fields.amount);
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(en.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange', en));
     await user.selectOptions(screen.getByLabelText(en.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination('en'), DOLARES_ID);
     await user.type(screen.getByLabelText(en.movements.fields.amountOut), '1,557,300.00');
@@ -904,7 +904,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   it('requires a destination account and sends nothing without one (invalid input) (AC-02)', async () => {
     const { calls } = await open(four());
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.type(field(es.movements.fields.amount), '100');
     await user.click(submit());
@@ -938,7 +938,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
 
   it('shows a hint when the user has no second account for the transfer (AC-02)', async () => {
     await open();
-    await userEvent.setup().selectOptions(field(es.movements.fields.type), 'transfer');
+    await userEvent.setup().click(typeButton('transfer'));
 
     expect(screen.getByText(es.movements.fields.destinationHintTransfer)).toBeDefined();
   });

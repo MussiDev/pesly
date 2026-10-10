@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { BottomNav } from './bottom-nav';
 import { SignOutAlert } from './sign-out-alert';
+import { TopBar } from './top-bar';
 import { TopNav } from './top-nav';
 
 export type ShellState =
@@ -24,6 +25,8 @@ export interface AuthenticatedShellProps {
   syncStatus?: ReactNode;
   /** The warning before a sign out that would lose changes not yet synced. */
   signOutConfirmation?: ReactNode;
+  /** Connection and queue state for the top bar; without it the bar shows "up to date". */
+  connection?: { online: boolean; pending: number };
   children: ReactNode;
 }
 
@@ -37,6 +40,7 @@ export function AuthenticatedShell({
   onSignOut,
   syncStatus,
   signOutConfirmation,
+  connection = { online: true, pending: 0 },
   children,
 }: AuthenticatedShellProps) {
   const t = useTranslations('app');
@@ -57,7 +61,7 @@ export function AuthenticatedShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div className="flex min-h-dvh flex-col desk:flex-row">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-3 focus:text-small focus:font-medium focus:text-primary-foreground"
@@ -70,10 +74,10 @@ export function AuthenticatedShell({
       <div
         id="main-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col pb-28 outline-none lg:pb-0"
+        className="flex min-w-0 flex-1 flex-col pb-28 outline-none desk:pb-0"
       >
         {state.kind === 'loading' ? (
-          <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 lg:p-8">
+          <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 desk:p-8">
             <p role="status" className="sr-only">
               {t('loading')}
             </p>
@@ -88,6 +92,11 @@ export function AuthenticatedShell({
           </div>
         ) : (
           <>
+            <TopBar
+              online={connection.online}
+              pending={connection.pending}
+              currentPath={currentPath}
+            />
             {signOutError ? (
               <div className="px-4 pt-4">
                 <SignOutAlert error={signOutError} />

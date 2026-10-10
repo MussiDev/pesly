@@ -9,6 +9,7 @@ import {
   withAgedRates,
   withoutStoredRates,
 } from './support/database';
+import { chooseCategory, chooseMovementType } from './support/movement-type';
 
 const API_URL = 'http://localhost:4000';
 const WEB_URL = 'http://localhost:3000';
@@ -125,10 +126,8 @@ interface MovementEntry {
 async function fillMovement(page: Page, entry: MovementEntry): Promise<void> {
   await page.goto('/es/movements/new');
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
-  await page
-    .getByLabel(t.fields.type, { exact: true })
-    .selectOption({ label: t.types[entry.type] });
-  await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: entry.category });
+  await chooseMovementType(page, t.fields.type, t.types[entry.type]);
+  await chooseCategory(page, t.fields.category, entry.category);
   await page.getByLabel(t.fields.amount, { exact: true }).fill(entry.amount);
   if (entry.occurredAt !== undefined) {
     await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(entry.occurredAt);
@@ -366,7 +365,7 @@ async function openTwoAccountEntry(
   source: string,
 ): Promise<void> {
   await page.goto('/es/movements/new');
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types[type] });
+  await chooseMovementType(page, t.fields.type, t.types[type]);
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: source });
 }
 
@@ -644,7 +643,12 @@ test('edits an expense from the list, the balance follows, and deletes it after 
     .click();
   await expect(page).toHaveURL(/\/es\/movements\/edit\?id=[0-9a-f-]{36}$/);
   await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveValue('100,00');
-  await expect(page.getByLabel(t.fields.type, { exact: true })).toBeDisabled();
+  for (const button of await page
+    .getByRole('group', { name: t.fields.type })
+    .getByRole('button')
+    .all()) {
+    await expect(button).toBeDisabled();
+  }
   await page.getByLabel(t.fields.amount, { exact: true }).fill('40,00');
   await page.getByRole('button', { name: t.form.save }).click();
 

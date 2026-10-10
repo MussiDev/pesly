@@ -180,6 +180,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
           />
         ) : null
       }
+      connection={{ online, pending: queueCounts.pending }}
       syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
       {children}

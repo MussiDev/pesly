@@ -130,6 +130,37 @@ export function MovementRow({
         ? t('exchangeTitle')
         : (categoryName ?? t('unknownCategory'));
 
+  const marker =
+    syncState === 'synced' ? (
+      <div className="flex px-1">
+        <span role="img" aria-label={t('synced')} className="text-muted-foreground [&>svg]:size-4">
+          <CloudCheck aria-hidden />
+        </span>
+      </div>
+    ) : syncState === 'pending' ? (
+      <div className="px-1">
+        <Badge variant="warning">{t('pending')}</Badge>
+      </div>
+    ) : syncState === 'failed' ? (
+      <div className="grid gap-1 px-1">
+        <div>
+          <Badge variant="destructive">{t('failed')}</Badge>
+        </div>
+        {failure === undefined ? null : (
+          <p className="text-small text-destructive">
+            {failureMessageKey(failure) === 'deletedElsewhere'
+              ? tSync('deletedElsewhere')
+              : tErrors(
+                  failureMessageKey(failure) as Exclude<
+                    ReturnType<typeof failureMessageKey>,
+                    'deletedElsewhere'
+                  >,
+                )}
+          </p>
+        )}
+      </div>
+    ) : null;
+
   return (
     <li className="grid gap-1 text-card-foreground">
       <ListRow
@@ -172,7 +203,7 @@ export function MovementRow({
                     : 'neutral'
                 }
                 directionLabel={tTypes(movement.type)}
-                className="text-body font-semibold"
+                className="text-small font-bold"
               />
               {incoming?.success ? (
                 <span className="text-body font-semibold whitespace-nowrap tabular-nums text-income">
@@ -186,39 +217,6 @@ export function MovementRow({
           )
         }
       />
-      {syncState === 'synced' ? (
-        <div className="flex px-1">
-          <span
-            role="img"
-            aria-label={t('synced')}
-            className="text-muted-foreground [&>svg]:size-4"
-          >
-            <CloudCheck aria-hidden />
-          </span>
-        </div>
-      ) : syncState === 'pending' ? (
-        <div className="px-1">
-          <Badge variant="warning">{t('pending')}</Badge>
-        </div>
-      ) : syncState === 'failed' ? (
-        <div className="grid gap-1 px-1">
-          <div>
-            <Badge variant="destructive">{t('failed')}</Badge>
-          </div>
-          {failure === undefined ? null : (
-            <p className="text-small text-destructive">
-              {failureMessageKey(failure) === 'deletedElsewhere'
-                ? tSync('deletedElsewhere')
-                : tErrors(
-                    failureMessageKey(failure) as Exclude<
-                      ReturnType<typeof failureMessageKey>,
-                      'deletedElsewhere'
-                    >,
-                  )}
-            </p>
-          )}
-        </div>
-      ) : null}
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}
@@ -237,8 +235,11 @@ export function MovementRow({
           })}
         </p>
       ) : null}
-      {actions === undefined ? null : actions.confirmingDelete ? (
+      {actions === undefined ? (
+        marker
+      ) : actions.confirmingDelete ? (
         <div className="grid gap-2 pb-2">
+          {marker}
           <p role="status" className="px-1 text-small">
             {tActions('confirmDelete')}
           </p>
@@ -262,47 +263,50 @@ export function MovementRow({
           </div>
         </div>
       ) : (
-        <div className="-mt-2 flex justify-end">
-          {syncState === 'failed' && actions.onRetry !== undefined ? (
-            <IconAction
-              label={tActions('retry')}
-              subject={title}
-              icon={<RotateCw aria-hidden />}
-              disabled={actions.pending}
-              onClick={actions.onRetry}
-            />
-          ) : null}
-          {syncState === 'failed' && actions.onDiscard !== undefined ? (
-            <IconAction
-              label={tActions('discard')}
-              subject={title}
-              icon={<Undo2 aria-hidden />}
-              disabled={actions.pending}
-              onClick={actions.onDiscard}
-            />
-          ) : null}
-          {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
-          {failure?.operation === 'delete' ? null : (
-            <>
-              <Link
-                href={`/movements/edit?id=${movement.id}`}
-                title={tActions('edit')}
-                className={buttonVariants({ size: 'icon', variant: 'ghost' })}
-              >
-                <Pencil aria-hidden />
-                <span className="sr-only">
-                  {tActions('edit')} {title}
-                </span>
-              </Link>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 px-0">{marker}</div>
+          <div className="flex shrink-0">
+            {syncState === 'failed' && actions.onRetry !== undefined ? (
               <IconAction
-                label={tActions('delete')}
+                label={tActions('retry')}
                 subject={title}
-                icon={<Trash2 aria-hidden />}
+                icon={<RotateCw aria-hidden />}
                 disabled={actions.pending}
-                onClick={actions.onAskDelete}
+                onClick={actions.onRetry}
               />
-            </>
-          )}
+            ) : null}
+            {syncState === 'failed' && actions.onDiscard !== undefined ? (
+              <IconAction
+                label={tActions('discard')}
+                subject={title}
+                icon={<Undo2 aria-hidden />}
+                disabled={actions.pending}
+                onClick={actions.onDiscard}
+              />
+            ) : null}
+            {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
+            {failure?.operation === 'delete' ? null : (
+              <>
+                <Link
+                  href={`/movements/edit?id=${movement.id}`}
+                  title={tActions('edit')}
+                  className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+                >
+                  <Pencil aria-hidden />
+                  <span className="sr-only">
+                    {tActions('edit')} {title}
+                  </span>
+                </Link>
+                <IconAction
+                  label={tActions('delete')}
+                  subject={title}
+                  icon={<Trash2 aria-hidden />}
+                  disabled={actions.pending}
+                  onClick={actions.onAskDelete}
+                />
+              </>
+            )}
+          </div>
         </div>
       )}
     </li>

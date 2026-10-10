@@ -13,7 +13,7 @@
   color-scheme: light;
   --radius: 1rem;
 
-  --background: oklch(0.96 0.008 262);
+  --background: oklch(0.955 0.009 262);
   --foreground: oklch(0.2 0.014 265);
   --surface: oklch(0.94 0.009 262);
   --card: oklch(1 0 0);
@@ -43,12 +43,13 @@
   --income: oklch(0.5 0.12 160);
   --expense: oklch(0.5 0.19 27);
 
-  --elevation-1: 0 1px 2px 0 oklch(0.2 0.04 265 / 0.05), 0 2px 8px -2px oklch(0.2 0.04 265 / 0.06);
+  /* Flat cards, as in the design; a valid zero shadow, since `none` would invalidate the focus ring that shares box-shadow. */
+  --elevation-1: 0 0 0 0 transparent;
   --elevation-2: 0 12px 32px -8px oklch(0.2 0.05 265 / 0.22);
 
-  /* The balance card: a navy gradient with light text, the one saturated surface per screen. */
-  --hero-from: oklch(0.34 0.12 265);
-  --hero-to: oklch(0.24 0.09 268);
+  /* The balance card: a flat navy with light text, the one saturated surface per screen. */
+  --hero-from: oklch(0.31 0.095 265);
+  --hero-to: oklch(0.31 0.095 265);
   --hero: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
@@ -113,8 +114,8 @@
   --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --elevation-2: 0 12px 32px -8px oklch(0 0 0 / 0.6);
 
-  --hero-from: oklch(0.36 0.12 265);
-  --hero-to: oklch(0.22 0.08 268);
+  --hero-from: oklch(0.32 0.08 265);
+  --hero-to: oklch(0.32 0.08 265);
   --hero: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
@@ -148,6 +149,8 @@
   --spacing-section: 2rem;
   /* The diameter of a circular action: above the 44 px touch-target minimum. */
   --spacing-circle-action: 3.25rem;
+  /* Below it the bottom bar serves; from it the side menu. */
+  --breakpoint-desk: 56.25rem;
 
   --radius-card: 1.5rem;
   --radius-pill: 9999px;

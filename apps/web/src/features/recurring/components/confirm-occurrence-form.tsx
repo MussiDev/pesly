@@ -59,7 +59,7 @@ export function ConfirmOccurrenceForm({
       noValidate
       onSubmit={handleSubmit}
       aria-label={t('confirm.title')}
-      className="grid gap-4 rounded-xl border bg-card p-4"
+      className="grid gap-4 rounded-card bg-card p-4"
     >
       <p className="text-small text-muted-foreground">{t('confirm.description', { name })}</p>
       {errors.form ? (

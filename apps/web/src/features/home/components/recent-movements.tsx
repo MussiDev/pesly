@@ -54,7 +54,7 @@ function PlainAmount({
     <span
       data-slot="amount"
       data-kind={directed ? type : 'neutral'}
-      className={`font-semibold whitespace-nowrap tabular-nums ${directed ? (type === 'income' ? 'text-income' : 'text-expense') : ''}`}
+      className={`text-small font-bold whitespace-nowrap tabular-nums ${directed ? (type === 'income' ? 'text-income' : 'text-expense') : ''}`}
     >
       {directed ? <span aria-hidden="true">{type === 'income' ? '+' : '−'}</span> : null}
       {directed ? <span className="sr-only">{directionLabel}</span> : null}
@@ -140,7 +140,7 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
                         item.type === 'income' || item.type === 'expense' ? item.type : 'neutral'
                       }
                       directionLabel={t(item.type)}
-                      className="font-semibold"
+                      className="text-small font-bold"
                     />
                   )}
                   <time dateTime={item.occurredAt} className="text-caption text-muted-foreground">

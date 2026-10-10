@@ -57,7 +57,7 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
   );
 
   return (
-    <form noValidate onSubmit={submit} className="grid gap-4 rounded-xl border bg-card p-4">
+    <form noValidate onSubmit={submit} className="grid gap-4 rounded-card bg-card p-4">
       <h2 className="text-heading">{t('creditCards.detail.days')}</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {day('closingDay', t('creditCards.form.closingDay'))}

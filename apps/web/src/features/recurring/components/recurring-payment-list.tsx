@@ -22,7 +22,10 @@ export function RecurringPaymentList({ payments, lookups }: RecurringPaymentList
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
 
   return (
-    <ul className="divide-y rounded-xl border bg-card px-3" aria-label={t('list.paymentsLabel')}>
+    <ul
+      className="divide-y divide-border/70 rounded-card bg-card px-4"
+      aria-label={t('list.paymentsLabel')}
+    >
       {payments.map((payment) => {
         const currency = lookups.accounts[payment.accountId]?.currency;
         const amount =
