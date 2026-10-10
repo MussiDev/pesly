@@ -35,6 +35,7 @@ export class DrizzleAutomaticPaymentSource implements AutomaticPaymentSource {
         status: recurringPayments.status,
         scheduleFrom: recurringPayments.scheduleFrom,
         autoRecordingFrom: recurringPayments.autoRecordingFrom,
+        reminderDays: recurringPayments.reminderDays,
         createdAt: recurringPayments.createdAt,
       })
       .from(recurringPayments)

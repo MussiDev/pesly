@@ -28,6 +28,7 @@ const paymentColumns = {
   status: recurringPayments.status,
   scheduleFrom: recurringPayments.scheduleFrom,
   autoRecordingFrom: recurringPayments.autoRecordingFrom,
+  reminderDays: recurringPayments.reminderDays,
   createdAt: recurringPayments.createdAt,
 };
 

@@ -54,6 +54,7 @@ const rent: CreateRecurringPaymentInput = {
   dayOfMonth: 5,
   startDate: '2026-10-05',
   mode: 'confirmation',
+  reminderDays: 3,
 };
 
 async function createFor(

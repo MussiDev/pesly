@@ -67,6 +67,7 @@ async function addPayment(app: App, userId = ANA, overrides: Partial<NewRecurrin
     mode: 'automatic',
     scheduleFrom: '2026-10-05',
     autoRecordingFrom: '2026-10-05',
+    reminderDays: 3,
     ...overrides,
   });
 }
@@ -198,6 +199,7 @@ describe('RecordDueOccurrences', () => {
       dayOfMonth: 20,
       startDate: '2026-08-20',
       mode: 'automatic',
+      reminderDays: 3,
     });
     app.clock.current = new Date('2026-09-10T15:00:00.000Z');
     await app.pause.execute(await writeScopeFor(ANA), created.id);
