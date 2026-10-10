@@ -3,6 +3,7 @@ import { MINOR_UNITS_MAX, sumMinorUnits } from '@pesly/shared';
 import {
   AccountHasMovements,
   AccountArchived,
+  AccountLinkedToCard,
   AccountNameTaken,
   CreateAccount,
   CreditCardSettingLocked,
@@ -12,10 +13,12 @@ import {
   RenameAccount,
   SetAccountArchived,
   SetIncludeInAvailable,
+  SetOpeningBalance,
 } from '../../src/accounts';
 import { balanceOf } from '../../src/accounts/domain/account';
 import { ResourceNotFound } from '../../src/shared/access';
 import {
+  FakeAccountLinks,
   FakeAccountMovements,
   InMemoryAccountRepository,
   readScopeFor,
@@ -27,6 +30,7 @@ const BOB = '22222222-2222-4222-8222-222222222222';
 
 let accounts: InMemoryAccountRepository;
 let movements: FakeAccountMovements;
+let links: FakeAccountLinks;
 let createAccount: CreateAccount;
 let getAccount: GetAccount;
 let listAccounts: ListAccounts;
@@ -34,13 +38,15 @@ let renameAccount: RenameAccount;
 let setArchived: SetAccountArchived;
 let deleteAccount: DeleteAccount;
 let setIncluded: SetIncludeInAvailable;
+let setOpening: SetOpeningBalance;
 
 const defaultList = { archived: false, limit: 50, offset: 0 };
 
 beforeEach(() => {
   accounts = new InMemoryAccountRepository();
   movements = new FakeAccountMovements();
-  const deps = { accounts, movements };
+  links = new FakeAccountLinks();
+  const deps = { accounts, movements, links };
   createAccount = new CreateAccount(deps);
   getAccount = new GetAccount(deps);
   listAccounts = new ListAccounts(deps);
@@ -48,6 +54,7 @@ beforeEach(() => {
   setArchived = new SetAccountArchived(deps);
   deleteAccount = new DeleteAccount(deps);
   setIncluded = new SetIncludeInAvailable(deps);
+  setOpening = new SetOpeningBalance(deps);
 });
 
 async function create(
@@ -138,6 +145,79 @@ describe('rename', () => {
   });
 });
 
+describe('setOpeningBalance', () => {
+  it('returns the new opening balance and a balance that moves by the difference (AC-05)', async () => {
+    const account = await create(ALICE, 'Caja', 1000n);
+    movements.sums.set(account.id, -250n);
+
+    const updated = await setOpening.execute(await writeScopeFor(ALICE), account.id, 4000n);
+
+    expect(updated.openingBalance).toBe(4000n);
+    expect(updated.balance).toBe(3750n);
+    const read = await getAccount.execute(await readScopeFor(ALICE), account.id);
+    expect(read.openingBalance).toBe(4000n);
+    expect(read.balance).toBe(3750n);
+  });
+
+  it('accepts a negative and a zero value and the value the account already has (AC-04, AC-06)', async () => {
+    const account = await create(ALICE, 'Caja', 700n);
+    const scope = await writeScopeFor(ALICE);
+
+    await expect(setOpening.execute(scope, account.id, -50n)).resolves.toMatchObject({
+      openingBalance: -50n,
+    });
+    await expect(setOpening.execute(scope, account.id, 0n)).resolves.toMatchObject({
+      openingBalance: 0n,
+    });
+    await expect(setOpening.execute(scope, account.id, 0n)).resolves.toMatchObject({
+      openingBalance: 0n,
+      balance: 0n,
+    });
+  });
+
+  it('changes nothing but the opening balance (AC-07)', async () => {
+    const account = await create(ALICE, 'Caja', 100n, 'USD');
+    const updated = await setOpening.execute(await writeScopeFor(ALICE), account.id, 5n);
+    expect(updated).toMatchObject({
+      name: 'Caja',
+      type: 'bank_account',
+      currency: 'USD',
+      includeInAvailable: account.includeInAvailable,
+      archivedAt: null,
+    });
+    expect(movements.sumCalls.flat()).toEqual([account.id]);
+  });
+
+  it('rejects a missing account and a foreign account with 404 and leaves the row alone (AC-08, AC-09)', async () => {
+    const bobs = await create(BOB, 'Bobs', 10n);
+    const scope = await writeScopeFor(ALICE);
+
+    await expect(
+      setOpening.execute(scope, '33333333-3333-4333-8333-333333333333', 1n),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    await expect(setOpening.execute(scope, bobs.id, 1n)).rejects.toBeInstanceOf(ResourceNotFound);
+    expect((await getAccount.execute(await readScopeFor(BOB), bobs.id)).openingBalance).toBe(10n);
+  });
+
+  it('allows archived, credit card and card-linked accounts like rename does (AC-11, AC-12)', async () => {
+    const scope = await writeScopeFor(ALICE);
+    const archived = accounts.seed(ALICE, { name: 'Vieja', archived: true });
+    const card = accounts.seed(ALICE, { name: 'Visa', type: 'credit_card' });
+    const linked = accounts.seed(ALICE, { name: 'Enlazada' });
+    links.linked.add(linked.id);
+
+    for (const account of [archived, card, linked]) {
+      await expect(setOpening.execute(scope, account.id, 9n)).resolves.toMatchObject({
+        id: account.id,
+        openingBalance: 9n,
+      });
+    }
+    expect(
+      (await getAccount.execute(await readScopeFor(ALICE), archived.id)).archivedAt,
+    ).toBeInstanceOf(Date);
+  });
+});
+
 describe('archive and unarchive', () => {
   it('hides the account from the default list, keeps it readable and deletes nothing; unarchive restores it (AC-07, AC-08)', async () => {
     const account = await create(ALICE, 'Wallet', 700n);
@@ -205,6 +285,32 @@ describe('delete', () => {
     expect(error).not.toBeInstanceOf(AccountHasMovements);
     expect(spy).not.toHaveBeenCalled();
     expect(accounts.rows.has(theirs.id)).toBe(true);
+  });
+
+  it('fails with AccountLinkedToCard for an account linked to a card, and the row stays (sad path, FR-02)', async () => {
+    const account = await create(ALICE, 'Visa ARS');
+    links.linked.add(account.id);
+    const spy = vi.spyOn(movements, 'hasMovements');
+    const error = await deleteAccount
+      .execute(await writeScopeFor(ALICE), account.id)
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(AccountLinkedToCard);
+    expect(error).toMatchObject({ code: 'ACCOUNT_LINKED_TO_CARD' });
+    expect(spy).not.toHaveBeenCalled();
+    expect(accounts.rows.has(account.id)).toBe(true);
+  });
+
+  it('still renames and archives an account linked to a card (FR-02, D2)', async () => {
+    const account = await create(ALICE, 'Visa ARS');
+    links.linked.add(account.id);
+    const renamed = await renameAccount.execute(
+      await writeScopeFor(ALICE),
+      account.id,
+      'Visa pesos',
+    );
+    expect(renamed.name).toBe('Visa pesos');
+    const archived = await setArchived.execute(await writeScopeFor(ALICE), account.id, true);
+    expect(archived.archivedAt).not.toBeNull();
   });
 
   it('lets a repository foreign-key violation surface as AccountHasMovements', async () => {

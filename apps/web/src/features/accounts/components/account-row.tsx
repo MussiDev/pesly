@@ -1,11 +1,20 @@
 'use client';
 
-import { ACCOUNT_NAME_MAX_LENGTH, type AccountResponse, type AccountType } from '@pesly/shared';
+import {
+  ACCOUNT_NAME_MAX_LENGTH,
+  OPENING_BALANCE_LIMIT_MINOR_UNITS,
+  formatMoney,
+  parseAmountInput,
+  type AccountCurrency,
+  type AccountResponse,
+  type AccountType,
+} from '@pesly/shared';
 import {
   Archive,
   ArchiveRestore,
   Banknote,
   CircleAlert,
+  Coins,
   CreditCard,
   Landmark,
   Pencil,
@@ -15,7 +24,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useId, useRef, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,9 +32,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { IconAction } from '@/components/ui/icon-action';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MoneyInput } from '@/components/ui/money-input';
 import { readField } from '@/features/auth/read-field';
 import type { Locale } from '@/i18n/routing';
 import type { AccountFieldMessage } from '../account-form-errors';
+import { AccountField } from './account-field';
 import { MinorAmount } from './accounts-headline';
 
 export interface AccountRowProps {
@@ -37,10 +48,16 @@ export interface AccountRowProps {
   /** The API refused to delete this account because it has movements. */
   blockedDelete: boolean;
   renameError: AccountFieldMessage | undefined;
+  editingOpening: boolean;
+  openingError: AccountFieldMessage | undefined;
   onToggleAvailable: (id: string, value: boolean) => void;
   onStartRename: (id: string) => void;
   onCancelRename: () => void;
   onRename: (id: string, name: string) => void;
+  onStartEditOpening: (id: string) => void;
+  onCancelEditOpening: () => void;
+  /** The typed text, untouched: the container parses and validates it. */
+  onSetOpening: (id: string, text: string) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onAskDelete: (id: string) => void;
@@ -108,13 +125,110 @@ function RenameForm({ account, pending, error, onSubmit, onCancel }: RenameFormP
   );
 }
 
+interface OpeningBalanceFormProps {
+  account: AccountResponse;
+  locale: Locale;
+  pending: boolean;
+  error: AccountFieldMessage | undefined;
+  onSubmit: (text: string) => void;
+  onCancel: () => void;
+}
+
+/** A saved amount as typed text: no grouping, so the field parses it back to the same figure. */
+function typedAmount(minorUnits: string, locale: Locale): string {
+  const value = BigInt(minorUnits);
+  const abs = value < 0n ? -value : value;
+  const separator = locale === 'es' ? ',' : '.';
+  const fraction = (abs % 100n).toString().padStart(2, '0');
+  return `${value < 0n ? '-' : ''}${(abs / 100n).toString()}${separator}${fraction}`;
+}
+
+function OpeningBalanceForm({
+  account,
+  locale,
+  pending,
+  error,
+  onSubmit,
+  onCancel,
+}: OpeningBalanceFormProps) {
+  const t = useTranslations('accounts');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [typed, setTyped] = useState(typedAmount(account.openingBalance, locale));
+  const currency: AccountCurrency = account.currency;
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  // Preview only: the stored balance moves by the difference, as the API computes it.
+  const next = parseAmountInput(typed, locale);
+  const previewBalance =
+    next === null ? null : BigInt(account.balance) - BigInt(account.openingBalance) + next;
+
+  function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSubmit(readField(event.currentTarget, 'openingBalance'));
+  }
+
+  return (
+    <form className="grid gap-3" noValidate onSubmit={handleSubmit}>
+      <p className="text-small text-muted-foreground">
+        {t('openingEdit.current', {
+          amount: formatMoney(BigInt(account.openingBalance), currency, locale),
+        })}
+      </p>
+      <AccountField
+        label={t('openingEdit.field', { name: account.name })}
+        hint={t('openingEdit.hint')}
+        error={error}
+        max={formatMoney(OPENING_BALANCE_LIMIT_MINOR_UNITS, currency, locale)}
+      >
+        {(control) => (
+          <MoneyInput
+            ref={inputRef}
+            name="openingBalance"
+            allowNegative
+            value={typed}
+            onChange={(event) => {
+              setTyped(event.currentTarget.value);
+            }}
+            {...control}
+          />
+        )}
+      </AccountField>
+      {previewBalance === null ? null : (
+        <p className="text-small" aria-live="polite">
+          {t('openingEdit.preview', { amount: formatMoney(previewBalance, currency, locale) })}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" disabled={pending}>
+          {t('actions.save')}
+        </Button>
+        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={onCancel}>
+          {t('actions.cancel')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * One account as a card: its type icon, name and currency on top, the balance on its own line so a
  * large figure has the full width and wraps instead of running into the badge, then the
  * include-in-available setting and the row actions.
  */
 export function AccountRow(props: AccountRowProps) {
-  const { account, pending, editing, confirmingDelete, blockedDelete, renameError } = props;
+  const {
+    account,
+    pending,
+    editing,
+    editingOpening,
+    confirmingDelete,
+    blockedDelete,
+    renameError,
+    openingError,
+  } = props;
   const t = useTranslations('accounts');
   const tErrors = useTranslations('errors');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
@@ -185,6 +299,17 @@ export function AccountRow(props: AccountRowProps) {
           }}
           onCancel={props.onCancelRename}
         />
+      ) : editingOpening ? (
+        <OpeningBalanceForm
+          account={account}
+          locale={locale}
+          pending={pending}
+          error={openingError}
+          onSubmit={(text) => {
+            props.onSetOpening(account.id, text);
+          }}
+          onCancel={props.onCancelEditOpening}
+        />
       ) : confirmingDelete ? (
         <div className="grid gap-2">
           <p role="status" className="text-small">
@@ -237,6 +362,15 @@ export function AccountRow(props: AccountRowProps) {
               disabled={pending}
               onClick={() => {
                 props.onStartRename(account.id);
+              }}
+            />
+            <IconAction
+              label={t('actions.editOpeningBalance')}
+              subject={account.name}
+              icon={<Coins aria-hidden />}
+              disabled={pending}
+              onClick={() => {
+                props.onStartEditOpening(account.id);
               }}
             />
             {account.archived ? (

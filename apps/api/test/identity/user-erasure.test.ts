@@ -5,7 +5,9 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DrizzleDeletionGrantRepository } from '../../src/identity/infrastructure/db/drizzle-deletion-grant-repository';
 import { DrizzleOAuthStateRepository } from '../../src/identity/infrastructure/db/drizzle-oauth-state-repository';
 import { DrizzleSessionRepository } from '../../src/identity/infrastructure/db/drizzle-session-repository';
+import { eraseUserCreditCards } from '../../src/credit-cards';
 import { eraseUserMovements } from '../../src/movements';
+import { eraseUserRecurring } from '../../src/recurring';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createIdentityHarness, type IdentityHarness } from '../helpers/identity-harness';
 import {
@@ -63,6 +65,24 @@ interface RegisteredTable {
   /** Creates one real row for the user. */
   seed: (context: SeedContext) => Promise<void>;
 }
+
+/** The restricting composite keys from `credit_cards` to the linked accounts (migration 0019). */
+const CREDIT_CARDS_STEP_CONSTRAINTS = [
+  'credit_cards_ars_account_owner_fk',
+  'credit_cards_usd_account_owner_fk',
+] as const;
+
+/** The restricting composite keys from `installment_purchases` to the card and the category (migration 0020). */
+const INSTALLMENT_PURCHASES_STEP_CONSTRAINTS = [
+  'installment_purchases_card_owner_fk',
+  'installment_purchases_category_owner_kind_fk',
+] as const;
+
+/** The restricting composite keys from `recurring_payments` to the account and the category (migration 0023). */
+const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
+  'recurring_payments_account_owner_fk',
+  'recurring_payments_category_owner_fk',
+] as const;
 
 /** The restricting composite keys of `movements` (migrations 0014 and 0016). */
 const MOVEMENTS_STEP_CONSTRAINTS = [
@@ -361,6 +381,131 @@ const REGISTRY: readonly RegisteredTable[] = [
         `insert into portfolio_value_snapshots (portfolio_id, owner_id, snapshot_date, currency, total_value, taken_at)
          select id, owner_id, '2026-10-01', 'ARS', 1500000, now()
          from portfolios where owner_id = $1 order by created_at, id limit 1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'credit_cards',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The keys to the two linked accounts restrict, so the step deletes the cards before the
+    // accounts go; the key to users itself cascades.
+    stepConstraints: CREDIT_CARDS_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      const linked = await query(
+        context,
+        "insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available) values ($1, 'Card ARS', 'credit_card', 'ARS', 0, false), ($1, 'Card USD', 'credit_card', 'USD', 0, false) returning id, currency",
+        [context.userId],
+      );
+      const rows = linked.rows as { id: string; currency: string }[];
+      await query(
+        context,
+        "insert into credit_cards (owner_id, name, closing_day, due_day, ars_account_id, usd_account_id) values ($1, 'Card', 24, 5, $2, $3)",
+        [
+          context.userId,
+          rows.find((row) => row.currency === 'ARS')?.id,
+          rows.find((row) => row.currency === 'USD')?.id,
+        ],
+      );
+    },
+  },
+  {
+    table: 'credit_card_statements',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after credit_cards: the statement belongs to the card that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into credit_card_statements (card_id, owner_id, period, closing_date, due_date) select id, owner_id, '2026-10', '2026-10-24', '2026-11-05' from credit_cards where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'card_statement_import_lines',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after credit_cards: the fingerprint belongs to the card that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into card_statement_import_lines (owner_id, card_id, fingerprint) select owner_id, id, repeat('a', 64) from credit_cards where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'installment_purchases',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The keys to the card and the category restrict, so the step deletes the purchases before
+    // the cards go; the key to users itself cascades.
+    stepConstraints: INSTALLMENT_PURCHASES_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Cuotas', 'wallet', 'blue')",
+        [context.userId],
+      );
+      await query(
+        context,
+        "insert into installment_purchases (owner_id, card_id, category_id, total_amount, installment_count, purchased_on) select c.owner_id, c.id, (select id from categories where owner_id = $1 and name = 'Cuotas'), 20000, 2, '2026-10-01' from credit_cards c where c.owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'installments',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into installments (purchase_id, owner_id, number, period, amount) select id, owner_id, 1, '2026-10', 10000 from installment_purchases where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'recurring_payments',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The keys to the account and the category restrict, so the step deletes the payments before
+    // those go; the key to users itself cascades.
+    stepConstraints: RECURRING_PAYMENTS_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      const account = await query(
+        context,
+        "insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available) values ($1, 'Recurring account', 'cash', 'ARS', 0, true) returning id",
+        [context.userId],
+      );
+      const category = await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Recurring', 'wallet', 'blue') returning id",
+        [context.userId],
+      );
+      await query(
+        context,
+        "insert into recurring_payments (owner_id, name, amount, account_id, category_id, frequency, day_of_month, start_date, mode, schedule_from) values ($1, 'Rent', 35000000, $2, $3, 'monthly', 5, '2026-10-05', 'confirmation', '2026-10-05')",
+        [
+          context.userId,
+          (account.rows[0] as { id: string }).id,
+          (category.rows[0] as { id: string }).id,
+        ],
+      );
+    },
+  },
+  {
+    table: 'recurring_occurrences',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after recurring_payments: the occurrence belongs to the payment that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into recurring_occurrences (payment_id, owner_id, due_date) select id, owner_id, '2026-10-05' from recurring_payments where owner_id = $1 limit 1",
         [context.userId],
       );
     },
@@ -682,10 +827,12 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
   };
 
   it('has 0 rows for the user in every registered table and its outbox, while another user keeps all of theirs', async () => {
+    const recurringStep = vi.fn(eraseUserRecurring);
     const movementsStep = vi.fn(eraseUserMovements);
+    const cardsStep = vi.fn(eraseUserCreditCards);
     const harness = createIdentityHarness(connection, {
       realSessions: true,
-      beforeUserErased: [movementsStep],
+      beforeUserErased: [recurringStep, movementsStep, cardsStep],
     });
     const other = await seeded(harness, 'bea@example.com');
     // The deleting user signs in before 2FA is seeded, so the sign-in needs no second factor.
@@ -713,8 +860,12 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     });
 
     expect(response.status).toBe(204);
+    expect(recurringStep).toHaveBeenCalledTimes(1);
+    expect(recurringStep.mock.calls[0]?.[1]).toBe(userId);
     expect(movementsStep).toHaveBeenCalledTimes(1);
     expect(movementsStep.mock.calls[0]?.[1]).toBe(userId);
+    expect(cardsStep).toHaveBeenCalledTimes(1);
+    expect(cardsStep.mock.calls[0]?.[1]).toBe(userId);
     for (const entry of REGISTRY) {
       expect(await rowsFor(entry, userId), `${entry.table} after`).toBe(0);
       expect(await rowsFor(entry, other.userId), `${entry.table} of the other user`).toBe(

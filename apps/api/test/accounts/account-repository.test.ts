@@ -11,6 +11,7 @@ import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shar
 import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastructure/deny-all-group-membership-reader';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { violatedConstraint } from '../../src/shared/db/pg-errors';
+import { newCategory, newMovement } from '../movements/db-fixtures';
 import { testDatabaseUrl } from '../helpers/test-database';
 
 let connection: DatabaseConnection;
@@ -656,6 +657,80 @@ describe('DrizzleAccountRepository includeInAvailable', () => {
       await archiver.query('rollback').catch(() => undefined);
       archiver.release();
     }
+  });
+});
+
+describe('DrizzleAccountRepository.setOpeningBalance', () => {
+  async function updatedAtOf(id: string): Promise<Date> {
+    const { rows } = await connection.pool.query<{ updated_at: Date }>(
+      'select updated_at from accounts where id = $1',
+      [id],
+    );
+    const row = rows[0];
+    if (!row) throw new Error('missing account');
+    return row.updated_at;
+  }
+
+  it('changes only opening_balance and updated_at and leaves the movements rows identical (AC-07, NFR-01)', async () => {
+    const owner = await newUserId('ana@example.com');
+    const scope = await writeScope(owner);
+    const created = await accounts.create(
+      scope,
+      data({ name: 'Caja', currency: 'USD', openingBalance: 100n }),
+    );
+    const category = await newCategory(connection.pool, owner, 'expense');
+    await newMovement(connection.pool, {
+      ownerId: owner,
+      accountId: created.id,
+      categoryId: category,
+      type: 'expense',
+      amount: 250n,
+    });
+    const movementRows = () =>
+      connection.pool.query('select * from movements where account_id = $1 order by id', [
+        created.id,
+      ]);
+    const before = await movementRows();
+    await connection.pool.query(
+      "update accounts set updated_at = now() - interval '1 hour' where id = $1",
+      [created.id],
+    );
+    const stamped = await updatedAtOf(created.id);
+
+    const updated = await accounts.setOpeningBalance(scope, created.id, -1_000_000_000_000_000n);
+
+    expect(updated).toEqual({ ...created, openingBalance: -1_000_000_000_000_000n });
+    expect((await movementRows()).rows).toEqual(before.rows);
+    expect((await updatedAtOf(created.id)).getTime()).toBeGreaterThan(stamped.getTime());
+  });
+
+  it('returns null and writes nothing for a missing id and for another owner (AC-08, AC-09)', async () => {
+    const owner = await newUserId('ana@example.com');
+    const other = await newUserId('bob@example.com');
+    const created = await accounts.create(await writeScope(owner), data({ openingBalance: 7n }));
+
+    const foreign = await accounts.setOpeningBalance(await writeScope(other), created.id, 1n);
+    const missing = await accounts.setOpeningBalance(
+      await writeScope(owner),
+      '33333333-3333-4333-8333-333333333333',
+      1n,
+    );
+
+    expect(foreign).toBeNull();
+    expect(missing).toBeNull();
+    expect((await accounts.findById(await readScope(owner), created.id))?.openingBalance).toBe(7n);
+  });
+
+  it('updates an archived account without unarchiving it (AC-11)', async () => {
+    const owner = await newUserId('ana@example.com');
+    const scope = await writeScope(owner);
+    const created = await accounts.create(scope, data());
+    await accounts.setArchived(scope, created.id, true);
+
+    const updated = await accounts.setOpeningBalance(scope, created.id, 12n);
+
+    expect(updated?.openingBalance).toBe(12n);
+    expect(updated?.archivedAt).toBeInstanceOf(Date);
   });
 });
 

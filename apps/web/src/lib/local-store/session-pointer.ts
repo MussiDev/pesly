@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { USER_ID_PATTERN } from './user-id';
 
 /** The one thing kept in `localStorage`: who signed in last, so an offline start knows whose copy to open. */
 export const SESSION_POINTER_KEY = 'pesly.session';
@@ -9,8 +10,7 @@ export interface SessionPointer {
 }
 
 const pointerSchema = z.object({
-  // The id becomes part of a database name, so only letters, digits and hyphens are accepted.
-  userId: z.string().regex(/^[A-Za-z0-9-]+$/),
+  userId: z.string().regex(USER_ID_PATTERN),
   emailVerified: z.boolean(),
 });
 

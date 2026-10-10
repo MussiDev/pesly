@@ -68,9 +68,9 @@ describe('isCacheableDocument', () => {
 });
 
 describe('warmUrls and acceptedCacheUrls', () => {
-  it('asks for the two screens the offline flow needs, in the locale of the user (FR-04)', () => {
-    expect(warmUrls('es')).toEqual(['/es/movements', '/es/movements/new']);
-    expect(warmUrls('en')).toEqual(['/en/movements', '/en/movements/new']);
+  it('asks for the screens the offline flow needs, the edit screen included, in the locale of the user (DISC-001-04c AC-01)', () => {
+    expect(warmUrls('es')).toEqual(['/es/movements', '/es/movements/new', '/es/movements/edit']);
+    expect(warmUrls('en')).toEqual(['/en/movements', '/en/movements/new', '/en/movements/edit']);
   });
 
   it('keeps same-origin paths that start with a slash and drops duplicates (FR-04)', () => {

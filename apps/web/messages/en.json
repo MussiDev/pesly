@@ -58,6 +58,10 @@
     "brand": "Pesly",
     "skipToContent": "Skip to content",
     "storageWarning": "Your browser may delete the data saved on this device when it runs low on space. Keep some storage free and reconnect often so nothing is lost.",
+    "sync": {
+      "waiting": "{count, plural, one {# change waiting to sync} other {# changes waiting to sync}}",
+      "failed": "{count, plural, one {# change failed to sync} other {# changes failed to sync}}"
+    },
     "nav": {
       "label": "Main navigation",
       "home": "Home",
@@ -68,7 +72,9 @@
       "movements": "Movements",
       "investments": "Investments",
       "more": "More",
-      "addMovement": "Add movement"
+      "addMovement": "Add movement",
+      "cards": "Cards",
+      "recurring": "Recurring"
     },
     "more": {
       "title": "More",
@@ -142,7 +148,11 @@
     },
     "signOut": {
       "label": "Sign out",
-      "pending": "Signing out…"
+      "pending": "Signing out…",
+      "confirmTitle": "You have changes that are not synced",
+      "confirmBody": "{count, plural, one {# change has not been sent yet. If you sign out now, it will be lost.} other {# changes have not been sent yet. If you sign out now, they will be lost.}}",
+      "confirm": "Sign out and discard",
+      "cancel": "Cancel"
     },
     "secondFactor": {
       "title": "Two-step verification",
@@ -324,7 +334,13 @@
     "exchangeSameCurrency": "A currency exchange needs accounts in different currencies.",
     "impliedRateOutOfRange": "With those amounts the exchange rate is outside the allowed range.",
     "movementTypeImmutable": "A movement cannot change its type. Delete it and create a new one instead.",
+    "accountLinkedToCard": "This account belongs to a credit card, so it cannot be deleted on its own. Delete the card instead.",
+    "cardHasMovements": "The accounts of this card have movements, so the card cannot be deleted.",
+    "statementClosed": "This statement is already closed, so its dates can no longer change.",
+    "recurringOccurrenceNotPending": "This occurrence was already resolved, so it can no longer be confirmed or skipped.",
+    "recurringLimitReached": "You reached the limit of 200 recurring payments. Delete one to create another.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
+    "offlineSaveFailed": "We could not save this movement on your device. Check that it has free space and try again.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
     "secondFactorCodeFormat": "Enter a 6-digit code or a recovery code."
   },
@@ -381,6 +397,7 @@
     "actions": {
       "rename": "Rename",
       "renameField": "New name for {name}",
+      "editOpeningBalance": "Edit opening balance",
       "save": "Save",
       "cancel": "Cancel",
       "archive": "Archive",
@@ -390,6 +407,12 @@
       "confirmDeleteYes": "Yes, delete",
       "archiveInstead": "Archive instead"
     },
+    "openingEdit": {
+      "current": "Current opening balance: {amount}",
+      "field": "New opening balance for {name}",
+      "hint": "The balance changes by the difference. Movements are not touched.",
+      "preview": "New balance: {amount}"
+    },
     "errors": {
       "nameRequired": "Enter a name.",
       "nameTooLong": "The name can be at most {max} characters long.",
@@ -398,6 +421,205 @@
       "currencyRequired": "Choose a currency.",
       "amountInvalid": "Enter a valid amount, for example 1,500.00.",
       "amountOutOfRange": "The opening balance cannot exceed {max} in absolute value."
+    }
+  },
+  "creditCards": {
+    "import": {
+      "title": "Import a statement",
+      "description": "Upload the statement file of this card. Its purchases, installments and fees are added to the card, and lines that were imported before are skipped.",
+      "file": {
+        "label": "Statement file",
+        "hint": "Excel (.xlsx, up to 2 MB) or PDF (up to 5 MB) statements. The file is read on your device."
+      },
+      "password": {
+        "description": "This PDF is protected with a password. Enter it to read the statement; it is used only on this device and is not saved.",
+        "label": "PDF password",
+        "submit": "Unlock",
+        "cancel": "Cancel",
+        "wrong": "That password is not correct. Try again."
+      },
+      "parsing": "Reading the file…",
+      "errors": {
+        "tooLarge": "The file is too large. Excel files can be up to 2 MB and PDF files up to 5 MB.",
+        "unreadable": "The file could not be read. Choose an Excel (.xlsx) or PDF statement file.",
+        "unrecognizedFormat": "Unrecognized statement format. Only Banco Macro Visa PDF statements and Excel statement files are supported.",
+        "noTextLayer": "This PDF has no selectable text (it looks like a scanned image). Download the statement from your bank again and upload that file.",
+        "unrecognized": "The file does not look like a card statement: the closing and due dates were not found.",
+        "invalidRow": "A row of the statement could not be understood. Check the file and try again.",
+        "invalidAmount": "An amount of the statement could not be read. Check the file and try again.",
+        "noLines": "The statement has no purchases or fees to import."
+      },
+      "preview": {
+        "title": "Preview",
+        "dates": "Closes {closing} · due {due}",
+        "ending": "card ending {digits}",
+        "caption": "Lines found in the statement",
+        "date": "Date",
+        "descriptionColumn": "Description",
+        "installments": "Installment",
+        "installmentOf": "{number} of {count}",
+        "amount": "Amount",
+        "status": "Status"
+      },
+      "status": {
+        "purchase": "Will be imported",
+        "fee": "Will be imported (fee)",
+        "skippedFee": "Fee left out",
+        "ignored": "Ignored (payment)"
+      },
+      "includeFees": "Include taxes and fees (\"Otros conceptos\")",
+      "reconcile": {
+        "line": "Selected lines add up to {sum}; the statement total is {total}.",
+        "noTotal": "Selected lines add up to {sum}; the file has no total in this currency.",
+        "differs": "The selected lines do not add up to the statement total. You can still import them; check the file first if you expected them to match."
+      },
+      "category": {
+        "label": "Category for all the lines",
+        "placeholder": "Choose a category",
+        "required": "Choose a category."
+      },
+      "tooMany": "A statement import accepts at most 300 lines.",
+      "submit": "Import {count, plural, one {# line} other {# lines}}",
+      "importing": "Importing…",
+      "connectionNeeded": "A connection is needed to import a statement. Check it and try again: the file and your choices are kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "back": "Back to the card",
+      "result": {
+        "title": "Import finished",
+        "summary": "{created, plural, one {# line was added} other {# lines were added}} and {skipped, plural, one {# was skipped because it was already imported} other {# were skipped because they were already imported}}.",
+        "detail": "{expenses, plural, one {# expense} other {# expenses}} and {purchases, plural, one {# installment purchase} other {# installment purchases}}.",
+        "viewCard": "View the card"
+      }
+    },
+    "expense": {
+      "title": "Card expense",
+      "description": "Record a purchase on this card. It is assigned to the statement that is open on the purchase date.",
+      "fields": {
+        "currency": "Currency",
+        "currencyPlaceholder": "Choose a currency",
+        "amount": "Amount",
+        "category": "Category",
+        "categoryPlaceholder": "Choose a category",
+        "occurredAt": "Date and time",
+        "note": "Note (optional)"
+      },
+      "submit": "Save expense",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record a card expense. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "errors": {
+        "currencyRequired": "The currency must be ARS or USD."
+      }
+    },
+    "title": "Credit cards",
+    "new": "New card",
+    "list": {
+      "label": "Your credit cards",
+      "days": "Closes on day {closing} · due on day {due}",
+      "emptyTitle": "No credit cards yet",
+      "emptyDescription": "Add a card to follow its statements."
+    },
+    "form": {
+      "title": "New credit card",
+      "name": "Name",
+      "nameHint": "Two credit card accounts are created with it, one in ARS and one in USD.",
+      "closingDay": "Closing day",
+      "dueDay": "Due day",
+      "dayHint": "A day from 1 to 31. In shorter months the last day is used.",
+      "submit": "Create card",
+      "pending": "Creating…",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "dayInvalid": "Enter a day from 1 to 31.",
+      "nameTaken": "One of the accounts this card needs already exists. Choose another name."
+    },
+    "detail": {
+      "back": "All cards",
+      "days": "Default days",
+      "daysHint": "Changing a day also moves the dates of the open statements.",
+      "saveDays": "Save days",
+      "statements": "Statements",
+      "closes": "Closes {date}",
+      "due": "Due {date}",
+      "open": "Open",
+      "closed": "Closed",
+      "totalArs": "Total in ARS: {amount}",
+      "totalUsd": "Total in USD: {amount}",
+      "edit": "Edit dates",
+      "closingDate": "Closing date",
+      "dueDate": "Due date",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete card",
+      "confirmDelete": "Delete {name}, its statements and its two accounts?",
+      "confirm": "Delete",
+      "notFound": "This card does not exist or was deleted.",
+      "datesInvalid": "These dates overlap another statement. Choose dates between the previous and the next statement, with the due date after the closing date.",
+      "daysConflict": "With that closing day the open statement would close before the previous one.",
+      "addPurchase": "Add purchase",
+      "importStatement": "Import a statement",
+      "installmentLine": "Installment {number} of {count}: {amount}",
+      "payStatement": "Pay statement",
+      "paymentLine": "{currency}: {status}, paid {amount}",
+      "paymentStatus": {
+        "paid": "Paid",
+        "partially_paid": "Partially paid",
+        "unpaid": "Unpaid"
+      }
+    },
+    "installments": {
+      "title": "Add purchase",
+      "description": "Record a card purchase in pesos or dollars. Paid in one payment it is a regular expense on the card; in installments, each one goes to a statement, starting with the one open on the purchase date.",
+      "fields": {
+        "currency": "Currency",
+        "amount": "Total amount",
+        "installments": "Number of installments",
+        "installmentsHint": "{min} for a single payment, up to {max}",
+        "category": "Category",
+        "categoryPlaceholder": "Choose a category",
+        "purchasedOn": "Purchase date",
+        "note": "Note (optional)"
+      },
+      "submit": "Save purchase",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record a purchase. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted.",
+      "errors": {
+        "installmentsInvalid": "Enter a whole number of installments from 1 to 60.",
+        "amountTooSmall": "The amount must be at least one cent per installment."
+      },
+      "heading": "Installment purchases",
+      "pendingDebt": "Pending debt",
+      "pendingDebtLabel": "Pending debt: {amount}",
+      "empty": "No installment purchases on this card.",
+      "purchaseOn": "Purchase on {date}",
+      "summary": "{count} installments · total {total}",
+      "openCount": "{count, plural, one {# installment pending} other {# installments pending}}",
+      "delete": "Delete",
+      "confirmDelete": "Confirm delete",
+      "cancel": "Cancel",
+      "deleteHint": "Installments in statements that are already closed are kept."
+    },
+    "payments": {
+      "title": "Pay a statement",
+      "description": "Move money from one of your accounts to this card. It is a transfer, not an expense, and it pays the oldest unpaid statement first. Paying dollars from a peso account records a currency exchange at the rate implied by the amounts.",
+      "fields": {
+        "currency": "Currency",
+        "sourceAccount": "Pay from",
+        "sourceAccountPlaceholder": "Choose an account",
+        "amount": "Amount",
+        "pesosAmount": "Pesos debited",
+        "occurredAt": "Date and time",
+        "note": "Note (optional)"
+      },
+      "submit": "Record payment",
+      "pending": "Saving…",
+      "back": "Back to the card",
+      "connectionNeeded": "A connection is needed to record a payment. Check it and try again: what you typed is kept.",
+      "notFound": "This card does not exist or was deleted."
     }
   },
   "movements": {
@@ -413,13 +635,18 @@
       "exchangeTitle": "Exchange",
       "unknownCategory": "Unknown category",
       "tags": "Tags",
+      "pending": "Pending",
+      "synced": "Synced",
+      "failed": "Not synced",
       "offlineNotice": "You are offline: showing your 100 most recent movements. Filters are off until you reconnect.",
       "actions": {
         "edit": "Edit",
         "delete": "Delete",
         "confirmDelete": "Delete this movement? Your balances will update.",
         "confirmDeleteYes": "Yes, delete",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "discard": "Discard"
       }
     },
     "filters": {
@@ -445,7 +672,8 @@
     "edit": {
       "title": "Edit movement",
       "description": "Change what you need. Your balances update on their own.",
-      "notFound": "This movement does not exist or is no longer there."
+      "notFound": "This movement does not exist or is no longer there.",
+      "notAvailableOffline": "This movement is not available without a connection. Try again when you are back online."
     },
     "fields": {
       "type": "Type",
@@ -491,7 +719,9 @@
       "title": "Movement saved",
       "rate": "Rate used: {rate} ARS per USD",
       "back": "Back to movements",
-      "impliedRate": "Implied rate: {rate} ARS per USD"
+      "impliedRate": "Implied rate: {rate} ARS per USD",
+      "titleOffline": "Saved on this device",
+      "pendingBody": "It will be sent when you are back online."
     },
     "errors": {
       "accountRequired": "Choose an account.",
@@ -523,6 +753,9 @@
         "tooLong": "A tag can be at most {max} characters long.",
         "limit": "You can add up to {limit} tags."
       }
+    },
+    "sync": {
+      "deletedElsewhere": "This movement was deleted on another device."
     }
   },
   "categories": {
@@ -912,6 +1145,132 @@
       "notPositive": "The number must be greater than zero.",
       "quantityInvalid": "Enter a valid quantity.",
       "amountInvalid": "Enter an amount within the allowed range."
+    }
+  },
+  "recurring": {
+    "title": "Recurring payments",
+    "description": "Rent, subscriptions and services that repeat. Confirm each one when it is due.",
+    "nav": {
+      "upcoming": "Upcoming",
+      "all": "All payments"
+    },
+    "list": {
+      "newPayment": "New recurring payment",
+      "emptyTitle": "No recurring payments yet",
+      "empty": "Add the payments that repeat, like rent or a subscription, and they will show up here when they are due.",
+      "upcomingLabel": "Upcoming payments",
+      "paymentsLabel": "Your recurring payments",
+      "dueOn": "Due {date}",
+      "nextDue": "Next: {date}",
+      "noNextDue": "No upcoming date",
+      "unknownAccount": "Unknown account",
+      "unknownCategory": "Unknown category"
+    },
+    "frequency": {
+      "label": "Frequency",
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "yearly": "Yearly"
+    },
+    "weekday": {
+      "label": "Day of the week",
+      "0": "Monday",
+      "1": "Tuesday",
+      "2": "Wednesday",
+      "3": "Thursday",
+      "4": "Friday",
+      "5": "Saturday",
+      "6": "Sunday"
+    },
+    "month": {
+      "label": "Month",
+      "1": "January",
+      "2": "February",
+      "3": "March",
+      "4": "April",
+      "5": "May",
+      "6": "June",
+      "7": "July",
+      "8": "August",
+      "9": "September",
+      "10": "October",
+      "11": "November",
+      "12": "December"
+    },
+    "mode": {
+      "label": "When it is due",
+      "automatic": "Record it automatically",
+      "confirmation": "Ask me to confirm",
+      "hint": "With confirmation, the expense is only recorded after you confirm it."
+    },
+    "status": {
+      "scheduled": "Scheduled",
+      "pending": "Pending",
+      "overdue": "Overdue",
+      "confirmed": "Confirmed",
+      "skipped": "Skipped",
+      "paused": "Paused",
+      "active": "Active"
+    },
+    "fields": {
+      "name": "Name",
+      "amount": "Amount",
+      "account": "Account",
+      "category": "Category",
+      "dayOfMonth": "Day of the month",
+      "startDate": "Start date",
+      "endDate": "End date (optional)"
+    },
+    "actions": {
+      "create": "Create payment",
+      "edit": "Edit",
+      "save": "Save changes",
+      "pause": "Pause",
+      "resume": "Resume",
+      "delete": "Delete",
+      "confirm": "Confirm",
+      "skip": "Skip",
+      "cancel": "Cancel",
+      "saving": "Saving…"
+    },
+    "confirm": {
+      "title": "Confirm payment",
+      "description": "This records an expense for {name}. You can change the amount and the date.",
+      "amount": "Amount paid",
+      "date": "Payment date",
+      "submit": "Confirm and record"
+    },
+    "deleteConfirm": {
+      "title": "Delete this recurring payment?",
+      "description": "Its pending and future occurrences are removed. Expenses already recorded stay in your movements.",
+      "confirm": "Yes, delete",
+      "cancel": "Keep it"
+    },
+    "back": "Back to recurring payments",
+    "notFound": "This recurring payment does not exist.",
+    "form": {
+      "editTitle": "Edit recurring payment",
+      "placeholder": "Choose…",
+      "noAccounts": "You need an open account before you can add a recurring payment."
+    },
+    "detail": {
+      "dayOfMonthValue": "Day {day}",
+      "yearlyValue": "{month} {day}",
+      "nextDue": "Next due date",
+      "noEnd": "No end date"
+    },
+    "listNoUpcoming": "Nothing is due in the next 30 days.",
+    "pauseHint": "While paused, nothing is scheduled. When you resume, it continues from today.",
+    "errors": {
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "The name can have up to 80 characters.",
+      "frequencyRequired": "Choose how often it repeats.",
+      "weekdayRequired": "Choose a day of the week.",
+      "dayOfMonthRequired": "Enter a day of the month from 1 to 31.",
+      "monthRequired": "Choose a month.",
+      "dateInvalid": "Enter a valid date.",
+      "endBeforeStart": "The end date cannot be before the start date.",
+      "modeRequired": "Choose how it is recorded."
     }
   }
 }

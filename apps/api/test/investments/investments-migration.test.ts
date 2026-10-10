@@ -32,6 +32,12 @@ const LATER_MIGRATIONS = [
   '0015_price_snapshots',
   '0016_transfers_exchanges',
   '0017_tags',
+  '0018_device_write_limit',
+  '0019_credit_cards',
+  '0020_installments',
+  '0021_installment_currency',
+  '0022_card_statement_import_lines',
+  '0023_recurring_payments',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -41,7 +47,22 @@ const PRICE_TABLES = [
   'portfolio_value_snapshots',
 ];
 const TAG_TABLES = ['movement_tags', 'tags'];
-const LATER_TABLES = ['movement_rate_limits', 'movements', ...PRICE_TABLES, ...TAG_TABLES];
+const CREDIT_CARD_TABLES = [
+  'card_statement_import_lines',
+  'credit_card_statements',
+  'credit_cards',
+  'installment_purchases',
+  'installments',
+];
+const LATER_TABLES = [
+  'movement_rate_limits',
+  'movements',
+  ...PRICE_TABLES,
+  ...TAG_TABLES,
+  ...CREDIT_CARD_TABLES,
+  'recurring_occurrences',
+  'recurring_payments',
+];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 
 /** Its own throwaway database: the other migration tests reset theirs, and none may clash. */

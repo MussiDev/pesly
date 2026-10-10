@@ -3,6 +3,7 @@ import { accountResponseSchema } from '@pesly/shared';
 import type { Express } from 'express';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import type { AccountLinks } from '../../src/accounts/application/ports/account-links';
 import type { AccountMovements } from '../../src/accounts/application/ports/account-movements';
 import { createAccountRoutes } from '../../src/accounts';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
@@ -60,7 +61,7 @@ interface Setup {
   lines: string[];
 }
 
-async function setup(movements?: AccountMovements): Promise<Setup> {
+async function setup(movements?: AccountMovements, links?: AccountLinks): Promise<Setup> {
   const lines: string[] = [];
   const logger = createLogger({
     level: 'debug',
@@ -70,6 +71,7 @@ async function setup(movements?: AccountMovements): Promise<Setup> {
     db: connection.db,
     logger,
     ...(movements ? { movements } : {}),
+    ...(links ? { links } : {}),
   });
   const harness = createIdentityHarness(connection, {
     realSessions: true,
@@ -342,6 +344,143 @@ describe('PATCH /accounts/:id', () => {
   });
 });
 
+describe('PATCH /accounts/:id/opening-balance', () => {
+  const path = (id: string) => `/accounts/${id}/opening-balance`;
+
+  it('changes the opening balance and answers the account, visible in GET (AC-01)', async () => {
+    const s = await setup();
+    const id = await create(s, { openingBalance: '1000' });
+    const response = await send(s.app, 'patch', path(id), s.ana, { openingBalance: '2500' });
+    expect(response.status).toBe(200);
+    expect(accountResponseSchema.parse(response.body)).toMatchObject({
+      id,
+      name: 'Caja',
+      openingBalance: '2500',
+      balance: '2500',
+    });
+    expect((await get(s.app, `/accounts/${id}`, s.ana)).body).toMatchObject({
+      openingBalance: '2500',
+    });
+  });
+
+  it.each([
+    ['a missing field', {}],
+    ['a decimal string', { openingBalance: '1.5' }],
+    ['a number instead of a string', { openingBalance: 100 }],
+    ['a value above the limit', { openingBalance: '1000000000000001' }],
+    ['a value below the negative limit', { openingBalance: '-1000000000000001' }],
+  ])(
+    'rejects %s naming body.openingBalance and leaves the account unchanged (AC-02)',
+    async (_l, body) => {
+      const s = await setup();
+      const id = await create(s, { openingBalance: '1000' });
+      const response = await send(s.app, 'patch', path(id), s.ana, body);
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect((response.body as { fields: string[] }).fields).toContain('body.openingBalance');
+      expect((await rawRow(id))?.opening_balance).toBe('1000');
+    },
+  );
+
+  it('rejects an id that is not a UUID and writes nothing (AC-03)', async () => {
+    const s = await setup();
+    const id = await create(s, { openingBalance: '1000' });
+    const response = await send(s.app, 'patch', path('not-a-uuid'), s.ana, {
+      openingBalance: '5',
+    });
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    expect((await rawRow(id))?.opening_balance).toBe('1000');
+  });
+
+  it('accepts zero and negative values and the limits (AC-04)', async () => {
+    const s = await setup();
+    const id = await create(s, { openingBalance: '1000' });
+    for (const openingBalance of ['0', '-1500', '1000000000000000', '-1000000000000000']) {
+      const response = await send(s.app, 'patch', path(id), s.ana, { openingBalance });
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ openingBalance });
+    }
+  });
+
+  it('answers a balance equal to the new opening balance plus the movement sum, and the totals follow (AC-05)', async () => {
+    const movements = new TestMovements();
+    const s = await setup(movements);
+    const id = await create(s, { openingBalance: '1000' });
+    movements.sums.set(id, -250n);
+    const response = await send(s.app, 'patch', path(id), s.ana, { openingBalance: '4000' });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ openingBalance: '4000', balance: '3750' });
+    expect((await list(s)).availableTotals.ARS).toBe('3750');
+  });
+
+  it('answers 200 unchanged when the current value is sent (AC-06)', async () => {
+    const s = await setup();
+    const id = await create(s, { openingBalance: '1000' });
+    const before = (await get(s.app, `/accounts/${id}`, s.ana)).body as Record<string, unknown>;
+    const response = await send(s.app, 'patch', path(id), s.ana, { openingBalance: '1000' });
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(before);
+  });
+
+  it('answers 404 for an unknown id and for another user account, the same body, and keeps the value (AC-08, AC-09)', async () => {
+    const s = await setup();
+    const bobs = await create(s, { name: 'Bobs', openingBalance: '77' }, s.bob);
+    const unknown = await send(s.app, 'patch', path(randomUUID()), s.ana, { openingBalance: '5' });
+    const foreign = await send(s.app, 'patch', path(bobs), s.ana, { openingBalance: '5' });
+    expect(unknown.status).toBe(404);
+    expect(foreign.status).toBe(404);
+    expect(foreign.body).toEqual(unknown.body);
+    expect((await rawRow(bobs))?.opening_balance).toBe('77');
+  });
+
+  it('refuses the request without the web origin headers and changes nothing (AC-10)', async () => {
+    const s = await setup();
+    const id = await create(s, { openingBalance: '1000' });
+    const noOrigin = await request(s.app)
+      .patch(path(id))
+      .set('Cookie', cookieHeader(s.ana))
+      .send({ openingBalance: '5' });
+    expect(noOrigin.status).toBe(403);
+    expect((await rawRow(id))?.opening_balance).toBe('1000');
+    // Control: with the headers the same request goes through, so the 403 above is the guard.
+    expect((await send(s.app, 'patch', path(id), s.ana, { openingBalance: '5' })).status).toBe(200);
+  });
+
+  it('accepts the change on an archived account, a credit card and a card-linked account (AC-11, AC-12)', async () => {
+    const links: AccountLinks = { isLinked: () => Promise.resolve(true) };
+    const s = await setup(undefined, links);
+    const archived = await create(s, { name: 'Vieja' });
+    await send(s.app, 'post', `/accounts/${archived}/archive`, s.ana);
+    const card = await create(s, { name: 'Visa', type: 'credit_card' });
+    for (const id of [archived, card]) {
+      const response = await send(s.app, 'patch', path(id), s.ana, { openingBalance: '-900' });
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id, openingBalance: '-900' });
+    }
+    expect((await rawRow(archived))?.archived_at).not.toBeNull();
+  });
+
+  it('logs the change with ids only, never an amount or the name (AC-13, NFR-04)', async () => {
+    const s = await setup();
+    const name = 'Secret Savings Name';
+    const id = await create(s, { name, openingBalance: '123456789' });
+    await send(s.app, 'patch', path(id), s.ana, { openingBalance: '987654321' });
+
+    const audit = s.lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((entry) => entry.msg === 'account opening balance changed');
+    expect(audit).toHaveLength(1);
+    const [entry] = audit;
+    expect(entry).toMatchObject({ userId: s.anaId, accountId: id });
+    expect(entry?.requestId).toEqual(expect.any(String));
+    const allowed = ['level', 'time', 'pid', 'hostname', 'msg', 'requestId', 'userId', 'accountId'];
+    expect(Object.keys(entry ?? {}).filter((key) => !allowed.includes(key))).toEqual([]);
+    const text = JSON.stringify(entry);
+    for (const secret of [name, '123456789', '987654321']) expect(text).not.toContain(secret);
+  });
+});
+
 describe('archive and unarchive', () => {
   it('archive hides from the default list, keeps GET, lists under archived=true (AC-07)', async () => {
     const s = await setup();
@@ -392,6 +531,28 @@ describe('DELETE /accounts/:id', () => {
     expect(response.status).toBe(409);
     expect(response.body).toEqual({ code: 'ACCOUNT_HAS_MOVEMENTS' });
     expect((await get(s.app, `/accounts/${id}`, s.ana)).status).toBe(200);
+  });
+
+  it('answers 409 ACCOUNT_LINKED_TO_CARD for a linked account and keeps it (sad path, FR-02)', async () => {
+    const s = await setup(undefined, { isLinked: () => Promise.resolve(true) });
+    const id = await create(s);
+    const response = await send(s.app, 'delete', `/accounts/${id}`, s.ana);
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_CARD' });
+    expect((await get(s.app, `/accounts/${id}`, s.ana)).status).toBe(200);
+  });
+
+  it('maps the card key violation to ACCOUNT_LINKED_TO_CARD when the guard is bypassed (sad path)', async () => {
+    const s = await setup();
+    const ars = await create(s);
+    const usd = await create(s, { name: 'Linked USD', currency: 'USD' });
+    await connection.pool.query(
+      'insert into credit_cards (owner_id, name, closing_day, due_day, ars_account_id, usd_account_id) values ($1, $2, 24, 5, $3, $4)',
+      [s.anaId, 'Linked', ars, usd],
+    );
+    const response = await send(s.app, 'delete', `/accounts/${ars}`, s.ana);
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_CARD' });
   });
 
   it("answers 404, never 409, for another user's account that has movements", async () => {
@@ -526,7 +687,12 @@ async function rawRow(id: string) {
     include_in_available: boolean;
     name: string;
     updated_at: Date;
-  }>('select include_in_available, name, updated_at from accounts where id = $1', [id]);
+    opening_balance: string;
+    archived_at: Date | null;
+  }>(
+    'select include_in_available, name, updated_at, opening_balance, archived_at from accounts where id = $1',
+    [id],
+  );
   return rows.rows[0];
 }
 
@@ -828,6 +994,7 @@ describe('authentication and request guards', () => {
     ['create', 'post', () => '/accounts'],
     ['get', 'get', (id) => `/accounts/${id}`],
     ['patch', 'patch', (id) => `/accounts/${id}`],
+    ['opening balance', 'patch', (id) => `/accounts/${id}/opening-balance`],
     ['archive', 'post', (id) => `/accounts/${id}/archive`],
     ['unarchive', 'post', (id) => `/accounts/${id}/unarchive`],
     ['include', 'put', (id) => `/accounts/${id}/include-in-available`],

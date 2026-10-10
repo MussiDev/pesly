@@ -2,6 +2,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { listRowVariants } from '@/components/ui/list-row';
 import { PageHeader } from '@/components/ui/page-header';
@@ -16,10 +17,17 @@ export interface MoreMenuProps {
   signingOut: boolean;
   signOutError: ApiErrorKey | undefined;
   onSignOut: () => void;
+  /** The warning before a sign out that would lose changes not yet synced. */
+  signOutConfirmation?: ReactNode;
 }
 
 /** What the bottom bar has no room for: accounts, categories, profile, security, theme and sign out. */
-export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps) {
+export function MoreMenu({
+  signingOut,
+  signOutError,
+  onSignOut,
+  signOutConfirmation,
+}: MoreMenuProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
   const tTheme = useTranslations('theme');
@@ -52,6 +60,7 @@ export function MoreMenu({ signingOut, signOutError, onSignOut }: MoreMenuProps)
         </li>
       </ul>
       <SignOutAlert error={signOutError} />
+      {signOutConfirmation}
       <SignOutButton pending={signingOut} onSignOut={onSignOut} />
     </main>
   );

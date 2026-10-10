@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const repoRoot = fileURLToPath(new URL('../../../../', import.meta.url));
 
@@ -14,6 +14,12 @@ const eslint = new ESLint({
   ruleFilter: ({ ruleId }) => ruleId === 'no-restricted-imports',
 });
 
+// The first lint loads the config and its plugins, which takes several seconds under a full run;
+// paying it here keeps that cost out of whichever test happens to come first.
+beforeAll(async () => {
+  await eslint.lintText('\n', { filePath: `${repoRoot}apps/api/src/warm-up.ts` });
+}, 60_000);
+
 async function restrictedImports(filePath: string, source: string): Promise<string[]> {
   const [result] = await eslint.lintText(source, { filePath: `${repoRoot}${filePath}` });
   return (result?.messages ?? []).map((message) => message.ruleId ?? `fatal: ${message.message}`);
@@ -24,6 +30,64 @@ const APPLICATION_FILE = 'apps/api/src/identity/application/probe.ts';
 
 const INVESTMENTS_DOMAIN_FILE = 'apps/api/src/investments/domain/probe.ts';
 const INVESTMENTS_APPLICATION_FILE = 'apps/api/src/investments/application/probe.ts';
+
+describe('credit-cards module import boundaries', () => {
+  it.each([
+    [
+      'apps/api/src/credit-cards/domain/probe.ts',
+      "import { x } from '../infrastructure/db/schema';",
+    ],
+    ['apps/api/src/credit-cards/domain/probe.ts', "import { eq } from 'drizzle-orm';"],
+    [
+      'apps/api/src/credit-cards/application/probe.ts',
+      "import { x } from '../infrastructure/db/schema';",
+    ],
+    ['apps/api/src/credit-cards/domain/probe.ts', "import express from 'express';"],
+  ])('rejects in %s: %s (sad path)', async (file, source) => {
+    expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
+  });
+
+  it.each([
+    ['apps/api/src/credit-cards/domain/probe.ts', "import { x } from '../../movements';"],
+    [
+      'apps/api/src/credit-cards/domain/probe.ts',
+      "import { x } from '../../movements/domain/movement';",
+    ],
+    ['apps/api/src/credit-cards/application/probe.ts', "import { x } from '../../movements';"],
+    ['apps/api/src/credit-cards/index.ts', "import { x } from '../movements';"],
+    [
+      'apps/api/src/credit-cards/infrastructure/http/probe.ts',
+      "import { x } from '../../../movements/infrastructure/db/schema';",
+    ],
+  ])('rejects credit-cards importing movements in %s: %s (sad path)', async (file, source) => {
+    expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
+  });
+
+  it('keeps the older restrictions on credit-cards where the movements pattern was added (sad path)', async () => {
+    for (const [file, source] of [
+      ['apps/api/src/credit-cards/domain/probe.ts', "import pg from 'pg';"],
+      [
+        'apps/api/src/credit-cards/application/probe.ts',
+        "import { x } from '../infrastructure/db/schema';",
+      ],
+      [
+        'apps/api/src/credit-cards/infrastructure/db/probe.ts',
+        "import { x } from '../../../../test/fakes/mutable-clock';",
+      ],
+    ] as const) {
+      expect(await restrictedImports(file, `${source}\n`), file).toEqual(['no-restricted-imports']);
+    }
+  });
+
+  it('allows credit-cards domain and application to import shared code and the access port', async () => {
+    expect(
+      await restrictedImports(
+        'apps/api/src/credit-cards/application/probe.ts',
+        "import type { AccessScope } from '../../shared/access';\nimport { y } from '../domain/credit-card';\n",
+      ),
+    ).toEqual([]);
+  });
+});
 
 describe('investments module import boundaries', () => {
   it.each([

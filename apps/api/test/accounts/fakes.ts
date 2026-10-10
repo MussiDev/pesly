@@ -8,6 +8,7 @@ import type {
   CreateAccountData,
   SetIncludeInAvailableResult,
 } from '../../src/accounts/application/ports/account-repository';
+import type { AccountLinks } from '../../src/accounts/application/ports/account-links';
 import type { AccountMovements } from '../../src/accounts/application/ports/account-movements';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
 import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastructure/deny-all-group-membership-reader';
@@ -89,6 +90,18 @@ export class InMemoryAccountRepository implements AccountRepository {
     if (!row) return null;
     this.assertNameFree(scope.userId, name, id);
     row.account = { ...row.account, name };
+    return row.account;
+  }
+
+  async setOpeningBalance(
+    scope: AccessScope<'write'>,
+    id: string,
+    openingBalance: bigint,
+  ): Promise<Account | null> {
+    await Promise.resolve();
+    const row = this.visible(scope, id);
+    if (!row) return null;
+    row.account = { ...row.account, openingBalance };
     return row.account;
   }
 
@@ -183,6 +196,15 @@ export class InMemoryAccountRepository implements AccountRepository {
 }
 
 /** Configurable movements port: per-account sums, a set of accounts that "have movements", or a failure. */
+/** Accounts reported as linked to a credit card. */
+export class FakeAccountLinks implements AccountLinks {
+  readonly linked = new Set<string>();
+
+  isLinked(accountId: string): Promise<boolean> {
+    return Promise.resolve(this.linked.has(accountId));
+  }
+}
+
 export class FakeAccountMovements implements AccountMovements {
   readonly sums = new Map<string, bigint>();
   readonly used = new Set<string>();

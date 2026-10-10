@@ -970,6 +970,52 @@ describe('api client: accounts', () => {
     expect(JSON.parse(init.body as string)).toEqual({ name: 'Wallet' });
   });
 
+  it('sets the opening balance with PATCH on the encoded id path and a JSON body (AC-19)', async () => {
+    const updated = { ...ACCOUNT, openingBalance: '2500', balance: '2500' };
+    const { client, fetch } = clientWith(jsonResponse(200, updated));
+
+    const result = await client.setAccountOpeningBalance('a/b', { openingBalance: '2500' });
+
+    expect(result).toEqual({ ok: true, data: updated });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/accounts/a%2Fb/opening-balance`);
+    expect(init.method).toBe('PATCH');
+    expect(init.credentials).toBe('include');
+    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+    expect(JSON.parse(init.body as string)).toEqual({ openingBalance: '2500' });
+  });
+
+  it.each([
+    [404, 'NOT_FOUND', 'unexpected'],
+    [400, 'VALIDATION_FAILED', 'validationFailed'],
+    [403, 'EMAIL_NOT_VERIFIED', 'emailNotVerified'],
+  ] as const)(
+    'maps a %i %s answer of the opening balance change to %s like rename does (AC-20)',
+    async (status, code, messageKey) => {
+      const { client } = clientWith(jsonResponse(status, { code }), jsonResponse(status, { code }));
+
+      const renamed = await client.renameAccount(ID, { name: 'Wallet' });
+      const changed = await client.setAccountOpeningBalance(ID, { openingBalance: '1' });
+
+      expect(changed).toEqual(renamed);
+      expect(changed).toEqual({ ok: false, code, messageKey });
+    },
+  );
+
+  it('gives up with UNAUTHENTICATED when the session cannot be refreshed on an opening balance change (AC-20)', async () => {
+    const { client } = clientWith(
+      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+    );
+
+    expect(await client.setAccountOpeningBalance(ID, { openingBalance: '1' })).toEqual({
+      ok: false,
+      code: 'UNAUTHENTICATED',
+      messageKey: 'unauthenticated',
+    });
+  });
+
   it('archives and unarchives with POST on the right path (AC-07, AC-08)', async () => {
     const archived = { ...ACCOUNT, archived: true, archivedAt: '2026-10-02T00:00:00.000Z' };
     const { client, fetch } = clientWith(jsonResponse(200, archived), jsonResponse(200, ACCOUNT));

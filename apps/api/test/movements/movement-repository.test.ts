@@ -8,6 +8,7 @@ import {
   loadTagsOf,
 } from '../../src/movements/infrastructure/db/drizzle-movement-repository';
 import type { NewMovement } from '../../src/movements/application/ports/movement-repository';
+import { DuplicateMovementId } from '../../src/movements/domain/errors';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
 import { ResourceNotFound } from '../../src/shared/access/not-found-unless-allowed';
 import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastructure/deny-all-group-membership-reader';
@@ -583,6 +584,89 @@ describe('DrizzleMovementRepository', () => {
       expect((await loadTagsOf(connection.db, read, [foreign.id])).size).toBe(0);
       const owned = await loadTagsOf(connection.db, await readScope(theirs.ownerId), [foreign.id]);
       expect(owned.get(foreign.id)).toEqual(['secret']);
+    });
+  });
+
+  describe('insert with an id', () => {
+    const GIVEN = '9a3e5c71-2d48-4f06-b8a1-7c0d3e5f1b92';
+    const tagLinksOf = async (movementId: string): Promise<number> => {
+      const result = await connection.pool.query<{ n: string }>(
+        'select count(*) as n from movement_tags where movement_id = $1',
+        [movementId],
+      );
+      return Number(result.rows[0]?.n);
+    };
+    const rowsWith = async (movementId: string): Promise<{ owner_id: string; amount: string }[]> =>
+      (
+        await connection.pool.query<{ owner_id: string; amount: string }>(
+          'select owner_id, amount from movements where id = $1',
+          [movementId],
+        )
+      ).rows;
+
+    it('stores the row under the given id (FR-02)', async () => {
+      const f = await fixture('ana@example.com');
+      const stored = await repository.insert(await writeScope(f.ownerId), data(f), GIVEN);
+      expect(stored.id).toBe(GIVEN);
+      expect(await rowsWith(GIVEN)).toHaveLength(1);
+    });
+
+    it('still gets a generated id without one (FR-05)', async () => {
+      const f = await fixture('ana@example.com');
+      const scope = await writeScope(f.ownerId);
+      const first = await repository.insert(scope, data(f));
+      const second = await repository.insert(scope, data(f));
+      expect(first.id).not.toBe(second.id);
+      expect(first.id).toMatch(/^[0-9a-f-]{36}$/);
+    });
+
+    it('is a duplicate when the same id is inserted twice, and keeps one row and one set of tag links (AC-06)', async () => {
+      const f = await fixture('ana@example.com');
+      const scope = await writeScope(f.ownerId);
+      await repository.insert(scope, data(f, { tags: ['uno', 'dos'] }), GIVEN);
+      await expect(
+        repository.insert(scope, data(f, { tags: ['uno', 'dos', 'tres'] }), GIVEN),
+      ).rejects.toBeInstanceOf(DuplicateMovementId);
+      expect(await rowsWith(GIVEN)).toHaveLength(1);
+      expect(await tagLinksOf(GIVEN)).toBe(2);
+    });
+
+    it('is a duplicate for the second owner when two owners use the same id, and leaves the first row intact (AC-06)', async () => {
+      const mine = await fixture('ana@example.com');
+      const theirs = await fixture('beto@example.com');
+      await repository.insert(await writeScope(mine.ownerId), data(mine, { amount: 111n }), GIVEN);
+      await expect(
+        repository.insert(await writeScope(theirs.ownerId), data(theirs, { amount: 999n }), GIVEN),
+      ).rejects.toBeInstanceOf(DuplicateMovementId);
+      expect(await rowsWith(GIVEN)).toEqual([{ owner_id: mine.ownerId, amount: '111' }]);
+    });
+
+    it('keeps the not-found mapping for an account of another owner when an id is given (invalid input)', async () => {
+      const mine = await fixture('ana@example.com');
+      const theirs = await fixture('beto@example.com');
+      await expect(
+        repository.insert(
+          await writeScope(mine.ownerId),
+          data(mine, { accountId: theirs.accountId }),
+          GIVEN,
+        ),
+      ).rejects.toBeInstanceOf(ResourceNotFound);
+      expect(await rowsWith(GIVEN)).toHaveLength(0);
+    });
+
+    it('rethrows a unique violation of another constraint unchanged (invalid input)', async () => {
+      const other = Object.assign(new Error('duplicate key value violates "other_key"'), {
+        code: '23505',
+        constraint: 'other_key',
+      });
+      // A connection whose transaction fails with that error: nothing else can raise it here.
+      const failing = {
+        transaction: () => Promise.reject(other),
+      } as unknown as ConstructorParameters<typeof DrizzleMovementRepository>[0];
+      const f = await fixture('ana@example.com');
+      await expect(
+        new DrizzleMovementRepository(failing).insert(await writeScope(f.ownerId), data(f), GIVEN),
+      ).rejects.toBe(other);
     });
   });
 });

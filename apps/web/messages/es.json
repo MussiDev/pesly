@@ -58,6 +58,10 @@
     "brand": "Pesly",
     "skipToContent": "Saltar al contenido",
     "storageWarning": "Tu navegador puede borrar los datos guardados en este dispositivo si se queda sin espacio. Deja algo de almacenamiento libre y reconéctate seguido para no perder nada.",
+    "sync": {
+      "waiting": "{count, plural, one {# cambio esperando sincronizarse} other {# cambios esperando sincronizarse}}",
+      "failed": "{count, plural, one {# cambio no se sincronizó} other {# cambios no se sincronizaron}}"
+    },
     "nav": {
       "label": "Navegación principal",
       "home": "Inicio",
@@ -68,7 +72,9 @@
       "movements": "Movimientos",
       "investments": "Inversiones",
       "more": "Más",
-      "addMovement": "Agregar movimiento"
+      "addMovement": "Agregar movimiento",
+      "cards": "Tarjetas",
+      "recurring": "Recurrentes"
     },
     "more": {
       "title": "Más",
@@ -142,7 +148,11 @@
     },
     "signOut": {
       "label": "Cerrar sesión",
-      "pending": "Cerrando sesión…"
+      "pending": "Cerrando sesión…",
+      "confirmTitle": "Tienes cambios sin sincronizar",
+      "confirmBody": "{count, plural, one {# cambio todavía no se envió. Si cierras sesión ahora, se perderá.} other {# cambios todavía no se enviaron. Si cierras sesión ahora, se perderán.}}",
+      "confirm": "Cerrar sesión y descartar",
+      "cancel": "Cancelar"
     },
     "secondFactor": {
       "title": "Verificación en dos pasos",
@@ -324,7 +334,13 @@
     "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
     "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
+    "accountLinkedToCard": "Esta cuenta pertenece a una tarjeta de crédito, por eso no se puede eliminar sola. Elimina la tarjeta en su lugar.",
+    "cardHasMovements": "Las cuentas de esta tarjeta tienen movimientos, por eso la tarjeta no se puede eliminar.",
+    "statementClosed": "Este resumen ya cerró, por eso sus fechas ya no pueden cambiar.",
+    "recurringOccurrenceNotPending": "Este vencimiento ya se resolvió, por eso ya no se puede confirmar ni omitir.",
+    "recurringLimitReached": "Llegaste al límite de 200 pagos recurrentes. Eliminá uno para crear otro.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
+    "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
     "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
   },
@@ -381,6 +397,7 @@
     "actions": {
       "rename": "Renombrar",
       "renameField": "Nuevo nombre de {name}",
+      "editOpeningBalance": "Editar saldo inicial",
       "save": "Guardar",
       "cancel": "Cancelar",
       "archive": "Archivar",
@@ -390,6 +407,12 @@
       "confirmDeleteYes": "Sí, eliminar",
       "archiveInstead": "Archivar en vez de eliminar"
     },
+    "openingEdit": {
+      "current": "Saldo inicial actual: {amount}",
+      "field": "Nuevo saldo inicial de {name}",
+      "hint": "El saldo cambia por la diferencia. Los movimientos no se modifican.",
+      "preview": "Nuevo saldo: {amount}"
+    },
     "errors": {
       "nameRequired": "Ingresa un nombre.",
       "nameTooLong": "El nombre puede tener como máximo {max} caracteres.",
@@ -398,6 +421,205 @@
       "currencyRequired": "Elige una moneda.",
       "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
       "amountOutOfRange": "El saldo inicial no puede superar {max} en valor absoluto."
+    }
+  },
+  "creditCards": {
+    "import": {
+      "title": "Importar un resumen",
+      "description": "Subí el archivo del resumen de esta tarjeta. Sus compras, cuotas y cargos se agregan a la tarjeta, y las líneas que ya se importaron antes se omiten.",
+      "file": {
+        "label": "Archivo del resumen",
+        "hint": "Resúmenes en Excel (.xlsx, hasta 2 MB) o PDF (hasta 5 MB). El archivo se lee en tu dispositivo."
+      },
+      "password": {
+        "description": "Este PDF está protegido con contraseña. Ingresala para leer el resumen; se usa solo en este dispositivo y no se guarda.",
+        "label": "Contraseña del PDF",
+        "submit": "Desbloquear",
+        "cancel": "Cancelar",
+        "wrong": "La contraseña no es correcta. Probá de nuevo."
+      },
+      "parsing": "Leyendo el archivo…",
+      "errors": {
+        "tooLarge": "El archivo es demasiado grande. Los de Excel pueden pesar hasta 2 MB y los PDF hasta 5 MB.",
+        "unreadable": "No se pudo leer el archivo. Elegí un resumen en formato Excel (.xlsx) o PDF.",
+        "unrecognizedFormat": "Formato de resumen no reconocido. Solo se admiten resúmenes PDF de Banco Macro Visa y archivos de Excel.",
+        "noTextLayer": "Este PDF no tiene texto seleccionable (parece una imagen escaneada). Volvé a descargar el resumen desde tu banco y subí ese archivo.",
+        "unrecognized": "El archivo no parece un resumen de tarjeta: no se encontraron las fechas de cierre y vencimiento.",
+        "invalidRow": "No se pudo entender una fila del resumen. Revisá el archivo y probá de nuevo.",
+        "invalidAmount": "No se pudo leer un importe del resumen. Revisá el archivo y probá de nuevo.",
+        "noLines": "El resumen no tiene compras ni cargos para importar."
+      },
+      "preview": {
+        "title": "Vista previa",
+        "dates": "Cierra {closing} · vence {due}",
+        "ending": "tarjeta terminada en {digits}",
+        "caption": "Líneas encontradas en el resumen",
+        "date": "Fecha",
+        "descriptionColumn": "Descripción",
+        "installments": "Cuota",
+        "installmentOf": "{number} de {count}",
+        "amount": "Importe",
+        "status": "Estado"
+      },
+      "status": {
+        "purchase": "Se importará",
+        "fee": "Se importará (cargo)",
+        "skippedFee": "Cargo excluido",
+        "ignored": "Ignorado (pago)"
+      },
+      "includeFees": "Incluir impuestos y cargos (\"Otros conceptos\")",
+      "reconcile": {
+        "line": "Las líneas elegidas suman {sum}; el total del resumen es {total}.",
+        "noTotal": "Las líneas elegidas suman {sum}; el archivo no tiene total en esta moneda.",
+        "differs": "Las líneas elegidas no suman el total del resumen. Igual podés importarlas; revisá el archivo antes si esperabas que coincidan."
+      },
+      "category": {
+        "label": "Categoría para todas las líneas",
+        "placeholder": "Elegí una categoría",
+        "required": "Elegí una categoría."
+      },
+      "tooMany": "Una importación acepta como máximo 300 líneas.",
+      "submit": "Importar {count, plural, one {# línea} other {# líneas}}",
+      "importing": "Importando…",
+      "connectionNeeded": "Hace falta conexión para importar un resumen. Revisala y probá de nuevo: el archivo y tus elecciones se conservan.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "back": "Volver a la tarjeta",
+      "result": {
+        "title": "Importación terminada",
+        "summary": "{created, plural, one {Se agregó # línea} other {Se agregaron # líneas}} y {skipped, plural, one {# se omitió porque ya estaba importada} other {# se omitieron porque ya estaban importadas}}.",
+        "detail": "{expenses, plural, one {# gasto} other {# gastos}} y {purchases, plural, one {# compra en cuotas} other {# compras en cuotas}}.",
+        "viewCard": "Ver la tarjeta"
+      }
+    },
+    "expense": {
+      "title": "Gasto con tarjeta",
+      "description": "Registra una compra con esta tarjeta. Se asigna al resumen que está abierto en la fecha de la compra.",
+      "fields": {
+        "currency": "Moneda",
+        "currencyPlaceholder": "Elige una moneda",
+        "amount": "Monto",
+        "category": "Categoría",
+        "categoryPlaceholder": "Elige una categoría",
+        "occurredAt": "Fecha y hora",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Guardar gasto",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar un gasto con tarjeta. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "errors": {
+        "currencyRequired": "La moneda debe ser ARS o USD."
+      }
+    },
+    "title": "Tarjetas de crédito",
+    "new": "Nueva tarjeta",
+    "list": {
+      "label": "Tus tarjetas de crédito",
+      "days": "Cierra el día {closing} · vence el día {due}",
+      "emptyTitle": "Todavía no hay tarjetas",
+      "emptyDescription": "Agrega una tarjeta para seguir sus resúmenes."
+    },
+    "form": {
+      "title": "Nueva tarjeta de crédito",
+      "name": "Nombre",
+      "nameHint": "Con la tarjeta se crean dos cuentas de tarjeta de crédito, una en ARS y otra en USD.",
+      "closingDay": "Día de cierre",
+      "dueDay": "Día de vencimiento",
+      "dayHint": "Un día del 1 al 31. En los meses más cortos se usa el último día.",
+      "submit": "Crear tarjeta",
+      "pending": "Creando…",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "dayInvalid": "Ingresa un día del 1 al 31.",
+      "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elige otro nombre."
+    },
+    "detail": {
+      "back": "Todas las tarjetas",
+      "days": "Días predeterminados",
+      "daysHint": "Cambiar un día también mueve las fechas de los resúmenes abiertos.",
+      "saveDays": "Guardar días",
+      "statements": "Resúmenes",
+      "closes": "Cierra el {date}",
+      "due": "Vence el {date}",
+      "open": "Abierto",
+      "closed": "Cerrado",
+      "totalArs": "Total en ARS: {amount}",
+      "totalUsd": "Total en USD: {amount}",
+      "edit": "Editar fechas",
+      "closingDate": "Fecha de cierre",
+      "dueDate": "Fecha de vencimiento",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "delete": "Eliminar tarjeta",
+      "confirmDelete": "¿Eliminar {name}, sus resúmenes y sus dos cuentas?",
+      "confirm": "Eliminar",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
+      "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
+      "addPurchase": "Agregar compra",
+      "importStatement": "Importar un resumen",
+      "installmentLine": "Cuota {number} de {count}: {amount}",
+      "payStatement": "Pagar resumen",
+      "paymentLine": "{currency}: {status}, pagado {amount}",
+      "paymentStatus": {
+        "paid": "Pagado",
+        "partially_paid": "Pago parcial",
+        "unpaid": "Sin pagar"
+      }
+    },
+    "installments": {
+      "title": "Agregar compra",
+      "description": "Registra una compra con tarjeta en pesos o en dólares. Pagada en un solo pago es un gasto común de la tarjeta; en cuotas, cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
+      "fields": {
+        "currency": "Moneda",
+        "amount": "Monto total",
+        "installments": "Cantidad de cuotas",
+        "installmentsHint": "{min} para un solo pago, hasta {max}",
+        "category": "Categoría",
+        "categoryPlaceholder": "Elige una categoría",
+        "purchasedOn": "Fecha de la compra",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Guardar compra",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar una compra. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada.",
+      "errors": {
+        "installmentsInvalid": "Ingresa una cantidad entera de cuotas de 1 a 60.",
+        "amountTooSmall": "El monto debe ser de al menos un centavo por cuota."
+      },
+      "heading": "Compras en cuotas",
+      "pendingDebt": "Deuda pendiente",
+      "pendingDebtLabel": "Deuda pendiente: {amount}",
+      "empty": "No hay compras en cuotas en esta tarjeta.",
+      "purchaseOn": "Compra del {date}",
+      "summary": "{count} cuotas · total {total}",
+      "openCount": "{count, plural, one {# cuota pendiente} other {# cuotas pendientes}}",
+      "delete": "Eliminar",
+      "confirmDelete": "Confirmar eliminación",
+      "cancel": "Cancelar",
+      "deleteHint": "Las cuotas de los resúmenes que ya cerraron se conservan."
+    },
+    "payments": {
+      "title": "Pagar un resumen",
+      "description": "Mueve dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar. Pagar dólares desde una cuenta en pesos registra una compra de dólares a la cotización que resulta de los montos.",
+      "fields": {
+        "currency": "Moneda",
+        "sourceAccount": "Pagar desde",
+        "sourceAccountPlaceholder": "Elige una cuenta",
+        "amount": "Monto",
+        "pesosAmount": "Pesos debitados",
+        "occurredAt": "Fecha y hora",
+        "note": "Nota (opcional)"
+      },
+      "submit": "Registrar pago",
+      "pending": "Guardando…",
+      "back": "Volver a la tarjeta",
+      "connectionNeeded": "Se necesita conexión para registrar un pago. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "notFound": "Esta tarjeta no existe o fue eliminada."
     }
   },
   "movements": {
@@ -413,13 +635,18 @@
       "exchangeTitle": "Cambio de moneda",
       "unknownCategory": "Categoría desconocida",
       "tags": "Etiquetas",
+      "pending": "Pendiente",
+      "synced": "Sincronizado",
+      "failed": "No sincronizado",
       "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
       "actions": {
         "edit": "Editar",
         "delete": "Eliminar",
         "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
         "confirmDeleteYes": "Sí, eliminar",
-        "cancel": "Cancelar"
+        "cancel": "Cancelar",
+        "retry": "Reintentar",
+        "discard": "Descartar"
       }
     },
     "filters": {
@@ -445,7 +672,8 @@
     "edit": {
       "title": "Editar movimiento",
       "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
-      "notFound": "Este movimiento no existe o ya no está."
+      "notFound": "Este movimiento no existe o ya no está.",
+      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión."
     },
     "fields": {
       "type": "Tipo",
@@ -491,7 +719,9 @@
       "title": "Movimiento guardado",
       "rate": "Cotización usada: {rate} ARS por USD",
       "back": "Volver a movimientos",
-      "impliedRate": "Cotización implícita: {rate} ARS por USD"
+      "impliedRate": "Cotización implícita: {rate} ARS por USD",
+      "titleOffline": "Guardado en este dispositivo",
+      "pendingBody": "Se enviará cuando vuelvas a tener conexión."
     },
     "errors": {
       "accountRequired": "Elige una cuenta.",
@@ -523,6 +753,9 @@
         "tooLong": "La etiqueta puede tener hasta {max} caracteres.",
         "limit": "Puedes agregar hasta {limit} etiquetas."
       }
+    },
+    "sync": {
+      "deletedElsewhere": "Este movimiento se eliminó en otro dispositivo."
     }
   },
   "categories": {
@@ -912,6 +1145,132 @@
       "notPositive": "El número debe ser mayor que cero.",
       "quantityInvalid": "Ingresa una cantidad válida.",
       "amountInvalid": "Ingresa un monto dentro del rango permitido."
+    }
+  },
+  "recurring": {
+    "title": "Pagos recurrentes",
+    "description": "Alquiler, suscripciones y servicios que se repiten. Confirmá cada uno cuando venza.",
+    "nav": {
+      "upcoming": "Próximos",
+      "all": "Todos los pagos"
+    },
+    "list": {
+      "newPayment": "Nuevo pago recurrente",
+      "emptyTitle": "Todavía no tenés pagos recurrentes",
+      "empty": "Agregá los pagos que se repiten, como el alquiler o una suscripción, y van a aparecer acá cuando venzan.",
+      "upcomingLabel": "Próximos pagos",
+      "paymentsLabel": "Tus pagos recurrentes",
+      "dueOn": "Vence el {date}",
+      "nextDue": "Próximo: {date}",
+      "noNextDue": "Sin próxima fecha",
+      "unknownAccount": "Cuenta desconocida",
+      "unknownCategory": "Categoría desconocida"
+    },
+    "frequency": {
+      "label": "Frecuencia",
+      "weekly": "Semanal",
+      "monthly": "Mensual",
+      "yearly": "Anual"
+    },
+    "weekday": {
+      "label": "Día de la semana",
+      "0": "Lunes",
+      "1": "Martes",
+      "2": "Miércoles",
+      "3": "Jueves",
+      "4": "Viernes",
+      "5": "Sábado",
+      "6": "Domingo"
+    },
+    "month": {
+      "label": "Mes",
+      "1": "Enero",
+      "2": "Febrero",
+      "3": "Marzo",
+      "4": "Abril",
+      "5": "Mayo",
+      "6": "Junio",
+      "7": "Julio",
+      "8": "Agosto",
+      "9": "Septiembre",
+      "10": "Octubre",
+      "11": "Noviembre",
+      "12": "Diciembre"
+    },
+    "mode": {
+      "label": "Cuando vence",
+      "automatic": "Registrarlo automáticamente",
+      "confirmation": "Pedime confirmación",
+      "hint": "Con confirmación, el gasto se registra recién cuando lo confirmás."
+    },
+    "status": {
+      "scheduled": "Programado",
+      "pending": "Pendiente",
+      "overdue": "Vencido",
+      "confirmed": "Confirmado",
+      "skipped": "Omitido",
+      "paused": "Pausado",
+      "active": "Activo"
+    },
+    "fields": {
+      "name": "Nombre",
+      "amount": "Monto",
+      "account": "Cuenta",
+      "category": "Categoría",
+      "dayOfMonth": "Día del mes",
+      "startDate": "Fecha de inicio",
+      "endDate": "Fecha de fin (opcional)"
+    },
+    "actions": {
+      "create": "Crear pago",
+      "edit": "Editar",
+      "save": "Guardar cambios",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "delete": "Eliminar",
+      "confirm": "Confirmar",
+      "skip": "Omitir",
+      "cancel": "Cancelar",
+      "saving": "Guardando…"
+    },
+    "confirm": {
+      "title": "Confirmar pago",
+      "description": "Esto registra un gasto de {name}. Podés cambiar el monto y la fecha.",
+      "amount": "Monto pagado",
+      "date": "Fecha del pago",
+      "submit": "Confirmar y registrar"
+    },
+    "deleteConfirm": {
+      "title": "¿Eliminar este pago recurrente?",
+      "description": "Se borran sus vencimientos pendientes y futuros. Los gastos ya registrados siguen en tus movimientos.",
+      "confirm": "Sí, eliminar",
+      "cancel": "Conservarlo"
+    },
+    "back": "Volver a los pagos recurrentes",
+    "notFound": "Este pago recurrente no existe.",
+    "form": {
+      "editTitle": "Editar pago recurrente",
+      "placeholder": "Elegí…",
+      "noAccounts": "Necesitás una cuenta abierta para agregar un pago recurrente."
+    },
+    "detail": {
+      "dayOfMonthValue": "Día {day}",
+      "yearlyValue": "{day} de {month}",
+      "nextDue": "Próximo vencimiento",
+      "noEnd": "Sin fecha de fin"
+    },
+    "listNoUpcoming": "No vence nada en los próximos 30 días.",
+    "pauseHint": "Mientras está pausado no se programa nada. Al reanudarlo, sigue desde hoy.",
+    "errors": {
+      "nameRequired": "Ingresá un nombre.",
+      "nameTooLong": "El nombre puede tener hasta 80 caracteres.",
+      "frequencyRequired": "Elegí cada cuánto se repite.",
+      "weekdayRequired": "Elegí un día de la semana.",
+      "dayOfMonthRequired": "Ingresá un día del mes entre 1 y 31.",
+      "monthRequired": "Elegí un mes.",
+      "dateInvalid": "Ingresá una fecha válida.",
+      "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
+      "modeRequired": "Elegí cómo se registra."
     }
   }
 }

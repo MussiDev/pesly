@@ -1,0 +1,2 @@
+ALTER TABLE "installment_purchases" ADD COLUMN "currency" text DEFAULT 'ARS' NOT NULL;--> statement-breakpoint
+ALTER TABLE "installment_purchases" ADD CONSTRAINT "installment_purchases_currency_check" CHECK ("installment_purchases"."currency" in ('ARS', 'USD'));

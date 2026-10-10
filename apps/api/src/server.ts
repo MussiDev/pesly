@@ -1,16 +1,30 @@
 import { createAccountRoutes } from './accounts';
 import { createApp } from './app';
 import { createCategoryRoutes, seedDefaultCategories } from './categories';
+import {
+  createCardAccountLinks,
+  createCreditCardRoutes,
+  createInstallmentCategoryUsage,
+  eraseUserCreditCards,
+} from './credit-cards';
 // Deep import on purpose: the exchange-rates barrel would load the providers and the sync job into the API process (NFR-03, R-08).
 import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/exchange-rate-routes';
 import { createInvestmentsRoutes } from './investments';
 import {
   createAccountMovements,
+  createCardPayments,
+  createCardPurchases,
   createCategoryUsage,
+  createExpenseCategoryGuard,
+  createExpenseRecorder,
+  createInstallmentWriteLimit,
   createMovementRoutes,
+  createRecurringExpenseRecorder,
+  createStatementPaymentRecorder,
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
+import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
 import { createLogger } from './shared/logging/logger';
@@ -19,19 +33,52 @@ import { createShutdown } from './shared/process/graceful-shutdown';
 const env = parseEnv(process.env);
 const logger = createLogger({ level: env.LOG_LEVEL });
 const { db, pool } = createDatabase(env.DATABASE_URL);
+// A category is in use while a movement or an installment purchase points at it.
+const movementCategoryUsage = createCategoryUsage(db);
+const installmentCategoryUsage = createInstallmentCategoryUsage(db);
+const categoryUsage = {
+  isUsed: async (categoryId: string): Promise<boolean> =>
+    (await movementCategoryUsage.isUsed(categoryId)) ||
+    (await installmentCategoryUsage.isUsed(categoryId)),
+};
 const app = createApp({
   env,
   logger,
   // The composition root is the only place that knows these modules: new accounts get their default
   // categories in the transaction that creates them, and erasing a user deletes their movements
-  // first because their keys to accounts and categories restrict.
-  identity: { db, onUserCreated: [seedDefaultCategories], beforeUserErased: [eraseUserMovements] },
+  // then their cards, and first their recurring payments, because their keys to accounts and categories restrict.
+  identity: {
+    db,
+    onUserCreated: [seedDefaultCategories],
+    beforeUserErased: [eraseUserRecurring, eraseUserMovements, eraseUserCreditCards],
+  },
   routerFactories: [
-    createAccountRoutes({ db, logger, movements: createAccountMovements(db) }),
-    createCategoryRoutes({ db, logger, usage: createCategoryUsage(db) }),
+    createAccountRoutes({
+      db,
+      logger,
+      movements: createAccountMovements(db),
+      links: createCardAccountLinks(db),
+    }),
+    createCategoryRoutes({ db, logger, usage: categoryUsage }),
+    createCreditCardRoutes({
+      db,
+      logger,
+      activity: createAccountMovements(db),
+      expenses: createExpenseRecorder(db, logger),
+      purchases: createCardPurchases(db),
+      cardPayments: createCardPayments(db),
+      paymentRecorder: createStatementPaymentRecorder(db, logger),
+      categories: createExpenseCategoryGuard(db),
+      writeLimit: createInstallmentWriteLimit(db, logger),
+    }),
     createExchangeRateRoutes({ db }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),
+    createRecurringRoutes({
+      db,
+      logger,
+      expenses: createRecurringExpenseRecorder(db, logger),
+    }),
     createTagRoutes({ db }),
   ],
 });

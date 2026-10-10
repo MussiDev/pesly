@@ -14,13 +14,19 @@ import { categoryLabel, compareCategories } from '@/features/categories/category
 import { useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
-import { useOnlineStatus } from '@/lib/connectivity';
+import { isOffline, useOnlineStatus } from '@/lib/connectivity';
 import {
+  discardQueuedChange,
+  readQueuedMovements,
   readRecentMovementsCopy,
   readReferenceCopy,
+  retryQueuedChange,
+  writeQueuedDelete,
   writeRecentMovementsCopy,
 } from '@/lib/local-store/device-copy';
+import type { QueuedMovement } from '@/lib/local-store/queue';
 import { readSessionPointer } from '@/lib/local-store/session-pointer';
+import { notifyMovementQueued, onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
 import {
   MovementFilters,
   type FilterAccountOption,
@@ -39,6 +45,7 @@ import {
   serializeFilters,
   type MovementFilterValues,
 } from '../movement-filters-state';
+import { overlayQueue } from '../sync-overlay';
 import { TagInputContainer } from './tag-input-container';
 
 /** The API's largest page; also the size of each "show more" step. */
@@ -143,6 +150,10 @@ export function MovementsContainer() {
   const rangeInvalid = isRangeInvalid(filters);
   const [list, setList] = useState<ListState>({ kind: 'loading' });
   const [listAttempt, setListAttempt] = useState(0);
+  // The changes kept on this device that the server does not have yet (DISC-001-04c).
+  const [queue, setQueue] = useState<QueuedMovement[]>([]);
+  // Bumped whenever the queue changes, so it is read again.
+  const [queueVersion, setQueueVersion] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<ErrorMessageKey | undefined>();
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
@@ -172,6 +183,36 @@ export function MovementsContainer() {
   useEffect(() => {
     if (focusRequest > 0) firstFilterRef.current?.focus();
   }, [focusRequest]);
+
+  // A pass that sent movements changed the list on the server: load it again.
+  useEffect(
+    () =>
+      onSyncFinished(() => {
+        setListAttempt((value) => value + 1);
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
+      onQueueChanged(() => {
+        setQueueVersion((value) => value + 1);
+      }),
+    [],
+  );
+
+  // The queue is read every time the list settles or the queue changes; one that cannot be read is
+  // an empty one.
+  useEffect(() => {
+    if (list.kind !== 'ready') return;
+    let live = true;
+    void readQueuedMovements(readSessionPointer()?.userId).then((items) => {
+      if (live) setQueue(items);
+    });
+    return () => {
+      live = false;
+    };
+  }, [list, queueVersion]);
 
   function clearFilters() {
     applyFilters({});
@@ -358,17 +399,50 @@ export function MovementsContainer() {
     };
   }, [api, router, filtersKey, listAttempt, online]);
 
-  async function remove(id: string) {
+  /**
+   * Keeps the delete on this device until it can be sent; the queue-changed event then hides the
+   * row. When it cannot be stored the row stays and the person is told.
+   */
+  async function keepDeleteOnDevice(movement: MovementResponse): Promise<void> {
+    const stored = await writeQueuedDelete(readSessionPointer()?.userId, movement);
+    if (!stored) {
+      setDeleteError('offlineSaveFailed');
+      return;
+    }
+    // Online, the shell sends it right away; offline it waits for the connection.
+    notifyMovementQueued();
+  }
+
+  async function remove(movement: MovementResponse) {
     if (deleting) return;
     setDeleting(true);
     setDeleteError(undefined);
-    const result = await api.deleteMovement(id);
+    // A movement with a change already waiting goes through the queue, so its changes keep order.
+    if (isOffline() || queue.some((item) => item.id === movement.id)) {
+      await keepDeleteOnDevice(movement);
+      setDeleting(false);
+      setConfirmingDeleteId(undefined);
+      return;
+    }
+    const result = await api.deleteMovement(movement.id);
+    if (!result.ok && result.code === 'NETWORK') await keepDeleteOnDevice(movement);
     setDeleting(false);
     setConfirmingDeleteId(undefined);
+    if (!result.ok && result.code === 'NETWORK') return;
     // Already gone elsewhere (404) is what the user wanted: the reload drops the stale row.
     if (result.ok || result.code === 'NOT_FOUND') setListAttempt((value) => value + 1);
     else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
     else setDeleteError(result.messageKey);
+  }
+
+  async function retry(id: string) {
+    if (await retryQueuedChange(readSessionPointer()?.userId, id)) notifyMovementQueued();
+  }
+
+  async function discard(id: string) {
+    if (await discardQueuedChange(readSessionPointer()?.userId, id)) {
+      setListAttempt((value) => value + 1);
+    }
   }
 
   async function showMore(current: ReadyList) {
@@ -444,9 +518,18 @@ export function MovementsContainer() {
     accounts: indexById(reference.data.accounts),
     categories: indexById(reference.data.categories),
   };
+  // Queued changes of movements outside the page go in by date, unless a filter is on (they were
+  // never matched against it).
+  const shownMovements =
+    list.kind === 'ready'
+      ? overlayQueue(list.movements, queue, {
+          includeUnlisted: viewingCopy || !hasActiveFilters(filters),
+          currencies: new Map(reference.data.accounts.map((entry) => [entry.id, entry.currency])),
+        })
+      : [];
   const items: MovementListItem[] =
     list.kind === 'ready'
-      ? list.movements.map((movement) => {
+      ? shownMovements.map(({ movement, syncState, failure }) => {
           const account = lookups.accounts.get(movement.accountId);
           const category =
             movement.categoryId === null ? undefined : lookups.categories.get(movement.categoryId);
@@ -463,6 +546,8 @@ export function MovementsContainer() {
             categoryName: category === undefined ? undefined : categoryLabel(category, language),
             categoryIcon: category?.icon,
             categoryColor: category?.color,
+            syncState,
+            ...(failure === undefined ? {} : { failure }),
           };
         })
       : [];
@@ -483,10 +568,17 @@ export function MovementsContainer() {
           setConfirmingDeleteId(id);
         },
         onConfirmDelete: (id) => {
-          void remove(id);
+          const shown = items.find((item) => item.movement.id === id);
+          if (shown !== undefined) void remove(shown.movement);
         },
         onCancelDelete: () => {
           setConfirmingDeleteId(undefined);
+        },
+        onRetry: (id) => {
+          void retry(id);
+        },
+        onDiscard: (id) => {
+          void discard(id);
         },
       }}
       onShowMore={() => {

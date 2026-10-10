@@ -48,6 +48,12 @@ export interface AccountRepository {
   /** Every non-archived account in scope, for the per-currency totals. */
   listActive(scope: AccessScope): Promise<ActiveAccount[]>;
   rename(scope: AccessScope<'write'>, id: string, name: string): Promise<Account | null>;
+  /** Only the opening balance changes; `null` when nothing in scope matched. */
+  setOpeningBalance(
+    scope: AccessScope<'write'>,
+    id: string,
+    openingBalance: bigint,
+  ): Promise<Account | null>;
   /** Idempotent: setting the state an account already has returns it unchanged. */
   setArchived(scope: AccessScope<'write'>, id: string, archived: boolean): Promise<Account | null>;
   /**

@@ -222,6 +222,42 @@ All notable changes to this project are documented in this file. The format foll
 - DISC-001-04a Persistent storage is requested after sign-in and the user is warned, in Spanish
   and English, when the browser denies it. The copy on the device is not wiped on sign-out yet;
   that comes with DISC-001-04d. No migration.
+- DISC-001-04b Movements can be saved without a connection: expenses, income, transfers and currency
+  exchanges go to a durable queue in the per-user IndexedDB, with a UUID chosen on the device, and
+  show in the movement list with a "Pending" badge, in Spanish and English. An expense or income
+  saved offline freezes the rate on screen as a manual rate, and asks for one when the device has
+  none stored.
+- DISC-001-04b The queue is sent on its own when the app starts online, when the connection returns
+  and when a save gets no answer: up to 4 requests at a time, one pass at a time across tabs, a
+  retry after `Retry-After` when the limit is reached, and a movement the server refuses is kept in
+  the queue instead of lost (it is shown by DISC-001-04c, so 04b ships with 04c).
+- DISC-001-04b `POST /movements` accepts an optional `id`: the same user sending an id that exists
+  gets the stored movement back (200) and no second row, an id of another user answers 404, and
+  creations with an id have their own limit of 600 per minute. Migration 0018 adds the limit
+  bucket to `movement_rate_limits`, with a rollback script.
+- DISC-001-04c Movements can be edited and deleted without a connection: the change is applied on
+  the device at once and queued, one record per movement, so later changes fold into it; online, a
+  change that gets no answer falls back to the queue. The edit screen moved to
+  `/movements/edit?id=`, so one cached page serves every movement offline; the old path still works.
+- DISC-001-04c Every movement in the list shows its sync state (synced, pending or not synced), and
+  the shell shows how many changes wait to be synced and how many did not sync, in Spanish and
+  English. A change the server refuses shows the reason, including a movement deleted on another
+  device, and can be edited and retried, retried as it is, or discarded.
+- DISC-001-04c Queued edits are sent with `PUT` and deletions with `DELETE` (a deletion answered 404
+  counts as done); the server keeps the change it receives last, and the device copy takes the
+  server's answer. Network and server failures are retried with exponential backoff from 5 s,
+  doubling, capped at 5 minutes. No API change, no migration.
+- DISC-001-04d Signing out removes the user's data from the device: once the API ends the session,
+  the whole per-user IndexedDB database (unsent changes, reference copy and recent movements) and
+  the session pointer are deleted. A wipe interrupted half way is finished on the next start, and
+  the app cannot reopen that user's data until they sign in again. Deleting the account wipes the
+  device the same way, and other open tabs go to sign-in.
+- DISC-001-04d Signing out with changes not yet synced shows how many will be lost and asks for
+  confirmation, in Spanish and English; cancelling keeps everything. A sign out that fails (for
+  example offline) keeps the session and the data.
+- DISC-001-04d A session that expires keeps the unsent changes, and they are sent once the same
+  user signs in again; another user signing in on the device never sends them. No API change, no
+  migration, no new dependency.
 - FEAT-005 Merchant logos: an income or expense whose note names a merchant of a bundled catalog
   (40 services and stores, matched by whole words ignoring case and accents, the longest keyword
   first) shows its logo; any other movement keeps its category icon, and a transfer or an exchange
@@ -238,6 +274,62 @@ All notable changes to this project are documented in this file. The format foll
   five accounts with their balance. The home still makes the same six requests.
 - FEAT-005 New components in `components/ui/`: avatar with a logo fallback, pill tabs, chip,
   circular action and donut chart, shown with the new hero and chart tokens on the reference page.
+- DISC-001-10a Credit cards: a card has a name (up to 46 characters) and a default closing day and
+  due day (1 to 31). Creating it creates, in the same transaction, two linked credit card accounts,
+  "<name> ARS" and "<name> USD"; a taken account name refuses the card. New `/credit-cards` API
+  routes and a `/cards` screen with the list, a create form and a card page, in Spanish and English.
+- DISC-001-10a Statement cycles: each card has one statement per month whose closing date falls on
+  the default closing day and whose due date is the next occurrence of the due day, using the last
+  day of the month when the day does not exist. Statements are created when they are read, a
+  statement is closed once its closing date has ended in the user's time zone, the dates of an open
+  statement can be edited, and changing the default days moves every open statement.
+- DISC-001-10a Deleting a card deletes its statements and both linked accounts, and is refused while
+  either account has movements; a linked account cannot be deleted on its own from the accounts
+  screen (rename and archive still work). Erasing a user deletes their cards first. Migration 0019
+  adds `credit_cards` and `credit_card_statements`, with a rollback script.
+- DISC-001-10b Card expenses: `POST /credit-cards/:id/expenses` and an "Add expense" screen on the
+  card page record an expense on a card in ARS or USD; the app picks the card's linked account of that
+  currency, and the usual movement rules (date, category, frozen rate, write limit) apply.
+- DISC-001-10b Statement assignment: a purchase belongs to the first statement whose closing date is on
+  or after its day in the user's time zone, so moving the closing date of an open statement or the
+  default days reassigns purchases without any stored link. Each statement shows its total per
+  currency, the sum of the expenses on the card's two accounts. No migration.
+- DISC-001-10c Installment purchases: `POST /credit-cards/:id/installment-purchases` and an "Add
+  installments" screen record a purchase in ARS in 2 to 60 installments, split into equal parts with
+  the leftover minor units on the first installment. The first installment goes to the statement of
+  the purchase day and each following one to the next statement; a purchase in USD is refused. A
+  purchase can be read, edited (category and note) and deleted; deleting it removes the installments
+  of statements not closed yet and keeps the ones in closed statements. Migration 0020.
+- DISC-001-10c Statement totals and pending debt: each statement lists its installments and its total
+  per currency now adds them to the purchases, and the card page shows the pending debt, the
+  installments in statements not yet closed.
+- DISC-001-10c Installments by category and month: `GET /credit-cards/installment-expenses` returns each
+  installment as an expense of the purchase's category in the due-date month of its statement, for
+  budgets (PRD 06) and reports (PRD 09) to read when they are built.
+- DISC-001-10d Statement payments: `POST /credit-cards/:id/payments` and a "Pay statement" screen move
+  money from one of your accounts to the card's linked account of the same currency as a transfer, never
+  an expense; a source in another currency is refused. It reuses the transfer rules and the movement
+  write limit. No migration.
+- DISC-001-10d Statement status: each closed statement shows, per currency, the amount paid and whether it
+  is paid, partially paid or unpaid. The status is derived on read: the transfers received by the card
+  account are allocated to the closed statements oldest first, so editing or deleting a payment moves
+  the status. An installment purchase is still not a movement, so after paying a statement that
+  includes installments the card's ARS account balance exceeds its purchases by the installments paid.
+- FEAT-006 Edit an account's opening balance: `PATCH /accounts/:id/opening-balance` with
+  `{ openingBalance }` changes the opening balance after creation, with the same limits as account
+  creation, and answers the account with the recomputed balance. The balance moves by the difference;
+  no movement or frozen rate is touched. Like rename, it works on archived and card-linked accounts, a
+  missing or foreign account answers 404, and the audit line carries ids only. The account list gets
+  an "Edit opening balance" action with the current value, an explanation and a preview of the new
+  balance. No migration and no new dependency.
+
+- DISC-001-08a Recurring payments: create, edit, pause, resume and delete payments that repeat
+  weekly, monthly or yearly, with a name, amount, account, expense category, start and optional end
+  date and an automatic or confirmation mode. Monthly days that a month lacks fall on its last day.
+  A new "Recurring" screen lists overdue, pending and the next 30 days of occurrences; confirming
+  a pending one records the expense (amount and date editable) and skipping it records nothing.
+  Due dates follow the user's time zone. Migration `0023_recurring_payments` adds two tables;
+  automatic recording, reminders and push notifications arrive in DISC-001-08b, 08c and 08d.
 
 ### Changed
 
@@ -272,6 +364,14 @@ All notable changes to this project are documented in this file. The format foll
 
 ### Fixed
 
+- Security: `next` is raised to 16.3.8 (GHSA-cjq9-62q9-8jv4, a server-side request forgery in the
+  image optimizer), which clears the high advisory of `pnpm audit --prod --audit-level high`.
+- Security: `source-map-js` is overridden to 1.2.2 or later (GHSA-68fv-2mgg-jv7q, an event-loop
+  denial of service reached through `next` and `postcss`), which clears the high advisory that
+  failed the lint job of every pull request.
+- Security: `sharp` is overridden to 0.35.5 or later (GHSA-wq5f-xc86-pv6w, CVE-2026-96889, a
+  vulnerability in its librsvg dependency, reached through `next`), which clears the high advisory
+  reported by `pnpm audit --prod --audit-level high`.
 - FIX-001 A refresh that races a sign-out, sign-out-all or password reset is rejected without
   being logged as refresh token reuse or revoking the session family.
 - FIX-001 A rate-limited sign-in answers 429 even when refunding its reserved attempts fails.

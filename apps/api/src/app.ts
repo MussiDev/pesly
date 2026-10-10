@@ -18,6 +18,9 @@ import { createOriginGuard } from './shared/http/origin-guard';
 import type { Logger } from './shared/logging/logger';
 
 export const JSON_BODY_LIMIT = '16kb';
+/** A statement import carries up to 300 lines (about 400 bytes each at most), so it gets its own cap. */
+export const STATEMENT_IMPORT_BODY_LIMIT = '192kb';
+const STATEMENT_IMPORT_PATH = /^\/credit-cards\/[^/]+\/statement-imports\/?$/;
 
 export interface IdentityModuleOptions {
   db: IdentityDb;
@@ -125,7 +128,12 @@ export function createApp({
   app.use(healthRoutes());
   app.use(httpsGuard(env));
   app.use(createOriginGuard(env.WEB_ORIGIN));
-  app.use(express.json({ limit: JSON_BODY_LIMIT }));
+  const parseJson = express.json({ limit: JSON_BODY_LIMIT });
+  const parseStatementImportJson = express.json({ limit: STATEMENT_IMPORT_BODY_LIMIT });
+  app.use((req, res, next) => {
+    const large = req.method === 'POST' && STATEMENT_IMPORT_PATH.test(req.path);
+    (large ? parseStatementImportJson : parseJson)(req, res, next);
+  });
   app.use(cookieParser());
 
   if (identity) {

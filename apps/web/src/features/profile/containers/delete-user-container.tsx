@@ -12,6 +12,9 @@ import { toFormErrors, type ErrorMessageKey, type FormErrors } from '@/features/
 import { useRouter } from '@/i18n/navigation';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
+import { readSessionPointer } from '@/lib/local-store/session-pointer';
+import { wipeLocalData } from '@/lib/local-store/wipe';
+import { cancelSyncRetry } from '@/lib/sync/sync-queue';
 import { DeleteUserForm, type DeleteUserFormValues } from '../components/delete-user-form';
 import { DeleteUserGoogle } from '../components/delete-user-google';
 import { ProfileLoadStateView } from '../components/profile-load-state';
@@ -131,8 +134,16 @@ export function DeleteUserContainer() {
     setPending(true);
     setErrors({});
     const result = await api.deleteMyAccount(parsed.data);
-    if (result.ok || result.code === 'UNAUTHENTICATED') {
-      // The account is gone (or the session is): either way this browser has nothing to show.
+    if (result.ok) {
+      // The account is gone: nothing of it may stay on this device.
+      cancelSyncRetry();
+      const userId = readSessionPointer()?.userId;
+      if (userId !== undefined) await wipeLocalData(userId);
+      router.replace('/sign-in');
+      return;
+    }
+    if (result.code === 'UNAUTHENTICATED') {
+      // Only the session expired: the local data stays for when the user signs in again.
       router.replace('/sign-in');
       return;
     }

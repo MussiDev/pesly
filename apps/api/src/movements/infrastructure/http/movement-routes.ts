@@ -37,6 +37,7 @@ import { DeleteMovement } from '../../application/delete-movement';
 import { GetMovement } from '../../application/get-movement';
 import { ListMovements } from '../../application/list-movements';
 import type { Clock } from '../../application/ports/clock';
+import { RecordDeviceMovement } from '../../application/record-device-movement';
 import { RecordManualMovement } from '../../application/record-manual-movement';
 import { UpdateMovement } from '../../application/update-movement';
 import { DrizzleAccountLookup } from '../db/drizzle-account-lookup';
@@ -54,6 +55,8 @@ export interface MovementRoutesOptions {
   logger: Logger;
   /** Manual creations per user per minute (default 60); the performance test raises it. */
   writeLimit?: number;
+  /** Creations that carry a device id per user per minute (default 600), counted apart from the manual ones. */
+  deviceWriteLimit?: number;
   /** Defaults to the system clock; tests inject one to cross the limiter windows. */
   clock?: Clock;
 }
@@ -164,6 +167,7 @@ export function createMovementRoutes({
   db,
   logger,
   writeLimit,
+  deviceWriteLimit,
   clock = new SystemClock(),
 }: MovementRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
@@ -176,17 +180,18 @@ export function createMovementRoutes({
     preferences: new DrizzleUserPreferences(db),
     clock,
   });
+  const limiter = new DrizzleMovementWriteLimiter(db, clock);
+  // A failed refund only makes the limit stricter; it is logged without any request data.
+  const reportReleaseFailure = (error: unknown) => {
+    logger.error({ err: error }, 'movement write limiter release failed');
+  };
   const recordManualMovement = new RecordManualMovement(
-    {
-      createMovement,
-      limiter: new DrizzleMovementWriteLimiter(db, clock),
-      clock,
-      // A failed refund only makes the limit stricter; it is logged without any request data.
-      reportReleaseFailure: (error) => {
-        logger.error({ err: error }, 'movement write limiter release failed');
-      },
-    },
+    { createMovement, limiter, clock, reportReleaseFailure },
     writeLimit,
+  );
+  const recordDeviceMovement = new RecordDeviceMovement(
+    { createMovement, movements, limiter, clock, reportReleaseFailure },
+    deviceWriteLimit,
   );
   const listMovements = new ListMovements({
     movements,
@@ -213,13 +218,18 @@ export function createMovementRoutes({
         { body: createMovementRequestSchema, response: movementResponseSchema },
         async ({ body }, { res, auth, requestId }) => {
           const scope = await scopeOf(policy, auth, 'write');
-          const created = await recordManualMovement.execute(scope, toCreateInput(body));
+          const input = toCreateInput(body);
+          // With an id the creation is idempotent: a replay answers 200 with the stored movement.
+          const { movement, created } =
+            body.id === undefined
+              ? { movement: await recordManualMovement.execute(scope, input), created: true }
+              : await recordDeviceMovement.execute(scope, body.id, input);
           // Ids only: never the amount, the note or the rate.
           logger.info(
-            { requestId, userId: auth?.userId, movementId: created.id },
-            'movement created',
+            { requestId, userId: auth?.userId, movementId: movement.id },
+            created ? 'movement created' : 'movement replayed',
           );
-          res.status(201).json(presentMovement(created));
+          res.status(created ? 201 : 200).json(presentMovement(movement));
         },
       ),
     );

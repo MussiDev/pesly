@@ -36,32 +36,33 @@ export const openingBalanceSchema = minorUnitsStringSchema.pipe(
 const CONTROL_OR_FORMAT_CHARACTER = /[\p{Cc}\p{Cf}]/u;
 
 /**
- * NFC-normalized, 1 to 50 code points (an emoji counts as one), with plain spaces trimmed at the
+ * NFC-normalized, 1 to `max` code points (an emoji counts as one), with plain spaces trimmed at the
  * edges. Any Unicode control (Cc) or format (Cf) character is refused anywhere in the name, edges
  * included: tabs, newlines, NUL, zero-width characters, the BOM, bidi overrides and the soft
  * hyphen would make names look empty or identical. The check runs before trimming because
  * `trim` would otherwise silently strip a BOM, tab or newline at the edges.
  */
-export const accountNameSchema = z.string().transform((raw, ctx) => {
-  const normalized = raw.normalize('NFC');
-  const name = normalized.trim();
-  const length = Array.from(name).length;
-  // A name of only invisible characters counts as empty.
-  const visible = normalized.replace(/[\p{Cc}\p{Cf}\s]/gu, '');
-  if (visible.length < 1 || length > ACCOUNT_NAME_MAX_LENGTH) {
-    ctx.addIssue({
-      code: 'custom',
-      message: `Name must be 1 to ${ACCOUNT_NAME_MAX_LENGTH} characters`,
-    });
-  }
-  if (CONTROL_OR_FORMAT_CHARACTER.test(normalized)) {
-    ctx.addIssue({
-      code: 'custom',
-      message: 'Name must not contain control or format characters',
-    });
-  }
-  return name;
-});
+export function boundedNameSchema(max: number) {
+  return z.string().transform((raw, ctx) => {
+    const normalized = raw.normalize('NFC');
+    const name = normalized.trim();
+    const length = Array.from(name).length;
+    // A name of only invisible characters counts as empty.
+    const visible = normalized.replace(/[\p{Cc}\p{Cf}\s]/gu, '');
+    if (visible.length < 1 || length > max) {
+      ctx.addIssue({ code: 'custom', message: `Name must be 1 to ${max} characters` });
+    }
+    if (CONTROL_OR_FORMAT_CHARACTER.test(normalized)) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Name must not contain control or format characters',
+      });
+    }
+    return name;
+  });
+}
+
+export const accountNameSchema = boundedNameSchema(ACCOUNT_NAME_MAX_LENGTH);
 
 /**
  * Whether an account of this type counts toward the available balance by default. Shared by the
@@ -114,6 +115,13 @@ export const renameAccountRequestSchema = z.object({
 });
 
 export type RenameAccountRequest = z.infer<typeof renameAccountRequestSchema>;
+
+/** `PATCH /accounts/:id/opening-balance`. Same limits and sign rules as at creation. */
+export const setOpeningBalanceRequestSchema = z.object({
+  openingBalance: openingBalanceSchema,
+});
+
+export type SetOpeningBalanceRequest = z.infer<typeof setOpeningBalanceRequestSchema>;
 
 export const accountIdParamsSchema = z.object({
   id: z.uuid(),

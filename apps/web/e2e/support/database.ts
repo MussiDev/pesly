@@ -275,3 +275,72 @@ export async function seedMovements(email: string, count: number): Promise<void>
   );
   if (inserted.rows.length !== count) throw new Error(`Seeded ${inserted.rows.length} of ${count}`);
 }
+
+/** The ids of every movement stored for `email`, sorted. */
+export async function movementRowIds(email: string): Promise<string[]> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select m.id::text as id from movements m join users u on u.id = m.owner_id
+        where u.email = $1
+        order by m.id`,
+      [email],
+    ),
+  );
+  return rows.map((row) => String(row.id));
+}
+
+/** The amount stored for one movement, or `null` once it is gone. */
+export async function movementAmount(id: string): Promise<string | null> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query('select amount::text as amount from movements where id = $1', [id]),
+  );
+  const row = rows[0];
+  return row === undefined ? null : String(row.amount);
+}
+
+/** Archives the account of `email` named `name`, as if done on another device. */
+export async function archiveAccount(email: string, name: string): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update accounts a set archived_at = now()
+         from users u
+        where u.id = a.owner_id and u.email = $1 and a.name = $2
+       returning a.id`,
+      [email, name],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No account named ${name} for ${email}`);
+}
+
+/**
+ * Closes the oldest statement of the card named `cardName` of `email` by moving its dates into the
+ * past, because a statement only closes as days pass and a flow cannot wait for them.
+ */
+export async function closeFirstStatement(email: string, cardName: string): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update credit_card_statements s
+          set closing_date = current_date - 10, due_date = current_date - 3
+         from credit_cards c join users u on u.id = c.owner_id
+        where s.card_id = c.id and u.email = $1 and c.name = $2
+          and s.id = (select id from credit_card_statements
+                       where card_id = c.id order by closing_date limit 1)
+       returning s.id`,
+      [email, cardName],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No statement of ${cardName} for ${email}`);
+  // A purchase belongs to the first statement whose closing date is on or after its day, so the
+  // purchases of the card move back with the dates; otherwise they stay in the next statement.
+  await withE2eDatabase((client) =>
+    client.query(
+      `update movements m
+          set occurred_at = m.occurred_at - interval '15 days'
+         from credit_cards c join users u on u.id = c.owner_id
+        where u.email = $1 and c.name = $2 and m.owner_id = u.id
+          and m.account_id in (c.ars_account_id, c.usd_account_id)
+          and m.type = 'expense'`,
+      [email, cardName],
+    ),
+  );
+}

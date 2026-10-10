@@ -63,6 +63,41 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type RenameAccountRequest,
+  type SetOpeningBalanceRequest,
+  cardExpenseResponseSchema,
+  statementImportResponseSchema,
+  creditCardResponseSchema,
+  listCreditCardsResponseSchema,
+  installmentPurchaseResponseSchema,
+  listInstallmentPurchasesResponseSchema,
+  listStatementsResponseSchema,
+  statementPaymentResponseSchema,
+  statementResponseSchema,
+  listRecurringPaymentsResponseSchema,
+  recurringPaymentResponseSchema,
+  upcomingResponseSchema,
+  type ConfirmOccurrence,
+  type CreateRecurringPayment,
+  type ListRecurringPaymentsResponse,
+  type RecurringPaymentResponse,
+  type UpcomingResponse,
+  type UpdateRecurringPayment,
+  type CardExpenseResponse,
+  type CreateCardExpenseRequest,
+  type CreateStatementImportRequest,
+  type StatementImportResponse,
+  type CreateInstallmentPurchaseRequest,
+  type CreateStatementPaymentRequest,
+  type StatementPaymentResponse,
+  type InstallmentPurchaseResponse,
+  type ListInstallmentPurchasesResponse,
+  type CreateCreditCardRequest,
+  type CreditCardResponse,
+  type ListCreditCardsResponse,
+  type ListStatementsResponse,
+  type StatementResponse,
+  type UpdateCreditCardRequest,
+  type UpdateStatementRequest,
   type ResendVerificationResponse,
   type SecondFactorVerifyRequest,
   type SecondFactorVerifyResponse,
@@ -118,7 +153,13 @@ export type ApiErrorKey =
   | 'exchangeSameCurrency'
   | 'impliedRateOutOfRange'
   | 'movementTypeImmutable'
-  | 'offlineNoCopy';
+  | 'accountLinkedToCard'
+  | 'cardHasMovements'
+  | 'statementClosed'
+  | 'recurringOccurrenceNotPending'
+  | 'recurringLimitReached'
+  | 'offlineNoCopy'
+  | 'offlineSaveFailed';
 
 /** `NETWORK`: the request never got an HTTP answer (offline, DNS, CORS, aborted). */
 export type ApiFailureCode = ErrorCode | 'NETWORK';
@@ -172,7 +213,22 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   EXCHANGE_SAME_CURRENCY: 'exchangeSameCurrency',
   IMPLIED_RATE_OUT_OF_RANGE: 'impliedRateOutOfRange',
   MOVEMENT_TYPE_IMMUTABLE: 'movementTypeImmutable',
+  ACCOUNT_LINKED_TO_CARD: 'accountLinkedToCard',
+  CARD_HAS_MOVEMENTS: 'cardHasMovements',
+  STATEMENT_CLOSED: 'statementClosed',
+  RECURRING_OCCURRENCE_NOT_PENDING: 'recurringOccurrenceNotPending',
+  RECURRING_LIMIT_REACHED: 'recurringLimitReached',
 };
+
+/**
+ * The message of an error code kept on the device (a rejected queued change). The code is read
+ * back from storage, so anything that is not a known code is the generic message.
+ */
+export function messageKeyOf(code: string): ApiErrorKey {
+  return Object.hasOwn(MESSAGE_KEY_BY_CODE, code)
+    ? MESSAGE_KEY_BY_CODE[code as ApiFailureCode]
+    : 'unexpected';
+}
 
 /** `null` when the id is not a plain path segment: '.' and '..' survive encoding and would be normalized. */
 function resourcePath(collection: string, id: string): string | null {
@@ -205,6 +261,9 @@ export type CreateAccountInput = z.input<typeof createAccountRequestSchema>;
 
 /** Only `name` is renameable; type and currency are immutable. */
 export type RenameAccountInput = Pick<RenameAccountRequest, 'name'>;
+
+/** Only the opening balance, as a minor-units integer string. */
+export type SetOpeningBalanceInput = SetOpeningBalanceRequest;
 
 export type ListAccountsParams = Partial<Pick<ListAccountsQuery, 'archived' | 'limit' | 'offset'>>;
 
@@ -288,6 +347,11 @@ export interface ApiClient {
   createAccount(body: CreateAccountInput): Promise<ApiResult<AccountResponse>>;
   getAccount(id: string): Promise<ApiResult<AccountResponse>>;
   renameAccount(id: string, body: RenameAccountInput): Promise<ApiResult<AccountResponse>>;
+  /** Changes the opening balance; the balance moves by the difference and no movement is touched. */
+  setAccountOpeningBalance(
+    id: string,
+    body: SetOpeningBalanceInput,
+  ): Promise<ApiResult<AccountResponse>>;
   archiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   unarchiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   setIncludeInAvailable(
@@ -295,6 +359,64 @@ export interface ApiClient {
     includeInAvailable: boolean,
   ): Promise<ApiResult<AccountResponse>>;
   deleteAccount(id: string): Promise<ApiResult<undefined>>;
+  listRecurringPayments(): Promise<ApiResult<ListRecurringPaymentsResponse>>;
+  createRecurringPayment(
+    body: CreateRecurringPayment,
+  ): Promise<ApiResult<RecurringPaymentResponse>>;
+  getRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  updateRecurringPayment(
+    id: string,
+    body: UpdateRecurringPayment,
+  ): Promise<ApiResult<RecurringPaymentResponse>>;
+  pauseRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  resumeRecurringPayment(id: string): Promise<ApiResult<RecurringPaymentResponse>>;
+  /** Deletes the payment and its pending and future occurrences; recorded expenses stay. */
+  deleteRecurringPayment(id: string): Promise<ApiResult<undefined>>;
+  /** Overdue and pending occurrences first, then the next 30 days; needs a connection. */
+  getUpcomingRecurring(): Promise<ApiResult<UpcomingResponse>>;
+  /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
+  confirmOccurrence(occurrenceId: string, body: ConfirmOccurrence): Promise<ApiResult<undefined>>;
+  skipOccurrence(occurrenceId: string): Promise<ApiResult<undefined>>;
+  listCreditCards(): Promise<ApiResult<ListCreditCardsResponse>>;
+  createCreditCard(body: CreateCreditCardRequest): Promise<ApiResult<CreditCardResponse>>;
+  getCreditCard(id: string): Promise<ApiResult<CreditCardResponse>>;
+  updateCreditCardDays(
+    id: string,
+    body: UpdateCreditCardRequest,
+  ): Promise<ApiResult<CreditCardResponse>>;
+  /** Deletes the card, its statements and its two linked accounts (409 when they have movements). */
+  deleteCreditCard(id: string): Promise<ApiResult<undefined>>;
+  /** Newest first; the API creates the missing cycles before answering. */
+  listStatements(cardId: string): Promise<ApiResult<ListStatementsResponse>>;
+  /** Records an expense on the card's ARS or USD account; needs a connection. */
+  createCardExpense(
+    cardId: string,
+    body: CreateCardExpenseRequest,
+  ): Promise<ApiResult<CardExpenseResponse>>;
+  /** Uploads the lines of a parsed card statement; needs a connection. */
+  createStatementImport(
+    cardId: string,
+    body: CreateStatementImportRequest,
+  ): Promise<ApiResult<StatementImportResponse>>;
+  /** Pays a statement: a transfer to the card's linked account of the currency; needs a connection. */
+  recordStatementPayment(
+    cardId: string,
+    body: CreateStatementPaymentRequest,
+  ): Promise<ApiResult<StatementPaymentResponse>>;
+  /** Records an installment purchase on the card, in ARS; needs a connection. */
+  createInstallmentPurchase(
+    cardId: string,
+    body: CreateInstallmentPurchaseRequest,
+  ): Promise<ApiResult<InstallmentPurchaseResponse>>;
+  /** The card's active installment purchases and its pending debt. */
+  listInstallmentPurchases(cardId: string): Promise<ApiResult<ListInstallmentPurchasesResponse>>;
+  /** Removes the installments of statements not closed yet; the closed ones stay. */
+  deleteInstallmentPurchase(cardId: string, purchaseId: string): Promise<ApiResult<undefined>>;
+  updateStatement(
+    cardId: string,
+    statementId: string,
+    body: UpdateStatementRequest,
+  ): Promise<ApiResult<StatementResponse>>;
   listCategories(query: ListCategoriesParams): Promise<ApiResult<ListCategoriesResponse>>;
   createCategory(body: CreateCategoryInput): Promise<ApiResult<CategoryResponse>>;
   getCategory(id: string): Promise<ApiResult<CategoryResponse>>;
@@ -429,6 +551,54 @@ export function createApiClient({
   ): Promise<ApiResult<T>> {
     const path = resourcePath('accounts', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onCreditCard<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('credit-cards', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onRecurringPayment<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('recurring/payments', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onOccurrence<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('recurring/occurrences', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onStatement<T>(
+    cardId: string,
+    statementId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const card = resourcePath('credit-cards', cardId);
+    const statement = resourcePath('statements', statementId);
+    return card === null || statement === null
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(`${card}${statement}`);
+  }
+
+  function onInstallmentPurchase<T>(
+    cardId: string,
+    purchaseId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const card = resourcePath('credit-cards', cardId);
+    const purchase = resourcePath('installment-purchases', purchaseId);
+    return card === null || purchase === null
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(`${card}${purchase}`);
   }
 
   function onCategory<T>(
@@ -568,6 +738,16 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
+    setAccountOpeningBalance: (id, body) =>
+      onAccount(id, (path) =>
+        request({
+          method: 'PATCH',
+          path: `${path}/opening-balance`,
+          body,
+          response: accountResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
     archiveAccount: (id) =>
       onAccount(id, (path) =>
         request({
@@ -604,6 +784,201 @@ export function createApiClient({
           method: 'DELETE',
           path,
           response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listRecurringPayments: () =>
+      request({
+        method: 'GET',
+        path: '/recurring/payments',
+        response: listRecurringPaymentsResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    createRecurringPayment: (body) =>
+      request({
+        method: 'POST',
+        path: '/recurring/payments',
+        body,
+        response: recurringPaymentResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateRecurringPayment: (id, body) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    pauseRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/pause`,
+          body: {},
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    resumeRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/resume`,
+          body: {},
+          response: recurringPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteRecurringPayment: (id) =>
+      onRecurringPayment(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    getUpcomingRecurring: () =>
+      request({
+        method: 'GET',
+        path: '/recurring/upcoming',
+        response: upcomingResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    confirmOccurrence: (occurrenceId, body) =>
+      onOccurrence(occurrenceId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/confirm`,
+          body,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    skipOccurrence: (occurrenceId) =>
+      onOccurrence(occurrenceId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/skip`,
+          body: {},
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listCreditCards: () =>
+      request({
+        method: 'GET',
+        path: '/credit-cards',
+        response: listCreditCardsResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    createCreditCard: (body) =>
+      request({
+        method: 'POST',
+        path: '/credit-cards',
+        body,
+        response: creditCardResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getCreditCard: (id) =>
+      onCreditCard(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: creditCardResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateCreditCardDays: (id, body) =>
+      onCreditCard(id, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: creditCardResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteCreditCard: (id) =>
+      onCreditCard(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    listStatements: (cardId) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/statements`,
+          response: listStatementsResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createCardExpense: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/expenses`,
+          body,
+          response: cardExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createStatementImport: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/statement-imports`,
+          body,
+          response: statementImportResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    recordStatementPayment: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/payments`,
+          body,
+          response: statementPaymentResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createInstallmentPurchase: (cardId, body) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/installment-purchases`,
+          body,
+          response: installmentPurchaseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listInstallmentPurchases: (cardId) =>
+      onCreditCard(cardId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/installment-purchases`,
+          response: listInstallmentPurchasesResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteInstallmentPurchase: (cardId, purchaseId) =>
+      onInstallmentPurchase(cardId, purchaseId, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    updateStatement: (cardId, statementId, body) =>
+      onStatement(cardId, statementId, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: statementResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),

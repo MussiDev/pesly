@@ -32,12 +32,17 @@ export interface AccountListProps {
   /** The API refused to delete this account because it has movements. */
   blockedDeleteId: string | undefined;
   renameError: AccountFieldMessage | undefined;
+  editingOpeningId: string | undefined;
+  openingError: AccountFieldMessage | undefined;
   actionError: ErrorMessageKey | undefined;
   onToggleArchived: () => void;
   onToggleAvailable: (id: string, value: boolean) => void;
   onStartRename: (id: string) => void;
   onCancelRename: () => void;
   onRename: (id: string, name: string) => void;
+  onStartEditOpening: (id: string) => void;
+  onCancelEditOpening: () => void;
+  onSetOpening: (id: string, text: string) => void;
   onArchive: (id: string) => void;
   onUnarchive: (id: string) => void;
   onAskDelete: (id: string) => void;
@@ -110,6 +115,8 @@ export function AccountList(props: AccountListProps) {
     confirmingDeleteId,
     blockedDeleteId,
     renameError,
+    editingOpeningId,
+    openingError,
     actionError,
   } = props;
   const t = useTranslations('accounts');
@@ -122,6 +129,9 @@ export function AccountList(props: AccountListProps) {
         onStartRename={props.onStartRename}
         onCancelRename={props.onCancelRename}
         onRename={props.onRename}
+        onStartEditOpening={props.onStartEditOpening}
+        onCancelEditOpening={props.onCancelEditOpening}
+        onSetOpening={props.onSetOpening}
         onArchive={props.onArchive}
         onUnarchive={props.onUnarchive}
         onAskDelete={props.onAskDelete}
@@ -133,6 +143,8 @@ export function AccountList(props: AccountListProps) {
         confirmingDelete={confirmingDeleteId === account.id}
         blockedDelete={blockedDeleteId === account.id}
         renameError={renameError}
+        editingOpening={editingOpeningId === account.id}
+        openingError={openingError}
       />
     );
   }

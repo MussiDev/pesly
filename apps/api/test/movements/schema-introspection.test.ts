@@ -149,7 +149,7 @@ describe('movements schema introspection', () => {
     );
   });
 
-  it('gives movement_rate_limits a primary key of owner and window start', async () => {
+  it('gives movement_rate_limits a primary key of owner, bucket and window start', async () => {
     const result = await connection.pool.query<{ columns: string[] }>(
       `select array_agg(a.attname::text order by k.ord) as columns
          from pg_constraint c
@@ -158,7 +158,7 @@ describe('movements schema introspection', () => {
          join pg_attribute a on a.attrelid = c.conrelid and a.attnum = k.attnum
         where c.contype = 'p' and t.relname = 'movement_rate_limits'`,
     );
-    expect(result.rows[0]?.columns).toEqual(['owner_id', 'window_start']);
+    expect(result.rows[0]?.columns).toEqual(['owner_id', 'bucket', 'window_start']);
   });
 
   it('adds the unique constraint on accounts (id, owner_id) that the composite key targets', async () => {

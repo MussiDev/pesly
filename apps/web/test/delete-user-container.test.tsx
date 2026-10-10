@@ -1,9 +1,32 @@
 // @vitest-environment happy-dom
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { IDBFactory } from 'fake-indexeddb';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DeleteUserContainer } from '../src/features/profile/containers/delete-user-container';
+import { enqueueMovement, loadQueue } from '../src/lib/local-store/queue';
+import {
+  readSessionPointer,
+  writeSessionPointer,
+  type SessionPointer,
+} from '../src/lib/local-store/session-pointer';
+import { openLocalStore } from '../src/lib/local-store/stores';
+import { readWipeMarker } from '../src/lib/local-store/wipe-marker';
+import type * as SyncQueue from '../src/lib/sync/sync-queue';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+
+const { cancelSyncRetry } = vi.hoisted(() => ({ cancelSyncRetry: vi.fn() }));
+
+vi.mock('../src/lib/sync/sync-queue', async (importOriginal) => {
+  const actual = await importOriginal<typeof SyncQueue>();
+  return {
+    ...actual,
+    cancelSyncRetry: () => {
+      cancelSyncRetry();
+      actual.cancelSyncRetry();
+    },
+  };
+});
 
 const { es } = CATALOGS;
 
@@ -445,6 +468,127 @@ describe('DeleteUserContainer, Google path', () => {
     await screen.findByRole('button', { name: es.deleteUser.submit });
     expect(hintTitle()).toBeNull();
     expect(hintLink()).toBeNull();
+  });
+});
+
+describe('DeleteUserContainer, local data (DISC-001-04d)', () => {
+  const USER = 'u1';
+  const MOVEMENT = '00000000-0000-4000-8000-000000000001';
+
+  async function seedQueue(): Promise<void> {
+    const store = await openLocalStore(USER);
+    await enqueueMovement(store, {
+      id: MOVEMENT,
+      type: 'expense',
+      accountId: '00000000-0000-4000-8000-000000000900',
+      categoryId: '00000000-0000-4000-8000-000000000901',
+      amount: '100',
+      occurredAt: '2026-10-02T15:30:00.000Z',
+      rate: { source: 'manual', value: '14000000' },
+    });
+    store.close();
+  }
+
+  async function queuedCount(): Promise<number> {
+    const store = await openLocalStore(USER);
+    const items = await loadQueue(store);
+    store.close();
+    return items.length;
+  }
+
+  async function databaseNames(): Promise<(string | undefined)[]> {
+    return (await indexedDB.databases()).map((database) => database.name);
+  }
+
+  async function submitPassword(): Promise<void> {
+    await loadedPasswordForm();
+    const user = userEvent.setup();
+    await user.type(passwordField(), 'correct horse battery');
+    await user.click(submit());
+  }
+
+  beforeEach(async () => {
+    globalThis.indexedDB = new IDBFactory();
+    localStorage.clear();
+    openAt('');
+    writeSessionPointer({ userId: USER, emailVerified: true });
+    await seedQueue();
+  });
+
+  it('a successful account deletion wipes the local data before going to sign-in (AC-04)', async () => {
+    stubApi({ 'GET /profile': profile({}), 'POST /profile/delete': { status: 204 } });
+    const { router } = renderApp(<DeleteUserContainer />);
+    let atRedirect:
+      | { pointer: SessionPointer | null; marker: string[]; names: Promise<(string | undefined)[]> }
+      | undefined;
+    router.replace.mockImplementation(() => {
+      atRedirect = {
+        pointer: readSessionPointer(),
+        marker: readWipeMarker(),
+        names: databaseNames(),
+      };
+    });
+
+    await submitPassword();
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(atRedirect?.pointer).toBeNull();
+    expect(atRedirect?.marker).toEqual([USER]);
+    expect(await atRedirect?.names).not.toContain(`pesly-${USER}`);
+  });
+
+  it('a successful account deletion cancels the scheduled sync retry (AC-04)', async () => {
+    stubApi({ 'GET /profile': profile({}), 'POST /profile/delete': { status: 204 } });
+    const { router } = renderApp(<DeleteUserContainer />);
+    cancelSyncRetry.mockClear();
+    let cancelledAtRedirect: number | undefined;
+    router.replace.mockImplementation(() => {
+      cancelledAtRedirect = cancelSyncRetry.mock.calls.length;
+    });
+
+    await submitPassword();
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(cancelledAtRedirect).toBe(1);
+  });
+
+  it('error: an account deletion answered 401 redirects and keeps the local data', async () => {
+    stubApi({
+      'GET /profile': profile({}),
+      'POST /profile/delete': failure(401, 'UNAUTHENTICATED'),
+      'POST /auth/refresh': failure(401, 'UNAUTHENTICATED'),
+    });
+    const { router } = renderApp(<DeleteUserContainer />);
+
+    await submitPassword();
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    // The 401 branch redirects and returns; it never reaches the wipe, so nothing is still running.
+    expect(readSessionPointer()).toEqual({ userId: USER, emailVerified: true });
+    expect(readWipeMarker()).toEqual([]);
+    expect(await databaseNames()).toContain(`pesly-${USER}`);
+    expect(await queuedCount()).toBe(1);
+  });
+
+  it('error: a failed account deletion wipes nothing', async () => {
+    stubApi({ 'GET /profile': profile({}), 'POST /profile/delete': failure(500, 'INTERNAL') });
+    const { router } = renderApp(<DeleteUserContainer />);
+
+    await submitPassword();
+
+    // The error is shown by the failure branch, which never reaches the wipe or the redirect.
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(router.replace).not.toHaveBeenCalled();
+    expect(readSessionPointer()).toEqual({ userId: USER, emailVerified: true });
+    expect(readWipeMarker()).toEqual([]);
+    expect(await databaseNames()).toContain(`pesly-${USER}`);
+    expect(await queuedCount()).toBe(1);
   });
 });
 

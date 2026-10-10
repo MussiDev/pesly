@@ -13,7 +13,13 @@ allowBuilds:
 # esbuild <=0.24.2 (GHSA-67mh-4wv8-2f99) via drizzle-kit > @esbuild-kit/core-utils, and
 # uuid <11.1.1 (GHSA-w5hq-g745-h8pq) via autocannon > hyperid. browserslist <=4.28.6
 # (GHSA-c83g-rgw3-j3cx, GHSA-73wf-gq98-2v4g) via the Serwist packages (DISC-001-04a).
+# source-map-js <1.2.2 (GHSA-68fv-2mgg-jv7q, event-loop denial of service) via next > postcss;
+# 1.2.2 was published on 2026-09-30, so no release-age exclusion is needed.
+# sharp <0.35.5 (GHSA-wq5f-xc86-pv6w, CVE-2026-96889, librsvg vulnerability) via next; 0.35.5 was
+# published on 2026-09-27, so no release-age exclusion is needed.
 overrides:
   '@esbuild-kit/core-utils>esbuild': ^0.25.12
   'hyperid>uuid': ^11.1.1
   browserslist: ^4.28.7
+  source-map-js: ^1.2.2
+  sharp: ^0.35.5

@@ -120,6 +120,48 @@
       "when": 1790992572883,
       "tag": "0017_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791162359112,
+      "tag": "0018_device_write_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1791246865297,
+      "tag": "0019_credit_cards",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791419213992,
+      "tag": "0020_installments",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791505000000,
+      "tag": "0021_installment_currency",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791510000000,
+      "tag": "0022_card_statement_import_lines",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791563194787,
+      "tag": "0023_recurring_payments",
+      "breakpoints": true
     }
   ]
 }

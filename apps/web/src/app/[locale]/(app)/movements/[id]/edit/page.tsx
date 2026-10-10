@@ -1,5 +1,6 @@
 import { EditMovementContainer } from '@/features/movements/containers/edit-movement-container';
 
+/** Kept for links made before the edit screen moved to `/movements/edit?id=`. */
 export default async function EditMovementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (

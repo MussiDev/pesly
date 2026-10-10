@@ -43,7 +43,7 @@ export interface MovementFormData {
 export type MovementFormDataState = AccountsLoadState | { kind: 'ready'; data: MovementFormData };
 
 /** Reads every page of a list, 100 at a time; an empty page ends the loop even on a stale total. */
-async function loadAll<T>(
+export async function loadAll<T>(
   fetchPage: (offset: number) => Promise<ApiResult<{ items: T[]; total: number }>>,
 ): Promise<ApiResult<T[]>> {
   const items: T[] = [];
@@ -115,11 +115,13 @@ export function useMovementFormData({
     // A function, not the variable: TypeScript would narrow `active` to `true` across the awaits.
     const isActive = () => active;
     void (async () => {
-      // Only the entry screen keeps a copy, and only for the user the device knows.
-      const copyUser = includeArchived ? undefined : readSessionPointer()?.userId;
+      // Both screens read the copy of the user the device knows; only the entry screen writes it,
+      // since the edit screen loads archived options the copy does not keep.
+      const readUser = readSessionPointer()?.userId;
+      const copyUser = includeArchived ? undefined : readUser;
 
       const showCopy = async (): Promise<boolean> => {
-        const copy = await readReferenceCopy(copyUser);
+        const copy = await readReferenceCopy(readUser);
         if (!isActive()) return true;
         if (copy === null) return false;
         setState({ kind: 'ready', data: buildFormData({ ...copy, locale, offline: true }) });

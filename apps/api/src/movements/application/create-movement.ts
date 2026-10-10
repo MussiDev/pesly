@@ -21,8 +21,15 @@ export interface CreateMovementDependencies extends BuildMovementDependencies {
 export class CreateMovement {
   constructor(private readonly deps: CreateMovementDependencies) {}
 
-  /** Never touches the write limiter, so a bulk import that calls it is not counted. */
-  async execute(scope: AccessScope<'write'>, input: CreateMovementInput): Promise<Movement> {
-    return this.deps.movements.insert(scope, await buildNewMovement(this.deps, scope, input));
+  /**
+   * Never touches the write limiter, so a bulk import that calls it is not counted. An `id` chosen by
+   * the caller (already validated as a UUID) is stored as the movement's id.
+   */
+  async execute(
+    scope: AccessScope<'write'>,
+    input: CreateMovementInput,
+    id?: string,
+  ): Promise<Movement> {
+    return this.deps.movements.insert(scope, await buildNewMovement(this.deps, scope, input), id);
   }
 }

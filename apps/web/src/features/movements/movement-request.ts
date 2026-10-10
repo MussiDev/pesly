@@ -46,6 +46,12 @@ export interface MovementRequestContext {
   now: Date;
   /** The stored default rate formatted for the locale; empty when there is none. */
   defaultRate: string;
+  /**
+   * The movement is saved on the device, to be sent later. The rate the person saw is then the one
+   * that gets frozen, so an expense or income always carries a manual rate and never `automatic`,
+   * which would take the server's rate at some later moment. Absent means online.
+   */
+  offline?: boolean;
 }
 
 /**
@@ -75,7 +81,7 @@ function toMovementType(value: string): MovementType | undefined {
 }
 
 /** Positive, up to 2 decimals (the parser), at most 10^15 minor units: the message or the amount. */
-function parseAmountField(
+export function parseAmountField(
   text: string,
   locale: string,
 ): { amount: bigint; message?: undefined } | { amount?: undefined; message: MovementFieldMessage } {
@@ -105,7 +111,7 @@ export function buildMovementRequest(
   values: MovementFormValues,
   context: MovementRequestContext & { edit?: MovementEditReferences },
 ): MovementRequestResult | EditMovementRequestResult {
-  const { accounts, categories, timeZone, locale, now, edit } = context;
+  const { accounts, categories, timeZone, locale, now, edit, offline = false } = context;
   const type = toMovementType(values.type);
   if (type === undefined) return { fields: { type: 'movements.errors.typeInvalid' } };
   const categorized = type === 'expense' || type === 'income';
@@ -170,9 +176,13 @@ export function buildMovementRequest(
 
   let rate: Extract<UpdateMovementInput, { type: 'expense' }>['rate'] | undefined;
   if (categorized) {
+    // Offline, the stored rate on screen is frozen as typed; one that cannot be read counts as none.
+    const storedRate = offline ? parseRateInput(context.defaultRate, locale) : null;
     if (!values.rateEdited && edit !== undefined) {
       rate = { source: 'keep' };
-    } else if (!values.rateEdited && context.defaultRate !== '') {
+    } else if (!values.rateEdited && storedRate !== null) {
+      rate = { source: 'manual', value: storedRate.toString() };
+    } else if (!values.rateEdited && !offline && context.defaultRate !== '') {
       rate = { source: 'automatic' };
     } else if (values.rate.trim() === '') {
       fields.rate = 'movements.errors.rateRequired';

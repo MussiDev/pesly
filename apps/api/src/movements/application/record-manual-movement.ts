@@ -27,7 +27,11 @@ export class RecordManualMovement {
     if (!Number.isInteger(writeLimit) || writeLimit < 1) {
       throw new RangeError('writeLimit must be an integer of at least 1');
     }
-    this.policy = { limit: writeLimit, windowSeconds: MOVEMENT_WRITE_WINDOW_SECONDS };
+    this.policy = {
+      limit: writeLimit,
+      windowSeconds: MOVEMENT_WRITE_WINDOW_SECONDS,
+      bucket: 'manual',
+    };
   }
 
   async execute(scope: AccessScope<'write'>, input: CreateMovementInput): Promise<Movement> {
