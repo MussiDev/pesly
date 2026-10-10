@@ -4,7 +4,12 @@ import { DrizzleAutomaticPaymentSource } from '../../src/recurring/infrastructur
 import { DrizzleOccurrenceRepository } from '../../src/recurring/infrastructure/db/drizzle-occurrence-repository';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
-import { FakeClock, FakeExpenseRecorder, writeScopeFor } from '../recurring/fakes';
+import {
+  FakeClock,
+  FakeExpenseRecorder,
+  FakeNoticePublisher,
+  writeScopeFor,
+} from '../recurring/fakes';
 import { newRecurringOwner } from '../recurring/fixtures';
 
 /** NFR-03: one recording pass over 10,000 active automatic payments, 1,000 of them due. */
@@ -64,6 +69,7 @@ describe('recording pass duration (NFR-03, AC-16)', () => {
       source: new DrizzleAutomaticPaymentSource(connection.db),
       occurrences: new DrizzleOccurrenceRepository(connection.db),
       expenses: recorder,
+      notices: new FakeNoticePublisher(),
       clock,
       scopeFor: (ownerId) => writeScopeFor(ownerId),
       report: (failure) => failures.push(failure),

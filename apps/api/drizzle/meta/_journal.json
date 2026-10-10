@@ -169,6 +169,13 @@
       "when": 1791585171427,
       "tag": "0024_recurring_auto_recording_from",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791590000000,
+      "tag": "0025_notices",
+      "breakpoints": true
     }
   ]
 }

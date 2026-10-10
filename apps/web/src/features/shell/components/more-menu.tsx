@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/ui/page-header';
 import { Link } from '@/i18n/navigation';
 import type { ApiErrorKey } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
-import { MORE_LIST_ITEMS } from '../nav-items';
+import { MORE_LIST_ITEMS, NOTICES_ITEM } from '../nav-items';
 import { SignOutAlert } from './sign-out-alert';
 import { SignOutButton } from './sign-out-button';
 
@@ -19,6 +19,8 @@ export interface MoreMenuProps {
   onSignOut: () => void;
   /** The warning before a sign out that would lose changes not yet synced. */
   signOutConfirmation?: ReactNode;
+  /** The unread count shown on the notices entry; there is no header to carry it on small screens. */
+  noticesBadge?: ReactNode;
 }
 
 /** What the bottom bar has no room for: accounts, categories, profile, security, theme and sign out. */
@@ -27,6 +29,7 @@ export function MoreMenu({
   signOutError,
   onSignOut,
   signOutConfirmation,
+  noticesBadge,
 }: MoreMenuProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
@@ -54,6 +57,7 @@ export function MoreMenu({
                   <Icon className="size-5" />
                 </span>
                 <span className="flex-1 text-small font-semibold">{tNav(item.labelKey)}</span>
+                {item.href === NOTICES_ITEM.href ? noticesBadge : null}
                 <ChevronRight aria-hidden className="size-4 text-muted-foreground" />
               </Link>
             </li>

@@ -48,6 +48,10 @@ const SESSION = {
   },
 };
 
+/** The unread badge asks for its own count; these tests are about the other calls. */
+const withoutNotices = <T extends { path: string }>(calls: T[]) =>
+  calls.filter((call) => !call.path.startsWith('/notices'));
+
 describe('routes', () => {
   it.each(AUTH_PAGES)('%s shows its screen inside the public auth layout', (path, Page, title) => {
     window.history.replaceState(null, '', `/es${path}?token=${VALID_TOKEN}`);
@@ -95,7 +99,7 @@ describe('routes', () => {
     const link = screen.getByRole('link', { name: es.home.empty.action });
     expect(link.getAttribute('href')).toBe('/es/accounts/new');
     expect(calls[0]?.path).toBe('/auth/session');
-    expect(calls.map((call) => call.path)).toContain('/movements?limit=5');
+    expect(withoutNotices(calls).map((call) => call.path)).toContain('/movements?limit=5');
   });
 
   it('the accounts list is only shown behind the session guard', async () => {
@@ -137,7 +141,7 @@ describe('routes', () => {
     expect(screen.queryByRole('heading', { name: es.accounts.title })).toBeNull();
     expect(await screen.findByRole('heading', { level: 1, name: es.accounts.title })).toBeDefined();
     expect(await screen.findByRole('listitem', { name: 'Caja' })).toBeDefined();
-    expect(calls.map((call) => call.path)).toEqual([
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual([
       '/auth/session',
       '/accounts?archived=false&limit=100',
     ]);
@@ -345,7 +349,7 @@ describe('routes', () => {
       await screen.findByRole('heading', { level: 1, name: es.categories.title }),
     ).toBeDefined();
     expect(await screen.findByRole('listitem', { name: 'Comida' })).toBeDefined();
-    expect(calls.map((call) => call.path)).toEqual([
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual([
       '/auth/session',
       '/categories?archived=false&limit=100&offset=0',
     ]);
@@ -403,7 +407,7 @@ describe('routes', () => {
 
     expect(await screen.findByRole('heading', { level: 1, name: es.security.title })).toBeDefined();
     expect(await screen.findByText(es.security.twoFactor.off)).toBeDefined();
-    expect(calls.map((call) => call.path)).toEqual(['/auth/session', '/auth/2fa']);
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual(['/auth/session', '/auth/2fa']);
   });
 
   it('the delete-account screen is only shown behind the session guard', async () => {
@@ -436,7 +440,7 @@ describe('routes', () => {
       await screen.findByRole('heading', { level: 1, name: es.deleteUser.title }),
     ).toBeDefined();
     expect(await screen.findByLabelText(es.deleteUser.password)).toBeDefined();
-    expect(calls.map((call) => call.path)).toEqual(['/auth/session', '/profile']);
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual(['/auth/session', '/profile']);
   });
 
   it('the investments screen is only shown behind the session guard', async () => {
@@ -455,7 +459,7 @@ describe('routes', () => {
       await screen.findByRole('heading', { level: 1, name: es.investments.title }),
     ).toBeDefined();
     expect(await screen.findByRole('heading', { name: es.investments.empty.title })).toBeDefined();
-    expect(calls.map((call) => call.path)).toContain('/investments/portfolios');
+    expect(withoutNotices(calls).map((call) => call.path)).toContain('/investments/portfolios');
     expect(calls[0]?.path).toBe('/auth/session');
   });
 
@@ -487,6 +491,6 @@ describe('routes', () => {
     expect(screen.queryByRole('heading', { name: es.profile.title })).toBeNull();
     expect(await screen.findByRole('heading', { level: 1, name: es.profile.title })).toBeDefined();
     expect(await screen.findByLabelText(es.profile.account.displayName)).toBeDefined();
-    expect(calls.map((call) => call.path)).toEqual(['/auth/session', '/profile']);
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual(['/auth/session', '/profile']);
   });
 });

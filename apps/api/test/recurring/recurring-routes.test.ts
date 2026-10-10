@@ -278,6 +278,82 @@ describe('create and list', () => {
   });
 });
 
+describe('reminder days (AC-01, AC-02, AC-03, AC-22)', () => {
+  it('creating without reminderDays stores and returns 3 (AC-01)', async () => {
+    const s = await setup();
+    const fixture = await fixtureOf(s, s.ana);
+    const created = await createPayment(s, s.ana, rentBody(fixture));
+
+    expect(created.reminderDays).toBe(3);
+    expect((await paymentsOf(s, s.ana))[0]?.reminderDays).toBe(3);
+    const stored = await connection.pool.query<{ reminder_days: number }>(
+      'select reminder_days from recurring_payments where id = $1',
+      [created.id],
+    );
+    expect(stored.rows[0]?.reminder_days).toBe(3);
+  });
+
+  it.each([
+    ['-1', -1],
+    ['31', 31],
+    ['1.5', 1.5],
+  ])(
+    'creating with reminderDays %s answers 400 VALIDATION_FAILED and stores nothing (AC-02)',
+    async (_label, reminderDays) => {
+      const s = await setup();
+      const fixture = await fixtureOf(s, s.ana);
+      const response = await call(
+        s.app,
+        'post',
+        '/recurring/payments',
+        s.ana.cookies,
+        rentBody(fixture, { reminderDays }),
+      );
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect(await paymentsOf(s, s.ana)).toEqual([]);
+    },
+  );
+
+  it('editing from 3 to 0 returns 0 and the repository holds 0 (AC-03)', async () => {
+    const s = await setup();
+    const fixture = await fixtureOf(s, s.ana);
+    const payment = await createPayment(s, s.ana, rentBody(fixture));
+
+    const response = await call(
+      s.app,
+      'patch',
+      `/recurring/payments/${payment.id}`,
+      s.ana.cookies,
+      { reminderDays: 0 },
+    );
+    expect(response.status).toBe(200);
+    expect(recurringPaymentResponseSchema.parse(response.body).reminderDays).toBe(0);
+    const stored = await connection.pool.query<{ reminder_days: number }>(
+      'select reminder_days from recurring_payments where id = $1',
+      [payment.id],
+    );
+    expect(stored.rows[0]?.reminder_days).toBe(0);
+  });
+
+  it("PATCH of another user's payment answers 404 NOT_FOUND and leaves reminderDays unchanged (AC-22)", async () => {
+    const s = await setup();
+    const fixture = await fixtureOf(s, s.ana);
+    const payment = await createPayment(s, s.ana, rentBody(fixture, { reminderDays: 5 }));
+
+    const response = await call(
+      s.app,
+      'patch',
+      `/recurring/payments/${payment.id}`,
+      s.bob.cookies,
+      { reminderDays: 0 },
+    );
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    expect((await paymentsOf(s, s.ana))[0]?.reminderDays).toBe(5);
+  });
+});
+
 describe('input validation on every route (NFR-04)', () => {
   const UUID = '00000000-0000-4000-8000-000000000000';
   const routes: [Method, string, Record<string, unknown>?][] = [

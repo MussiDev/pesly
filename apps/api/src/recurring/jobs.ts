@@ -2,12 +2,16 @@ import { OwnerOrGroupMemberAccessPolicy } from '../shared/access';
 import { DenyAllGroupMembershipReader } from '../shared/access/infrastructure/deny-all-group-membership-reader';
 import type { Database } from '../shared/db/client';
 import type { Logger } from '../shared/logging/logger';
+import { CreateDueReminders } from './application/create-due-reminders';
 import type { Clock } from './application/ports/clock';
 import type { ExpenseRecorder } from './application/ports/expense-recorder';
+import type { NoticePublisher } from './application/ports/notice-publisher';
 import { RecordDueOccurrences } from './application/record-due-occurrences';
 import { DrizzleAutomaticPaymentSource } from './infrastructure/db/drizzle-automatic-payment-source';
 import { DrizzleOccurrenceRepository } from './infrastructure/db/drizzle-occurrence-repository';
+import { DrizzleReminderPaymentSource } from './infrastructure/db/drizzle-reminder-payment-source';
 import { RecordingJob, RecordingLog } from './infrastructure/jobs/recording-job';
+import { ReminderJob, ReminderLog } from './infrastructure/jobs/reminder-job';
 import { SystemClock } from './infrastructure/system-clock';
 
 /*
@@ -16,6 +20,7 @@ import { SystemClock } from './infrastructure/system-clock';
  * user request. The recorder is injected so this module never imports `movements`.
  */
 export type { RecordingJob } from './infrastructure/jobs/recording-job';
+export type { ReminderJob } from './infrastructure/jobs/reminder-job';
 
 /** Identifies the system job in the synthetic auth context; no audit line or limiter key keeps it. */
 const JOB_SESSION_ID = 'recurring-recording-job';
@@ -25,6 +30,8 @@ export interface RecurringJobFactoryDependencies {
   logger: Logger;
   /** Records the expenses through the movements rules; the worker builds it. */
   recorder: ExpenseRecorder;
+  /** Publishes the in-app notices; the worker injects the notices adapter. */
+  notices: NoticePublisher;
   clock?: Clock;
   intervalSeconds: number;
 }
@@ -34,6 +41,7 @@ export function createRecordingJob({
   db,
   logger,
   recorder,
+  notices,
   clock = new SystemClock(),
   intervalSeconds,
 }: RecurringJobFactoryDependencies): RecordingJob {
@@ -43,6 +51,7 @@ export function createRecordingJob({
     source: new DrizzleAutomaticPaymentSource(db),
     occurrences: new DrizzleOccurrenceRepository(db),
     expenses: recorder,
+    notices,
     clock,
     // The only constructor of a write scope: `ownerId` comes from the source's `users` join.
     scopeFor: (ownerId) =>
@@ -57,6 +66,28 @@ export function createRecordingJob({
   });
 }
 
+/** The reminder job over the PostgreSQL repositories. */
+export function createReminderJob({
+  db,
+  logger,
+  notices,
+  clock = new SystemClock(),
+  intervalSeconds,
+}: RecurringJobFactoryDependencies): ReminderJob {
+  const createReminders = new CreateDueReminders({
+    source: new DrizzleReminderPaymentSource(db),
+    occurrences: new DrizzleOccurrenceRepository(db),
+    notices,
+    clock,
+    report: new ReminderLog(logger).report,
+  });
+  return new ReminderJob({
+    execute: () => createReminders.execute(),
+    logger,
+    intervalMs: intervalSeconds * 1000,
+  });
+}
+
 export interface RecurringJobs {
   start(): void;
   /** Stops the job and waits for the pass in progress; stopping twice is harmless. */
@@ -64,11 +95,15 @@ export interface RecurringJobs {
 }
 
 export function createRecurringJobs(dependencies: RecurringJobFactoryDependencies): RecurringJobs {
-  const job = createRecordingJob(dependencies);
+  const recording = createRecordingJob(dependencies);
+  const reminders = createReminderJob(dependencies);
   return {
     start() {
-      job.start();
+      recording.start();
+      reminders.start();
     },
-    stop: () => job.stop(),
+    async stop() {
+      await Promise.all([recording.stop(), reminders.stop()]);
+    },
   };
 }

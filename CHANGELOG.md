@@ -340,6 +340,17 @@ All notable changes to this project are documented in this file. The format foll
   Due dates before a payment was created, resumed or switched to automatic stay pending for the
   user. Migration `0024_recurring_auto_recording_from` adds `recurring_payments.auto_recording_from`.
   A pass over 10,000 payments with 1,000 due is benchmarked under 60 seconds. No new dependency.
+- DISC-001-08c Reminders and in-app notices for recurring payments: each payment has reminder days
+  (0 to 30, default 3) and the worker creates one reminder notice per occurrence at 09:00 in the
+  owner's time zone, catching up on the next run until the due date and never before the day the
+  payment was created or resumed. It also creates a notice when an automatic expense is recorded
+  and one when it is left pending because it cannot be recorded. Notice text is written in the
+  owner's language with the payment name and day, never an amount or an account name. A new
+  notices screen with an unread count in the top bar, `GET /notices`, `POST /notices/:id/read` and
+  `POST /notices/read-all`. Notices are unique per kind, payment and due date, so repeated or
+  parallel runs create no duplicates. Migration `0025_notices` adds `recurring_payments.reminder_days`
+  and the `notices` table. Push delivery of the same notices arrives in DISC-001-08d. No new
+  dependency.
 
 ### Changed
 

@@ -40,6 +40,12 @@ afterAll(async () => {
 
 const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`, 'utf8');
 
+/** 0025 has the greatest journal `when`, so it is rolled back before 0024. */
+async function rollBackTo0023(): Promise<void> {
+  await client.query(await fileOf('rollback/0025_notices.down.sql'));
+  await client.query(await fileOf(`rollback/${TAG}.down.sql`));
+}
+
 async function appliedMigrations(): Promise<number> {
   const result = await client.query<{ n: string }>(
     'select count(*) as n from drizzle.__drizzle_migrations',
@@ -101,7 +107,7 @@ const autoFrom = async (payment: string): Promise<string | undefined> =>
 
 describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
   it('backfills the column from created_at in the owner zone, UTC for an unknown zone, and re-applies after a rollback', async () => {
-    await client.query(await fileOf(`rollback/${TAG}.down.sql`));
+    await rollBackTo0023();
     expect(await paymentColumns()).not.toContain('auto_recording_from');
     expect(await appliedMigrations()).toBe(23);
     const tokyo = await insertPayment('Asia/Tokyo', '2026-10-04T20:00:00Z', 'tokyo@auto.test');
@@ -115,7 +121,7 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
     await runMigrations(throwawayUrl);
 
     expect(await paymentColumns()).toContain('auto_recording_from');
-    expect(await appliedMigrations()).toBe(24);
+    expect(await appliedMigrations()).toBe(25);
     expect(await autoFrom(tokyo)).toBe('2026-10-05');
     expect(await autoFrom(buenosAires)).toBe('2026-10-04');
     expect(await autoFrom(unknown)).toBe('2026-10-05');
@@ -145,19 +151,21 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
         ).rows[0]?.n,
       );
 
-    await client.query(await fileOf(`rollback/${TAG}.down.sql`));
+    await rollBackTo0023();
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
-    expect(await paymentColumns()).toEqual(before.filter((name) => name !== 'auto_recording_from'));
+    expect(await paymentColumns()).toEqual(
+      before.filter((name) => name !== 'auto_recording_from' && name !== 'reminder_days'),
+    );
     expect(await tableCount()).toBe(2);
     expect(await appliedMigrations()).toBe(23);
     await runMigrations(throwawayUrl);
-    expect(await appliedMigrations()).toBe(24);
+    expect(await appliedMigrations()).toBe(25);
     expect(await paymentColumns()).toEqual(before);
   });
 
   it('sad path: a failing migration rolls back its transaction and leaves the schema unchanged', async () => {
-    await client.query(await fileOf(`rollback/${TAG}.down.sql`));
+    await rollBackTo0023();
     const before = await paymentColumns();
     const statements = (await fileOf(`${TAG}.sql`))
       .split('--> statement-breakpoint')
@@ -180,7 +188,7 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
     await runMigrations(throwawayUrl);
   });
 
-  it('has the journal entry at idx 24 with the greatest when, and chains its snapshot onto 0023', async () => {
+  it('has the journal entry at idx 24 with a when above 0023 and below 0025, and chains its snapshot onto 0023', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
@@ -189,7 +197,9 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
 
     expect(own?.idx).toBe(24);
     expect(own?.when).toBeGreaterThan(PREVIOUS_WHEN);
-    expect(Math.max(...journal.entries.map((entry) => entry.when))).toBe(own?.when);
+    expect(own?.when).toBeLessThan(
+      journal.entries.find((entry) => entry.tag === '0025_notices')?.when ?? 0,
+    );
     expect((await read<{ prevId: string }>('0024_snapshot.json')).prevId).toBe(
       (await read<{ id: string }>('0023_snapshot.json')).id,
     );

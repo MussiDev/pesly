@@ -18,6 +18,7 @@ const payment = {
   startDate: '2026-10-05',
   endDate: null,
   mode: 'confirmation',
+  reminderDays: 3,
   status: 'active',
   nextDueDate: '2026-11-05',
 };
@@ -43,6 +44,7 @@ const createBody = {
   dayOfMonth: 5,
   startDate: '2026-10-05',
   mode: 'confirmation' as const,
+  reminderDays: 3,
 };
 
 function jsonResponse(status: number, body: unknown): Response {

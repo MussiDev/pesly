@@ -16,6 +16,7 @@ export interface CreateRecurringPaymentInput {
   startDate: string;
   endDate?: string | undefined;
   mode: RecurringMode;
+  reminderDays: number;
 }
 
 export class CreateRecurringPayment {
@@ -47,6 +48,7 @@ export class CreateRecurringPayment {
       startDate: input.startDate,
       endDate: input.endDate ?? null,
       mode: input.mode,
+      reminderDays: input.reminderDays,
       scheduleFrom: input.startDate,
       autoRecordingFrom: today,
     });

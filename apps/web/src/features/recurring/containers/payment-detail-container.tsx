@@ -23,7 +23,7 @@ import {
   RecurringPaymentForm,
   type RecurringFormErrors,
 } from '../components/recurring-payment-form';
-import { failurePath } from '../recurring-failure';
+import { failurePath, saveFailureErrors } from '../recurring-failure';
 import {
   buildRecurringPaymentRequest,
   type RecurringPaymentFormValues,
@@ -59,6 +59,7 @@ function valuesOf(payment: RecurringPaymentResponse, locale: Locale): RecurringP
     startDate: payment.startDate,
     endDate: payment.endDate ?? '',
     mode: payment.mode,
+    reminderDays: String(payment.reminderDays),
   };
 }
 
@@ -132,7 +133,7 @@ export function PaymentDetailContainer({ paymentId }: { paymentId: string }) {
       showSaved(result.data);
       setEditing(false);
     } else if (!handleShared(result)) {
-      setErrors({ form: failurePath(result) });
+      setErrors(saveFailureErrors(result));
     }
   }
 

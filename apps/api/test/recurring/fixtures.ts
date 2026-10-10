@@ -37,6 +37,7 @@ export function rentOf(
     mode: 'confirmation',
     scheduleFrom: '2026-10-05',
     autoRecordingFrom: '2026-10-05',
+    reminderDays: 3,
     ...overrides,
   };
 }

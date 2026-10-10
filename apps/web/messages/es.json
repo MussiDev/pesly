@@ -100,6 +100,7 @@
       "budgets": "Presupuestos",
       "goals": "Metas de ahorro",
       "settings": "Ajustes",
+      "notices": "Avisos",
       "plan": "Planificar"
     },
     "topBar": {
@@ -1201,6 +1202,24 @@
       "amountInvalid": "Ingresa un monto dentro del rango permitido."
     }
   },
+  "notices": {
+    "title": "Avisos",
+    "description": "Recordatorios y resultados de tus pagos recurrentes.",
+    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes aparecerán aquí.",
+    "markAllRead": "Marcar todos como leídos",
+    "loadMore": "Cargar más",
+    "retry": "Reintentar",
+    "unread": "Sin leer",
+    "unreadCount": "{count, plural, =0 {No hay avisos sin leer} one {# aviso sin leer} other {# avisos sin leer}}",
+    "linkLabel": "Avisos, {count} sin leer",
+    "overflow": "{max}+",
+    "dueOn": "Vence el {date}",
+    "listLabel": "Tus avisos",
+    "errors": {
+      "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
+      "markRead": "No pudimos marcar el aviso como leído. Inténtalo de nuevo."
+    }
+  },
   "recurring": {
     "title": "Pagos recurrentes",
     "description": "Alquiler, suscripciones y servicios que se repiten. Confirmá cada uno cuando venza.",
@@ -1278,8 +1297,10 @@
       "category": "Categoría",
       "dayOfMonth": "Día del mes",
       "startDate": "Fecha de inicio",
-      "endDate": "Fecha de fin (opcional)"
+      "endDate": "Fecha de fin (opcional)",
+      "reminderDays": "Avisarme … días antes"
     },
+    "reminderDaysHint": "Te avisamos esta cantidad de días antes de cada vencimiento. Usa 0 para recibir el aviso solo el día del vencimiento.",
     "actions": {
       "create": "Crear pago",
       "edit": "Editar",
@@ -1329,7 +1350,8 @@
       "monthRequired": "Elegí un mes.",
       "dateInvalid": "Ingresá una fecha válida.",
       "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
-      "modeRequired": "Elegí cómo se registra."
+      "modeRequired": "Elegí cómo se registra.",
+      "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30."
     }
   }
 }

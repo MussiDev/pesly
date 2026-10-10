@@ -1,5 +1,6 @@
 'use client';
 
+import { UnreadBadgeContainer } from '@/features/notices/containers/unread-badge-container';
 import { MoreMenu } from '../components/more-menu';
 import { SignOutConfirmation } from '../components/sign-out-confirmation';
 import { useSignOut } from '../use-sign-out';
@@ -11,6 +12,7 @@ export function MoreContainer() {
 
   return (
     <MoreMenu
+      noticesBadge={<UnreadBadgeContainer variant="count" />}
       signingOut={signingOut}
       signOutError={signOutError}
       onSignOut={() => {

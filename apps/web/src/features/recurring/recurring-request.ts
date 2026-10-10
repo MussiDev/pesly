@@ -2,6 +2,7 @@ import {
   RECURRING_FREQUENCIES,
   RECURRING_MODES,
   RECURRING_NAME_MAX_LENGTH,
+  REMINDER_DAYS_DEFAULT,
   formatMinorUnitsString,
   isCalendarDate,
   type ConfirmOccurrence,
@@ -21,7 +22,8 @@ export type RecurringFieldName =
   | 'month'
   | 'startDate'
   | 'endDate'
-  | 'mode';
+  | 'mode'
+  | 'reminderDays';
 
 /** Catalog paths: the movement wordings for amount, account and category, plus `recurring.errors`. */
 export type RecurringFieldMessage =
@@ -34,7 +36,8 @@ export type RecurringFieldMessage =
   | 'recurring.errors.monthRequired'
   | 'recurring.errors.dateInvalid'
   | 'recurring.errors.endBeforeStart'
-  | 'recurring.errors.modeRequired';
+  | 'recurring.errors.modeRequired'
+  | 'recurring.errors.reminderDaysInvalid';
 
 export type RecurringFieldErrors = Partial<Record<RecurringFieldName, RecurringFieldMessage>>;
 
@@ -52,6 +55,8 @@ export interface RecurringPaymentFormValues {
   startDate: string;
   endDate: string;
   mode: string;
+  /** Whole days, 0 to 30; empty means the default. */
+  reminderDays: string;
 }
 
 export type RecurringPaymentRequestResult =
@@ -126,6 +131,12 @@ export function buildRecurringPaymentRequest(
     fields.month = 'recurring.errors.monthRequired';
   }
 
+  const reminderDays =
+    values.reminderDays.trim() === ''
+      ? REMINDER_DAYS_DEFAULT
+      : readInteger(values.reminderDays, 0, 30);
+  if (reminderDays === undefined) fields.reminderDays = 'recurring.errors.reminderDaysInvalid';
+
   const startValid = isCalendarDate(values.startDate);
   if (!startValid) fields.startDate = 'recurring.errors.dateInvalid';
   const hasEnd = values.endDate !== '';
@@ -139,7 +150,8 @@ export function buildRecurringPaymentRequest(
     Object.keys(fields).length > 0 ||
     amount.amount === undefined ||
     frequency === undefined ||
-    mode === undefined
+    mode === undefined ||
+    reminderDays === undefined
   ) {
     return { fields };
   }
@@ -157,6 +169,7 @@ export function buildRecurringPaymentRequest(
       startDate: values.startDate,
       ...(endValid ? { endDate: values.endDate } : {}),
       mode,
+      reminderDays,
     },
   };
 }

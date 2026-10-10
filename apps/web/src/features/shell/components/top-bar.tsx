@@ -2,6 +2,7 @@
 
 import { ArrowLeft, Bell, Check, WifiOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { backButtonVisibility } from '../nav-items';
@@ -12,6 +13,8 @@ export interface TopBarProps {
   pending: number;
   /** The current path without the locale; decides whether a back button shows. */
   currentPath?: string | undefined;
+  /** The notices link with its unread badge; without it the bell stays a disabled placeholder. */
+  notices?: ReactNode;
 }
 
 /** Goes to the previous page, or to the home when the page was opened directly (no history). */
@@ -38,7 +41,7 @@ function BackButton({ desk }: { desk: boolean }) {
 }
 
 /** The strip above every page: how in sync the device is, and the notifications entry point. */
-export function TopBar({ online, pending, currentPath }: TopBarProps) {
+export function TopBar({ online, pending, currentPath, notices }: TopBarProps) {
   const t = useTranslations('app.topBar');
   const back = backButtonVisibility(currentPath);
   const waiting = online && pending > 0;
@@ -59,15 +62,17 @@ export function TopBar({ online, pending, currentPath }: TopBarProps) {
         <Icon aria-hidden className="size-3.5" />
         {!online ? t('offline') : waiting ? t('pending', { count: pending }) : t('upToDate')}
       </p>
-      <button
-        type="button"
-        disabled
-        aria-label={t('notifications')}
-        title={t('notificationsSoon')}
-        className="flex size-11 items-center justify-center rounded-pill bg-card text-foreground disabled:opacity-70"
-      >
-        <Bell aria-hidden className="size-5" />
-      </button>
+      {notices ?? (
+        <button
+          type="button"
+          disabled
+          aria-label={t('notifications')}
+          title={t('notificationsSoon')}
+          className="flex size-11 items-center justify-center rounded-pill bg-card text-foreground disabled:opacity-70"
+        >
+          <Bell aria-hidden className="size-5" />
+        </button>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
   createInvestmentsJobs,
   type PriceProvider,
 } from './investments/jobs';
+import { createNoticePublisher } from './notices';
 import { createRecurringExpenseRecorder } from './movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
 import { createRecurringJobs } from './recurring/jobs';
 import { parseWorkerEnv } from './shared/config/env';
@@ -57,6 +58,7 @@ const recurringJobs = createRecurringJobs({
   db,
   logger,
   recorder: createRecurringExpenseRecorder(db, logger),
+  notices: createNoticePublisher(db),
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
 });
 

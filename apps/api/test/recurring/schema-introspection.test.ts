@@ -104,6 +104,7 @@ describe('recurring schema introspection', () => {
       'recurring_payments_mode_check',
       'recurring_payments_month_check',
       'recurring_payments_name_length_check',
+      'recurring_payments_reminder_days_check',
       'recurring_payments_status_check',
       'recurring_payments_weekday_check',
     ]);

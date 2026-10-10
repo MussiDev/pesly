@@ -100,6 +100,7 @@
       "budgets": "Budgets",
       "goals": "Savings goals",
       "settings": "Settings",
+      "notices": "Notices",
       "plan": "Plan"
     },
     "topBar": {
@@ -1201,6 +1202,24 @@
       "amountInvalid": "Enter an amount within the allowed range."
     }
   },
+  "notices": {
+    "title": "Notices",
+    "description": "Reminders and results of your recurring payments.",
+    "empty": "You have no notices yet. Reminders about your recurring payments will show up here.",
+    "markAllRead": "Mark all as read",
+    "loadMore": "Load more",
+    "retry": "Try again",
+    "unread": "Unread",
+    "unreadCount": "{count, plural, =0 {No unread notices} one {# unread notice} other {# unread notices}}",
+    "linkLabel": "Notices, {count} unread",
+    "overflow": "{max}+",
+    "dueOn": "Due {date}",
+    "listLabel": "Your notices",
+    "errors": {
+      "load": "We could not load your notices. Check your connection and try again.",
+      "markRead": "We could not mark the notice as read. Try again."
+    }
+  },
   "recurring": {
     "title": "Recurring payments",
     "description": "Rent, subscriptions and services that repeat. Confirm each one when it is due.",
@@ -1278,8 +1297,10 @@
       "category": "Category",
       "dayOfMonth": "Day of the month",
       "startDate": "Start date",
-      "endDate": "End date (optional)"
+      "endDate": "End date (optional)",
+      "reminderDays": "Remind me … days before"
     },
+    "reminderDaysHint": "We notify you this many days before each due date. Use 0 to be reminded only on the due date.",
     "actions": {
       "create": "Create payment",
       "edit": "Edit",
@@ -1329,7 +1350,8 @@
       "monthRequired": "Choose a month.",
       "dateInvalid": "Enter a valid date.",
       "endBeforeStart": "The end date cannot be before the start date.",
-      "modeRequired": "Choose how it is recorded."
+      "modeRequired": "Choose how it is recorded.",
+      "reminderDaysInvalid": "Enter a whole number of days from 0 to 30."
     }
   }
 }

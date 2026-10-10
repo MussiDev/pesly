@@ -73,6 +73,7 @@ export class UpdateRecurringPayment {
       ...(input.accountId === undefined ? {} : { accountId: input.accountId }),
       ...(input.categoryId === undefined ? {} : { categoryId: input.categoryId }),
       ...(input.mode === undefined ? {} : { mode: input.mode }),
+      ...(input.reminderDays === undefined ? {} : { reminderDays: input.reminderDays }),
       ...(scheduleChanged ? next : {}),
       ...(today === undefined ? {} : { autoRecordingFrom: today }),
     };

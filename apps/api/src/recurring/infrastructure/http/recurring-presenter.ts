@@ -20,6 +20,7 @@ export function presentRecurringPayment({
     endDate: payment.endDate,
     mode: payment.mode,
     status: payment.status,
+    reminderDays: payment.reminderDays,
     nextDueDate,
   };
 }

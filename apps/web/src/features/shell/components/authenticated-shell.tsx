@@ -25,6 +25,8 @@ export interface AuthenticatedShellProps {
   syncStatus?: ReactNode;
   /** The warning before a sign out that would lose changes not yet synced. */
   signOutConfirmation?: ReactNode;
+  /** The notices link with its unread badge, shown in the top bar. */
+  notices?: ReactNode;
   /** Connection and queue state for the top bar; without it the bar shows "up to date". */
   connection?: { online: boolean; pending: number };
   children: ReactNode;
@@ -40,6 +42,7 @@ export function AuthenticatedShell({
   onSignOut,
   syncStatus,
   signOutConfirmation,
+  notices,
   connection = { online: true, pending: 0 },
   children,
 }: AuthenticatedShellProps) {
@@ -96,6 +99,7 @@ export function AuthenticatedShell({
               online={connection.online}
               pending={connection.pending}
               currentPath={currentPath}
+              notices={notices}
             />
             {signOutError ? (
               <div className="px-4 pt-4">

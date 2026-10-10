@@ -35,6 +35,17 @@ const count = async (statement: string, params: unknown[]): Promise<number> => {
 const owner = () => newRecurringOwner(connection.db, connection.pool);
 
 describe('DrizzleRecurringPaymentRepository', () => {
+  it('maps reminderDays on create, get and update (AC-01, AC-03)', async () => {
+    const ana = await owner();
+    const scope = await writeScope(ana.ownerId);
+    const created = await payments.create(scope, rentOf(ana, { reminderDays: 7 }));
+
+    expect(created.reminderDays).toBe(7);
+    expect((await payments.get(scope, created.id)).reminderDays).toBe(7);
+    expect((await payments.update(scope, created.id, { reminderDays: 0 })).reminderDays).toBe(0);
+    expect((await payments.list(scope))[0]?.reminderDays).toBe(0);
+  });
+
   it("answers ResourceNotFound when creating with another user's account or category", async () => {
     const ana = await owner();
     const bea = await owner();

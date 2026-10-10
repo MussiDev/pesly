@@ -1,6 +1,11 @@
 'use client';
 
-import { RECURRING_FREQUENCIES, RECURRING_MODES, RECURRING_NAME_MAX_LENGTH } from '@pesly/shared';
+import {
+  RECURRING_FREQUENCIES,
+  RECURRING_MODES,
+  RECURRING_NAME_MAX_LENGTH,
+  REMINDER_DAYS_DEFAULT,
+} from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
@@ -81,6 +86,7 @@ export function RecurringPaymentForm({
       startDate: readField(form, 'startDate'),
       endDate: readField(form, 'endDate'),
       mode: readField(form, 'mode'),
+      reminderDays: readField(form, 'reminderDays'),
     });
   }
 
@@ -234,6 +240,23 @@ export function RecurringPaymentForm({
                   </option>
                 ))}
               </Select>
+            )}
+          </MovementField>
+          <MovementField
+            label={t('fields.reminderDays')}
+            hint={t('reminderDaysHint')}
+            error={fields?.reminderDays}
+          >
+            {(control) => (
+              <Input
+                name="reminderDays"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={30}
+                defaultValue={initial?.reminderDays ?? String(REMINDER_DAYS_DEFAULT)}
+                {...control}
+              />
             )}
           </MovementField>
           <div className="flex flex-wrap gap-3">

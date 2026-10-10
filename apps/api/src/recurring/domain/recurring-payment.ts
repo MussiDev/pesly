@@ -22,6 +22,8 @@ export interface RecurringPayment {
    * resume, switch to automatic and schedule edits. Earlier due dates stay pending (DISC-001-08b).
    */
   autoRecordingFrom: string;
+  /** Days before a due date on which the owner is reminded; 0 to 30 (DISC-001-08c). */
+  reminderDays: number;
   createdAt: Date;
 }
 

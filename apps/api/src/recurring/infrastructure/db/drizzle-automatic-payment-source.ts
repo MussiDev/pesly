@@ -9,7 +9,7 @@ import { recurringPayments } from './schema';
 
 /**
  * Cross-owner read for the system job (the one approved exception to owner scoping). It returns
- * identifiers, the schedule fields and the time zone only, and is reachable only from the worker.
+ * identifiers, the schedule fields, the time zone and the language only, and is reachable only from the worker.
  * The owner and the time zone come from the same `users` row, so an erased user has no entry.
  */
 export class DrizzleAutomaticPaymentSource implements AutomaticPaymentSource {
@@ -20,6 +20,7 @@ export class DrizzleAutomaticPaymentSource implements AutomaticPaymentSource {
       .select({
         ownerId: users.id,
         timeZone: users.timeZone,
+        language: users.language,
         id: recurringPayments.id,
         name: recurringPayments.name,
         amount: recurringPayments.amount,
@@ -35,6 +36,7 @@ export class DrizzleAutomaticPaymentSource implements AutomaticPaymentSource {
         status: recurringPayments.status,
         scheduleFrom: recurringPayments.scheduleFrom,
         autoRecordingFrom: recurringPayments.autoRecordingFrom,
+        reminderDays: recurringPayments.reminderDays,
         createdAt: recurringPayments.createdAt,
       })
       .from(recurringPayments)
@@ -48,6 +50,11 @@ export class DrizzleAutomaticPaymentSource implements AutomaticPaymentSource {
       )
       .orderBy(asc(recurringPayments.id))
       .limit(limit);
-    return rows.map(({ ownerId, timeZone, ...payment }) => ({ ownerId, timeZone, payment }));
+    return rows.map(({ ownerId, timeZone, language, ...payment }) => ({
+      ownerId,
+      timeZone,
+      language,
+      payment,
+    }));
   }
 }

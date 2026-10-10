@@ -1,5 +1,6 @@
 import {
   ArrowLeftRight,
+  Bell,
   CreditCard,
   Ellipsis,
   House,
@@ -29,6 +30,7 @@ export type NavLabelKey =
   | 'budgets'
   | 'goals'
   | 'settings'
+  | 'notices'
   | 'profile'
   | 'security';
 
@@ -53,6 +55,7 @@ export const INVESTMENTS_ITEM: NavItem = {
 };
 export const CARDS_ITEM: NavItem = { href: '/cards', labelKey: 'cards', icon: CreditCard };
 export const GROUPS_ITEM: NavItem = { href: '/groups', labelKey: 'groups', icon: Users };
+export const NOTICES_ITEM: NavItem = { href: '/notices', labelKey: 'notices', icon: Bell };
 export const MORE_ITEM: NavItem = { href: '/more', labelKey: 'more', icon: Ellipsis };
 
 /** The first block of the side menu, in the order of the design. */
@@ -84,6 +87,7 @@ export const MORE_LIST_ITEMS: readonly NavItem[] = [
   ACCOUNTS_ITEM,
   CARDS_ITEM,
   ...PLAN_ITEMS,
+  NOTICES_ITEM,
   ...SETTINGS_ITEMS,
 ];
 

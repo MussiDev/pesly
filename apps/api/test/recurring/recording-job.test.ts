@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { createNoticePublisher } from '../../src/notices';
 import { createRecurringExpenseRecorder } from '../../src/movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
 import type { RecordSummary } from '../../src/recurring/application/record-due-occurrences';
 import { DrizzleRecurringPaymentRepository } from '../../src/recurring/infrastructure/db/drizzle-recurring-payment-repository';
@@ -95,6 +96,7 @@ function dependenciesFor(clock: MutableClock, intervalSeconds = 60) {
     db: connection.db,
     logger,
     recorder: createRecurringExpenseRecorder(connection.db, logger, { clock }),
+    notices: createNoticePublisher(connection.db),
     clock,
     intervalSeconds,
   };

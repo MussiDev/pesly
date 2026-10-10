@@ -2,6 +2,7 @@
 
 import { useLocale } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
+import { UnreadBadgeContainer } from '@/features/notices/containers/unread-badge-container';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
@@ -180,6 +181,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
           />
         ) : null
       }
+      notices={state.kind === 'ready' ? <UnreadBadgeContainer /> : null}
       connection={{ online, pending: queueCounts.pending }}
       syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
     >
