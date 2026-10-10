@@ -40,6 +40,7 @@ const LATER_MIGRATIONS = [
   '0023_recurring_payments',
   '0024_recurring_auto_recording_from',
   '0025_notices',
+  '0026_groups',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -65,6 +66,11 @@ const LATER_TABLES = [
   'recurring_occurrences',
   'recurring_payments',
   'notices',
+  'group_categories',
+  'group_claim_links',
+  'group_invitations',
+  'group_members',
+  'groups',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 

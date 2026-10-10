@@ -176,6 +176,13 @@
       "when": 1791590000000,
       "tag": "0025_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791661150964,
+      "tag": "0026_groups",
+      "breakpoints": true
     }
   ]
 }

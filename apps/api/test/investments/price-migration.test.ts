@@ -17,6 +17,7 @@ const NEWER_TAGS = [
   '0023_recurring_payments',
   '0024_recurring_auto_recording_from',
   '0025_notices',
+  '0026_groups',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
