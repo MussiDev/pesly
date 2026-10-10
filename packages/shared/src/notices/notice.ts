@@ -29,10 +29,10 @@ function toBase64Url(text: string): string {
     const b1 = i + 1 < text.length ? text.charCodeAt(i + 1) : 0;
     const b2 = i + 2 < text.length ? text.charCodeAt(i + 2) : 0;
     const chunk = (b0 << 16) | (b1 << 8) | b2;
-    out += ALPHABET[(chunk >> 18) & 63];
-    out += ALPHABET[(chunk >> 12) & 63];
-    if (i + 1 < text.length) out += ALPHABET[(chunk >> 6) & 63];
-    if (i + 2 < text.length) out += ALPHABET[chunk & 63];
+    out += ALPHABET.charAt((chunk >> 18) & 63);
+    out += ALPHABET.charAt((chunk >> 12) & 63);
+    if (i + 1 < text.length) out += ALPHABET.charAt((chunk >> 6) & 63);
+    if (i + 2 < text.length) out += ALPHABET.charAt(chunk & 63);
   }
   return out;
 }
