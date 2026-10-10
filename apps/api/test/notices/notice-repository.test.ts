@@ -215,6 +215,6 @@ describe('storage errors', () => {
     await broken.pool.end();
     const failing = new ListNotices(new DrizzleNoticeRepository(broken.db));
 
-    await expect(failing.execute(readScope(owner), { limit: 10 })).rejects.toThrow();
+    await expect(failing.execute(await readScope(owner), { limit: 10 })).rejects.toThrow();
   });
 });
