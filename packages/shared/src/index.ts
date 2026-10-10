@@ -24,6 +24,7 @@ export * from './investments/constants';
 export * from './investments/decimal';
 export * from './investments/valuation';
 export * from './investments/contracts';
+export * from './investments/import-plan';
 export * from './movements/movement';
 export * from './movements/implied-rate';
 export * from './movements/tag';

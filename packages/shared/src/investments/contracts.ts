@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   INSTRUMENT_NAME_MAX_LENGTH,
+  IMPORT_MAX_HOLDINGS,
   INSTRUMENT_TYPES,
   PORTFOLIO_NAME_MAX_LENGTH,
   PRICE_SOURCES,
@@ -140,3 +141,45 @@ export const addHoldingResponseSchema = z.object({
 });
 
 export type AddHoldingResponse = z.infer<typeof addHoldingResponseSchema>;
+
+const CALENDAR_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+const calendarDaySchema = z
+  .string()
+  .regex(CALENDAR_DAY)
+  // Zod 4 runs refinements even after the regex fails, and an unparseable date would throw.
+  .refine(
+    (day) =>
+      CALENDAR_DAY.test(day) && new Date(`${day}T00:00:00Z`).toISOString().slice(0, 10) === day,
+  );
+
+/** A broker file never carries crypto: it is valued in USD from the automatic prices. */
+const importInstrumentTypeSchema = instrumentTypeSchema.exclude(['crypto']);
+
+export const importHoldingSchema = z.object({
+  ticker: tickerSchema,
+  instrumentName: instrumentNameSchema,
+  instrumentType: importInstrumentTypeSchema,
+  valuationCurrency: valuationCurrencySchema,
+  quantity: quantitySchema,
+  totalCost: totalCostSchema.nullable(),
+  unitPrice: unitPriceSchema,
+  pricedOn: calendarDaySchema,
+});
+
+export type ImportHolding = z.infer<typeof importHoldingSchema>;
+
+export const importHoldingsRequestSchema = z.object({
+  holdings: z.array(importHoldingSchema).min(1).max(IMPORT_MAX_HOLDINGS),
+});
+
+export type ImportHoldingsRequest = z.infer<typeof importHoldingsRequestSchema>;
+
+export const importHoldingsResponseSchema = z.object({
+  created: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  removed: z.number().int().nonnegative(),
+  portfolio: portfolioResponseSchema,
+});
+
+export type ImportHoldingsResponse = z.infer<typeof importHoldingsResponseSchema>;
