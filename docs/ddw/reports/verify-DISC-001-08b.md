@@ -30,14 +30,14 @@ passing) and the full suite was not rerun.
 - ✅ AC-13 — `a zone change from Buenos Aires to Tokyo moves the due time` (`record-due-occurrences.test.ts:299`)
 - ✅ AC-14 — `the recorded occurrence leaves upcoming payments` (`record-due-occurrences.test.ts:313`); the expense row is asserted at the recorder level (`recurring-expense-recorder.test.ts:48`)
 - ✅ AC-15 — `records at 06:00 owner time and not before, with a 60 s interval` (`recording-job.test.ts:276`), real PostgreSQL with a controlled clock; the 15 minute bound holds by construction because the interval is at most 300 s
-- ✅ AC-16 — `records 1,000 due payments out of 10,000 in under 60 s` (`apps/api/test/recurring/recurring-perf.test.ts:121`), 8.4 s measured
+- ✅ AC-16 — `records 1,000 due payments out of 10,000 in under 60 s` (`apps/api/test/perf/recurring-job.perf.test.ts:44`), 8.4 s measured
 
 ## Spec blocks
 - ✅ Block 1 — Auto-recording start day: column and domain: every task done; tests `auto-recording-migration.test.ts`, `use-cases.test.ts`, `payment-repository.test.ts`, `schema-introspection.test.ts`
 - ✅ Block 2 — Idempotent expense recorder: every task done; tests `recurring-expense-recorder.test.ts`
 - ✅ Block 3 — Use cases: record due occurrences: every task done; tests `record-due-occurrences.test.ts`, `occurrence-repository.test.ts`
 - ✅ Block 4 — Job, source, wiring and configuration: every task done; tests `recording-job.test.ts` (including the worker wiring tests added at verification), `automatic-payment-source.test.ts`, `worker-env.test.ts`, `env.test.ts`
-- ✅ Block 5 — Registries, performance and documentation: every task done; tests `migration.test.ts`, `user-erasure.test.ts`, `recurring-perf.test.ts`, `no-float-money.test.ts`, and the CHANGELOG entry
+- ✅ Block 5 — Registries, performance and documentation: every task done; tests `migration.test.ts`, `user-erasure.test.ts`, `perf/recurring-job.perf.test.ts`, `no-float-money.test.ts`, and the CHANGELOG entry
 
 ## Tests
 - ✅ Sad-path tests: every input has one — `OccurrenceNotPending`, `ResourceNotFound` from `recordOnce` and from the lock, an unknown zone, a missing exchange rate and a rate limit (`record-due-occurrences.test.ts:324`, `:335`, `:353`, `:382`, `:399`), a foreign id and an archived account at the recorder (`recurring-expense-recorder.test.ts:95`, `:108`), eight rejected values of `RECURRING_JOB_INTERVAL_SECONDS` (`apps/api/test/foundation/worker-env.test.ts:182`), a failing migration, a stale registry head, a benchmark over budget, and a float probe in the money guard
