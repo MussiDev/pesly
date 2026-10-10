@@ -42,6 +42,7 @@ const LATER_MIGRATIONS = [
   '0025_notices',
   '0026_groups',
   '0027_group_expenses',
+  '0028_group_settlements',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -75,6 +76,8 @@ const LATER_TABLES = [
   'group_expenses',
   'group_invitations',
   'group_members',
+  'group_settlement_legs',
+  'group_settlements',
   'groups',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();

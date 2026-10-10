@@ -14,7 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
-import { movements, users } from './foreign-relations';
+import { accounts, movements, users } from './foreign-relations';
 
 const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
@@ -65,6 +65,8 @@ export const groupMembers = pgTable(
       .notNull()
       .default('member'),
     joinedAt: timestamptz('joined_at').notNull().defaultNow(),
+    // Soft leave or removal: the row stays so expenses, settlements and the log keep their member.
+    leftAt: timestamptz('left_at'),
   },
   (table) => [
     check(
@@ -89,7 +91,10 @@ export const groupMembers = pgTable(
     unique('group_members_id_group_unique').on(table.id, table.groupId),
     uniqueIndex('group_members_group_user_unique')
       .on(table.groupId, table.userId)
-      .where(sql`${table.userId} is not null`),
+      .where(sql`${table.userId} is not null and ${table.leftAt} is null`),
+    index('group_members_group_active_idx')
+      .on(table.groupId)
+      .where(sql`${table.leftAt} is null`),
     index('group_members_user_idx').on(table.userId),
     index('group_members_group_joined_idx').on(table.groupId, table.joinedAt, table.id),
   ],
@@ -317,12 +322,15 @@ export const groupActivityLog = pgTable(
       .notNull()
       .references(() => groups.id, { onDelete: 'cascade' }),
     memberId: uuid('member_id').notNull(),
-    action: text('action', { enum: ['expense_created'] }).notNull(),
+    action: text('action', { enum: ['expense_created', 'settlement_created'] }).notNull(),
     subjectId: uuid('subject_id').notNull(),
     createdAt: timestamptz('created_at').notNull(),
   },
   (table) => [
-    check('group_activity_log_action_check', sql`${table.action} in ('expense_created')`),
+    check(
+      'group_activity_log_action_check',
+      sql`${table.action} in ('expense_created', 'settlement_created')`,
+    ),
     foreignKey({
       name: 'group_activity_log_member_group_fk',
       columns: [table.memberId, table.groupId],
@@ -333,5 +341,114 @@ export const groupActivityLog = pgTable(
       table.createdAt.desc(),
       table.id.desc(),
     ),
+  ],
+);
+
+/**
+ * One payment between two members. `amount` is the cash that moves from `from` to `to` in
+ * `currency`; the debts it clears are the legs (spec D3).
+ */
+export const groupSettlements = pgTable(
+  'group_settlements',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    groupId: uuid('group_id')
+      .notNull()
+      .references(() => groups.id, { onDelete: 'cascade' }),
+    fromMemberId: uuid('from_member_id').notNull(),
+    toMemberId: uuid('to_member_id').notNull(),
+    createdByMemberId: uuid('created_by_member_id').notNull(),
+    currency: text('currency', { enum: ['ARS', 'USD'] }).notNull(),
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+    occurredAt: timestamptz('occurred_at').notNull(),
+    // Set null so account erasure (PRD 01f) does not fail on the settlement (spec D5).
+    accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    accountMemberId: uuid('account_member_id'),
+    rate: bigint('rate', { mode: 'bigint' }),
+    rateSource: text('rate_source', { enum: ['automatic', 'manual'] }),
+    rateType: text('rate_type'),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    check('group_settlements_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
+    check('group_settlements_amount_check', sql`${table.amount} >= 0`),
+    check(
+      'group_settlements_distinct_members_check',
+      sql`${table.fromMemberId} <> ${table.toMemberId}`,
+    ),
+    // Only a consolidated settlement (it carries a rate) may net to zero cash.
+    check(
+      'group_settlements_amount_or_rate_check',
+      sql`${table.amount} > 0 or ${table.rateSource} is not null`,
+    ),
+    check('group_settlements_rate_positive_check', sql`${table.rate} is null or ${table.rate} > 0`),
+    check(
+      'group_settlements_rate_source_check',
+      sql`${table.rateSource} is null or ${table.rateSource} in ('automatic', 'manual')`,
+    ),
+    check(
+      'group_settlements_rate_fields_check',
+      sql`(${table.rate} is null) = (${table.rateSource} is null)`,
+    ),
+    check(
+      'group_settlements_rate_type_check',
+      sql`${table.rateType} is null or ${table.rateSource} = 'automatic'`,
+    ),
+    check(
+      'group_settlements_account_member_party_check',
+      sql`${table.accountMemberId} is null or ${table.accountMemberId} in (${table.fromMemberId}, ${table.toMemberId})`,
+    ),
+    unique('group_settlements_id_group_unique').on(table.id, table.groupId),
+    foreignKey({
+      name: 'group_settlements_from_group_fk',
+      columns: [table.fromMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'group_settlements_to_group_fk',
+      columns: [table.toMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'group_settlements_creator_group_fk',
+      columns: [table.createdByMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'group_settlements_account_member_group_fk',
+      columns: [table.accountMemberId, table.groupId],
+      foreignColumns: [groupMembers.id, groupMembers.groupId],
+    }).onDelete('restrict'),
+    index('group_settlements_group_occurred_idx').on(
+      table.groupId,
+      table.occurredAt.desc(),
+      table.id.desc(),
+    ),
+    index('group_settlements_account_idx').on(table.accountId),
+  ],
+);
+
+/** The debts a settlement clears, signed so that a positive leg means from to to (spec D3). */
+export const groupSettlementLegs = pgTable(
+  'group_settlement_legs',
+  {
+    settlementId: uuid('settlement_id').notNull(),
+    groupId: uuid('group_id').notNull(),
+    currency: text('currency', { enum: ['ARS', 'USD'] }).notNull(),
+    amount: bigint('amount', { mode: 'bigint' }).notNull(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'group_settlement_legs_pkey',
+      columns: [table.settlementId, table.currency],
+    }),
+    check('group_settlement_legs_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
+    check('group_settlement_legs_amount_check', sql`${table.amount} <> 0`),
+    foreignKey({
+      name: 'group_settlement_legs_settlement_group_fk',
+      columns: [table.settlementId, table.groupId],
+      foreignColumns: [groupSettlements.id, groupSettlements.groupId],
+    }).onDelete('cascade'),
+    index('group_settlement_legs_group_currency_idx').on(table.groupId, table.currency),
   ],
 );

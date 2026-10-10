@@ -190,6 +190,13 @@
       "when": 1791667061357,
       "tag": "0027_group_expenses",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791670861757,
+      "tag": "0028_group_settlements",
+      "breakpoints": true
     }
   ]
 }

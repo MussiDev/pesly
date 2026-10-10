@@ -40,6 +40,8 @@ const ALL_TABLES = [
   'group_expenses',
   'group_invitations',
   'group_members',
+  'group_settlement_legs',
+  'group_settlements',
   'groups',
   'holdings',
   'installment_purchases',
