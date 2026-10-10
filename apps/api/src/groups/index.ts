@@ -30,6 +30,11 @@ export * from './application/set-default-split';
 export * from './application/list-personal-shares';
 export { DrizzleGroupRepository } from './infrastructure/db/drizzle-group-repository';
 export { DrizzleGroupMembershipReader } from './infrastructure/db/drizzle-group-membership-reader';
+export { DrizzleGroupExpenseRepository } from './infrastructure/db/drizzle-group-expense-repository';
+export {
+  DrizzlePayerMovementRecorder,
+  type PayerTx,
+} from './infrastructure/movements/drizzle-payer-movement-recorder';
 export { eraseUserGroups } from './infrastructure/db/erase-user-groups';
 export { RandomTokenSource } from './infrastructure/crypto/random-token-source';
 export { SystemClock } from './infrastructure/clock/system-clock';
