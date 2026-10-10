@@ -351,6 +351,16 @@ All notable changes to this project are documented in this file. The format foll
   parallel runs create no duplicates. Migration `0025_notices` adds `recurring_payments.reminder_days`
   and the `notices` table. Push delivery of the same notices arrives in DISC-001-08d. No new
   dependency.
+- DISC-001-05a Groups, members and roles: `POST /groups` creates a group with a name and a default rate
+  type and makes its creator an admin, with the top-level expense categories of the default list. Any member
+  can generate an invitation link (valid 7 days, one active per member), add a ghost member with only a name
+  and generate a single-use claim link that a registered user redeems to take the ghost's place keeping its
+  position; admins promote registered members, change the default rate type and add, rename and archive group
+  categories. A group has at most 50 members, ghosts included. Tokens carry 256 bits, are stored only as
+  SHA-256 hashes and travel in request bodies, never in URLs; unknown, expired and used tokens answer the
+  same 400. A non-member gets 404 on every group route. Deleting an account turns the user's memberships into
+  "Former member" ghosts. Migration `0026_groups` adds five tables. Expenses, balances, settlements and the
+  group screens arrive in DISC-001-05b to 05d. No new dependency.
 
 ### Changed
 
