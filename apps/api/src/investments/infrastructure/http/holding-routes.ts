@@ -3,6 +3,8 @@ import {
   addHoldingResponseSchema,
   holdingIdParamsSchema,
   holdingResponseSchema,
+  importHoldingsRequestSchema,
+  importHoldingsResponseSchema,
   portfolioIdParamsSchema,
   setPriceRequestSchema,
   updateHoldingRequestSchema,
@@ -16,12 +18,13 @@ import type {
   UpdateHolding,
   UseAutomaticPrice,
 } from '../../application/holding-use-cases';
+import type { ImportHoldings } from '../../application/import-holdings';
 import type { HoldingEditPatch } from '../../domain/holding';
 import type { AccessPolicy } from '../../../shared/access';
 import { validate } from '../../../shared/http/validate';
 import type { Logger } from '../../../shared/logging/logger';
 import { scopeOf } from './scope';
-import { serializeHolding } from './serializers';
+import { serializeHolding, serializePortfolio } from './serializers';
 
 export interface HoldingRoutesDependencies {
   policy: AccessPolicy;
@@ -32,6 +35,7 @@ export interface HoldingRoutesDependencies {
   setManualPrice: SetManualPrice;
   useAutomaticPrice: UseAutomaticPrice;
   deleteHolding: DeleteHolding;
+  importHoldings: ImportHoldings;
 }
 
 /**
@@ -48,6 +52,7 @@ export function holdingRoutes({
   setManualPrice,
   useAutomaticPrice,
   deleteHolding,
+  importHoldings,
 }: HoldingRoutesDependencies): Router {
   const router = Router();
 
@@ -80,6 +85,53 @@ export function holdingRoutes({
           'investments.mutation',
         );
         res.status(merged ? 200 : 201).json({ holding: serializeHolding(holding), merged });
+      },
+    ),
+  );
+
+  router.post(
+    '/investments/portfolios/:portfolioId/holdings/import',
+    validate(
+      {
+        params: portfolioIdParamsSchema,
+        body: importHoldingsRequestSchema,
+        response: importHoldingsResponseSchema,
+      },
+      async ({ params, body }, { res, auth, requestId }) => {
+        const scope = await scopeOf(policy, auth, 'write');
+        const result = await importHoldings.execute(
+          scope,
+          params.portfolioId,
+          body.holdings.map((holding) => ({
+            ticker: holding.ticker,
+            instrumentName: holding.instrumentName,
+            instrumentType: holding.instrumentType,
+            valuationCurrency: holding.valuationCurrency,
+            quantity: BigInt(holding.quantity),
+            totalCost: holding.totalCost === null ? null : BigInt(holding.totalCost),
+            unitPrice: BigInt(holding.unitPrice),
+            // The day of the file at 00:00 UTC: the 7-day staleness rule runs from the file's date.
+            pricedAt: new Date(`${holding.pricedOn}T00:00:00.000Z`),
+          })),
+        );
+        // Counts only: tickers, names, quantities and prices are never logged (threat R-04).
+        logger.info(
+          {
+            requestId,
+            userId: scope.userId,
+            action: 'holdings.import',
+            created: result.created,
+            updated: result.updated,
+            removed: result.removed,
+          },
+          'investments.mutation',
+        );
+        res.json({
+          created: result.created,
+          updated: result.updated,
+          removed: result.removed,
+          portfolio: serializePortfolio(result.portfolio),
+        });
       },
     ),
   );

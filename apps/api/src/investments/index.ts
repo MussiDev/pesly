@@ -12,6 +12,7 @@ import {
   UpdateHolding,
   UseAutomaticPrice,
 } from './application/holding-use-cases';
+import { ImportHoldings } from './application/import-holdings';
 import {
   CreatePortfolio,
   DeletePortfolio,
@@ -72,6 +73,7 @@ export function createInvestmentsRoutes({
         setManualPrice: new SetManualPrice(holdings, marketPrices, clock),
         useAutomaticPrice: new UseAutomaticPrice(holdings, marketPrices, clock),
         deleteHolding: new DeleteHolding(holdings),
+        importHoldings: new ImportHoldings(unitOfWork, marketPrices, clock),
       }),
     );
     return router;
