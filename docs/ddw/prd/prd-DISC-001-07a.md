@@ -16,7 +16,7 @@ the app cannot show real net worth. Balanz has no public API for client holdings
 2026-09-25), and storing broker credentials or scraping was rejected (concept decision: a breach
 would expose the user's brokerage account). This sub-ticket delivers manual entry: portfolios,
 holdings, manual prices, valuation and gain or loss. Automatic crypto prices and daily snapshots
-come in DISC-001-07b; the Balanz CSV import in DISC-001-07c. Split from `prd-DISC-001-07.md`
+come in DISC-001-07b; the Balanz Excel import in DISC-001-07c. Split from `prd-DISC-001-07.md`
 (2026-10-01, user decision). Requirement IDs were renumbered; the parent index maps every original
 ID to its new one.
 
