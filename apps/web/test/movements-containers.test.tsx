@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateMovementContainer } from '../src/features/movements/containers/create-movement-container';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
+import { typeButton } from './support/type-button';
 
 const { es, en } = CATALOGS;
 
@@ -224,13 +225,13 @@ describe('CreateMovementContainer: preselected type (AC-14)', () => {
     renderApp(<CreateMovementContainer initialType="income" />);
     await screen.findByLabelText(es.movements.fields.amount);
 
-    expect(field(es.movements.fields.type).value).toBe('income');
+    expect(typeButton('income').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('starts on expense when it receives no type', async () => {
     await open();
 
-    expect(field(es.movements.fields.type).value).toBe('expense');
+    expect(typeButton('expense').getAttribute('aria-pressed')).toBe('true');
   });
 
   it('error: after saving, the next movement starts again on the type the screen was opened with', async () => {
@@ -247,7 +248,7 @@ describe('CreateMovementContainer: preselected type (AC-14)', () => {
     await waitFor(() => {
       expect(screen.getByRole('status')).toBeDefined();
     });
-    expect(field(es.movements.fields.type).value).toBe('income');
+    expect(typeButton('income').getAttribute('aria-pressed')).toBe('true');
   });
 });
 
@@ -444,7 +445,7 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
         .filter((text) => ['Comida', 'Sueldo', 'Vieja'].includes(text));
 
     expect(options()).toEqual(['Comida']);
-    await userEvent.setup().selectOptions(field(es.movements.fields.type), 'income');
+    await userEvent.setup().click(typeButton('income'));
 
     expect(options()).toEqual(['Sueldo']);
   });
@@ -474,7 +475,7 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
   it('sends an income with the income category (AC-03)', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'income');
+    await user.click(typeButton('income'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.selectOptions(field(es.movements.fields.category), SUELDO_ID);
     await user.type(field(es.movements.fields.amount), '2.000');
@@ -763,7 +764,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   async function transfer(amount: string, answers = four()) {
     const stub = await open(answers);
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination(), BANCO_ID);
     if (amount !== '') await user.type(field(es.movements.fields.amount), amount);
@@ -773,7 +774,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   async function exchange(out: string, into: string, answers = four()) {
     const stub = await open(answers);
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination(), DOLARES_ID);
     if (out !== '') await user.type(field(es.movements.fields.amountOut), out);
@@ -855,7 +856,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
     renderApp(<CreateMovementContainer />, { locale: 'en' });
     await screen.findByLabelText(en.movements.fields.amount);
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText(en.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange', en));
     await user.selectOptions(screen.getByLabelText(en.movements.fields.account), CAJA_ID);
     await user.selectOptions(destination('en'), DOLARES_ID);
     await user.type(screen.getByLabelText(en.movements.fields.amountOut), '1,557,300.00');
@@ -904,7 +905,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
   it('requires a destination account and sends nothing without one (invalid input) (AC-02)', async () => {
     const { calls } = await open(four());
     const user = userEvent.setup();
-    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(field(es.movements.fields.account), CAJA_ID);
     await user.type(field(es.movements.fields.amount), '100');
     await user.click(submit());
@@ -938,7 +939,7 @@ describe('CreateMovementContainer: transfers and exchanges (DISC-001-03c)', () =
 
   it('shows a hint when the user has no second account for the transfer (AC-02)', async () => {
     await open();
-    await userEvent.setup().selectOptions(field(es.movements.fields.type), 'transfer');
+    await userEvent.setup().click(typeButton('transfer'));
 
     expect(screen.getByText(es.movements.fields.destinationHintTransfer)).toBeDefined();
   });

@@ -10,6 +10,7 @@ import {
   trackSameOriginFailures,
 } from './support/offline-visit';
 import { clearCachedRates, queuedIds, seedQueue } from './support/queue';
+import { chooseMovementType } from './support/movement-type';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 // Each flow registers a user, builds a copy of its data on the device and works with a real worker.
@@ -31,7 +32,7 @@ const submit = (page: Page) => page.getByRole('button', { name: t.form.submit })
 /** The rate is always typed, so a flow never depends on whether the copy has a stored rate. */
 async function fillExpense(page: Page, amount: string, rate = '1250,50'): Promise<void> {
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.expense });
+  await chooseMovementType(page, t.fields.type, t.types.expense);
   await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: CATEGORY });
   await page.getByLabel(t.fields.amount, { exact: true }).fill(amount);
   if (rate !== '') await page.getByLabel(t.fields.rate, { exact: true }).fill(rate);
@@ -83,7 +84,7 @@ test('offline, a user saves a transfer and an exchange and sees both as pending 
   await context.setOffline(true);
   await page.goto('/es/movements/new');
 
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.transfer });
+  await chooseMovementType(page, t.fields.type, t.types.transfer);
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
   await page
     .getByLabel(t.fields.destinationAccount, { exact: true })
@@ -92,7 +93,7 @@ test('offline, a user saves a transfer and an exchange and sees both as pending 
   await submit(page).click();
   await expect.poll(() => queuedIds(page)).toHaveLength(1);
 
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.exchange });
+  await chooseMovementType(page, t.fields.type, t.types.exchange);
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
   await page
     .getByLabel(t.fields.destinationAccount, { exact: true })

@@ -26,6 +26,7 @@ import { dayKey, formatDay } from '../src/features/movements/components/movement
 import { MovementSaved } from '../src/features/movements/components/movement-saved';
 import { MovementsLoadStateView } from '../src/features/movements/components/movements-load-state';
 import type { ApiFailure } from '../src/lib/api-client';
+import { typeButton } from './support/type-button';
 
 afterEach(cleanup);
 
@@ -74,7 +75,6 @@ describe('MovementForm', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: es.movements.new.title })).toBeDefined();
     for (const name of [
-      es.movements.fields.type,
       es.movements.fields.account,
       es.movements.fields.category,
       es.movements.fields.amount,
@@ -105,7 +105,7 @@ describe('MovementForm', () => {
         .map((option) => option.textContent);
 
     expect(names()).toEqual([es.movements.fields.categoryPlaceholder, 'Comida', 'Transporte']);
-    await userEvent.setup().selectOptions(label(es.movements.fields.type), 'income');
+    await userEvent.setup().click(typeButton('income'));
 
     expect(names()).toEqual([es.movements.fields.categoryPlaceholder, 'Sueldo']);
   });
@@ -189,7 +189,8 @@ describe('MovementForm', () => {
     expect(label(es.movements.fields.note).getAttribute('aria-invalid')).toBe('false');
     const message = document.getElementById(amount.getAttribute('aria-describedby') ?? '');
     expect(message?.textContent).toBe(es.movements.errors.amountNotPositive);
-    expect(document.activeElement).toBe(account);
+    // The amount comes first on screen, so it is the first invalid control and takes the focus.
+    expect(document.activeElement).toBe(amount);
   });
 
   it('shows "Amount must be greater than 0" in English (AC-02)', () => {
@@ -648,7 +649,11 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('offers expense, income, transfer and exchange in the type switch (AC-01, AC-03)', () => {
     form();
 
-    expect(optionNames(label(es.movements.fields.type))).toEqual([
+    expect(
+      within(screen.getByRole('group', { name: es.movements.fields.type }))
+        .getAllByRole('button')
+        .map((button) => button.textContent),
+    ).toEqual([
       es.movements.types.expense,
       es.movements.types.income,
       es.movements.types.transfer,
@@ -668,7 +673,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('hides category and rate for a transfer and lists as destination only the other accounts of the same currency (AC-01, AC-02)', async () => {
     form({ accounts: FOUR_ACCOUNTS });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(label(es.movements.fields.account), 'a1');
 
     expect(screen.queryByLabelText(es.movements.fields.category)).toBeNull();
@@ -683,7 +688,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('submits a transfer with both account ids and the typed amount (AC-01)', async () => {
     const { onSubmit } = form({ accounts: FOUR_ACCOUNTS });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(label(es.movements.fields.account), 'a1');
     await user.selectOptions(label(es.movements.fields.destinationAccount), 'a3');
     await user.type(label(es.movements.fields.amount), '500');
@@ -701,7 +706,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('lists as destination of an exchange only the accounts of the other currency and shows two amounts and no rate field (AC-03, AC-04)', async () => {
     form({ accounts: FOUR_ACCOUNTS });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(label(es.movements.fields.account), 'a1');
 
     expect(optionNames(label(es.movements.fields.destinationAccount))).toEqual([
@@ -725,7 +730,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('submits an exchange with both amounts and no rate (AC-04)', async () => {
     const { onSubmit } = form({ accounts: FOUR_ACCOUNTS });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(label(es.movements.fields.account), 'a1');
     await user.selectOptions(label(es.movements.fields.destinationAccount), 'a2');
     // The money input groups thousands as the user types.
@@ -746,10 +751,10 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
   it('shows a hint instead of an empty destination list when no account can be the destination (AC-02)', async () => {
     form({ accounts: ACCOUNTS });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
 
     expect(screen.getByText(es.movements.fields.destinationHintTransfer)).toBeDefined();
-    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     expect(screen.queryByText(es.movements.fields.destinationHintTransfer)).toBeNull();
     expect(screen.queryByText(es.movements.fields.destinationHintExchange)).toBeNull();
   });
@@ -761,7 +766,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
         { id: 'a3', name: 'Banco', currency: 'ARS' },
       ],
     });
-    await userEvent.setup().selectOptions(label(es.movements.fields.type), 'exchange');
+    await userEvent.setup().click(typeButton('exchange'));
 
     expect(screen.getByText(es.movements.fields.destinationHintExchange)).toBeDefined();
   });
@@ -772,7 +777,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
       .mockReturnValue({ kind: 'empty' });
     form({ accounts: FOUR_ACCOUNTS, previewRate });
     const user = userEvent.setup();
-    await user.selectOptions(label(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(label(es.movements.fields.account), 'a1');
     await user.selectOptions(label(es.movements.fields.destinationAccount), 'a2');
     expect(screen.getByText(es.movements.exchange.impliedRateEmpty)).toBeDefined();
@@ -804,7 +809,7 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
         },
       },
     });
-    await userEvent.setup().selectOptions(label(es.movements.fields.type), 'exchange');
+    await userEvent.setup().click(typeButton('exchange'));
 
     const destination = label(es.movements.fields.destinationAccount);
     const amountIn = label(es.movements.fields.amountIn);

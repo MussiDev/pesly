@@ -14,6 +14,7 @@ import { openLocalStore } from '../src/lib/local-store/stores';
 import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
+import { typeButton } from './support/type-button';
 
 const { es } = CATALOGS;
 
@@ -180,9 +181,11 @@ describe('EditMovementContainer: the filled-in screen', () => {
   it('locks the type: an edit cannot turn an expense into another kind (FR-01)', async () => {
     await open();
 
-    const type = field(es.movements.fields.type) as unknown as HTMLSelectElement;
-    expect(type.value).toBe('expense');
-    expect(type.disabled).toBe(true);
+    const expense = typeButton('expense');
+    expect(expense.getAttribute('aria-pressed')).toBe('true');
+    for (const name of ['expense', 'income', 'transfer', 'exchange'] as const) {
+      expect((typeButton(name) as HTMLButtonElement).disabled).toBe(true);
+    }
   });
 
   it('offers the archived account and category the movement already uses (FR-01)', async () => {

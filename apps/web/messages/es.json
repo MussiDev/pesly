@@ -667,6 +667,11 @@
   },
   "movements": {
     "title": "Movimientos",
+    "keypad": {
+      "label": "Teclado numérico",
+      "decimal": "Coma decimal",
+      "backspace": "Borrar un dígito"
+    },
     "list": {
       "searchLabel": "Buscar movimientos",
       "searchPlaceholder": "Buscar por nombre o categoría",

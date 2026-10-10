@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { movementIdsOf, movementsOf, resetAttemptLimits, tagsOf } from './support/database';
+import { chooseMovementType } from './support/movement-type';
 
 const API_URL = 'http://localhost:4000';
 
@@ -98,7 +99,7 @@ async function fillMovement(
 ): Promise<void> {
   await page.goto('/es/movements/new');
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.expense });
+  await chooseMovementType(page, t.fields.type, t.types.expense);
   await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: entry.category });
   await page.getByLabel(t.fields.amount, { exact: true }).fill(entry.amount);
   await page.getByLabel(t.fields.occurredAt, { exact: true }).fill(entry.occurredAt);

@@ -12,6 +12,7 @@ import { openLocalStore } from '../src/lib/local-store/stores';
 import { MOVEMENT_QUEUED_EVENT } from '../src/lib/sync/sync-events';
 import { category, uuid } from './support/category-fixtures';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { typeButton } from './support/type-button';
 
 const { es } = CATALOGS;
 
@@ -206,14 +207,14 @@ describe('saving a movement without a connection (DISC-001-04b)', () => {
 
   it('queues a valid transfer and a valid exchange as pending (AC-02)', async () => {
     const { user } = await openOffline();
-    await user.selectOptions(field(es.movements.fields.type), 'transfer');
+    await user.click(typeButton('transfer'));
     await user.selectOptions(field(es.movements.fields.account), CAJA);
     await user.selectOptions(field(es.movements.fields.destinationAccount), BANCO);
     await user.type(field(es.movements.fields.amount), '500,00');
     await user.click(submit());
     await screen.findByText(es.movements.saved.titleOffline);
 
-    await user.selectOptions(field(es.movements.fields.type), 'exchange');
+    await user.click(typeButton('exchange'));
     await user.selectOptions(field(es.movements.fields.account), CAJA);
     await user.selectOptions(field(es.movements.fields.destinationAccount), DOLARES);
     await user.type(field(es.movements.fields.amountOut), '1.450,00');

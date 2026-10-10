@@ -10,6 +10,7 @@ import {
   t,
 } from './support/offline-visit';
 import { queuedIds } from './support/queue';
+import { chooseMovementType } from './support/movement-type';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 // Each flow registers a user, builds a copy of its data on the device and works with a real worker.
@@ -54,7 +55,7 @@ async function databaseNames(page: Page): Promise<string[]> {
 async function queueOneExpense(page: Page): Promise<string> {
   await page.goto('/es/movements/new');
   await page.getByLabel(t.fields.account, { exact: true }).selectOption({ label: ACCOUNT_OPTION });
-  await page.getByLabel(t.fields.type, { exact: true }).selectOption({ label: t.types.expense });
+  await chooseMovementType(page, t.fields.type, t.types.expense);
   await page.getByLabel(t.fields.category, { exact: true }).selectOption({ label: CATEGORY });
   await page.getByLabel(t.fields.amount, { exact: true }).fill('25,00');
   await page.getByLabel(t.fields.rate, { exact: true }).fill('1250,50');

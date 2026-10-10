@@ -667,6 +667,11 @@
   },
   "movements": {
     "title": "Movements",
+    "keypad": {
+      "label": "Number keypad",
+      "decimal": "Decimal point",
+      "backspace": "Delete a digit"
+    },
     "list": {
       "searchLabel": "Search movements",
       "searchPlaceholder": "Search by name or category",
