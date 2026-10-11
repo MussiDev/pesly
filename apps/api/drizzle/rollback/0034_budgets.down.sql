@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS "budgets";
 DO $$
 BEGIN
   IF to_regclass('drizzle.__drizzle_migrations') IS NOT NULL THEN
-    DELETE FROM "drizzle"."__drizzle_migrations" WHERE "created_at" = 1791770000000;
+    DELETE FROM "drizzle"."__drizzle_migrations" WHERE "created_at" = 1791780000000;
   END IF;
 END
 $$;
