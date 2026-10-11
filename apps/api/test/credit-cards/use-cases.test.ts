@@ -73,6 +73,18 @@ describe('CreateCreditCard', () => {
     ]);
   });
 
+  it('stores reminderDays 3 when absent and the given value otherwise (AC-02)', async () => {
+    const app = setup();
+    const defaulted = await app.create.execute(await writeScopeFor(ANA), visa);
+    const custom = await app.create.execute(await writeScopeFor(ANA), {
+      ...visa,
+      name: 'Master',
+      reminderDays: 7,
+    });
+    expect(defaulted.reminderDays).toBe(3);
+    expect(custom.reminderDays).toBe(7);
+  });
+
   it('starts with the next cycle when the closing day already passed (FR-03)', async () => {
     const app = setup('2026-10-25T15:00:00.000Z');
     const card = await app.create.execute(await writeScopeFor(ANA), visa);
@@ -303,6 +315,86 @@ describe('UpdateCreditCardDays', () => {
     await expect(
       app.updateDays.execute(await writeScopeFor(BOB), card.id, { dueDay: 7 }),
     ).rejects.toBeInstanceOf(ResourceNotFound);
+  });
+
+  it('saves only reminderDays and leaves hand-edited open statement dates unchanged (FR-02, D5)', async () => {
+    const app = setup('2026-09-30T12:00:00.000Z');
+    const card = await app.create.execute(await writeScopeFor(ANA), visa);
+    const [october] = await app.statements.execute(await writeScopeFor(ANA), card.id);
+    if (!october) throw new Error('no statement');
+    await app.updateStatement.execute(await writeScopeFor(ANA), card.id, october.id, {
+      closingDate: '2026-10-26',
+      dueDate: '2026-11-09',
+    });
+
+    const updated = await app.updateDays.execute(await writeScopeFor(ANA), card.id, {
+      reminderDays: 10,
+    });
+
+    expect(updated).toMatchObject({ closingDay: 24, dueDay: 5, reminderDays: 10 });
+    const statements = await app.statements.execute(await writeScopeFor(ANA), card.id);
+    expect(statements.map((s) => [s.period, s.closingDate, s.dueDate])).toEqual([
+      ['2026-10', '2026-10-26', '2026-11-09'],
+    ]);
+  });
+
+  it('saves a day and reminderDays together and recomputes the open statements (FR-02)', async () => {
+    const app = setup('2026-09-30T12:00:00.000Z');
+    const card = await app.create.execute(await writeScopeFor(ANA), visa);
+
+    const updated = await app.updateDays.execute(await writeScopeFor(ANA), card.id, {
+      closingDay: 20,
+      reminderDays: 0,
+    });
+
+    expect(updated).toMatchObject({ closingDay: 20, dueDay: 5, reminderDays: 0 });
+    const statements = await app.statements.execute(await writeScopeFor(ANA), card.id);
+    expect(statements.map((s) => [s.period, s.closingDate])).toEqual([['2026-10', '2026-10-20']]);
+  });
+
+  it('keeps the stored reminderDays when a day change conflicts (sad path, FR-02)', async () => {
+    const app = setup('2026-10-06T12:00:00.000Z');
+    const card = await app.create.execute(await writeScopeFor(ANA), {
+      ...visa,
+      closingDay: 31,
+      reminderDays: 4,
+    });
+    const [october] = await app.statements.execute(await writeScopeFor(ANA), card.id);
+    if (!october) throw new Error('no statement');
+    await app.updateStatement.execute(await writeScopeFor(ANA), card.id, october.id, {
+      closingDate: '2026-11-03',
+      dueDate: '2026-11-15',
+    });
+    app.clock.current = new Date('2026-11-04T12:00:00.000Z');
+    await app.statements.execute(await writeScopeFor(ANA), card.id);
+
+    await expect(
+      app.updateDays.execute(await writeScopeFor(ANA), card.id, { closingDay: 2, reminderDays: 9 }),
+    ).rejects.toBeInstanceOf(CardDaysConflict);
+    expect(app.cards.cards.get(card.id)?.card.reminderDays).toBe(4);
+  });
+
+  it("saves nothing for another user's card on a reminder-only change (sad path, FR-02)", async () => {
+    const app = setup();
+    const card = await app.create.execute(await writeScopeFor(ANA), visa);
+    await expect(
+      app.updateDays.execute(await writeScopeFor(BOB), card.id, { reminderDays: 8 }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    expect(app.cards.cards.get(card.id)?.card.reminderDays).toBe(3);
+  });
+
+  it('answers 404 for a missing card id and reads no statements (sad path, FR-02)', async () => {
+    const app = setup();
+    let statementReads = 0;
+    const original = app.cards.listStatements.bind(app.cards);
+    app.cards.listStatements = (...args) => {
+      statementReads += 1;
+      return original(...args);
+    };
+    await expect(
+      app.updateDays.execute(await writeScopeFor(ANA), 'missing', { closingDay: 3 }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    expect(statementReads).toBe(0);
   });
 });
 

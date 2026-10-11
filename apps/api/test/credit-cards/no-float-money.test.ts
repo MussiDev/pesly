@@ -25,6 +25,17 @@ const debitFiles = [
   'apps/web/src/features/credit-cards/components/debit-accounts-form.tsx',
   'apps/web/src/features/credit-cards/debit-accounts-request.ts',
 ];
+// The files DISC-001-10f adds: the reminder decision reads statement totals and payments.
+const reminderFiles = [
+  'apps/api/src/credit-cards/domain/statement-reminder.ts',
+  'apps/api/src/credit-cards/application/create-statement-reminders.ts',
+  'apps/api/src/credit-cards/application/ports/statement-reminder-source.ts',
+  'apps/api/src/credit-cards/application/ports/statement-reminder-publisher.ts',
+  'apps/api/src/credit-cards/infrastructure/db/drizzle-statement-reminder-source.ts',
+  'apps/api/src/credit-cards/infrastructure/jobs/statement-reminder-job.ts',
+  'apps/api/src/notices/infrastructure/db/drizzle-statement-reminder-publisher.ts',
+  'apps/web/src/features/credit-cards/card-reminder-request.ts',
+];
 const forbidden = ['Number(', 'parseFloat', 'toFixed', 'Math.round'];
 
 function offendersIn(files: readonly string[]): string[] {
@@ -40,6 +51,15 @@ describe('no floating-point money in the automatic debit files (NFR-01)', () => 
     expect(existsSync(path)).toBe(true);
     expect(offendersIn([path])).toEqual([]);
   });
+
+  it.each(reminderFiles)(
+    '%s exists and has no float conversion or rounding (DISC-001-10f NFR-02)',
+    (file) => {
+      const path = join(root, file);
+      expect(existsSync(path)).toBe(true);
+      expect(offendersIn([path])).toEqual([]);
+    },
+  );
 
   // Proof that the scan can fail: a planted token is reported with its file and token.
   it('reports the file and the token of a planted float and ignores a clean file (sad path)', () => {

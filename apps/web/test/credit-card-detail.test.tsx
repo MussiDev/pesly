@@ -29,6 +29,7 @@ const card: CreditCardResponse = {
   usdAccountId: '22222222-2222-4222-8222-222222222222',
   debitArsAccountId: null,
   debitUsdAccountId: null,
+  reminderDays: 3,
   createdAt: '2026-10-06T12:00:00.000Z',
 };
 const ACCOUNTS_PATH = 'GET /accounts?archived=false&limit=100';
@@ -262,7 +263,144 @@ describe('CreditCardDetailContainer', () => {
     expect(
       await screen.findByText(en.creditCards.detail.closes.replace('{date}', day('2026-10-20'))),
     ).toBeDefined();
-    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ closingDay: 20, dueDay: 5 });
+    expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ closingDay: 20 });
+  });
+
+  describe('reminder days', () => {
+    const reminderField = () => screen.findByLabelText(en.creditCards.detail.reminderDays);
+    const save = (user: ReturnType<typeof userEvent.setup>) =>
+      user.click(screen.getByRole('button', { name: en.creditCards.detail.saveDays }));
+
+    it('shows the saved reminder days and the hint on the card (AC-02)', async () => {
+      stubApi(loaded());
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+
+      expect(await reminderField()).toHaveProperty('value', '3');
+      expect(screen.getByText(en.creditCards.detail.reminderDaysHint)).toBeDefined();
+    });
+
+    it('shows the field in Spanish (FR-02)', async () => {
+      stubApi(loaded());
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'es' });
+
+      expect(
+        await screen.findByLabelText(CATALOGS.es.creditCards.detail.reminderDays),
+      ).toBeDefined();
+    });
+
+    it('saving 7 sends only reminderDays and shows 7 afterwards, with no statement reload (AC-02, D5)', async () => {
+      const { calls } = stubApi({
+        ...loaded(),
+        [`PATCH ${CARD_PATH}`]: { status: 200, body: { ...card, reminderDays: 7 } },
+      });
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+      const user = userEvent.setup();
+
+      const field = await reminderField();
+      await user.clear(field);
+      await user.type(field, '7');
+      await save(user);
+
+      await waitFor(() => {
+        expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ reminderDays: 7 });
+      });
+      await waitFor(() => {
+        expect(screen.getByLabelText(en.creditCards.detail.reminderDays)).toHaveProperty(
+          'value',
+          '7',
+        );
+      });
+      expect(
+        calls.filter((c) => c.method === 'GET' && c.path === `${CARD_PATH}/statements`),
+      ).toHaveLength(1);
+    });
+
+    it('saving without a change sends no request and keeps the form as it was (FR-02)', async () => {
+      const { calls } = stubApi(loaded());
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+      const user = userEvent.setup();
+
+      await reminderField();
+      await save(user);
+
+      expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+      const field = screen.getByLabelText(en.creditCards.detail.reminderDays);
+      expect(field).toHaveProperty('value', '3');
+      expect(field.getAttribute('aria-invalid')).not.toBe('true');
+    });
+
+    it.each(['-1', '31', '2.5', ''])(
+      'typing "%s" shows the visible field error and sends no request (sad path, AC-03)',
+      async (typed) => {
+        const { calls } = stubApi(loaded());
+        renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+        const user = userEvent.setup();
+
+        const field = await reminderField();
+        await user.clear(field);
+        if (typed !== '') await user.type(field, typed);
+        await save(user);
+
+        expect(await screen.findByText(en.creditCards.errors.reminderDaysInvalid)).toBeDefined();
+        expect(
+          screen.getByLabelText(en.creditCards.detail.reminderDays).getAttribute('aria-invalid'),
+        ).toBe('true');
+        expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+      },
+    );
+
+    it('a 400 on a reminder-only save shows the reminder error, not the days conflict (sad path, AC-03)', async () => {
+      stubApi({
+        ...loaded(),
+        [`PATCH ${CARD_PATH}`]: {
+          status: 400,
+          body: { code: 'VALIDATION_FAILED', fields: ['body.reminderDays'] },
+        },
+      });
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+      const user = userEvent.setup();
+
+      const field = await reminderField();
+      await user.clear(field);
+      await user.type(field, '7');
+      await save(user);
+
+      expect(await screen.findByText(en.creditCards.errors.reminderDaysInvalid)).toBeDefined();
+      expect(screen.queryByText(en.creditCards.detail.daysConflict)).toBeNull();
+    });
+
+    it('a 404 shows the not-found state (sad path, FR-02)', async () => {
+      stubApi({
+        ...loaded(),
+        [`PATCH ${CARD_PATH}`]: { status: 404, body: { code: 'NOT_FOUND' } },
+      });
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+      const user = userEvent.setup();
+
+      const field = await reminderField();
+      await user.clear(field);
+      await user.type(field, '7');
+      await save(user);
+
+      expect(await screen.findByText(en.creditCards.detail.notFound)).toBeDefined();
+    });
+
+    it('a network failure keeps the typed value and shows the connection message (sad path, FR-02)', async () => {
+      stubApi({ ...loaded(), [`PATCH ${CARD_PATH}`]: 'network-error' });
+      renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
+      const user = userEvent.setup();
+
+      const field = await reminderField();
+      await user.clear(field);
+      await user.type(field, '7');
+      await save(user);
+
+      expect(await screen.findByText(en.errors.network)).toBeDefined();
+      expect(screen.getByLabelText(en.creditCards.detail.reminderDays)).toHaveProperty(
+        'value',
+        '7',
+      );
+    });
   });
 
   it('refuses day 0 without sending it (invalid input)', async () => {

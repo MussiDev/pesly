@@ -46,6 +46,8 @@ const LATER_MIGRATIONS = [
   '0029_card_automatic_debit',
   '0030_group_activity_log_changes',
   '0031_group_record_version',
+  '0032_card_statement_reminders',
+  '0033_savings_goals',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -83,6 +85,8 @@ const LATER_TABLES = [
   'group_settlement_legs',
   'group_settlements',
   'groups',
+  'goal_entries',
+  'goals',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 

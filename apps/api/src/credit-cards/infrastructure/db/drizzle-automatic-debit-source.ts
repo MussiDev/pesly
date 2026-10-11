@@ -34,6 +34,7 @@ export class DrizzleAutomaticDebitSource implements AutomaticDebitSource {
         debitUsdAccountId: creditCards.debitUsdAccountId,
         debitArsLinkedOn: creditCards.debitArsLinkedOn,
         debitUsdLinkedOn: creditCards.debitUsdLinkedOn,
+        reminderDays: creditCards.reminderDays,
         createdAt: creditCards.createdAt,
       })
       .from(creditCards)

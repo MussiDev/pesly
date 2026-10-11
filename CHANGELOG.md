@@ -372,6 +372,16 @@ All notable changes to this project are documented in this file. The format foll
   make repeated, concurrent or interrupted runs record exactly one transfer. Migration
   `0029_card_automatic_debit` adds four columns to `credit_cards` and the `card_automatic_debits` table.
   The card page has an automatic debit accounts section. No new dependency.
+- DISC-001-10f Statement due-date reminders: each card has reminder days (0 to 30, default 3), set when
+  the card is created and edited on the card page. A worker job creates one in-app reminder per
+  statement at 09:00 in the owner's time zone, that many days before the due date; a worker that was
+  stopped creates the missed reminder on its first pass, and none is created after the due date. No
+  reminder is created for a statement already paid or with no total, and a due date that is moved
+  creates its own reminder. The text names the card and the due date and carries no amount. Reminders
+  are unique per kind, statement and due date, so repeated or parallel runs create no duplicates. New
+  notice kind `card_statement_due`. Migration `0032_card_statement_reminders` adds
+  `credit_cards.reminder_days` and extends the notice kinds. Push delivery of the same notices arrives
+  with DISC-001-08d. No new dependency.
 - DISC-001-05a Groups, members and roles: `POST /groups` creates a group with a name and a default rate
   type and makes its creator an admin, with the top-level expense categories of the default list. Any member
   can generate an invitation link (valid 7 days, one active per member), add a ghost member with only a name

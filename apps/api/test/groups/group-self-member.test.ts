@@ -86,4 +86,17 @@ describe('selfMemberId on group detail and expense options', () => {
     expect(forBob.detail.selfMemberId).toBe(ghostId);
     expect(forBob.options.selfMemberId).toBe(ghostId);
   });
+
+  it('answers 404 without a member id to a user who is not a member', async () => {
+    const api = setupGroupApi(connection);
+    const ana = await api.makeUser('ana');
+    const outsider = await api.makeUser('eve');
+    const group = await createGroup(api.app, ana);
+
+    for (const path of [`/groups/${group.id}`, `/groups/${group.id}/expense-options`]) {
+      const response = await call(api.app, 'get', path, outsider.cookies);
+      expect(response.status).toBe(404);
+      expect(JSON.stringify(response.body)).not.toContain('selfMemberId');
+    }
+  });
 });

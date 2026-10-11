@@ -1,4 +1,4 @@
-import { firstOpenPeriod, statementDatesFor } from '@pesly/shared';
+import { CARD_REMINDER_DAYS_DEFAULT, firstOpenPeriod, statementDatesFor } from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import type { CreditCard } from '../domain/credit-card';
 import { todayOf, type CreditCardDependencies } from './dependencies';
@@ -12,12 +12,13 @@ export class CreateCreditCard {
   /** The card, its linked accounts and the cycle open today are created together (FR-01 to FR-03). */
   async execute(
     scope: AccessScope<'write'>,
-    data: CardDays & { name: string },
+    data: CardDays & { name: string; reminderDays?: number },
   ): Promise<CreditCard> {
     const today = await todayOf(this.deps, scope.userId);
     const period = firstOpenPeriod(today, data.closingDay);
     const { card } = await this.deps.cards.create(scope, {
       ...data,
+      reminderDays: data.reminderDays ?? CARD_REMINDER_DAYS_DEFAULT,
       firstStatement: { period, ...statementDatesFor(period, data.closingDay, data.dueDay) },
     });
     return card;

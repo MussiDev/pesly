@@ -208,13 +208,16 @@ describe('0031_group_record_version migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
+    // 0032 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
+    await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await versionColumns()).toEqual([]);
     expect(await checkNames()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await publicTableCount()).toBe(tablesBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     const kept = await client.query('select 1 from group_expenses where group_id = $1', [f.group]);
     expect(kept.rowCount).toBe(1);
 

@@ -50,6 +50,14 @@ const MOVEMENTS_IMPORTS = {
     'Identity, accounts, categories, credit-cards and recurring must not import the movements module; the composition root wires it in.',
 };
 
+// Credit cards declares the reminder publisher port that the notices adapter implements; its
+// domain and application never import notices (the worker injects the adapter).
+const NOTICES_IMPORTS = {
+  regex: '^(\\.\\./)+notices(/.*)?$',
+  message:
+    'Credit-cards domain and application must not import the notices module; the worker injects the adapter.',
+};
+
 export default defineConfig(
   {
     ignores: [
@@ -199,7 +207,15 @@ export default defineConfig(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [INFRASTRUCTURE_IMPORTS, IO_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+        {
+          patterns: [
+            INFRASTRUCTURE_IMPORTS,
+            IO_IMPORTS,
+            TEST_IMPORTS,
+            MOVEMENTS_IMPORTS,
+            NOTICES_IMPORTS,
+          ],
+        },
       ],
     },
   },
@@ -208,7 +224,7 @@ export default defineConfig(
     rules: {
       'no-restricted-imports': [
         'error',
-        { patterns: [INFRASTRUCTURE_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS] },
+        { patterns: [INFRASTRUCTURE_IMPORTS, TEST_IMPORTS, MOVEMENTS_IMPORTS, NOTICES_IMPORTS] },
       ],
     },
   },

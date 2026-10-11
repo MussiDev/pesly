@@ -32,11 +32,12 @@ afterAll(async () => {
 
 const OCTOBER = { period: '2026-10', closingDate: '2026-10-24', dueDate: '2026-11-05' };
 
-async function createVisa(ownerId: string, name = 'Visa') {
+async function createVisa(ownerId: string, name = 'Visa', reminderDays = 3) {
   return repository.create(await writeScope(ownerId), {
     name,
     closingDay: 24,
     dueDay: 5,
+    reminderDays,
     firstStatement: OCTOBER,
   });
 }
@@ -132,9 +133,12 @@ describe('DrizzleCreditCardRepository reads and writes', () => {
       }),
     ).toBeNull();
     expect(
-      await repository.updateDays(bobWrite, card.id, { closingDay: 20, dueDay: 5 }, [
-        { ...statement, closingDate: '2026-10-20' },
-      ]),
+      await repository.updateDays(
+        bobWrite,
+        card.id,
+        { closingDay: 20, dueDay: 5, reminderDays: 3 },
+        [{ ...statement, closingDate: '2026-10-20' }],
+      ),
     ).toBeNull();
     await repository.insertStatements(bobWrite, card.id, [
       { period: '2026-11', closingDate: '2026-11-24', dueDate: '2026-12-05' },
@@ -164,9 +168,12 @@ describe('DrizzleCreditCardRepository reads and writes', () => {
     const { card, statement } = await createVisa(ownerId);
     const scope = await writeScope(ownerId);
 
-    const updated = await repository.updateDays(scope, card.id, { closingDay: 20, dueDay: 5 }, [
-      { ...statement, closingDate: '2026-10-20' },
-    ]);
+    const updated = await repository.updateDays(
+      scope,
+      card.id,
+      { closingDay: 20, dueDay: 5, reminderDays: 3 },
+      [{ ...statement, closingDate: '2026-10-20' }],
+    );
     expect(updated?.closingDay).toBe(20);
     expect(
       await repository.updateStatement(scope, card.id, statement.id, {
@@ -180,6 +187,61 @@ describe('DrizzleCreditCardRepository reads and writes', () => {
         dueDate: '2026-11-06',
       }),
     ).toBeNull();
+  });
+});
+
+describe('DrizzleCreditCardRepository reminderDays', () => {
+  it('stores the reminder days on create and reads them back through findById and list', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId, 'Visa', 7);
+
+    expect(card.reminderDays).toBe(7);
+    expect((await repository.findById(await readScope(ownerId), card.id))?.reminderDays).toBe(7);
+    expect((await repository.list(await readScope(ownerId)))[0]?.reminderDays).toBe(7);
+  });
+
+  it('accepts 0 and 30 and refuses 31 and -1 at the database (sad path)', async () => {
+    const ownerId = await newUserId(connection.db);
+
+    expect((await createVisa(ownerId, 'Zero', 0)).card.reminderDays).toBe(0);
+    expect((await createVisa(ownerId, 'Thirty', 30)).card.reminderDays).toBe(30);
+    await expect(createVisa(ownerId, 'Over', 31)).rejects.toThrow();
+    await expect(createVisa(ownerId, 'Under', -1)).rejects.toThrow();
+    expect(
+      await count('select count(*) as n from credit_cards where owner_id = $1', [ownerId]),
+    ).toBe(2);
+  });
+
+  it('saves the reminder days with the days and keeps them across a debit link change', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+    const scope = await writeScope(ownerId);
+
+    const updated = await repository.updateDays(
+      scope,
+      card.id,
+      { closingDay: 24, dueDay: 5, reminderDays: 10 },
+      [],
+    );
+    expect(updated?.reminderDays).toBe(10);
+    const relinked = await repository.updateDebitAccounts(scope, card.id, NO_LINKS);
+    expect(relinked?.reminderDays).toBe(10);
+  });
+
+  it("does not change another user's reminder days (sad path)", async () => {
+    const ana = await newUserId(connection.db);
+    const bob = await newUserId(connection.db);
+    const { card } = await createVisa(ana);
+
+    expect(
+      await repository.updateDays(
+        await writeScope(bob),
+        card.id,
+        { closingDay: 24, dueDay: 5, reminderDays: 9 },
+        [],
+      ),
+    ).toBeNull();
+    expect((await repository.findById(await readScope(ana), card.id))?.reminderDays).toBe(3);
   });
 });
 

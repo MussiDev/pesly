@@ -603,7 +603,8 @@ function generator(seed: number): () => number {
   };
 }
 
-describe('group queue: atomic resolution under interruption (NFR-01)', () => {
+// 1,000 seeded runs against fake IndexedDB take longer than the 5 s default under CI coverage load.
+describe('group queue: atomic resolution under interruption (NFR-01)', { timeout: 60_000 }, () => {
   const RUNS = 1000;
   const SERVER = expenseRecord(5, '77000');
 

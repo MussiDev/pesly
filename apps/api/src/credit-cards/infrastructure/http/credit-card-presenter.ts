@@ -23,6 +23,7 @@ export function presentCreditCard(card: CreditCard): CreditCardResponse {
     usdAccountId: card.usdAccountId,
     debitArsAccountId: card.debitAccounts.ARS?.accountId ?? null,
     debitUsdAccountId: card.debitAccounts.USD?.accountId ?? null,
+    reminderDays: card.reminderDays,
     createdAt: card.createdAt.toISOString(),
   };
 }

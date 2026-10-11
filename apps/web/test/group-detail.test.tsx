@@ -93,6 +93,19 @@ describe('GroupDetailContainer', () => {
     expect(container.querySelector('[data-slot="group-panels"]')).toBeTruthy();
   });
 
+  it('links to the expenses, the new expense form and the default split', async () => {
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() } });
+    open();
+    const href = async (name: string) =>
+      (await screen.findByRole('link', { name })).getAttribute('href');
+
+    expect(await href(en.groups.detail.expensesLink)).toBe(`/en/groups/${GROUP_ID}/expenses`);
+    expect(await href(en.groups.detail.addExpenseLink)).toBe(`/en/groups/${GROUP_ID}/expenses/new`);
+    expect(await href(en.groups.detail.defaultSplitLink)).toBe(
+      `/en/groups/${GROUP_ID}/default-split`,
+    );
+  });
+
   it('renders Spanish strings', async () => {
     stubApi({ [GET_GROUP]: { status: 200, body: detail() } });
     open('es');
