@@ -215,6 +215,12 @@ export type ApiErrorKey =
   | 'groupRecordConflict'
   | 'groupSettlementConsolidated'
   | 'groupActivityLogImmutable'
+  | 'goalAccountCurrencyMismatch'
+  | 'goalLinkedToAccount'
+  | 'goalWithdrawalExceedsProgress'
+  | 'goalProgressTooLarge'
+  | 'goalLimitReached'
+  | 'accountLinkedToGoal'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -317,6 +323,12 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GROUP_RECORD_CONFLICT: 'groupRecordConflict',
   GROUP_SETTLEMENT_CONSOLIDATED: 'groupSettlementConsolidated',
   GROUP_ACTIVITY_LOG_IMMUTABLE: 'groupActivityLogImmutable',
+  GOAL_ACCOUNT_CURRENCY_MISMATCH: 'goalAccountCurrencyMismatch',
+  GOAL_LINKED_TO_ACCOUNT: 'goalLinkedToAccount',
+  GOAL_WITHDRAWAL_EXCEEDS_PROGRESS: 'goalWithdrawalExceedsProgress',
+  GOAL_PROGRESS_TOO_LARGE: 'goalProgressTooLarge',
+  GOAL_LIMIT_REACHED: 'goalLimitReached',
+  ACCOUNT_LINKED_TO_GOAL: 'accountLinkedToGoal',
 };
 
 /**
