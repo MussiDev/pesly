@@ -224,8 +224,11 @@ export const groupExpenses = pgTable(
       onDelete: 'set null',
     }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
+    // Optimistic concurrency counter: every change names the version it was based on (spec 04e D1).
+    version: integer('version').notNull().default(1),
   },
   (table) => [
+    check('group_expenses_version_check', sql`${table.version} >= 1`),
     check('group_expenses_amount_check', sql`${table.amount} > 0`),
     check('group_expenses_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
     check(
@@ -385,8 +388,11 @@ export const groupSettlements = pgTable(
     rateSource: text('rate_source', { enum: ['automatic', 'manual'] }),
     rateType: text('rate_type'),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
+    // Optimistic concurrency counter: every change names the version it was based on (spec 04e D1).
+    version: integer('version').notNull().default(1),
   },
   (table) => [
+    check('group_settlements_version_check', sql`${table.version} >= 1`),
     check('group_settlements_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
     check('group_settlements_amount_check', sql`${table.amount} >= 0`),
     check(

@@ -100,6 +100,7 @@ describe('group expenses schema introspection', () => {
 
   it('stores amounts as bigint and basis points as integer', async () => {
     expect(await columnType('group_expenses', 'amount')).toBe('bigint');
+    expect(await columnType('group_expenses', 'version')).toBe('integer');
     expect(await columnType('group_expense_shares', 'amount')).toBe('bigint');
     expect(await columnType('group_expense_shares', 'basis_points')).toBe('integer');
     expect(await columnType('group_default_split_shares', 'basis_points')).toBe('integer');
@@ -109,6 +110,7 @@ describe('group expenses schema introspection', () => {
     expect(await constraintNames('c')).toEqual(
       expect.arrayContaining([
         'group_expenses_amount_check',
+        'group_expenses_version_check',
         'group_expenses_currency_check',
         'group_expenses_description_length_check',
         'group_expenses_split_mode_check',
