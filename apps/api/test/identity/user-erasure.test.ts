@@ -71,10 +71,12 @@ interface RegisteredTable {
   seed: (context: SeedContext) => Promise<void>;
 }
 
-/** The restricting composite keys from `credit_cards` to the linked accounts (migration 0019). */
+/** The restricting composite keys from `credit_cards` to the linked and debit accounts (migrations 0019, 0027). */
 const CREDIT_CARDS_STEP_CONSTRAINTS = [
   'credit_cards_ars_account_owner_fk',
   'credit_cards_usd_account_owner_fk',
+  'credit_cards_debit_ars_account_owner_fk',
+  'credit_cards_debit_usd_account_owner_fk',
 ] as const;
 
 /** The restricting composite keys from `installment_purchases` to the card and the category (migration 0020). */
@@ -446,6 +448,19 @@ const REGISTRY: readonly RegisteredTable[] = [
       await query(
         context,
         "insert into card_statement_import_lines (owner_id, card_id, fingerprint) select owner_id, id, repeat('a', 64) from credit_cards where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'card_automatic_debits',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after credit_cards: the claim belongs to the card that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into card_automatic_debits (card_id, owner_id, period, currency, status) select id, owner_id, '2026-10', 'ARS', 'pending' from credit_cards where owner_id = $1 limit 1",
         [context.userId],
       );
     },

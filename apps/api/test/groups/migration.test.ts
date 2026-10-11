@@ -6,6 +6,7 @@ import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0026_groups';
+const NEWER_TAG = '0027_card_automatic_debit';
 const PREVIOUS_WHEN = 1791590000000;
 const GROUP_TABLES = [
   'group_categories',
@@ -121,12 +122,14 @@ describe('0026_groups migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
+    // 0027 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await groupTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await groupTables()).toEqual(GROUP_TABLES);
