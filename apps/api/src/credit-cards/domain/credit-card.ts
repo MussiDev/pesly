@@ -3,6 +3,12 @@ import type { StatementInstallmentView } from './installment';
 import type { StatementTotals } from './statement-assignment';
 import type { StatementPaymentView } from './statement-payment';
 
+/** The bank account a card is paid from automatically; `linkedOn` is the owner's local date at link time. */
+export interface DebitLink {
+  accountId: string;
+  linkedOn: string;
+}
+
 export interface CreditCard {
   id: string;
   name: string;
@@ -10,6 +16,8 @@ export interface CreditCard {
   dueDay: number;
   arsAccountId: string;
   usdAccountId: string;
+  /** Automatic debit account per currency; `null` means no automatic debit in that currency. */
+  debitAccounts: { ARS: DebitLink | null; USD: DebitLink | null };
   createdAt: Date;
 }
 

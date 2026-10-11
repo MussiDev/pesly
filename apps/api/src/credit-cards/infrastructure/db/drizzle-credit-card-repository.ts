@@ -1,5 +1,5 @@
-import { and, asc, eq, inArray } from 'drizzle-orm';
-import type { AccessScope } from '../../../shared/access';
+import { and, asc, eq, inArray, or } from 'drizzle-orm';
+import { ResourceNotFound, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
@@ -12,6 +12,7 @@ import type {
 import {
   linkedAccountNames,
   type CreditCard,
+  type DebitLink,
   type Statement,
   type StatementDraft,
 } from '../../domain/credit-card';
@@ -26,8 +27,40 @@ const cardColumns = {
   dueDay: creditCards.dueDay,
   arsAccountId: creditCards.arsAccountId,
   usdAccountId: creditCards.usdAccountId,
+  debitArsAccountId: creditCards.debitArsAccountId,
+  debitUsdAccountId: creditCards.debitUsdAccountId,
+  debitArsLinkedOn: creditCards.debitArsLinkedOn,
+  debitUsdLinkedOn: creditCards.debitUsdLinkedOn,
   createdAt: creditCards.createdAt,
 };
+
+type CardRow = {
+  id: string;
+  name: string;
+  closingDay: number;
+  dueDay: number;
+  arsAccountId: string;
+  usdAccountId: string;
+  debitArsAccountId: string | null;
+  debitUsdAccountId: string | null;
+  debitArsLinkedOn: string | null;
+  debitUsdLinkedOn: string | null;
+  createdAt: Date;
+};
+
+const debitLink = (accountId: string | null, linkedOn: string | null): DebitLink | null =>
+  accountId !== null && linkedOn !== null ? { accountId, linkedOn } : null;
+
+function toCard(row: CardRow): CreditCard {
+  const { debitArsAccountId, debitUsdAccountId, debitArsLinkedOn, debitUsdLinkedOn, ...card } = row;
+  return {
+    ...card,
+    debitAccounts: {
+      ARS: debitLink(debitArsAccountId, debitArsLinkedOn),
+      USD: debitLink(debitUsdAccountId, debitUsdLinkedOn),
+    },
+  };
+}
 
 const statementColumns = {
   id: creditCardStatements.id,
@@ -91,7 +124,7 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
           .values({ cardId: card.id, ownerId: scope.userId, ...data.firstStatement })
           .returning(statementColumns);
         if (!statement) throw new Error('Inserting a statement returned no row');
-        return { card, statement };
+        return { card: toCard(card), statement };
       });
     } catch (error) {
       if (violatedConstraint(error, '23505') === 'accounts_owner_name_unique') {
@@ -101,12 +134,13 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
     }
   }
 
-  list(scope: AccessScope): Promise<CreditCard[]> {
-    return this.db
+  async list(scope: AccessScope): Promise<CreditCard[]> {
+    const rows = await this.db
       .select(cardColumns)
       .from(creditCards)
       .where(scopedTo(scope, { owner: creditCards.ownerId }))
       .orderBy(asc(creditCards.createdAt), asc(creditCards.id));
+    return rows.map(toCard);
   }
 
   async findById(scope: AccessScope, id: string): Promise<CreditCard | null> {
@@ -115,7 +149,7 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
       .from(creditCards)
       .where(ownCard(scope, id))
       .limit(1);
-    return row ?? null;
+    return row ? toCard(row) : null;
   }
 
   listStatements(scope: AccessScope, cardId: string): Promise<Statement[]> {
@@ -175,8 +209,49 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
           })
           .where(and(ownStatements(scope, cardId), eq(creditCardStatements.id, statement.id)));
       }
-      return card;
+      return toCard(card);
     });
+  }
+
+  async updateDebitAccounts(
+    scope: AccessScope<'write'>,
+    cardId: string,
+    links: CreditCard['debitAccounts'],
+  ): Promise<CreditCard | null> {
+    try {
+      const [row] = await this.db
+        .update(creditCards)
+        .set({
+          debitArsAccountId: links.ARS?.accountId ?? null,
+          debitArsLinkedOn: links.ARS?.linkedOn ?? null,
+          debitUsdAccountId: links.USD?.accountId ?? null,
+          debitUsdLinkedOn: links.USD?.linkedOn ?? null,
+          updatedAt: new Date(),
+        })
+        .where(ownCard(scope, cardId))
+        .returning(cardColumns);
+      return row ? toCard(row) : null;
+    } catch (error) {
+      // An account deleted between the check and the write, or one that is not the owner's.
+      if (violatedConstraint(error, '23503')?.startsWith('credit_cards_debit_')) {
+        throw new ResourceNotFound();
+      }
+      throw error;
+    }
+  }
+
+  async isCardAccount(scope: AccessScope, accountId: string): Promise<boolean> {
+    const [row] = await this.db
+      .select({ id: creditCards.id })
+      .from(creditCards)
+      .where(
+        and(
+          or(eq(creditCards.arsAccountId, accountId), eq(creditCards.usdAccountId, accountId)),
+          scopedTo(scope, { owner: creditCards.ownerId }),
+        ),
+      )
+      .limit(1);
+    return row !== undefined;
   }
 
   async delete(scope: AccessScope<'write'>, card: CreditCard): Promise<boolean> {

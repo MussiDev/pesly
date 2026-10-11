@@ -29,6 +29,8 @@ const card: CreditCardResponse = {
   dueDay: 5,
   arsAccountId: '11111111-1111-4111-8111-111111111111',
   usdAccountId: '22222222-2222-4222-8222-222222222222',
+  debitArsAccountId: null,
+  debitUsdAccountId: null,
   createdAt: '2026-10-01T12:00:00.000Z',
 };
 
@@ -310,9 +312,24 @@ function statement(overrides: Partial<StatementResponse>): StatementResponse {
   };
 }
 
+const NO_ACCOUNTS = {
+  status: 200,
+  body: {
+    items: [],
+    availableTotals: { ARS: '0', USD: '0' },
+    netWorthTotals: { ARS: '0', USD: '0' },
+    debtTotals: { ARS: '0', USD: '0' },
+    creditCardCount: 0,
+    total: 0,
+    limit: 100,
+    offset: 0,
+  },
+};
+
 async function showStatement(item: StatementResponse, locale: 'es' | 'en') {
   stubApi({
     [CARD]: { status: 200, body: card },
+    [ACCOUNTS]: NO_ACCOUNTS,
     [STATEMENTS]: { status: 200, body: { items: [item] } },
     [PURCHASES]: { status: 200, body: { items: [], pendingDebt: { ARS: '0', USD: '0' } } },
   });

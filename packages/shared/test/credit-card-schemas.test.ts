@@ -6,6 +6,7 @@ import {
   createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
   creditCardResponseSchema,
+  setDebitAccountsRequestSchema,
   statementParamsSchema,
   statementResponseSchema,
   updateCreditCardRequestSchema,
@@ -123,6 +124,8 @@ describe('params and responses', () => {
         dueDay: 5,
         arsAccountId: UUID,
         usdAccountId: UUID,
+        debitArsAccountId: null,
+        debitUsdAccountId: null,
         createdAt: '2026-10-06T12:00:00.000Z',
       }).success,
     ).toBe(true);
@@ -247,5 +250,80 @@ describe('accountNameSchema (regression)', () => {
   it('still accepts 50 characters and rejects 51', () => {
     expect(accountNameSchema.safeParse('a'.repeat(50)).success).toBe(true);
     expect(accountNameSchema.safeParse('a'.repeat(51)).success).toBe(false);
+  });
+});
+
+describe('setDebitAccountsRequestSchema', () => {
+  it('accepts two UUIDs, one UUID and one null, and two nulls (AC-01)', () => {
+    const parse = (body: unknown) => setDebitAccountsRequestSchema.safeParse(body).success;
+    expect(parse({ debitArsAccountId: UUID, debitUsdAccountId: UUID })).toBe(true);
+    expect(parse({ debitArsAccountId: UUID, debitUsdAccountId: null })).toBe(true);
+    expect(parse({ debitArsAccountId: null, debitUsdAccountId: UUID })).toBe(true);
+    expect(parse({ debitArsAccountId: null, debitUsdAccountId: null })).toBe(true);
+  });
+
+  it.each([
+    ['a missing key', { debitArsAccountId: UUID }],
+    ['both keys missing', {}],
+    ['a non-UUID string', { debitArsAccountId: 'not-a-uuid', debitUsdAccountId: null }],
+    ['an empty string', { debitArsAccountId: null, debitUsdAccountId: '' }],
+    ['a number', { debitArsAccountId: 1, debitUsdAccountId: null }],
+    ['an unknown key', { debitArsAccountId: null, debitUsdAccountId: null, extra: true }],
+  ])('rejects %s as invalid input (FR-01)', (_label, body) => {
+    expect(setDebitAccountsRequestSchema.safeParse(body).success).toBe(false);
+  });
+
+  it('reports only the failing paths, never the typed values (FR-01)', () => {
+    const typed = 'secret-typed-value';
+    const result = setDebitAccountsRequestSchema.safeParse({
+      debitArsAccountId: typed,
+      debitUsdAccountId: null,
+    });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.path)).toEqual([['debitArsAccountId']]);
+    expect(JSON.stringify(result.error.issues)).not.toContain(typed);
+  });
+});
+
+describe('creditCardResponseSchema debit fields', () => {
+  const base = {
+    id: UUID,
+    name: 'Visa',
+    closingDay: 24,
+    dueDay: 5,
+    arsAccountId: UUID,
+    usdAccountId: UUID,
+    createdAt: '2026-10-06T12:00:00.000Z',
+  };
+
+  it('parses with both debit fields null and with UUID strings (AC-01)', () => {
+    expect(
+      creditCardResponseSchema.safeParse({
+        ...base,
+        debitArsAccountId: null,
+        debitUsdAccountId: null,
+      }).success,
+    ).toBe(true);
+    expect(
+      creditCardResponseSchema.safeParse({
+        ...base,
+        debitArsAccountId: UUID,
+        debitUsdAccountId: UUID,
+      }).success,
+    ).toBe(true);
+  });
+
+  it('rejects an undefined debit field (AC-01)', () => {
+    expect(creditCardResponseSchema.safeParse({ ...base, debitArsAccountId: null }).success).toBe(
+      false,
+    );
+    expect(
+      creditCardResponseSchema.safeParse({
+        ...base,
+        debitArsAccountId: undefined,
+        debitUsdAccountId: null,
+      }).success,
+    ).toBe(false);
   });
 });

@@ -41,6 +41,8 @@ const card: CreditCardResponse = {
   dueDay: 5,
   arsAccountId: '11111111-1111-4111-8111-111111111111',
   usdAccountId: '22222222-2222-4222-8222-222222222222',
+  debitArsAccountId: null,
+  debitUsdAccountId: null,
   createdAt: '2026-10-01T12:00:00.000Z',
 };
 
@@ -292,6 +294,20 @@ const STATEMENT: StatementResponse = {
 
 const PENDING_11 = { ARS: '11000000', USD: '0' };
 
+const NO_ACCOUNTS = {
+  status: 200,
+  body: {
+    items: [],
+    availableTotals: { ARS: '0', USD: '0' },
+    netWorthTotals: { ARS: '0', USD: '0' },
+    debtTotals: { ARS: '0', USD: '0' },
+    creditCardCount: 0,
+    total: 0,
+    limit: 100,
+    offset: 0,
+  },
+};
+
 function detailRoutes(
   purchases: InstallmentPurchaseResponse[],
   pendingDebt = PENDING_11,
@@ -299,6 +315,7 @@ function detailRoutes(
 ) {
   return {
     [CARD]: { status: 200, body: card },
+    'GET /accounts?archived=false&limit=100': NO_ACCOUNTS,
     [`GET ${CARD_PATH}/statements`]: { status: 200, body: { items: [STATEMENT] } },
     [`GET ${CARD_PATH}/installment-purchases`]: {
       status: 200,

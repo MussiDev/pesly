@@ -15,7 +15,14 @@ export class DrizzleCardAccountLinks {
     const [row] = await this.db
       .select({ id: creditCards.id })
       .from(creditCards)
-      .where(or(eq(creditCards.arsAccountId, accountId), eq(creditCards.usdAccountId, accountId)))
+      .where(
+        or(
+          eq(creditCards.arsAccountId, accountId),
+          eq(creditCards.usdAccountId, accountId),
+          eq(creditCards.debitArsAccountId, accountId),
+          eq(creditCards.debitUsdAccountId, accountId),
+        ),
+      )
       .limit(1);
     return row !== undefined;
   }

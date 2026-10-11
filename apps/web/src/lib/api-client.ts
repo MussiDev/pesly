@@ -101,6 +101,7 @@ import {
   type CreditCardResponse,
   type ListCreditCardsResponse,
   type ListStatementsResponse,
+  type SetDebitAccountsRequest,
   type StatementResponse,
   type UpdateCreditCardRequest,
   type UpdateStatementRequest,
@@ -160,6 +161,8 @@ export type ApiErrorKey =
   | 'impliedRateOutOfRange'
   | 'movementTypeImmutable'
   | 'accountLinkedToCard'
+  | 'debitAccountCurrencyMismatch'
+  | 'debitAccountIsCardAccount'
   | 'cardHasMovements'
   | 'statementClosed'
   | 'recurringOccurrenceNotPending'
@@ -235,6 +238,8 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   IMPLIED_RATE_OUT_OF_RANGE: 'impliedRateOutOfRange',
   MOVEMENT_TYPE_IMMUTABLE: 'movementTypeImmutable',
   ACCOUNT_LINKED_TO_CARD: 'accountLinkedToCard',
+  DEBIT_ACCOUNT_CURRENCY_MISMATCH: 'debitAccountCurrencyMismatch',
+  DEBIT_ACCOUNT_IS_CARD_ACCOUNT: 'debitAccountIsCardAccount',
   CARD_HAS_MOVEMENTS: 'cardHasMovements',
   STATEMENT_CLOSED: 'statementClosed',
   RECURRING_OCCURRENCE_NOT_PENDING: 'recurringOccurrenceNotPending',
@@ -423,6 +428,11 @@ export interface ApiClient {
   updateCreditCardDays(
     id: string,
     body: UpdateCreditCardRequest,
+  ): Promise<ApiResult<CreditCardResponse>>;
+  /** Replaces the automatic debit account of each currency; `null` clears it. Needs a connection. */
+  setCardDebitAccounts(
+    id: string,
+    body: SetDebitAccountsRequest,
   ): Promise<ApiResult<CreditCardResponse>>;
   /** Deletes the card, its statements and its two linked accounts (409 when they have movements). */
   deleteCreditCard(id: string): Promise<ApiResult<undefined>>;
@@ -973,6 +983,16 @@ export function createApiClient({
         request({
           method: 'PATCH',
           path,
+          body,
+          response: creditCardResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    setCardDebitAccounts: (id, body) =>
+      onCreditCard(id, (path) =>
+        request({
+          method: 'PUT',
+          path: `${path}/debit-accounts`,
           body,
           response: creditCardResponseSchema,
           refreshOnUnauthenticated: true,

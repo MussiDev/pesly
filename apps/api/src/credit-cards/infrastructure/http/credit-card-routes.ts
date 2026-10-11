@@ -14,6 +14,7 @@ import {
   listCreditCardsResponseSchema,
   listInstallmentPurchasesResponseSchema,
   listStatementsResponseSchema,
+  setDebitAccountsRequestSchema,
   statementImportResponseSchema,
   statementParamsSchema,
   statementPaymentResponseSchema,
@@ -57,11 +58,13 @@ import type { ExpenseRecorder } from '../../application/ports/expense-recorder';
 import type { InstallmentWriteLimit } from '../../application/ports/installment-write-limit';
 import type { StatementPaymentRecorder } from '../../application/ports/statement-payment-recorder';
 import { RecordCardExpense } from '../../application/record-card-expense';
+import { SetCardDebitAccounts } from '../../application/set-card-debit-accounts';
 import { RecordStatementPayment } from '../../application/record-statement-payment';
 import { UpdateCreditCardDays } from '../../application/update-credit-card-days';
 import { UpdateInstallmentPurchase } from '../../application/update-installment-purchase';
 import { UpdateStatementDates } from '../../application/update-statement-dates';
 import { DrizzleCreditCardRepository } from '../db/drizzle-credit-card-repository';
+import { DrizzleDebitAccounts } from '../db/drizzle-debit-accounts';
 import { DrizzleInstallmentRepository } from '../db/drizzle-installment-repository';
 import { DrizzleStatementImportRepository } from '../db/drizzle-statement-import-repository';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
@@ -124,6 +127,7 @@ export function createCreditCardRoutes({
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
   const deps = {
     cards: new DrizzleCreditCardRepository(db),
+    debitAccounts: new DrizzleDebitAccounts(db),
     activity,
     expenses,
     purchases,
@@ -141,6 +145,7 @@ export function createCreditCardRoutes({
   const getCard = new GetCreditCard(deps);
   const updateDays = new UpdateCreditCardDays(deps);
   const deleteCard = new DeleteCreditCard(deps);
+  const setDebitAccounts = new SetCardDebitAccounts(deps);
   const listStatements = new ListStatements(deps);
   const updateStatement = new UpdateStatementDates(deps);
   const recordExpense = new RecordCardExpense(deps);
@@ -223,6 +228,27 @@ export function createCreditCardRoutes({
           const scope = await scopeOf(policy, auth, 'write');
           const card = await updateDays.execute(scope, params.id, body);
           audit('credit card days changed', requestId, auth, { cardId: card.id });
+          res.json(presentCreditCard(card));
+        },
+      ),
+    );
+
+    router.put(
+      '/credit-cards/:id/debit-accounts',
+      validate(
+        {
+          params: creditCardIdParamsSchema,
+          body: setDebitAccountsRequestSchema,
+          response: creditCardResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'write');
+          const card = await setDebitAccounts.execute(scope, params.id, {
+            ARS: body.debitArsAccountId,
+            USD: body.debitUsdAccountId,
+          });
+          // Ids of the card only: never the linked accounts or any name.
+          audit('credit card debit accounts changed', requestId, auth, { cardId: card.id });
           res.json(presentCreditCard(card));
         },
       ),

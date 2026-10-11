@@ -7,6 +7,7 @@ import type { CardPayments } from './ports/card-payments';
 import type { CardPurchases } from './ports/card-purchases';
 import type { Clock } from './ports/clock';
 import type { CreditCardRepository } from './ports/credit-card-repository';
+import type { DebitAccounts } from './ports/debit-accounts';
 import type { ExpenseCategoryGuard } from './ports/expense-category-guard';
 import type { ExpenseRecorder } from './ports/expense-recorder';
 import type { InstallmentRepository } from './ports/installment-repository';
@@ -28,6 +29,7 @@ export interface CreditCardDependencies {
   cardPayments: CardPayments;
   paymentRecorder: StatementPaymentRecorder;
   statementImports: StatementImportRepository;
+  debitAccounts: DebitAccounts;
 }
 
 /** The caller's calendar date, `YYYY-MM-DD`, in their stored time zone (PRD 01 FR-24). */

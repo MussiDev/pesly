@@ -12,6 +12,8 @@ const card = {
   dueDay: 5,
   arsAccountId: '11111111-1111-4111-8111-111111111111',
   usdAccountId: '22222222-2222-4222-8222-222222222222',
+  debitArsAccountId: null,
+  debitUsdAccountId: null,
   createdAt: '2026-10-06T12:00:00.000Z',
 };
 
@@ -90,6 +92,56 @@ describe('credit cards api client', () => {
     expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}`);
     expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body as string)).toEqual({ closingDay: 20 });
+  });
+
+  it('setCardDebitAccounts puts both links and parses the card (AC-01)', async () => {
+    const body = {
+      debitArsAccountId: '33333333-3333-4333-8333-333333333333',
+      debitUsdAccountId: null,
+    };
+    const saved = { ...card, ...body };
+    const { client, fetch } = clientWith(jsonResponse(200, saved));
+
+    expect(await client.setCardDebitAccounts(CARD_ID, body)).toEqual({ ok: true, data: saved });
+    const { url, init } = requestAt(fetch, 0);
+    expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}/debit-accounts`);
+    expect(init.method).toBe('PUT');
+    expect(JSON.parse(init.body as string)).toEqual(body);
+    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+  });
+
+  it('setCardDebitAccounts maps a malformed success body to unexpected (error path)', async () => {
+    const { client } = clientWith(jsonResponse(200, { id: 'x' }));
+
+    expect(
+      await client.setCardDebitAccounts(CARD_ID, {
+        debitArsAccountId: null,
+        debitUsdAccountId: null,
+      }),
+    ).toMatchObject({ ok: false, code: 'INTERNAL', messageKey: 'unexpected' });
+  });
+
+  it('setCardDebitAccounts refuses an id of ".." without a request (invalid input)', async () => {
+    const { client, fetch } = clientWith();
+
+    expect(
+      await client.setCardDebitAccounts('..', { debitArsAccountId: null, debitUsdAccountId: null }),
+    ).toMatchObject({ ok: false, code: 'VALIDATION_FAILED' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['DEBIT_ACCOUNT_CURRENCY_MISMATCH', 'debitAccountCurrencyMismatch'],
+    ['DEBIT_ACCOUNT_IS_CARD_ACCOUNT', 'debitAccountIsCardAccount'],
+  ])('maps a 400 %s to its message key (sad path, AC-05)', async (code, messageKey) => {
+    const { client } = clientWith(jsonResponse(400, { code }));
+
+    expect(
+      await client.setCardDebitAccounts(CARD_ID, {
+        debitArsAccountId: null,
+        debitUsdAccountId: null,
+      }),
+    ).toEqual({ ok: false, code, messageKey });
   });
 
   it('deleteCreditCard sends DELETE and accepts 204 (FR-08)', async () => {

@@ -20,6 +20,7 @@ const NEWER_TAGS = [
   '0026_groups',
   '0027_group_expenses',
   '0028_group_settlements',
+  '0029_card_automatic_debit',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
