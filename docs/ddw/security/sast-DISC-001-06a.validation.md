@@ -1,5 +1,5 @@
 ```
-/ddw-validate-sast C:/Users/Joako/Desktop/argent-06a/docs/ddw/security/sast-DISC-001-06a.md — PASSED
+/ddw-validate-sast docs/ddw/security/sast-DISC-001-06a.md — PASSED
 ────────────────────────────────────────────────────────────────
   ✅ F-SAST-COVERAGE: all 17 catalogued categories carry a verdict
   ✅ F-SAST-SEVERITY: no Critical or High category filed under a warning marker
