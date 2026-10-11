@@ -351,6 +351,17 @@ All notable changes to this project are documented in this file. The format foll
   parallel runs create no duplicates. Migration `0025_notices` adds `recurring_payments.reminder_days`
   and the `notices` table. Push delivery of the same notices arrives in DISC-001-08d. No new
   dependency.
+- DISC-001-10e Automatic debit of credit card statements: a card can link one debit account per
+  currency (`PUT /credit-cards/:id/debit-accounts`), chosen among the owner's open accounts of that
+  currency and never a card account. From 06:00 in the owner's time zone on a statement's due date,
+  a worker job records a transfer of the unpaid remainder from the debit account to the card's account
+  of that currency, deducting payments already made by hand. Nothing is recorded when the remainder is 0,
+  when no account is linked for the currency, or when the account is archived or gone (the statement
+  stays unpaid). A statement due before the link date is never debited, and a worker that was stopped
+  records the debit on its first pass. A claim per statement and currency plus a deterministic transfer id
+  make repeated, concurrent or interrupted runs record exactly one transfer. Migration
+  `0027_card_automatic_debit` adds four columns to `credit_cards` and the `card_automatic_debits` table.
+  The card page has an automatic debit accounts section. No new dependency.
 - DISC-001-05a Groups, members and roles: `POST /groups` creates a group with a name and a default rate
   type and makes its creator an admin, with the top-level expense categories of the default list. Any member
   can generate an invitation link (valid 7 days, one active per member), add a ghost member with only a name
