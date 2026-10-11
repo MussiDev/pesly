@@ -1418,5 +1418,32 @@
       "modeRequired": "Elegí cómo se registra.",
       "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30."
     }
+  },
+  "groupConflict": {
+    "title": "Este registro cambió en el servidor",
+    "titleExpense": "Este gasto cambió mientras estabas sin conexión",
+    "titleSettlement": "Este pago cambió mientras estabas sin conexión",
+    "description": "Alguien más lo cambió antes de que tu cambio llegara al servidor. Elige qué versión conservar.",
+    "mine": "Mía",
+    "server": "Del servidor",
+    "keepMine": "Conservar la mía",
+    "keepServer": "Conservar la del servidor",
+    "differs": "(difiere)",
+    "deleted": "Eliminaste este registro",
+    "unknownCategory": "Categoría desconocida",
+    "unknownMember": "Integrante desconocido",
+    "error": "No pudimos aplicar tu elección. Las dos versiones siguen aquí; prueba de nuevo.",
+    "fields": {
+      "amount": "Monto",
+      "date": "Fecha",
+      "category": "Categoría",
+      "description": "Descripción",
+      "split": "División"
+    },
+    "splitModes": {
+      "equal": "División en partes iguales",
+      "percentage": "Porcentajes",
+      "exact": "Montos exactos"
+    }
   }
 }

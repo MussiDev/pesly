@@ -1418,5 +1418,32 @@
       "modeRequired": "Choose how it is recorded.",
       "reminderDaysInvalid": "Enter a whole number of days from 0 to 30."
     }
+  },
+  "groupConflict": {
+    "title": "This record changed on the server",
+    "titleExpense": "This expense changed while you were offline",
+    "titleSettlement": "This settlement changed while you were offline",
+    "description": "Someone else changed it before your change reached the server. Choose which version to keep.",
+    "mine": "Mine",
+    "server": "Server's",
+    "keepMine": "Keep mine",
+    "keepServer": "Keep server's",
+    "differs": "(differs)",
+    "deleted": "You deleted this record",
+    "unknownCategory": "Unknown category",
+    "unknownMember": "Unknown member",
+    "error": "We could not apply your choice. Both versions are still here; try again.",
+    "fields": {
+      "amount": "Amount",
+      "date": "Date",
+      "category": "Category",
+      "description": "Description",
+      "split": "Split"
+    },
+    "splitModes": {
+      "equal": "Equal split",
+      "percentage": "Percentages",
+      "exact": "Exact amounts"
+    }
   }
 }
