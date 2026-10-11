@@ -10,6 +10,8 @@
 ## Components
 | Component | Source in the spec |
 |---|---|
+| `apps/api/src/groups/infrastructure/http/group-presenter.ts` | Block 0 |
+| `apps/api/src/groups/infrastructure/http/group-expense-presenter.ts` | Block 0 |
 | `apps/web/src/lib/api-client.ts` | Block 1 |
 | `apps/web/src/features/groups/split/split-request.ts` | Block 2 |
 | `apps/web/src/features/groups/expenses/list/group-expenses-container.tsx` | Block 3 |
@@ -26,6 +28,24 @@
   personal shares page shows only the caller's own shares.
 
 ## STRIDE analysis
+### `apps/api/src/groups/infrastructure/http/group-presenter.ts`
+- **Spoofing:** not applicable; the id comes from the session through the group access guard.
+- **Tampering:** not applicable; the presenters only copy a field into the response.
+- **Repudiation:** not applicable; read-only.
+- **Information Disclosure:** `selfMemberId` is the caller's own member id, already visible in the member
+  list the caller receives; a non-member gets 404 before any field is built.
+- **Denial of Service:** not applicable; one extra string per response.
+- **Elevation of Privilege:** not applicable; the id grants nothing, and the API still checks every action.
+
+### `apps/api/src/groups/infrastructure/http/group-expense-presenter.ts`
+- **Spoofing:** not applicable; the id comes from the session through the group access guard.
+- **Tampering:** not applicable; the presenters only copy a field into the response.
+- **Repudiation:** not applicable; read-only.
+- **Information Disclosure:** `selfMemberId` is the caller's own member id, already visible in the member
+  list the caller receives; a non-member gets 404 before any field is built.
+- **Denial of Service:** not applicable; one extra string per response.
+- **Elevation of Privilege:** not applicable; the id grants nothing, and the API still checks every action.
+
 ### `apps/web/src/lib/api-client.ts`
 - **Spoofing:** the caller identity is the session cookie; no user id is ever sent from the client.
 - **Tampering:** every response is parsed with the shared validators, so a modified or malformed body

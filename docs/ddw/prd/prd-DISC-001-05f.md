@@ -5,15 +5,16 @@
 | Ticket | DISC-001-05f |
 | Tracker | none |
 | Date | 2026-10-11 |
-| PRD loops | 1 |
-| Loops since last human decision | 1 |
+| PRD loops | 2 |
+| Loops since last human decision | 2 |
 
 ## Context and Problem
 Second of four web sub-tickets of PRD 05 (parent index: `prd-DISC-001-05.md`; 05e groups and members,
 05g balances and settlements, 05h editing, activity and conflicts). The expense API is complete (05b)
 and 05e put a group on screen, but a member still cannot record or read an expense: the group detail
 has no expense list, no form and no way to choose how an amount is split. This ticket builds those
-screens on the existing API. It adds no endpoint, no migration and no dependency.
+screens on the existing API. It adds no endpoint, no migration and no dependency; the only API change is
+one additive response field, the caller's own member id, which the screens need to know who the viewer is.
 
 ## Goals
 - A member can record an expense paid by any member and choose how it is split.
@@ -99,6 +100,7 @@ screens on the existing API. It adds no endpoint, no migration and no dependency
 - Balances, suggested payments and settlements (05g).
 - Offline creation of group expenses: the screens are online only, as decided for PRD 05.
 - Changing the currency or payer of an existing expense (05d decision).
+- New endpoints and migrations; the one additive `selfMemberId` response field is the only API change.
 - Receipt photos, comments, recurring group expenses and converting a group expense between currencies.
 
 ## Risks and Mitigations
@@ -112,7 +114,8 @@ screens on the existing API. It adds no endpoint, no migration and no dependency
   (NFR-01).
 
 ## Dependencies
-- DISC-001-05b (expense API), 05a (default split) and 05d (version field) — merged.
+- DISC-001-05b (expense API), 05a (default split) and 05d (version field) — merged. The group detail
+  and expense options responses gain one additive field, `selfMemberId` (no new route).
 - DISC-001-05e (draft PR #54) — group screens, api-client group methods and the `groups` catalog this
   ticket builds on; this branch is stacked on it.
 - PRD 02 (accounts) — the payer's accounts and personal categories.
@@ -124,3 +127,4 @@ screens on the existing API. It adds no endpoint, no migration and no dependency
   awaiting the owner's acceptance.
 - 2026-10-11: Group expenses are online only in this ticket; offline entry stays with the sync layer
   of 04e and is not extended here. Proposed by the model, awaiting the owner's acceptance.
+- 2026-10-11: additive selfMemberId in two responses; proposed by the model, awaiting owner.

@@ -4,7 +4,7 @@
   ✅ F-SPEC-01: all 13 FR from the PRD are referenced by a block
   ✅ F-SPEC-02: all 17 AC from the PRD are named by at least one test
   ✅ F-SPEC-03: all 5 NFR carry a technical strategy
-  ·  7 block(s) found
+  ·  8 block(s) found
   ✅ F-SPEC-04: every block lists the files it creates or modifies
   ✅ F-SPEC-05: every block has a verifiable completion criterion
   ✅ F-SPEC-06: every block lists at least one required test
@@ -18,7 +18,7 @@
   ⚠️ W-SPEC-03: schema changes with no rollback or reverse-migration consideration
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
-  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 0 in total for this document
+  ✅ F-SPEC-LOOP: 1 loop(s) since a human decided, under the ceiling of 3; 1 in total for this document
 ────────────────────────────────────────────────────────────────
 Total: 13 passed, 0 failed, 2 warnings
 Result: PASSED

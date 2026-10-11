@@ -6,12 +6,14 @@
 | PRD | docs/ddw/prd/prd-DISC-001-05f.md |
 | Tier | FEATURE |
 | Date | 2026-10-11 |
-| Spec loops | 0 |
-| Loops since last human decision | 0 |
+| Spec loops | 1 |
+| Loops since last human decision | 1 |
 
 ## Summary
-Web only, stacked on 05e. The expense routes already exist (05a, 05b), so this ticket adds no route,
-migration or dependency. Block 1 adds five api-client methods. Block 2 is a pure module that turns the
+Web, stacked on 05e, plus one additive response field. The expense routes already exist (05a, 05b), so
+this ticket adds no route, migration or dependency. Block 0 adds `selfMemberId` (the caller's own member
+id) to two existing responses, because the screens cannot tell which member is the viewer without it.
+Block 1 adds five api-client methods. Block 2 is a pure module that turns the
 client split state into the request body and computes totals and remaining amounts with the shared money
 helpers and `allocateShares`. Blocks 3 to 6 are the screens, each a container (`useApiClient()` plus a
 `{kind: loading | failed | ready}` state) over presentational components, using the 05e pattern and
@@ -43,10 +45,10 @@ end-to-end test. Money stays in `bigint` minor units and basis points everywhere
 ## Coverage: PRD → blocks
 | Requirement | Covered by |
 |---|---|
-| FR-01, FR-02, FR-03 | Block 3 |
+| FR-01, FR-02, FR-03 | Block 3, with Block 0 for the viewer's share |
 | FR-04, FR-05, FR-06, FR-07, FR-08, FR-09 | Block 4, on the logic of Block 2 |
-| FR-10 | Block 4 |
-| FR-11 | Block 5 |
+| FR-10 | Block 4, with Block 0 to know the caller is the payer |
+| FR-11 | Block 5, with Block 0 for the admin check |
 | FR-12 | Block 6 |
 | FR-13 | Every block adds its catalog keys; Block 7 checks parity |
 | NFR-01 | Block 7 (end-to-end at 360 px) |
@@ -56,7 +58,8 @@ end-to-end test. Money stays in `bigint` minor units and basis points everywhere
 | NFR-05 | Block 7 (scan), with Block 2 written to pass it |
 
 ## Dependencies between blocks
-Block 1 and Block 2 are independent and run in parallel first. Blocks 3, 4, 5 and 6 each need Block 1;
+Block 0 runs first: it changes the shared response schemas that Blocks 1, 3, 4 and 5 read. Block 1 and
+Block 2 are independent and run in parallel after it. Blocks 3, 4 and 5 also need Block 0; Blocks 3, 4, 5 and 6 each need Block 1;
 Block 4 also needs Block 2, and Block 5 needs Block 2 for percentage parsing. Blocks 3, 4, 5 and 6 are
 independent of each other and run in parallel; each owns only its own files and adds catalog keys under
 its own sub-namespace of `groups` (`expenses`, `split`, `defaultSplit`, `shares`) by targeted insertion,
@@ -64,6 +67,7 @@ so the shared JSON files are the only overlap. Block 7 is last and owns the page
 
 | Block | Owns (parallel group) |
 |---|---|
+| 0 | `packages/shared/src/groups/{group,expense}.ts`, `apps/api/src/groups/**` presenters and use cases (group 0) |
 | 1 | `api-client.ts` and its test (group A) |
 | 2 | `features/groups/split/*` (group A) |
 | 3 | `features/groups/expenses/list/*` (group B) |
@@ -71,6 +75,56 @@ so the shared JSON files are the only overlap. Block 7 is last and owns the page
 | 5 | `features/groups/default-split/*` (group B) |
 | 6 | `features/groups/shares/*` (group B) |
 | 7 | `app/**` pages, group detail links, e2e, scans |
+
+## Block 0 — Caller member id (cross-block addition)
+
+Added while building Blocks 3 to 5: the web needs the caller's own member id for the payer account
+fields (FR-10), the viewer's share on each row (FR-01) and the default-split admin check (FR-11,
+AC-14). No migration and no new route.
+
+**Files**
+- `packages/shared/src/groups/group.ts` (modified) — `selfMemberId` in `groupDetailResponseSchema`.
+- `packages/shared/src/groups/expense.ts` (modified) — `selfMemberId` in `expenseOptionsResponseSchema`.
+- `apps/api/src/groups/application/get-group.ts`, `get-expense-options.ts` (modified) — fill it from the
+  caller's active member row returned by the access guard.
+- `apps/api/src/groups/infrastructure/http/group-presenter.ts`, `group-expense-presenter.ts`
+  (modified) — pass it through.
+- `apps/api/test/groups/group-self-member.test.ts` (new) — the new field; the shared schema tests and
+  `group-presenter-former.test.ts` are updated for the new required field.
+
+**API contract**
+- Method and path: `GET /groups/:id` and `GET /groups/:id/expense-options` (existing routes).
+- Request: unchanged (path parameter only, no body).
+- Response: both gain `selfMemberId: string`, the id of the caller's own active member in that group.
+  The field is additive and required in the response; no other field or status changes.
+- Error codes: unchanged (404 for a missing group or a non-member, 401 without a session).
+- Auth: the session cookie and the group access guard, as before.
+
+**Data model**
+- No table, column or migration. `selfMemberId` is a non-null string in the two Zod response schemas,
+  with no default, taken from the caller's member row at read time and never stored.
+
+**Logic**
+Both use cases already resolve the caller through the group access guard; they return that member's id
+instead of discarding it. The id is already visible in the member list the caller receives, so no new
+information is disclosed. Nothing is stored.
+
+**Input validation**
+- None: output only. The requests are unchanged.
+
+**Error handling**
+- Unchanged: a non-member still gets 404 before any field is built, so the id is never returned to a
+  non-member.
+
+**Required tests**
+- [ ] The group detail returns the caller's own member id, and it differs per caller in the same group — validates AC-01.
+- [ ] The expense options return the caller's own member id — validates AC-11.
+- [ ] A non-member of the group gets 404 and no id — 404.
+- [ ] The shared response schemas require `selfMemberId` and reject a body without it — invalid input.
+
+**Completion criterion**
+The API and shared tests pass, typecheck is clean, and the web client reads `selfMemberId` from both
+responses.
 
 ## Block 1 — api-client expense methods
 
