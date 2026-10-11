@@ -1286,6 +1286,27 @@
     }
   },
   "groups": {
+    "balances": {
+      "description": "Quién le debe a quién en este grupo, una moneda a la vez.",
+      "recordPayment": "Registrar un pago",
+      "historyLink": "Historial de pagos",
+      "consolidateLink": "Saldar en conjunto",
+      "sectionLabel": "Saldos en {currency}",
+      "you": "Vos",
+      "owes": "Debe",
+      "owed": "Le deben",
+      "even": "Al día",
+      "settled": "Todo saldado. Nadie debe nada en esta moneda.",
+      "suggestedTitle": "Pagos sugeridos",
+      "payment": "{payer} le paga a {payee} {amount}",
+      "record": "Registrar",
+      "reloadFailed": "El pago se registró, pero no pudimos actualizar los saldos.",
+      "notFound": {
+        "title": "Grupo no encontrado",
+        "description": "Este grupo no existe o no sos miembro.",
+        "back": "Volver a grupos"
+      }
+    },
     "consolidate": {
       "title": "Saldar en conjunto",
       "description": "Unifica en un solo pago lo que dos personas se deben en ambas monedas.",

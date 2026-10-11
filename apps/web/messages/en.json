@@ -1286,6 +1286,27 @@
     }
   },
   "groups": {
+    "balances": {
+      "description": "Who owes whom in this group, one currency at a time.",
+      "recordPayment": "Record a payment",
+      "historyLink": "Payment history",
+      "consolidateLink": "Settle together",
+      "sectionLabel": "Balances in {currency}",
+      "you": "You",
+      "owes": "Owes",
+      "owed": "Is owed",
+      "even": "Even",
+      "settled": "All settled. Nobody owes anything in this currency.",
+      "suggestedTitle": "Suggested payments",
+      "payment": "{payer} pays {payee} {amount}",
+      "record": "Record",
+      "reloadFailed": "The payment was recorded, but we could not refresh the balances.",
+      "notFound": {
+        "title": "Group not found",
+        "description": "This group does not exist or you are not a member of it.",
+        "back": "Back to groups"
+      }
+    },
     "consolidate": {
       "title": "Settle together",
       "description": "Net what two people owe each other in both currencies into one payment.",
