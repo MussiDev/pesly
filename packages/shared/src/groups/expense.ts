@@ -216,6 +216,8 @@ export type DefaultSplitResponse = z.infer<typeof defaultSplitResponseSchema>;
 
 /** `GET /groups/:id/expense-options`: everything a new expense needs in one call (spec D9). */
 export const expenseOptionsResponseSchema = z.object({
+  /** The caller's own active member id in this group. */
+  selfMemberId: z.string(),
   members: z.array(
     z.object({
       id: z.string(),

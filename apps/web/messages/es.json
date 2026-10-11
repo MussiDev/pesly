@@ -1291,9 +1291,132 @@
     }
   },
   "groups": {
+    "shares": {
+      "title": "Mis partes",
+      "description": "Tu parte de los gastos de grupo, por moneda.",
+      "rangeLabel": "Rango de fechas",
+      "from": "Desde",
+      "to": "Hasta",
+      "apply": "Ver partes",
+      "listLabel": "Tus partes",
+      "openGroup": "Abrir grupo",
+      "receivable": "Todavía te deben:",
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando…",
+      "totals": {
+        "title": "Totales por moneda",
+        "partial": "Totales hasta ahora: solo se cuentan las filas cargadas."
+      },
+      "empty": {
+        "title": "No hay partes en este rango",
+        "description": "Acá van a aparecer los gastos de grupo en los que participás."
+      },
+      "errors": {
+        "fromRequired": "Ingresá la fecha de inicio.",
+        "fromInvalid": "La fecha de inicio no es válida.",
+        "toRequired": "Ingresá la fecha de fin.",
+        "toInvalid": "La fecha de fin no es válida.",
+        "rangeOrder": "La fecha de fin no puede ser anterior a la de inicio."
+      }
+    },
+    "split": {
+      "title": "División",
+      "modeLabel": "Cómo dividir",
+      "modes": {
+        "equal": "Partes iguales",
+        "percentage": "Porcentajes",
+        "exact": "Montos exactos"
+      },
+      "equal": {
+        "hint": "Elige quiénes comparten este gasto. Cada parte se muestra a la derecha."
+      },
+      "percentage": {
+        "hint": "Ingresa un porcentaje por cada miembro. Déjalo vacío para dejar a alguien afuera.",
+        "field": "Porcentaje de {name}"
+      },
+      "exact": {
+        "hint": "Ingresa un monto por cada miembro. Déjalo vacío para dejar a alguien afuera.",
+        "field": "Monto de {name}"
+      },
+      "summary": {
+        "percentageBalanced": "Los porcentajes suman 100%.",
+        "percentageTotal": "Total: {total} de 100%.",
+        "percentageMissing": "Faltan {value} para llegar a 100%.",
+        "percentageOver": "Sobran {value} sobre 100%.",
+        "exactBalanced": "Los montos suman el total.",
+        "exactRemaining": "Falta asignar: {amount}.",
+        "exactOver": "Sobran {amount} sobre el total."
+      },
+      "errors": {
+        "noMembers": "Agrega al menos un miembro a la división.",
+        "tooManyMembers": "La división tiene demasiados miembros.",
+        "duplicateMember": "Un miembro solo puede aparecer una vez en la división.",
+        "amountRequired": "Ingresa primero el monto del gasto.",
+        "percentageInvalid": "Ingresa un porcentaje entre 0 y 100 con hasta 2 decimales.",
+        "percentageTotal": "Los porcentajes deben sumar 100%.",
+        "amountInvalid": "Ingresa un monto válido para este miembro.",
+        "amountTotal": "Los montos deben sumar el total del gasto."
+      }
+    },
+    "expenses": {
+      "form": {
+        "title": "Nuevo gasto",
+        "steps": {
+          "amount": "Monto",
+          "payer": "Fecha y quién pagó",
+          "details": "Categoría y descripción",
+          "payerAccount": "Tu cuenta"
+        },
+        "fields": {
+          "amount": "Monto",
+          "currency": "Moneda",
+          "date": "Fecha",
+          "payer": "Pagó",
+          "category": "Categoría",
+          "description": "Descripción",
+          "account": "Cuenta",
+          "personalCategory": "Categoría personal"
+        },
+        "placeholders": {
+          "payer": "Elige quién pagó",
+          "category": "Elige una categoría",
+          "account": "Elige una cuenta",
+          "personalCategory": "Elige una categoría personal"
+        },
+        "payerAccountHint": "Pagaste tú: elige la cuenta de la que salió el dinero y la categoría de tu propio gasto.",
+        "unnamedMember": "Miembro sin nombre",
+        "submit": "Guardar gasto",
+        "pending": "Guardando…",
+        "errors": {
+          "currencyInvalid": "Elige una moneda.",
+          "descriptionRequired": "Ingresa una descripción.",
+          "descriptionTooLong": "La descripción puede tener hasta 200 caracteres.",
+          "descriptionInvalid": "La descripción tiene caracteres que no están permitidos.",
+          "payerRequired": "Elige quién pagó.",
+          "categoryRequired": "Elige una categoría de este grupo.",
+          "accountRequired": "Elige una de tus cuentas.",
+          "personalCategoryRequired": "Elige una categoría personal.",
+          "noAccountInCurrency": "No tienes ninguna cuenta en esta moneda. Crea una primero o elige otra moneda."
+        }
+      },
+      "title": "Gastos",
+      "back": "Volver al grupo",
+      "label": "Gastos del grupo",
+      "add": "Agregar gasto",
+      "paidBy": "Pagó {name}",
+      "yourShare": "Tu parte: {amount}",
+      "unnamedMember": "Miembro sin nombre",
+      "uncategorized": "Sin categoría",
+      "loadMore": "Cargar más",
+      "empty": {
+        "title": "Todavía no hay gastos",
+        "description": "Agregá el primer gasto para empezar a dividirlo con el grupo."
+      }
+    },
     "list": {
       "title": "Grupos",
       "description": "Gastos compartidos y quién debe a quién.",
+      "sharesLink": "Mis partes",
       "label": "Tus grupos",
       "members": "{count, plural, one {# miembro} other {# miembros}}",
       "roles": { "admin": "Admin", "member": "Miembro" },
@@ -1365,6 +1488,25 @@
         "creating": "Creando…"
       }
     },
+    "defaultSplit": {
+      "title": "División por defecto",
+      "description": "Cómo se dividen los gastos nuevos de este grupo salvo que lo cambies.",
+      "back": "Volver al grupo",
+      "currentTitle": "División actual por defecto",
+      "editTitle": "División por defecto",
+      "editDescription": "Los gastos nuevos empiezan con esta división. Puedes cambiarla en cada gasto.",
+      "readOnly": "Solo los administradores del grupo pueden cambiar la división por defecto.",
+      "equalSummary": "Partes iguales entre todos los miembros actuales.",
+      "modeLabel": "División",
+      "modes": { "equal": "Partes iguales", "percentage": "Porcentajes" },
+      "percentLabel": "Porcentaje de {name}",
+      "percentValue": "{value}%",
+      "missing": "Faltan {amount}% por asignar",
+      "over": "Sobran {amount}% sobre el 100%",
+      "save": "Guardar división por defecto",
+      "saving": "Guardando…",
+      "saved": "División por defecto guardada."
+    },
     "categories": {
       "title": "Categorías del grupo",
       "back": "Volver al grupo",
@@ -1388,6 +1530,9 @@
       "ghost": "Aún sin cuenta",
       "unnamed": "Miembro sin nombre",
       "categoriesLink": "Categorías del grupo",
+      "expensesLink": "Gastos",
+      "addExpenseLink": "Agregar gasto",
+      "defaultSplitLink": "División por defecto",
       "cannotRemoveSelf": "No podés quitarte a vos mismo: usá Salir del grupo.",
       "notFound": {
         "title": "No encontramos el grupo",

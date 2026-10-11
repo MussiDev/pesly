@@ -1291,9 +1291,126 @@
     }
   },
   "groups": {
+    "shares": {
+      "title": "My shares",
+      "description": "Your part of the group expenses, per currency.",
+      "rangeLabel": "Date range",
+      "from": "From",
+      "to": "To",
+      "apply": "Show shares",
+      "listLabel": "Your shares",
+      "openGroup": "Open group",
+      "receivable": "Still owed to you:",
+      "loadMore": "Load more",
+      "loadingMore": "Loading…",
+      "totals": {
+        "title": "Totals by currency",
+        "partial": "Totals so far: only the rows loaded are counted."
+      },
+      "empty": {
+        "title": "No shares in this range",
+        "description": "Group expenses you take part in will show up here."
+      },
+      "errors": {
+        "fromRequired": "Enter the start date.",
+        "fromInvalid": "The start date is not valid.",
+        "toRequired": "Enter the end date.",
+        "toInvalid": "The end date is not valid.",
+        "rangeOrder": "The end date cannot be before the start date."
+      }
+    },
+    "split": {
+      "title": "Split",
+      "modeLabel": "How to split",
+      "modes": { "equal": "Equal", "percentage": "Percentages", "exact": "Exact amounts" },
+      "equal": { "hint": "Choose who shares this expense. Each share is shown on the right." },
+      "percentage": {
+        "hint": "Enter a percentage for each member. Leave it empty to leave someone out.",
+        "field": "Percentage of {name}"
+      },
+      "exact": {
+        "hint": "Enter an amount for each member. Leave it empty to leave someone out.",
+        "field": "Amount of {name}"
+      },
+      "summary": {
+        "percentageBalanced": "The percentages add up to 100%.",
+        "percentageTotal": "Total: {total} of 100%.",
+        "percentageMissing": "{value} missing to reach 100%.",
+        "percentageOver": "{value} over 100%.",
+        "exactBalanced": "The amounts add up to the total.",
+        "exactRemaining": "Remaining to assign: {amount}.",
+        "exactOver": "{amount} over the total."
+      },
+      "errors": {
+        "noMembers": "Add at least one member to the split.",
+        "tooManyMembers": "The split has too many members.",
+        "duplicateMember": "A member can appear only once in the split.",
+        "amountRequired": "Enter the amount of the expense first.",
+        "percentageInvalid": "Enter a percentage between 0 and 100 with up to 2 decimals.",
+        "percentageTotal": "The percentages must add up to 100%.",
+        "amountInvalid": "Enter a valid amount for this member.",
+        "amountTotal": "The amounts must add up to the total of the expense."
+      }
+    },
+    "expenses": {
+      "form": {
+        "title": "New expense",
+        "steps": {
+          "amount": "Amount",
+          "payer": "Date and payer",
+          "details": "Category and description",
+          "payerAccount": "Your account"
+        },
+        "fields": {
+          "amount": "Amount",
+          "currency": "Currency",
+          "date": "Date",
+          "payer": "Paid by",
+          "category": "Category",
+          "description": "Description",
+          "account": "Account",
+          "personalCategory": "Personal category"
+        },
+        "placeholders": {
+          "payer": "Choose who paid",
+          "category": "Choose a category",
+          "account": "Choose an account",
+          "personalCategory": "Choose a personal category"
+        },
+        "payerAccountHint": "You paid, so choose the account the money left and the category of your own expense.",
+        "unnamedMember": "Unnamed member",
+        "submit": "Save expense",
+        "pending": "Saving…",
+        "errors": {
+          "currencyInvalid": "Choose a currency.",
+          "descriptionRequired": "Enter a description.",
+          "descriptionTooLong": "The description can have up to 200 characters.",
+          "descriptionInvalid": "The description has characters that are not allowed.",
+          "payerRequired": "Choose who paid.",
+          "categoryRequired": "Choose a category of this group.",
+          "accountRequired": "Choose one of your accounts.",
+          "personalCategoryRequired": "Choose a personal category.",
+          "noAccountInCurrency": "You have no account in this currency. Create one first or choose another currency."
+        }
+      },
+      "title": "Expenses",
+      "back": "Back to group",
+      "label": "Group expenses",
+      "add": "Add expense",
+      "paidBy": "Paid by {name}",
+      "yourShare": "Your share: {amount}",
+      "unnamedMember": "Unnamed member",
+      "uncategorized": "No category",
+      "loadMore": "Load more",
+      "empty": {
+        "title": "No expenses yet",
+        "description": "Add the first expense to start splitting it with the group."
+      }
+    },
     "list": {
       "title": "Groups",
       "description": "Shared expenses and who owes whom.",
+      "sharesLink": "My shares",
       "label": "Your groups",
       "members": "{count, plural, one {# member} other {# members}}",
       "roles": { "admin": "Admin", "member": "Member" },
@@ -1365,6 +1482,25 @@
         "creating": "Creating…"
       }
     },
+    "defaultSplit": {
+      "title": "Default split",
+      "description": "How new expenses of this group are split unless you change it.",
+      "back": "Back to group",
+      "currentTitle": "Current default",
+      "editTitle": "Default split",
+      "editDescription": "New expenses start with this split. You can still change it on each expense.",
+      "readOnly": "Only group admins can change the default split.",
+      "equalSummary": "Split equally among all current members.",
+      "modeLabel": "Split",
+      "modes": { "equal": "Equal split", "percentage": "Percentages" },
+      "percentLabel": "Percentage for {name}",
+      "percentValue": "{value}%",
+      "missing": "{amount}% still to assign",
+      "over": "{amount}% over 100%",
+      "save": "Save default split",
+      "saving": "Saving…",
+      "saved": "Default split saved."
+    },
     "categories": {
       "title": "Group categories",
       "back": "Back to group",
@@ -1388,6 +1524,9 @@
       "ghost": "No account yet",
       "unnamed": "Unnamed member",
       "categoriesLink": "Group categories",
+      "expensesLink": "Expenses",
+      "addExpenseLink": "Add expense",
+      "defaultSplitLink": "Default split",
       "cannotRemoveSelf": "You cannot remove yourself: use Leave group.",
       "notFound": {
         "title": "Group not found",
