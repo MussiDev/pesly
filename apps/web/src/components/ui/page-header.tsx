@@ -18,7 +18,7 @@ export function PageHeader({ title, description, actions, className, ...props }:
         <h1 className="text-title">{title}</h1>
         {description ? <p className="text-small text-muted-foreground">{description}</p> : null}
       </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
   );
 }

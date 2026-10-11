@@ -11,9 +11,11 @@ import { Link, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
 import { GroupAdminActions } from '../components/group-admin-actions';
+import { OwnBalanceSummary, type OwnBalanceLine } from '../components/own-balance-summary';
 import { GroupMembers } from '../components/group-members';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
 import { LeaveGroupPanel } from '../components/leave-group-panel';
+import { buildBalanceView } from '../settlements/balance-view';
 import { GroupGhostContainer } from './group-ghost-container';
 import { GroupInviteContainer } from './group-invite-container';
 
@@ -54,16 +56,32 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
   const [rateIssue, setRateIssue] = useState<ApiFailure>();
   const [rateSaved, setRateSaved] = useState(false);
   const [leaveIssue, setLeaveIssue] = useState<ApiFailure>();
+  /** Undefined while loading, null when the balances could not be loaded (secondary information). */
+  const [ownBalance, setOwnBalance] = useState<OwnBalanceLine[] | null | undefined>();
 
   useEffect(() => {
     let active = true;
-    void api.getGroup(groupId).then((result) => {
-      if (!active) return;
-      if (result.ok) setState({ kind: 'ready', group: result.data });
-      else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
-      else if (result.code === 'NOT_FOUND') setState({ kind: 'not-found' });
-      else setState({ kind: 'failed', error: result.messageKey });
-    });
+    setOwnBalance(undefined);
+    void Promise.all([api.getGroup(groupId), api.getGroupBalances(groupId)]).then(
+      ([result, balances]) => {
+        if (!active) return;
+        if (result.ok) {
+          setState({ kind: 'ready', group: result.data });
+          setOwnBalance(
+            balances.ok
+              ? buildBalanceView(balances.data, result.data, result.data.selfMemberId).map(
+                  (view) => ({
+                    currency: view.currency,
+                    balance: view.rows.find((row) => row.isSelf)?.balance ?? 0n,
+                  }),
+                )
+              : null,
+          );
+        } else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+        else if (result.code === 'NOT_FOUND') setState({ kind: 'not-found' });
+        else setState({ kind: 'failed', error: result.messageKey });
+      },
+    );
     return () => {
       active = false;
     };
@@ -208,6 +226,12 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
               {t('addExpenseLink')}
             </Link>
             <Link
+              href={`/groups/${encodeURIComponent(group.id)}/balances`}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {t('balancesLink')}
+            </Link>
+            <Link
               href={`/groups/${encodeURIComponent(group.id)}/default-split`}
               className={buttonVariants({ variant: 'outline' })}
             >
@@ -222,6 +246,7 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
           </div>
         }
       />
+      {ownBalance === undefined ? null : <OwnBalanceSummary lines={ownBalance} />}
       <GroupMembers
         members={group.members}
         formerMembers={group.formerMembers}
