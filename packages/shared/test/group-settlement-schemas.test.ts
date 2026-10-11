@@ -203,6 +203,7 @@ describe('group detail formerMembers (AC-20)', () => {
     role: 'admin',
     memberCount: 1,
     createdAt: NOW,
+    selfMemberId: A,
     members: [],
   };
 

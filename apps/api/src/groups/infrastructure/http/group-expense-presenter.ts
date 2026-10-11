@@ -52,6 +52,7 @@ export function presentDefaultSplit(split: DefaultSplit): DefaultSplitResponse {
 /** A member shows no email and no user id, only what picking a payer or a split needs. */
 export function presentExpenseOptions(options: ExpenseOptions): ExpenseOptionsResponse {
   return {
+    selfMemberId: options.selfMemberId,
     members: options.members.map((member) => ({
       id: member.id,
       displayName: member.displayName,
