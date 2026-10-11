@@ -381,6 +381,8 @@
     "statementClosed": "Este resumen ya cerró, por eso sus fechas ya no pueden cambiar.",
     "recurringOccurrenceNotPending": "Este vencimiento ya se resolvió, por eso ya no se puede confirmar ni omitir.",
     "recurringLimitReached": "Llegaste al límite de 200 pagos recurrentes. Eliminá uno para crear otro.",
+    "budgetLimitReached": "Llegaste al límite de 50 presupuestos. Eliminá uno para crear otro.",
+    "budgetCategoryKindInvalid": "Los presupuestos solo pueden cubrir categorías de gasto. Quitá la categoría de ingreso y probá de nuevo.",
     "groupAdminRequired": "Solo un administrador del grupo puede hacer esto.",
     "groupAlreadyMember": "Ya eres miembro de este grupo.",
     "groupMemberLimitReached": "Este grupo alcanzó el límite de 50 miembros.",
