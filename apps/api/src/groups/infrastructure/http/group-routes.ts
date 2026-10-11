@@ -68,6 +68,7 @@ import { GetBalances } from '../../application/get-balances';
 import { GetExpenseOptions } from '../../application/get-expense-options';
 import { GetGroup } from '../../application/get-group';
 import { GetGroupExpense } from '../../application/get-group-expense';
+import { GetSettlement } from '../../application/get-settlement';
 import { JoinGroup } from '../../application/join-group';
 import { LeaveGroup } from '../../application/leave-group';
 import { ListGroupCategories } from '../../application/list-group-categories';
@@ -176,6 +177,7 @@ export function createGroupRoutes({
   const listSettlements = new ListSettlements({ groups, settlements });
   const updateExpense = new UpdateGroupExpense({ groups, expenses, clock });
   const deleteExpense = new DeleteGroupExpense({ groups, expenses, clock });
+  const getSettlement = new GetSettlement({ groups, settlements });
   const updateSettlement = new UpdateSettlement({ groups, settlements, clock });
   const deleteSettlement = new DeleteSettlement({ groups, settlements, clock });
   const listActivity = new ListActivity({ groups, activity: new DrizzleActivityLogReader(db) });
@@ -591,6 +593,21 @@ export function createGroupRoutes({
               await previewConsolidation.execute(userIdOf(auth), params.id, query),
             ),
           );
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/settlements/:settlementId',
+      validate(
+        { params: groupSettlementParamsSchema, response: settlementResponseSchema },
+        async ({ params }, { res, auth }) => {
+          const settlement = await getSettlement.execute(
+            userIdOf(auth),
+            params.id,
+            params.settlementId,
+          );
+          res.json(presentSettlement(settlement));
         },
       ),
     );

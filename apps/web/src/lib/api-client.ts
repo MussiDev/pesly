@@ -46,6 +46,9 @@ import {
   type ConsolidationQuery,
   type CreateSettlementRequest,
   type SettlementPage,
+  activityPageSchema,
+  listActivityQuerySchema,
+  type ActivityPage,
   listAccountsResponseSchema,
   listCategoriesResponseSchema,
   addHoldingResponseSchema,
@@ -678,6 +681,11 @@ export interface ApiClient {
     groupId: string,
     query: { limit?: number; cursor?: string },
   ): Promise<ApiResult<SettlementPage>>;
+  /** Newest-first activity log; a query that fails the shared schema is refused before any request. */
+  listGroupActivity(
+    groupId: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<ApiResult<ActivityPage>>;
   /** A body that fails the shared schema is refused before any request. */
   createSettlement(
     groupId: string,
@@ -1703,6 +1711,22 @@ export function createApiClient({
           method: 'GET',
           path: queryString ? `${path}/settlements?${queryString}` : `${path}/settlements`,
           response: settlementPageSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    listGroupActivity: (groupId, query) =>
+      onGroup(groupId, (path) => {
+        if (!listActivityQuerySchema.safeParse(query).success) {
+          return Promise.resolve(failure('VALIDATION_FAILED'));
+        }
+        const params = new URLSearchParams();
+        if (query.limit !== undefined) params.set('limit', String(query.limit));
+        if (query.cursor !== undefined) params.set('cursor', query.cursor);
+        const queryString = params.toString();
+        return request({
+          method: 'GET',
+          path: queryString ? `${path}/activity?${queryString}` : `${path}/activity`,
+          response: activityPageSchema,
           refreshOnUnauthenticated: true,
         });
       }),
