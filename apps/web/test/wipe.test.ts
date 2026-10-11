@@ -1,7 +1,14 @@
 // @vitest-environment happy-dom
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MOVEMENTS_STORE, QUEUE_STORE, REFERENCE_STORE } from '../src/lib/local-store/database';
+import {
+  GROUP_QUEUE_STORE,
+  MOVEMENTS_STORE,
+  QUEUE_STORE,
+  REFERENCE_STORE,
+  openLocalDatabase,
+} from '../src/lib/local-store/database';
+import { loadGroupQueue } from '../src/lib/local-store/group-queue';
 import {
   SESSION_POINTER_KEY,
   readSessionPointer,
@@ -69,6 +76,48 @@ describe('wipeLocalData', () => {
     await expect(wipeLocalData(ANA)).resolves.toBe('deleted');
 
     expect(await databaseNames()).not.toContain(`pesly-${ANA}`);
+  });
+
+  it('leaves no group queue records nor group record cache keys behind (D3)', async () => {
+    const seeded = await openLocalDatabase(ANA);
+    await new Promise<void>((resolve, reject) => {
+      const transaction = seeded.transaction([GROUP_QUEUE_STORE, REFERENCE_STORE], 'readwrite');
+      transaction
+        .objectStore(GROUP_QUEUE_STORE)
+        .put({ key: 'expense:e1', createdAt: '2026-10-02T10:00:00.000Z' });
+      transaction.objectStore(REFERENCE_STORE).put({ id: 'e1' }, 'groupRecord:expense:e1');
+      transaction.oncomplete = () => {
+        resolve();
+      };
+      transaction.onerror = () => {
+        reject(new Error('seed failed'));
+      };
+    });
+    seeded.close();
+
+    await wipeLocalData(ANA);
+
+    expect(await databaseNames()).not.toContain(`pesly-${ANA}`);
+    // Reopening needs the pending-wipe marker cleared; the fresh database must come up empty.
+    removeFromWipeMarker(ANA);
+    const database = await openLocalDatabase(ANA);
+    const keys = await new Promise<IDBValidKey[]>((resolve, reject) => {
+      const request = database
+        .transaction(REFERENCE_STORE)
+        .objectStore(REFERENCE_STORE)
+        .getAllKeys();
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+      request.onerror = () => {
+        reject(new Error('read failed'));
+      };
+    });
+    expect(await loadGroupQueue(database)).toEqual([]);
+    expect(keys.filter((key) => typeof key === 'string' && key.startsWith('groupRecord:'))).toEqual(
+      [],
+    );
+    database.close();
   });
 
   it('clears the session pointer and adds the id to the marker (AC-04)', async () => {

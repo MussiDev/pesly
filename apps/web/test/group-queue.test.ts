@@ -427,10 +427,76 @@ describe('group queue: settling, rejecting and retrying', () => {
     });
 
     await settleGroupSent(database, 'expense', EXPENSE, 1);
-    expect(await readGroupChange(database, 'expense', EXPENSE)).toMatchObject({ revision: 2 });
+    expect(await readGroupChange(database, 'expense', EXPENSE)).toMatchObject({
+      revision: 2,
+      base: { version: 2 },
+    });
 
     await settleGroupSent(database, 'expense', EXPENSE, 2);
     expect(await readGroupChange(database, 'expense', EXPENSE)).toBeUndefined();
+  });
+
+  it('rebases an edited-meanwhile record onto the accepted reply, so the resend carries version 3 (D1)', async () => {
+    await queueGroupUpdate(database, {
+      kind: 'expense',
+      base: expenseRecord(2),
+      request: expenseEdit('12000'),
+    });
+    await queueGroupUpdate(database, {
+      kind: 'expense',
+      base: expenseRecord(2),
+      request: expenseEdit('13000'),
+    });
+
+    await settleGroupSent(database, 'expense', EXPENSE, 1, expenseRecord(3, '12000'));
+
+    const record = await readGroupChange(database, 'expense', EXPENSE);
+    expect(record).toMatchObject({
+      revision: 2,
+      request: { amount: '13000' },
+      base: { version: 3 },
+    });
+    expect(record && groupChangeBody(record)).toMatchObject({ baseVersion: 3, amount: '13000' });
+  });
+
+  it('rebases a delete queued over an in-flight edit onto the accepted reply (D1)', async () => {
+    await queueGroupUpdate(database, {
+      kind: 'expense',
+      base: expenseRecord(2),
+      request: expenseEdit('12000'),
+    });
+    await queueGroupDelete(database, { kind: 'expense', base: expenseRecord(2) });
+
+    await settleGroupSent(database, 'expense', EXPENSE, 1, expenseRecord(3, '12000'));
+
+    expect(await readGroupChange(database, 'expense', EXPENSE)).toMatchObject({
+      operation: 'delete',
+      revision: 2,
+      base: { version: 3 },
+    });
+  });
+
+  it('leaves the base alone when there is no reply or the reply is another record (D1)', async () => {
+    await queueGroupUpdate(database, {
+      kind: 'expense',
+      base: expenseRecord(2),
+      request: expenseEdit('12000'),
+    });
+    await queueGroupUpdate(database, {
+      kind: 'expense',
+      base: expenseRecord(2),
+      request: expenseEdit('13000'),
+    });
+
+    await settleGroupSent(database, 'expense', EXPENSE, 1);
+    await settleGroupSent(database, 'expense', EXPENSE, 1, {
+      ...expenseRecord(3),
+      id: '00000000-0000-4000-8000-000000000999',
+    });
+
+    expect(await readGroupChange(database, 'expense', EXPENSE)).toMatchObject({
+      base: { version: 2 },
+    });
   });
 
   it('flags a refused change, retry clears the flag and discard drops it', async () => {

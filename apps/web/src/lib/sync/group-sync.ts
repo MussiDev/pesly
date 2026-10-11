@@ -83,10 +83,10 @@ export async function runGroupLocked(
         items,
         send: (item) => send(api, item),
         onSent: async (item, data) => {
-          await settleGroupSent(database, item.kind, item.id, item.revision);
+          const reply = item.operation === 'delete' ? null : (parseReply(item, data) ?? null);
+          await settleGroupSent(database, item.kind, item.id, item.revision, reply ?? undefined);
           changed = true;
           try {
-            const reply = item.operation === 'delete' ? null : (parseReply(item, data) ?? null);
             await cacheGroupRecord(database, item.kind, item.id, reply);
           } catch {
             // The queue is already settled; the next online load replaces the copy anyway.

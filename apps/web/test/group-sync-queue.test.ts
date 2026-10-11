@@ -235,6 +235,28 @@ describe('syncMovementQueue with group records (DISC-001-04e Block 7)', () => {
     expect(calls).toEqual([]);
   });
 
+  it('resends an edit made during the send with the accepted version, not a stale base (D1)', async () => {
+    await queueEdit(expenseRecord(2));
+    const calls: (number | undefined)[] = [];
+    const { api } = fakeApi();
+    const editing: FakeApi = {
+      ...api,
+      updateGroupExpense: async (_groupId, _id, body) => {
+        calls.push(body.baseVersion);
+        if (calls.length === 1) await queueEdit(expenseRecord(2), '13000');
+        return { ok: true, data: expenseRecord(body.baseVersion + 1, body.amount) };
+      },
+    };
+
+    await syncMovementQueue(ANA, editing);
+    const [pending] = await queue();
+    expect(pending).toMatchObject({ revision: 2, base: { version: 3 } });
+    await syncMovementQueue(ANA, editing);
+
+    expect(calls).toEqual([2, 3]);
+    expect(await queue()).toEqual([]);
+  });
+
   it('keeps the record queued on a network error and does not mark a conflict', async () => {
     await queueEdit();
     const { api } = fakeApi({ update: failure('NETWORK') });

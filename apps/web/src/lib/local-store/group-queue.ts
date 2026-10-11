@@ -512,20 +512,25 @@ export function keepServer(
 
 /**
  * Settles a change the server accepted, in one transaction: the record goes only if it is still the
- * revision that was sent; a changed record waits for the next pass with its new values.
+ * revision that was sent. A record changed since then waits for the next pass with its new values,
+ * and, when the accepted reply is given, is rebased onto it: the server already moved past the old
+ * base, so resending with it would conflict with the person's own accepted edit.
  */
 export async function settleGroupSent(
   database: IDBDatabase,
   kind: GroupRecordKind,
   id: string,
   revision: number,
+  stored?: GroupExpenseResponse | SettlementResponse,
 ): Promise<void> {
   await updateChange(database, groupChangeKey(kind, id), (raw) => {
     const current = parseChange(raw);
-    if (current === undefined || current.revision !== revision) {
-      return { value: undefined, next: undefined };
-    }
-    return { value: undefined, next: null };
+    if (current === undefined) return { value: undefined, next: undefined };
+    if (current.revision === revision) return { value: undefined, next: null };
+    if (stored === undefined) return { value: undefined, next: undefined };
+    // A reply that does not fit the record leaves it as it was.
+    const rebased = queuedGroupChangeSchema.safeParse({ ...current, base: stored });
+    return { value: undefined, next: rebased.success ? rebased.data : undefined };
   });
 }
 

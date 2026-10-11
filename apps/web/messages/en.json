@@ -1420,7 +1420,6 @@
     }
   },
   "groupConflict": {
-    "title": "This record changed on the server",
     "titleExpense": "This expense changed while you were offline",
     "titleSettlement": "This settlement changed while you were offline",
     "description": "Someone else changed it before your change reached the server. Choose which version to keep.",

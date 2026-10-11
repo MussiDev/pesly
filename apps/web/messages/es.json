@@ -1420,10 +1420,9 @@
     }
   },
   "groupConflict": {
-    "title": "Este registro cambió en el servidor",
     "titleExpense": "Este gasto cambió mientras estabas sin conexión",
     "titleSettlement": "Este pago cambió mientras estabas sin conexión",
-    "description": "Alguien más lo cambió antes de que tu cambio llegara al servidor. Elige qué versión conservar.",
+    "description": "Alguien más lo cambió antes de que tu cambio llegara al servidor. Elegí qué versión conservar.",
     "mine": "Mía",
     "server": "Del servidor",
     "keepMine": "Conservar la mía",
@@ -1432,7 +1431,7 @@
     "deleted": "Eliminaste este registro",
     "unknownCategory": "Categoría desconocida",
     "unknownMember": "Integrante desconocido",
-    "error": "No pudimos aplicar tu elección. Las dos versiones siguen aquí; prueba de nuevo.",
+    "error": "No pudimos aplicar tu elección. Las dos versiones siguen aquí; probá de nuevo.",
     "fields": {
       "amount": "Monto",
       "date": "Fecha",
