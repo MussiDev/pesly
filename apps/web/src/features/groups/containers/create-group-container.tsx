@@ -40,7 +40,7 @@ export function CreateGroupContainer() {
     setErrors({});
     const result = await api.createGroup(request);
     if (result.ok) {
-      router.push(`/groups/${result.data.id}`);
+      router.push(`/groups/${encodeURIComponent(result.data.id)}`);
       return;
     }
     setPending(false);

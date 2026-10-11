@@ -279,6 +279,9 @@ describe('current destination (AC-14)', () => {
     ['/investments', '/es/more', '/es/investments'],
     ['/investments/abc', '/es/more', '/es/investments'],
     ['/groups', '/es/groups', '/es/groups'],
+    ['/groups/55555555-5555-4555-8555-555555555555', '/es/groups', '/es/groups'],
+    ['/groups/new', '/es/groups', '/es/groups'],
+    ['/groups/join', '/es/groups', '/es/groups'],
     ['/budgets', '/es/more', '/es/budgets'],
     ['/more', '/es/more', undefined],
     ['/categories', '/es/more', '/es/categories'],
@@ -295,6 +298,18 @@ describe('current destination (AC-14)', () => {
     expect(marked('bottom-nav')).toEqual([bottom]);
     expect(marked('top-nav')).toEqual(top ? [top] : []);
   });
+
+  it.each(['/groups/55555555-5555-4555-8555-555555555555', '/groups/new', '/groups/join'])(
+    'shows the back button on the group sub-page %s, and not on the groups list',
+    (path) => {
+      const { unmount } = renderShellAt('/groups');
+      expect(screen.queryByRole('button', { name: es.app.topBar.back })).toBeNull();
+      unmount();
+
+      renderShellAt(path);
+      expect(screen.getByRole('button', { name: es.app.topBar.back })).toBeTruthy();
+    },
+  );
 
   it('marks the movements destination, never the add action, on the new-movement page', () => {
     renderShellAt('/movements/new');

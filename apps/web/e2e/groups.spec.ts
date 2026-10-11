@@ -45,6 +45,17 @@ test('two users: create, invite, join, add a member without an account, add a ca
       'Bruno Gómez',
     );
 
+    // NFR-04: the one-time token is gone from the address and from the history behind it.
+    const token = new URL(link).hash.replace('#token=', '');
+    expect(token).not.toBe('');
+    expect(pageB.url()).not.toContain('token');
+    expect(pageB.url()).not.toContain(token);
+    await pageB.goBack();
+    expect(pageB.url()).not.toContain('token');
+    expect(pageB.url()).not.toContain(token);
+    await pageB.goForward();
+    await expect(pageB).toHaveURL(new RegExp(`/es/groups/${groupId}$`));
+
     // A reloads and sees B; then adds a member without an account and a group category.
     await pageA.reload();
     const members = pageA.getByRole('list', { name: t.detail.membersTitle });

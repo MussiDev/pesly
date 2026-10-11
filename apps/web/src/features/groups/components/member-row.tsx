@@ -13,12 +13,22 @@ interface MemberRowProps {
   canAdmin: boolean;
   busy: boolean;
   issue?: ApiFailure;
+  /** The issue comes from removing the caller's own member. */
+  issueIsSelfRemoval?: boolean;
   onPromote: (memberId: string) => void;
   onRemove: (memberId: string) => void;
 }
 
 /** One current member: name, role, whether they have no account yet, and the admin controls. */
-export function MemberRow({ member, canAdmin, busy, issue, onPromote, onRemove }: MemberRowProps) {
+export function MemberRow({
+  member,
+  canAdmin,
+  busy,
+  issue,
+  issueIsSelfRemoval = false,
+  onPromote,
+  onRemove,
+}: MemberRowProps) {
   const t = useTranslations('groups.detail');
   const name = member.displayName ?? t('unnamed');
 
@@ -59,7 +69,7 @@ export function MemberRow({ member, canAdmin, busy, issue, onPromote, onRemove }
           </Button>
         </div>
       ) : null}
-      {issue ? <GroupIssue failure={issue} /> : null}
+      {issue ? <GroupIssue failure={issue} cannotRemoveSelf={issueIsSelfRemoval} /> : null}
     </li>
   );
 }

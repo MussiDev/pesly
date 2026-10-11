@@ -150,6 +150,30 @@ describe('GroupDetailContainer', () => {
     expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
   });
 
+  it('removing yourself shows a specific message instead of the generic validation one (D1)', async () => {
+    const REMOVE_ANA = `DELETE /groups/${GROUP_ID}/members/${ANA}`;
+    const { calls } = stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [REMOVE_ANA]: {
+        status: 400,
+        body: { code: 'VALIDATION_FAILED', fields: ['params.memberId'] },
+      },
+    });
+    open();
+    await screen.findByText('Ana');
+
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: en.groups.detail.actions.removeLabel.replace('{name}', 'Ana'),
+      }),
+    );
+
+    const alert = await within(rowOf('Ana')).findByRole('alert');
+    expect(alert.textContent).toContain(en.groups.detail.cannotRemoveSelf);
+    expect(alert.textContent).not.toContain(en.errors.validationFailed);
+    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+  });
+
   it('removing a member without a balance reloads the group', async () => {
     const { calls } = stubApi({
       [GET_GROUP]: [
@@ -292,5 +316,66 @@ describe('GroupDetailContainer', () => {
     open();
     await userEvent.click(await screen.findByRole('button', { name: en.app.retry }));
     expect(await screen.findByText('Ana')).toBeTruthy();
+  });
+});
+
+describe('GroupDetailContainer session and failure paths', () => {
+  const UNAUTHENTICATED = { status: 401, body: { code: 'UNAUTHENTICATED' } };
+
+  it('goes to sign-in when the group cannot be loaded because the session is gone', async () => {
+    stubApi({ [GET_GROUP]: UNAUTHENTICATED });
+    const { router } = open();
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(screen.queryByText('Ana')).toBeNull();
+  });
+
+  it('goes to sign-in when an action answers 401', async () => {
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() }, [PROMOTE]: UNAUTHENTICATED });
+    const { router } = open();
+    await screen.findByText('Ana');
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: en.groups.detail.actions.promoteLabel.replace('{name}', 'Bruno'),
+      }),
+    );
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('shows the failure next to the rate type and keeps the previous value', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [PATCH_GROUP]: { status: 403, body: { code: 'GROUP_ADMIN_REQUIRED' } },
+    });
+    open();
+    const select = await screen.findByLabelText(en.groups.detail.rateType.label);
+    await userEvent.selectOptions(select, 'mep');
+    await userEvent.click(screen.getByRole('button', { name: en.groups.detail.rateType.save }));
+
+    expect((await screen.findByRole('alert')).textContent).toContain(en.errors.groupAdminRequired);
+    expect(screen.queryByText(en.groups.detail.rateType.saved)).toBeNull();
+  });
+
+  it('keeps the screen when the quiet reload after a removal fails', async () => {
+    const { calls } = stubApi({
+      [GET_GROUP]: [{ status: 200, body: detail() }, { status: 500 }],
+      [REMOVE]: { status: 204 },
+    });
+    open();
+    await screen.findByText('Ana');
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: en.groups.detail.actions.removeLabel.replace('{name}', 'Bruno'),
+      }),
+    );
+    await waitFor(() => {
+      expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+    });
+    expect(screen.getByText('Bruno')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: en.app.retry })).toBeNull();
   });
 });

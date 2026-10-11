@@ -46,7 +46,11 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [memberIssue, setMemberIssue] = useState<{ memberId: string; failure: ApiFailure }>();
+  const [memberIssue, setMemberIssue] = useState<{
+    memberId: string;
+    failure: ApiFailure;
+    selfRemoval?: boolean;
+  }>();
   const [rateIssue, setRateIssue] = useState<ApiFailure>();
   const [rateSaved, setRateSaved] = useState(false);
   const [leaveIssue, setLeaveIssue] = useState<ApiFailure>();
@@ -139,7 +143,15 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
       () => api.removeMember(groupId, memberId),
       (result) => {
         if (result.ok) void reload();
-        else setMemberIssue({ memberId, failure: result });
+        else {
+          // The caller's own member id is not in the response, so the API's refusal (CannotRemoveSelf
+          // on params.memberId) is the only signal that the admin pressed Remove on their own row.
+          setMemberIssue({
+            memberId,
+            failure: result,
+            selfRemoval: result.code === 'VALIDATION_FAILED',
+          });
+        }
       },
     );
   }
@@ -183,7 +195,7 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
         description={t('defaultRate', { rateType: tRate(group.defaultRateType) })}
         actions={
           <Link
-            href={`/groups/${group.id}/categories`}
+            href={`/groups/${encodeURIComponent(group.id)}/categories`}
             className={buttonVariants({ variant: 'outline' })}
           >
             {t('categoriesLink')}

@@ -327,4 +327,4 @@ The spec and the scan pass, and the full web suite and coverage thresholds pass.
 - The design-system scan and accessibility tests pass for the new screens (labels, focus on the first
   invalid field, tokens only).
 - Owner ratification items: the web split e to h, links carrying the token in the fragment (D2),
-  inline panels instead of dialogs (D3), and the "return to the link after sign-in" behaviour of Block 5.
+  inline panels instead of dialogs (D3), and that a signed-out visitor is sent to sign-in and must open the link again (the shell has no return-to mechanism).

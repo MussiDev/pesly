@@ -1383,6 +1383,7 @@
       "ghost": "No account yet",
       "unnamed": "Unnamed member",
       "categoriesLink": "Group categories",
+      "cannotRemoveSelf": "You cannot remove yourself: use Leave group.",
       "notFound": {
         "title": "Group not found",
         "description": "This group does not exist or you are not a member of it.",

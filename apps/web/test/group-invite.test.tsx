@@ -97,7 +97,7 @@ describe('group invitation panel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
 
-    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
+    const field = await screen.findByLabelText<HTMLInputElement>(en.groups.invite.linkLabel);
     expect(field.readOnly).toBe(true);
     expect(field.value).toBe(`${window.location.origin}/en/groups/join#token=${TOKEN}`);
     expect(field.value).not.toContain('?');
@@ -123,7 +123,7 @@ describe('group invitation panel', () => {
     open();
     await screen.findByText('Ana');
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
-    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
+    const field = await screen.findByLabelText<HTMLInputElement>(en.groups.invite.linkLabel);
 
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.copy }));
 
@@ -266,7 +266,7 @@ describe('claim link', () => {
       }),
     );
 
-    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
+    const field = await screen.findByLabelText<HTMLInputElement>(en.groups.invite.linkLabel);
     expect(field.value).toBe(`${window.location.origin}/en/groups/claim#token=${TOKEN}`);
   });
 
@@ -284,5 +284,99 @@ describe('claim link', () => {
         name: en.groups.invite.claim.create.replace('{name}', 'Carla'),
       }),
     ).toBeNull();
+  });
+});
+
+describe('group invitation and member panels: session and fallbacks', () => {
+  const UNAUTHENTICATED = { status: 401, body: { code: 'UNAUTHENTICATED' } };
+  const profileIn = (timeZone: string) => ({
+    status: 200,
+    body: {
+      displayName: 'Ana',
+      email: 'ana@example.com',
+      twoFactorEnabled: false,
+      deletionReauth: 'password',
+      preferences: { defaultRateType: 'oficial', displayCurrency: 'ARS', language: 'en', timeZone },
+    },
+  });
+
+  it('goes to sign-in when creating an invitation answers 401', async () => {
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() }, [INVITE]: UNAUTHENTICATED });
+    const { router } = open();
+    await screen.findByText('Ana');
+    await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(screen.queryByLabelText(en.groups.invite.linkLabel)).toBeNull();
+  });
+
+  it('still shows the link with a formatted expiry when the profile cannot be read', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [INVITE]: { status: 201, body: { token: TOKEN, expiresAt: '2026-10-20T12:00:00.000Z' } },
+      [PROFILE]: { status: 500 },
+    });
+    open();
+    await screen.findByText('Ana');
+    await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
+    const field = await screen.findByLabelText<HTMLInputElement>(en.groups.invite.linkLabel);
+    expect(field.value).toContain(TOKEN);
+    expect(document.body.textContent).toContain('Oct 20, 2026');
+  });
+
+  it('falls back to the browser time zone when the stored one is not valid', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [INVITE]: { status: 201, body: { token: TOKEN, expiresAt: '2026-10-20T12:00:00.000Z' } },
+      [PROFILE]: profileIn('Not/AZone'),
+    });
+    open();
+    await screen.findByText('Ana');
+    await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
+    const field = await screen.findByLabelText<HTMLInputElement>(en.groups.invite.linkLabel);
+    expect(field.value).toContain(TOKEN);
+    expect(document.body.textContent).toContain('Oct 20, 2026');
+  });
+
+  it('goes to sign-in when adding a member without an account answers 401', async () => {
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() }, [GHOST]: UNAUTHENTICATED });
+    const { router } = open();
+    await screen.findByText('Ana');
+    await userEvent.type(screen.getByLabelText(en.groups.invite.ghost.nameLabel), 'Dario');
+    await userEvent.click(screen.getByRole('button', { name: en.groups.invite.ghost.submit }));
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+  });
+
+  it('goes to sign-in when generating a claim link answers 401', async () => {
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() }, [CLAIM]: UNAUTHENTICATED });
+    const { router } = open();
+    await screen.findByText('Ana');
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: en.groups.invite.claim.create.replace('{name}', 'Carla'),
+      }),
+    );
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(screen.queryByLabelText(en.groups.invite.linkLabel)).toBeNull();
+  });
+
+  it('shows the API message when generating a claim link fails', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [CLAIM]: { status: 403, body: { code: 'GROUP_ADMIN_REQUIRED' } },
+    });
+    open();
+    await screen.findByText('Ana');
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: en.groups.invite.claim.create.replace('{name}', 'Carla'),
+      }),
+    );
+    expect(await screen.findByText(en.errors.groupAdminRequired)).toBeTruthy();
   });
 });

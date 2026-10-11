@@ -196,7 +196,10 @@ export function GroupCategoriesContainer({ groupId }: { groupId: string }) {
         title={t('title')}
         description={groupName}
         actions={
-          <Link href={`/groups/${groupId}`} className={buttonVariants({ variant: 'outline' })}>
+          <Link
+            href={`/groups/${encodeURIComponent(groupId)}`}
+            className={buttonVariants({ variant: 'outline' })}
+          >
             {t('back')}
           </Link>
         }

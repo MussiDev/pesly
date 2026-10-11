@@ -1383,6 +1383,7 @@
       "ghost": "Aún sin cuenta",
       "unnamed": "Miembro sin nombre",
       "categoriesLink": "Categorías del grupo",
+      "cannotRemoveSelf": "No podés quitarte a vos mismo: usá Salir del grupo.",
       "notFound": {
         "title": "No encontramos el grupo",
         "description": "Este grupo no existe o no sos miembro.",

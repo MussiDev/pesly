@@ -34,7 +34,7 @@ export function useGroupLink(send: (token: string) => Promise<ApiResult<GroupRes
     setState({ kind: 'working' });
     void send(value).then((result) => {
       if (result.ok) {
-        router.replace(`/groups/${result.data.id}`);
+        router.replace(`/groups/${encodeURIComponent(result.data.id)}`);
         return;
       }
       setState({ kind: 'failed', reason: REASON_BY_CODE[result.code] ?? 'unexpected' });

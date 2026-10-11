@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 import ClaimPage from '../src/app/[locale]/(app)/groups/claim/page';
 import JoinPage from '../src/app/[locale]/(app)/groups/join/page';
 import { takeFragmentToken } from '../src/features/groups/take-fragment-token';
@@ -21,6 +21,22 @@ const GROUP = {
 
 function openAt(path: string) {
   window.history.replaceState(null, '', path);
+}
+
+/**
+ * Records what the address and the history look like when the first request leaves, then lets the
+ * stubbed API answer as usual (so `calls` still records it).
+ */
+function snapshotAtRequest(fetch: Mock<(url: string, init?: RequestInit) => Promise<Response>>) {
+  const seen: { hash?: string; historyLength?: number } = {};
+  const answer = fetch.getMockImplementation();
+  if (!answer) throw new Error('fetch is not stubbed');
+  fetch.mockImplementation((url, init) => {
+    seen.hash ??= window.location.hash;
+    seen.historyLength ??= window.history.length;
+    return answer(url, init);
+  });
+  return seen;
 }
 
 describe('takeFragmentToken', () => {
@@ -52,19 +68,18 @@ describe('join page', () => {
 
   it('removes the token from the address before the request and keeps it out of history (NFR-04)', async () => {
     openAt(`/es/groups/join#token=${TOKEN}`);
-    let hashAtRequest: string | undefined;
     const { fetch } = stubApi({ 'POST /groups/join': { status: 200, body: GROUP } });
-    fetch.mockImplementationOnce(() => {
-      hashAtRequest = window.location.hash;
-      return Promise.resolve(new Response(JSON.stringify(GROUP), { status: 200 }));
-    });
+    const atRequest = snapshotAtRequest(fetch);
+    const historyBefore = window.history.length;
     const replaceState = vi.spyOn(window.history, 'replaceState');
     const pushState = vi.spyOn(window.history, 'pushState');
     const { router } = renderApp(<JoinPage />);
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalled();
     });
-    expect(hashAtRequest).toBe('');
+    expect(atRequest.hash).toBe('');
+    expect(atRequest.historyLength).toBe(historyBefore);
+    expect(window.history.length).toBe(historyBefore);
     expect(window.location.href).not.toContain(TOKEN);
     expect(pushState).not.toHaveBeenCalled();
     expect(replaceState.mock.calls.every(([, , url]) => !String(url).includes(TOKEN))).toBe(true);
@@ -115,12 +130,18 @@ describe('join page', () => {
 
   it('sends the request once when the component mounts twice', async () => {
     openAt(`/es/groups/join#token=${TOKEN}`);
-    const { calls } = stubApi({ 'POST /groups/join': { status: 200, body: GROUP } });
+    const { calls, fetch } = stubApi({ 'POST /groups/join': { status: 200, body: GROUP } });
+    const atRequest = snapshotAtRequest(fetch);
+    const historyBefore = window.history.length;
     const { router } = renderApp(<JoinPage />, { strict: true });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalled();
     });
     expect(calls).toHaveLength(1);
+    expect(atRequest.hash).toBe('');
+    expect(atRequest.historyLength).toBe(historyBefore);
+    expect(window.history.length).toBe(historyBefore);
+    expect(window.location.hash).toBe('');
   });
 
   it('offers a retry after a network failure that reuses the token from memory', async () => {
@@ -148,13 +169,18 @@ describe('join page', () => {
 describe('claim page', () => {
   it('assigns the seat and opens the group (AC-11)', async () => {
     openAt(`/es/groups/claim#token=${TOKEN}`);
-    const { calls } = stubApi({ 'POST /groups/claim': { status: 200, body: GROUP } });
+    const { calls, fetch } = stubApi({ 'POST /groups/claim': { status: 200, body: GROUP } });
+    const atRequest = snapshotAtRequest(fetch);
+    const historyBefore = window.history.length;
     const { router } = renderApp(<ClaimPage />);
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalledWith(`/es/groups/${GROUP_ID}`);
     });
     expect(calls).toEqual([{ method: 'POST', path: '/groups/claim', body: { token: TOKEN } }]);
     expect(window.location.hash).toBe('');
+    expect(atRequest.hash).toBe('');
+    expect(atRequest.historyLength).toBe(historyBefore);
+    expect(window.history.length).toBe(historyBefore);
   });
 
   it('shows the used-link message and changes nothing (AC-12)', async () => {
@@ -179,11 +205,17 @@ describe('claim page', () => {
 
   it('sends the request once under strict mode', async () => {
     openAt(`/es/groups/claim#token=${TOKEN}`);
-    const { calls } = stubApi({ 'POST /groups/claim': { status: 200, body: GROUP } });
+    const { calls, fetch } = stubApi({ 'POST /groups/claim': { status: 200, body: GROUP } });
+    const atRequest = snapshotAtRequest(fetch);
+    const historyBefore = window.history.length;
     const { router } = renderApp(<ClaimPage />, { strict: true });
     await waitFor(() => {
       expect(router.replace).toHaveBeenCalled();
     });
     expect(calls).toHaveLength(1);
+    expect(atRequest.hash).toBe('');
+    expect(atRequest.historyLength).toBe(historyBefore);
+    expect(window.history.length).toBe(historyBefore);
+    expect(window.location.hash).toBe('');
   });
 });

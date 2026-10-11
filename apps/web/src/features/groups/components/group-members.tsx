@@ -12,7 +12,7 @@ interface GroupMembersProps {
   /** Whether a member action is in flight. */
   busy: boolean;
   /** The member the last failed action was about, and why it failed. */
-  issue?: { memberId: string; failure: ApiFailure };
+  issue?: { memberId: string; failure: ApiFailure; selfRemoval?: boolean };
   onPromote: (memberId: string) => void;
   onRemove: (memberId: string) => void;
 }
@@ -44,6 +44,7 @@ export function GroupMembers({
               canAdmin={canAdmin}
               busy={busy}
               issue={issue?.memberId === member.id ? issue.failure : undefined}
+              issueIsSelfRemoval={issue?.memberId === member.id && issue.selfRemoval === true}
               onPromote={onPromote}
               onRemove={onRemove}
             />

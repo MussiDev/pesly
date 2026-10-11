@@ -39,7 +39,10 @@ export function GroupsList({ groups }: GroupsListProps) {
       <ul className="divide-y divide-border/70 rounded-card bg-card px-4" aria-label={t('label')}>
         {groups.map((group) => (
           <li key={group.id}>
-            <Link href={`/groups/${group.id}`} className="block rounded-md focus-visible:outline-2">
+            <Link
+              href={`/groups/${encodeURIComponent(group.id)}`}
+              className="block rounded-md focus-visible:outline-2"
+            >
               <ListRow
                 interactive
                 title={group.name}

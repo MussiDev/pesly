@@ -14,7 +14,14 @@ const CURRENCIES = ['ARS', 'USD'] as const;
  * currency (signed minor-unit strings, so BigInt and never a float); any other failure shows its
  * own message.
  */
-export function GroupIssue({ failure }: { failure: ApiFailure }) {
+export function GroupIssue({
+  failure,
+  cannotRemoveSelf = false,
+}: {
+  failure: ApiFailure;
+  /** The failed action was removing the caller's own member: say so instead of the generic text. */
+  cannotRemoveSelf?: boolean;
+}) {
   const t = useTranslations('groups.detail.balance');
   const tAll = useTranslations();
   const language = useLocale() === 'en' ? 'en' : 'es';
@@ -44,7 +51,9 @@ export function GroupIssue({ failure }: { failure: ApiFailure }) {
   return (
     <Alert variant="destructive">
       <CircleAlert aria-hidden />
-      <AlertDescription>{tAll(failurePath(failure))}</AlertDescription>
+      <AlertDescription>
+        {cannotRemoveSelf ? tAll('groups.detail.cannotRemoveSelf') : tAll(failurePath(failure))}
+      </AlertDescription>
     </Alert>
   );
 }
