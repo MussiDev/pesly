@@ -344,3 +344,60 @@ export async function closeFirstStatement(email: string, cardName: string): Prom
     ),
   );
 }
+
+/**
+ * Moves the automatic debit links of the card named `cardName` of `email` 30 days into the past, so
+ * the statement made due by `closeFirstStatement` falls after the link (a link only covers
+ * statements due on or after the day it was made).
+ */
+export async function backdateDebitLinks(email: string, cardName: string): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update credit_cards c
+          set debit_ars_linked_on = case when c.debit_ars_account_id is null
+                                         then null else current_date - 30 end,
+              debit_usd_linked_on = case when c.debit_usd_account_id is null
+                                         then null else current_date - 30 end
+         from users u
+        where u.id = c.owner_id and u.email = $1 and c.name = $2
+       returning c.id`,
+      [email, cardName],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No card named ${cardName} for ${email}`);
+}
+
+export interface AutomaticDebitRow {
+  period: string;
+  currency: string;
+  status: string;
+  reason: string | null;
+  /** The amount of the recorded transfer, in minor units; `null` when nothing was recorded. */
+  amount: string | null;
+}
+
+/** The claim rows the automatic debit job left for the card named `cardName` of `email`. */
+export async function automaticDebitRows(
+  email: string,
+  cardName: string,
+): Promise<AutomaticDebitRow[]> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select d.period, d.currency, d.status, d.reason, m.amount::text as amount
+         from card_automatic_debits d
+         join credit_cards c on c.id = d.card_id
+         join users u on u.id = c.owner_id
+         left join movements m on m.id = d.movement_id
+        where u.email = $1 and c.name = $2
+        order by d.period, d.currency`,
+      [email, cardName],
+    ),
+  );
+  return rows.map((row) => ({
+    period: String(row.period),
+    currency: String(row.currency),
+    status: String(row.status),
+    reason: nullableText(row.reason),
+    amount: nullableText(row.amount),
+  }));
+}
