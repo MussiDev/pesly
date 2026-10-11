@@ -125,6 +125,7 @@ describe('0026_groups migration', () => {
 
     // Newest first: 0031, 0030 and 0029 have the greatest journal `when`s, then 0028 and 0027, whose tables reference the 0026 ones.
     await client.query(await fileOf('rollback/0034_budgets.down.sql'));
+    await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
     await client.query(await fileOf('rollback/0031_group_record_version.down.sql'));
     await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
@@ -135,8 +136,8 @@ describe('0026_groups migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await groupTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 11);
-    expect(await appliedMigrations()).toBe(countBefore - 8);
+    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 13);
+    expect(await appliedMigrations()).toBe(countBefore - 9);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await groupTables()).toEqual(GROUP_TABLES);

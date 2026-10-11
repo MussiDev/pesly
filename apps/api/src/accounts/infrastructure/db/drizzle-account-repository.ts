@@ -8,7 +8,12 @@ import type {
   SetIncludeInAvailableResult,
 } from '../../application/ports/account-repository';
 import type { Account } from '../../domain/account';
-import { AccountHasMovements, AccountLinkedToCard, AccountNameTaken } from '../../domain/errors';
+import {
+  AccountHasMovements,
+  AccountLinkedToCard,
+  AccountLinkedToGoal,
+  AccountNameTaken,
+} from '../../domain/errors';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
@@ -189,9 +194,10 @@ export class DrizzleAccountRepository implements AccountRepository {
       const constraint = violatedConstraint(error, '23503');
       if (constraint === undefined) throw error;
       // The card keys restrict deletion of a linked account (DISC-001-10a D2); any other key is a movement.
-      throw constraint.startsWith('credit_cards_')
-        ? new AccountLinkedToCard()
-        : new AccountHasMovements();
+      // The goals key restricts it the same way (DISC-001-06a D12).
+      if (constraint.startsWith('credit_cards_')) throw new AccountLinkedToCard();
+      if (constraint.startsWith('goals_')) throw new AccountLinkedToGoal();
+      throw new AccountHasMovements();
     }
   }
 }

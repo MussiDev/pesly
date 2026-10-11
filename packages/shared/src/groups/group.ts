@@ -120,6 +120,8 @@ export const formerGroupMemberResponseSchema = z.object({
 export type FormerGroupMemberResponse = z.infer<typeof formerGroupMemberResponseSchema>;
 
 export const groupDetailResponseSchema = groupResponseSchema.extend({
+  /** The caller's own active member id in this group. */
+  selfMemberId: z.string(),
   members: z.array(groupMemberResponseSchema),
   formerMembers: z.array(formerGroupMemberResponseSchema),
 });

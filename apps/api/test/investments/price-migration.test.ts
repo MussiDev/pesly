@@ -24,6 +24,7 @@ const NEWER_TAGS = [
   '0030_group_activity_log_changes',
   '0031_group_record_version',
   '0032_card_statement_reminders',
+  '0033_savings_goals',
   '0034_budgets',
 ];
 const PRICE_TABLES = [

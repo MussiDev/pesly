@@ -21,6 +21,13 @@ export class AccountLinkedToCard extends AppError {
   }
 }
 
+/** A savings goal links to the account, so it cannot be deleted until the goal is; archiving stays allowed. */
+export class AccountLinkedToGoal extends AppError {
+  constructor() {
+    super('ACCOUNT_LINKED_TO_GOAL');
+  }
+}
+
 /** A credit card is never part of the available total, so its setting cannot be changed. */
 export class CreditCardSettingLocked extends AppError {
   constructor() {

@@ -37,6 +37,8 @@ const ALL_TABLES = [
   'exchange_rate_refresh_failures',
   'exchange_rate_sync',
   'exchange_rates',
+  'goal_entries',
+  'goals',
   'group_activity_log',
   'group_categories',
   'group_claim_links',

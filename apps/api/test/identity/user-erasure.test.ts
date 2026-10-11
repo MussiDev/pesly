@@ -6,6 +6,7 @@ import { DrizzleDeletionGrantRepository } from '../../src/identity/infrastructur
 import { DrizzleOAuthStateRepository } from '../../src/identity/infrastructure/db/drizzle-oauth-state-repository';
 import { DrizzleSessionRepository } from '../../src/identity/infrastructure/db/drizzle-session-repository';
 import { eraseUserCreditCards } from '../../src/credit-cards';
+import { eraseUserGoals } from '../../src/goals/infrastructure/db/erase-user-goals';
 import { eraseUserGroups } from '../../src/groups';
 import { eraseUserMovements } from '../../src/movements';
 import { eraseUserRecurring } from '../../src/recurring';
@@ -100,6 +101,9 @@ const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
 const BUDGET_VERSION_CATEGORIES_SAME_STATEMENT_CONSTRAINTS = [
   'budget_version_categories_category_owner_kind_fk',
 ] as const;
+
+/** The restricting composite key from `goals` to the linked account (migration 0033). */
+const GOALS_STEP_CONSTRAINTS = ['goals_account_owner_fk'] as const;
 
 /** The restricting key from `group_members` to users (migration 0026); the step turns the member into a ghost. */
 const GROUP_MEMBERS_STEP_CONSTRAINTS = ['group_members_user_id_users_id_fk'] as const;
@@ -567,6 +571,44 @@ const REGISTRY: readonly RegisteredTable[] = [
       await query(
         context,
         "insert into recurring_occurrences (payment_id, owner_id, due_date) select id, owner_id, '2026-10-05' from recurring_payments where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'goals',
+    userColumn: 'owner_id',
+    policy: 'erase-step',
+    // The key to the linked account restricts, so the step deletes the goals before the account
+    // goes; the key to users itself cascades.
+    stepConstraints: GOALS_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      const account = await query(
+        context,
+        "insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available) values ($1, 'Goal account', 'cash', 'ARS', 0, true) returning id",
+        [context.userId],
+      );
+      await query(
+        context,
+        "insert into goals (owner_id, name, target_amount, currency, linked_account_id) values ($1, 'Linked goal', 100000, 'ARS', $2)",
+        [context.userId, (account.rows[0] as { id: string }).id],
+      );
+      await query(
+        context,
+        "insert into goals (owner_id, name, target_amount, currency) values ($1, 'Manual goal', 50000, 'ARS')",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'goal_entries',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after goals: the entry belongs to the manual goal that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into goal_entries (goal_id, owner_id, kind, amount) select id, owner_id, 'contribution', 1000 from goals where owner_id = $1 and linked_account_id is null limit 1",
         [context.userId],
       );
     },
@@ -1146,9 +1188,10 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     const movementsStep = vi.fn(eraseUserMovements);
     const cardsStep = vi.fn(eraseUserCreditCards);
     const groupsStep = vi.fn(eraseUserGroups);
+    const goalsStep = vi.fn(eraseUserGoals);
     const harness = createIdentityHarness(connection, {
       realSessions: true,
-      beforeUserErased: [recurringStep, movementsStep, cardsStep, groupsStep],
+      beforeUserErased: [recurringStep, goalsStep, movementsStep, cardsStep, groupsStep],
     });
     const other = await seeded(harness, 'bea@example.com');
     // The deleting user signs in before 2FA is seeded, so the sign-in needs no second factor.
@@ -1186,6 +1229,8 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     expect(cardsStep.mock.calls[0]?.[1]).toBe(userId);
     expect(groupsStep).toHaveBeenCalledTimes(1);
     expect(groupsStep.mock.calls[0]?.[1]).toBe(userId);
+    expect(goalsStep).toHaveBeenCalledTimes(1);
+    expect(goalsStep.mock.calls[0]?.[1]).toBe(userId);
     for (const entry of REGISTRY) {
       // The group outlives its former member: its invitations and claim links stay, unlinked from the user.
       expect(await rowsFor(entry, userId), `${entry.table} after`).toBe(

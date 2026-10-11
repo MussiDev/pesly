@@ -555,6 +555,56 @@ describe('DELETE /accounts/:id', () => {
     expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_CARD' });
   });
 
+  describe('an account a goal links to (AC-23)', () => {
+    async function linkGoal(s: Setup, accountId: string): Promise<string> {
+      const result = await connection.pool.query<{ id: string }>(
+        "insert into goals (owner_id, name, target_amount, currency, linked_account_id) values ($1, 'Trip', 1000, 'ARS', $2) returning id",
+        [s.anaId, accountId],
+      );
+      return result.rows[0]?.id ?? '';
+    }
+
+    it('answers 409 ACCOUNT_LINKED_TO_GOAL and keeps the account and the goal (sad path)', async () => {
+      const s = await setup();
+      const id = await create(s);
+      const goalId = await linkGoal(s, id);
+      const response = await send(s.app, 'delete', `/accounts/${id}`, s.ana);
+      expect(response.status).toBe(409);
+      expect(response.body).toEqual({ code: 'ACCOUNT_LINKED_TO_GOAL' });
+      expect((await get(s.app, `/accounts/${id}`, s.ana)).status).toBe(200);
+      const goals = await connection.pool.query('select 1 from goals where id = $1', [goalId]);
+      expect(goals.rowCount).toBe(1);
+    });
+
+    it('lets the account be deleted once the goal is deleted (AC-14)', async () => {
+      const s = await setup();
+      const id = await create(s);
+      const goalId = await linkGoal(s, id);
+      await connection.pool.query('delete from goals where id = $1', [goalId]);
+      const response = await send(s.app, 'delete', `/accounts/${id}`, s.ana);
+      expect(response.status).toBe(204);
+    });
+
+    it('keeps the card and movement codes ahead of the goal key (no regression)', async () => {
+      const movements = new TestMovements();
+      const s = await setup(movements);
+      const withMovements = await create(s);
+      await linkGoal(s, withMovements);
+      movements.withMovements.add(withMovements);
+      const response = await send(s.app, 'delete', `/accounts/${withMovements}`, s.ana);
+      expect(response.body).toEqual({ code: 'ACCOUNT_HAS_MOVEMENTS' });
+    });
+
+    it('still archives a linked account (AC-04)', async () => {
+      const s = await setup();
+      const id = await create(s);
+      await linkGoal(s, id);
+      const response = await send(s.app, 'post', `/accounts/${id}/archive`, s.ana);
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({ id, archived: true });
+    });
+  });
+
   it("answers 404, never 409, for another user's account that has movements", async () => {
     const movements = new TestMovements();
     const s = await setup(movements);

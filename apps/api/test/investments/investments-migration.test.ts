@@ -47,6 +47,7 @@ const LATER_MIGRATIONS = [
   '0030_group_activity_log_changes',
   '0031_group_record_version',
   '0032_card_statement_reminders',
+  '0033_savings_goals',
   '0034_budgets',
 ];
 const PRICE_TABLES = [
@@ -85,6 +86,8 @@ const LATER_TABLES = [
   'group_settlement_legs',
   'group_settlements',
   'groups',
+  'goal_entries',
+  'goals',
   'budget_version_categories',
   'budget_version_thresholds',
   'budget_versions',

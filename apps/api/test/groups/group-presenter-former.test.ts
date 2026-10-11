@@ -13,6 +13,7 @@ describe('presentGroupDetail', () => {
       },
       role: 'admin',
       memberCount: 0,
+      selfMemberId: 'm0',
       members: [],
       formerMembers: [{ id: 'm1', displayName: 'Bea', leftAt }],
     });
