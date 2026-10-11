@@ -11,7 +11,19 @@ import type {
   BudgetCategoryRef,
   CategoryReader,
 } from '../../src/budgets/application/ports/category-reader';
+import type {
+  BudgetVersionReader,
+  BudgetVersions,
+  CoveredCategory,
+  VersionInForce,
+} from '../../src/budgets/application/ports/budget-version-reader';
 import type { Clock } from '../../src/budgets/application/ports/clock';
+import type {
+  BucketedPersonalRow,
+  BucketedShareRow,
+  SpendingReader,
+  SpendingWindow,
+} from '../../src/budgets/application/ports/spending-reader';
 import type { UserTimeZone } from '../../src/budgets/application/ports/user-time-zone';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
 import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastructure/deny-all-group-membership-reader';
@@ -46,6 +58,9 @@ export interface FakeCategory {
   kind: CategoryKind;
   archived: boolean;
   parentId: string | null;
+  /** Custom name; null while a default is untouched. */
+  name: string | null;
+  defaultKey: string | null;
 }
 
 /** The callers' categories, shared by the reader and the repository fake (for the covered set). */
@@ -59,6 +74,8 @@ export class FakeCategories implements CategoryReader {
       kind: 'expense',
       archived: false,
       parentId: null,
+      name: null,
+      defaultKey: null,
       ...overrides,
     };
     this.rows.set(category.id, category);
@@ -177,4 +194,84 @@ export class InMemoryBudgetRepository implements BudgetRepository {
 
 function clone(version: BudgetVersion): BudgetVersion {
   return { ...version, categoryIds: [...version.categoryIds], thresholds: [...version.thresholds] };
+}
+
+/** Reads the versions of the in-memory repository the way the Drizzle reader does (D3, D12). */
+export class InMemoryVersionReader implements BudgetVersionReader {
+  readonly calls: { months: readonly string[]; budgetId?: string }[] = [];
+
+  constructor(
+    private readonly repo: InMemoryBudgetRepository,
+    private readonly categories: FakeCategories,
+  ) {}
+
+  async forMonths(
+    scope: AccessScope,
+    months: readonly string[],
+    budgetId?: string,
+  ): Promise<BudgetVersions[]> {
+    await Promise.resolve();
+    this.calls.push({ months, budgetId });
+    return [...this.repo.rows.values()]
+      .filter(
+        (row) => row.ownerId === scope.userId && (budgetId === undefined || row.id === budgetId),
+      )
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime() || a.id.localeCompare(b.id))
+      .map((row) => ({
+        budgetId: row.id,
+        currency: row.currency,
+        createdAt: row.createdAt,
+        byMonth: new Map(
+          months.map((month) => [month, this.version(row.ownerId, row.versions, month)]),
+        ),
+      }));
+  }
+
+  private version(
+    ownerId: string,
+    versions: BudgetVersion[],
+    month: string,
+  ): VersionInForce | null {
+    const version = versionInForce(versions, `${month}-01`);
+    if (!version) return null;
+    const covered: CoveredCategory[] = [];
+    for (const id of this.categories.coveredBy(ownerId, version.categoryIds)) {
+      const row = this.categories.rows.get(id);
+      if (row) covered.push({ id: row.id, name: row.name, defaultKey: row.defaultKey });
+    }
+    return {
+      version: {
+        ...version,
+        categoryIds: [...version.categoryIds],
+        thresholds: [...version.thresholds],
+      },
+      covered,
+    };
+  }
+}
+
+/** Scripted spending rows per owner; counts every call so tests can assert "one call" or "none". */
+export class FakeSpendingReader implements SpendingReader {
+  readonly personal = new Map<string, BucketedPersonalRow[]>();
+  readonly shares = new Map<string, BucketedShareRow[]>();
+  readonly personalCalls: { window: SpendingWindow; categoryIds: readonly string[] }[] = [];
+  readonly shareCalls: { window: SpendingWindow }[] = [];
+
+  async personalSpending(
+    scope: AccessScope,
+    window: SpendingWindow,
+    categoryIds: readonly string[],
+  ): Promise<BucketedPersonalRow[]> {
+    await Promise.resolve();
+    this.personalCalls.push({ window, categoryIds });
+    return (this.personal.get(scope.userId) ?? []).filter((row) =>
+      categoryIds.includes(row.categoryId),
+    );
+  }
+
+  async shareSpending(scope: AccessScope, window: SpendingWindow): Promise<BucketedShareRow[]> {
+    await Promise.resolve();
+    this.shareCalls.push({ window });
+    return this.shares.get(scope.userId) ?? [];
+  }
 }

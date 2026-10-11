@@ -383,6 +383,7 @@
     "recurringLimitReached": "Llegaste al límite de 200 pagos recurrentes. Eliminá uno para crear otro.",
     "budgetLimitReached": "Llegaste al límite de 50 presupuestos. Eliminá uno para crear otro.",
     "budgetCategoryKindInvalid": "Los presupuestos solo pueden cubrir categorías de gasto. Quitá la categoría de ingreso y probá de nuevo.",
+    "budgetMonthInFuture": "No podés consultar el gasto de un mes que todavía no empezó.",
     "groupAdminRequired": "Solo un administrador del grupo puede hacer esto.",
     "groupAlreadyMember": "Ya eres miembro de este grupo.",
     "groupMemberLimitReached": "Este grupo alcanzó el límite de 50 miembros.",

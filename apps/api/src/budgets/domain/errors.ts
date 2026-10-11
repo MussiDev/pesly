@@ -13,3 +13,10 @@ export class BudgetCategoryKindInvalid extends AppError {
     super('BUDGET_CATEGORY_KIND_INVALID');
   }
 }
+
+/** The requested month is later than the current month in the user's time zone. */
+export class BudgetMonthInFuture extends AppError {
+  constructor() {
+    super('BUDGET_MONTH_IN_FUTURE');
+  }
+}

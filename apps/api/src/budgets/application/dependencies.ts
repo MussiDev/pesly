@@ -5,7 +5,9 @@ import { BudgetCategoryKindInvalid } from '../domain/errors';
 import { currentMonthStart } from '../domain/month';
 import type { BudgetRepository } from './ports/budget-repository';
 import type { CategoryReader } from './ports/category-reader';
+import type { BudgetVersionReader } from './ports/budget-version-reader';
 import type { Clock } from './ports/clock';
+import type { SpendingReader } from './ports/spending-reader';
 import type { UserTimeZone } from './ports/user-time-zone';
 
 export interface BudgetDependencies {
@@ -39,4 +41,10 @@ export async function assertBudgetCategories(
   if (refs.some((ref) => ref === undefined)) throw new ResourceNotFound();
   if (found.some((ref) => ref.kind !== 'expense')) throw new BudgetCategoryKindInvalid();
   if (found.some((ref) => ref.archived)) throw new CategoryArchived();
+}
+
+/** What the spending read adds to the clock and the time zone (D12). */
+export interface SpendingDependencies extends Pick<BudgetDependencies, 'clock' | 'timeZones'> {
+  versions: BudgetVersionReader;
+  spending: SpendingReader;
 }

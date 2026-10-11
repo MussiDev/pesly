@@ -1,0 +1,64 @@
+# Verification DISC-001-06c
+
+| Field | Value |
+|---|---|
+| Module | `apps/api/src/budgets/**` (spending domain, use cases `ComputeSpending`, `ListBudgetSpending`, `GetBudgetSpending`, ports, `DrizzleSpendingReader`, `DrizzleBudgetVersionReader`, spending presenter, routes) and `packages/shared/src/budgets/spending.ts`; migration `0035_group_expense_payer_movement_idx` |
+| Line coverage | suite 96.92% |
+| Branch coverage | suite 90.36% |
+| Function coverage | suite 94.85% |
+| Coverage floor | 80% lines, branches and functions (AGENTS.md, "Testing") |
+| Lint | `pnpm exec eslint` over `apps/api/src/budgets`, `apps/api/test/budgets`, the perf test, `packages/shared/src/budgets` and the shared spending test — clean, 0 findings (also recorded in `docs/ddw/security/sast-DISC-001-06c.md`) |
+
+Verified against the PRD (`docs/ddw/prd/prd-DISC-001-06c.md`) and the spec (`docs/ddw/specs/spec-DISC-001-06c.md`) by reading the test files under `apps/api/test/budgets`, `apps/api/test/perf/budget-spending.perf.test.ts` and `packages/shared/test/budget-spending-schemas.test.ts`. Suite figures come from the full run in `docs/ddw/reports/tests-DISC-001-06c.md` (506 files, 8701 of 8701 tests passed, taken on the head before the last commit; the last commit, 3d71c4b, only tightened the month schema and its tests passed). The numbers are my report of what was run, not something this document proves.
+
+## Acceptance criteria
+- ✅ AC-01 — `ComputeSpending` sums personal rows and share rows per covered category; `spending-use-cases.test.ts` "gives two budgets their own spending from one call of each reader (AC-01, AC-24)"; `spending-reader.test.ts` "returns the 50,000.00 ARS expense summed in the current bucket with its currency and frozen rate (AC-01)"; `spending-flow.test.ts` "reads October and September with exact amounts, remaining, percentages and rollover (AC-01, AC-06, AC-13, AC-18)".
+- ✅ AC-02 — covered set is the selected categories plus the children of each selected parent, read at request time; `budget-version-reader.test.ts` "covers the selected categories and the children of a selected parent, also one created later (AC-02)"; `spending-use-cases.test.ts` "counts a row of a child category in a budget over its parent (AC-02)".
+- ✅ AC-03 — month windows start at local midnight of the user zone; `spending-reader.test.ts` "puts 2026-10-01T01:00Z in September for Buenos Aires and in October for UTC (AC-03)"; `spending-domain.test.ts` "starts and ends at midnight of the user zone".
+- ✅ AC-04 — the personal query filters the expense type, the covered categories and the owner scope; `spending-reader.test.ts` "does not return income, transfers, exchanges, other categories or other users (AC-04, AC-24)".
+- ✅ AC-05 — `spending-use-cases.test.ts` "returns spent 0 and remaining equal to available with no rows (AC-05)"; `spending-domain.test.ts` "no rows: remaining equals available".
+- ✅ AC-06 — `DrizzleBudgetVersionReader` returns the latest version at or before the month; `budget-version-reader.test.ts` "returns the September version for September and the October version for October; a month before the first is null (AC-06, AC-17)"; `spending-use-cases.test.ts` "uses the version and categories of September when asked for September (AC-06)".
+- ✅ AC-07 — integer conversion with the frozen rate scaled by 10,000; `spending-flow.test.ts` "converts at the frozen rate in both directions and ignores later changes of the stored rates (AC-07, AC-08, AC-09)"; `spending-domain.test.ts` "converts USD to ARS and ARS to USD".
+- ✅ AC-08 — the same flow test (ARS to USD, 30,000.00 ARS at 1,500.0000 gives 20.00 USD); `spending-domain.test.ts` "does not overflow near the largest int64".
+- ✅ AC-09 — the readers return the rate stored on the movement and never read `exchange_rates`; `spending-reader.test.ts` "returns USD rows with their frozen rate and never reads exchange_rates (AC-09)"; the flow test above changes the stored rates afterwards.
+- ✅ AC-10 — `spending-flow.test.ts` "counts a group share by the matching category name, none for another name, and the payer movement once (AC-10, AC-11, AC-26)"; `spending-domain.test.ts` "matches case-insensitively and in NFC, not by prefix" and "is in parity with the categories module".
+- ✅ AC-11 — the flow test above (a share with another name is counted in no budget); `spending-domain.test.ts` "ignores categories outside the covered set and unmatched share names".
+- ✅ AC-12 — `spending-use-cases.test.ts` "reports an unconvertible foreign share and leaves it out of the sum (AC-12)"; `spending-domain.test.ts` "counts a USD share with no rate as unconverted, not summed"; `spending-reader.test.ts` "carries the payer movement rate only when the caller paid (AC-12)".
+- ✅ AC-13 — `spending-use-cases.test.ts` "returns remaining and percent for under and over spending (AC-13, AC-14)"; `spending-domain.test.ts` "80 percent and remaining 3000000"; `spending-routes.test.ts` "lists the spending with the contract shape, before /budgets/:id (AC-01, AC-13)".
+- ✅ AC-14 — `spending-routes.test.ts` "reads one budget with a signed remaining when overspent (AC-14)"; `spending-domain.test.ts` "overspend gives negative remaining and 120" and "caps at 1000".
+- ✅ AC-15 — `spending-use-cases.test.ts` "uses the current month of the clock in the user zone when none is given (AC-15)".
+- ✅ AC-16 — shared `budgetSpendingMonthSchema` (year 1971 or later) plus the future-month rule in the use case; `spending-routes.test.ts` "rejects a malformed month and an unknown key with VALIDATION_FAILED (AC-16)" and "rejects a future month with BUDGET_MONTH_IN_FUTURE and reads nothing (AC-16)"; `spending-flow.test.ts` "rejects a future month, a malformed month, and a month before the budget (AC-16, AC-17)"; `budget-spending-schemas.test.ts` rejects `0000-01` and `1970-12` (the cross-check warning about an extreme year answering 500 is fixed in 3d71c4b).
+- ✅ AC-17 — `spending-use-cases.test.ts` "leaves out a budget that did not exist yet and answers 404 by id (AC-17)"; `budget-version-reader.test.ts` "lists a budget that did not exist yet with null for every month, in creation order".
+- ✅ AC-18 — `spending-use-cases.test.ts` "carries the leftover of the previous month when rollover is on (AC-18)"; `spending-flow.test.ts` October and September test (170,000.00 ARS available).
+- ✅ AC-19 — `spending-use-cases.test.ts` "carries nothing after an overspend, with rollover off or with no previous version (AC-19, AC-20, AC-22)"; `spending-domain.test.ts` "rollover on and a previous overspend carries 0".
+- ✅ AC-20 — the same use-case test; `spending-domain.test.ts` "rollover off ignores the previous month".
+- ✅ AC-21 — `spending-flow.test.ts` "changes the October rollover when a September expense is edited after October began (AC-21)"; `spending-reader.test.ts` "reads afresh on every call: a new September movement changes the rows (AC-21)".
+- ✅ AC-22 — the same use-case test as AC-19; `spending-domain.test.ts` "rollover on with no previous version carries 0".
+- ✅ AC-23 — every version and spending query carries the owner scope; `spending-use-cases.test.ts` "answers 404 for a budget of another user and calls no spending reader (AC-23)"; `spending-routes.test.ts` "answers 404 for a foreign and an unknown budget with the same body (AC-23, AC-24)".
+- ✅ AC-24 — `spending-use-cases.test.ts` "lists only the budgets of the caller (AC-24)"; `budget-version-reader.test.ts` "never returns the budgets, versions or categories of another user (AC-24)"; `spending-reader.test.ts` "ignores shares of 0, groups the caller is not in, and expenses outside the window (AC-24)".
+- ✅ AC-25 — `router.use('/budgets', requireSession, requireVerifiedEmail)` runs before the new routes; `spending-routes.test.ts` "answers 401 with no session and leaks no budget field (AC-25)" and "answers 403 for an unverified email".
+- ✅ AC-26 — the personal query excludes a movement that is the payer movement of a group expense (`not exists` on `group_expenses.payer_movement_id`); `spending-reader.test.ts` "excludes the payer movement of a group expense and keeps the share (AC-26)"; the flow test of AC-10 counts 10,000.00 and not 30,000.00.
+- ✅ AC-27 — `perf/budget-spending.perf.test.ts` "keeps p95 of the list below 500 ms for 50 budgets and 100,000 movements": p95 137.6 ms and 99.8 ms in two runs; `spending-query-plan.test.ts` shows the owner/category/date index and the new partial index in use with no sequential scan of `group_expenses`; statement-count tests show a fixed number of statements for 1 and for 50 budgets.
+- ✅ AC-28 — sums are read as text and parsed with `BigInt`, converted with integer arithmetic and serialized as exact integer strings; `spending-use-cases.test.ts` "produces values the wire contract accepts, with a signed remaining (AC-28)"; `no-float-spending.test.ts` scans the feature for float and `Number` use; `budget-spending-schemas.test.ts` rejects number-typed amounts.
+
+## Spec blocks
+- ✅ Block 1 — shared contract and error code: `packages/shared/src/budgets/spending.ts` exists and is exported from the package index; `BUDGET_MONTH_IN_FUTURE` is declared in `packages/shared/src/errors.ts` and mapped to 400 in the error handler; `budget-spending-schemas.test.ts` (re-export, error code, month, response and envelope tests).
+- ✅ Block 2 — pure calculation in the domain: `apps/api/src/budgets/domain/spending.ts` and the month helpers in `domain/month.ts` exist; `spending-domain.test.ts` holds the conversion, name matching, aggregation, percentage, rollover and module-boundary tests.
+- ✅ Block 3 — ports, SQL adapters and migration 0035: `ports/spending-reader.ts`, `ports/budget-version-reader.ts`, `drizzle-spending-reader.ts`, `drizzle-budget-version-reader.ts`, `drizzle/0035_group_expense_payer_movement_idx.sql` and its rollback exist; `spending-reader.test.ts`, `budget-version-reader.test.ts`, `spending-migration.test.ts` (6 tests) and `spending-query-plan.test.ts` cover them.
+- ✅ Block 4 — use cases and routes: `compute-spending.ts`, `list-budget-spending.ts`, `get-budget-spending.ts`, `spending-presenter.ts` and the two routes (registered before `/budgets/:id`) exist; `spending-use-cases.test.ts` and `spending-routes.test.ts` cover them.
+- ✅ Block 5 — benchmark, end-to-end flow and float scan: `perf/budget-spending.perf.test.ts`, `spending-flow.test.ts` and `no-float-spending.test.ts` exist and pass.
+
+## Tests
+- ✅ Sad-path tests: every input-taking route has an invalid-input test. Malformed and future month, unknown query key, malformed id, foreign and unknown budget answering the same 404, no session 401, unverified email 403, a missing rate, a database failure rethrown (`spending-routes.test.ts`, `spending-flow.test.ts`, `spending-domain.test.ts`, `spending-reader.test.ts`, `budget-version-reader.test.ts`, `budget-spending-schemas.test.ts`).
+- ✅ NFR-01 (p95 under 500 ms for 50 budgets and 100,000 movements): measured p95 137.6 ms and 99.8 ms in two runs, server-side, over PostgreSQL; the readers issue a fixed number of statements, never one per budget.
+- ✅ NFR-02 (64-bit integers, 0 floating-point values): sums as `bigint`, rates as integers scaled by 10,000, amounts serialized as strings; the float scan test finds 0 hits and migration 0035 adds no column.
+- ✅ FR-01 to FR-08 are each covered by at least one passing AC above: FR-01 (AC-01 to AC-04), FR-02 (AC-07 to AC-09, AC-12), FR-03 (AC-10, AC-11), FR-04 (AC-05, AC-13 to AC-16), FR-05 (AC-18 to AC-22), FR-06 (AC-06, AC-17), FR-07 (AC-23 to AC-25), FR-08 (AC-26).
+- ✅ Security: `docs/ddw/security/sast-DISC-001-06c.md` reports 0 Critical, 0 High, 0 Medium and 3 Info findings; the module cross-check found no blocking bug.
+- ⚠️ Items from the PRD or the spec that await the owner, none blocking:
+  - Known limitation (PRD AC-12): group expenses store no frozen rate, so a share in the other currency paid by someone else is reported as `unconvertedShareCount` and not counted. Fixing it needs a 05b write-path change and a migration, out of scope; it goes in the PR for the owner to ratify.
+  - Cross-check low warnings, accepted: rounding happens once per (category, bucket, currency, rate) group (spec D7), at most 0.5 minor unit of drift per movement; the rollover ignores the previous month's `unconvertedShareCount` (documented in PRD AC-12); the extreme-year 500 was fixed in 3d71c4b.
+  - The decisions marked as proposed by the model in the PRD Decision Log (rollover of one month only, payer movement exclusion, group category name matching, month limits, percentage rounding down and capped at 1,000) await the owner's acceptance.
+  - Migration 0035 must keep a journal `when` above the maximum on `main` at merge (currently 1791790000000).
+  - The suite was not re-run in full after the last commit (3d71c4b); its own tests passed.
+
+Result: PASSED

@@ -211,6 +211,7 @@ export type ApiErrorKey =
   | 'recurringLimitReached'
   | 'budgetLimitReached'
   | 'budgetCategoryKindInvalid'
+  | 'budgetMonthInFuture'
   | 'groupAdminRequired'
   | 'groupAlreadyMember'
   | 'groupMemberLimitReached'
@@ -321,6 +322,7 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   RECURRING_LIMIT_REACHED: 'recurringLimitReached',
   BUDGET_LIMIT_REACHED: 'budgetLimitReached',
   BUDGET_CATEGORY_KIND_INVALID: 'budgetCategoryKindInvalid',
+  BUDGET_MONTH_IN_FUTURE: 'budgetMonthInFuture',
   GROUP_ADMIN_REQUIRED: 'groupAdminRequired',
   GROUP_ALREADY_MEMBER: 'groupAlreadyMember',
   GROUP_MEMBER_LIMIT_REACHED: 'groupMemberLimitReached',

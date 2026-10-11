@@ -256,6 +256,10 @@ export const groupExpenses = pgTable(
       table.id.desc(),
     ),
     index('group_expenses_payer_idx').on(table.payerMemberId),
+    // Serves the `not exists` probe that leaves a payer movement out of the budgets' personal spending.
+    index('group_expenses_payer_movement_idx')
+      .on(table.payerMovementId)
+      .where(sql`${table.payerMovementId} is not null`),
   ],
 );
 
