@@ -316,6 +316,26 @@ describe('GroupBalancesContainer', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('shows the not-found state when the group disappears during the reload', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail },
+      [GET_BALANCES]: [
+        { status: 200, body: owing },
+        { status: 404, body: { code: 'NOT_FOUND', message: 'x' } },
+      ],
+      [ACCOUNTS]: { status: 200, body: accountList },
+      [`POST /groups/${GROUP_ID}/settlements`]: { status: 201, body: recorded },
+    });
+    open();
+
+    await screen.findByRole('heading', { name: 'Flatmates' });
+    await userEvent.click(within(section('ARS')).getByRole('button', { name: t.record }));
+    await userEvent.click(screen.getByRole('button', { name: en.groups.settlement.submit }));
+
+    expect(await screen.findByText(t.notFound.title)).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Flatmates' })).toBeNull();
+  });
+
   it('shows the retry on a load error and loads again', async () => {
     const { calls } = stubApi({
       [GET_GROUP]: [{ status: 500 }, { status: 200, body: detail }],

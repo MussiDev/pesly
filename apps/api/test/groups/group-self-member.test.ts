@@ -57,9 +57,7 @@ describe('selfMemberId on group detail and expense options', () => {
     expect(forBob.detail.selfMemberId).toBe(memberOf(bob));
     expect(forBob.options.selfMemberId).toBe(memberOf(bob));
     expect(forAna.detail.selfMemberId).not.toBe(forBob.detail.selfMemberId);
-    expect(forAna.detail.members.map((member) => member.id)).toContain(
-      forAna.detail.selfMemberId,
-    );
+    expect(forAna.detail.members.map((member) => member.id)).toContain(forAna.detail.selfMemberId);
   });
 
   it('is the ghost member id once the ghost is claimed', async () => {

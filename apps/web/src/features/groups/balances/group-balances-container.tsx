@@ -104,6 +104,7 @@ export function GroupBalancesContainer({ groupId }: { groupId: string }) {
         current.kind === 'ready' ? { ...current, balances: result.data } : current,
       );
     } else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+    else if (result.code === 'NOT_FOUND') setState({ kind: 'not-found' });
     else setReloadIssue(result);
   }
 

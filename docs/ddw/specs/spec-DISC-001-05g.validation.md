@@ -14,7 +14,7 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 2 (Pure settlement logic) (4 files, 656 words), Block 4 (Single settlement form with account choice) (4 files, 523 words), Block 5 (Consolidation flow) (4 files, 572 words), Block 8 (Pages, catalogs and end-to-end checks) (3 files, 613 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 2 (Pure settlement logic) (4 files, 656 words), Block 4 (Single settlement form with account choice) (4 files, 523 words), Block 5 (Consolidation flow) (4 files, 572 words), Block 8 (Pages, catalogs and end-to-end checks) (3 files, 626 words)
   ⚠️ W-SPEC-03: schema changes with no rollback or reverse-migration consideration
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.

@@ -447,8 +447,8 @@ balances page makes on load. The no-literal scan of `groups-no-hardcoded-strings
 `i18n-catalogs.test.ts` covers NFR-03.
 
 **Input validation**
-- The group id in the route must be a valid identifier; a malformed id shows the not-found state and sends
-  no request (Block 1 guard).
+- A route id that is not a UUID reaches the API, which answers 400; the screen shows the shared error with a
+  retry and no data, as the group detail does (`resourcePath` only refuses empty and dot segments).
 
 **Error handling**
 - The spec resets attempt limits before each test, as the existing specs do.
