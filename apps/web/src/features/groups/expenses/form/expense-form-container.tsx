@@ -8,6 +8,7 @@ import {
 } from '@pesly/shared';
 import { useTranslations, useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { PageHeader } from '@/components/ui/page-header';
 import { categoryLabel } from '@/features/categories/category-display';
 import { loadAll } from '@/features/movements/use-movement-form-data';
 import { useRouter } from '@/i18n/navigation';
@@ -178,24 +179,27 @@ export function ExpenseFormContainer({
   }
 
   return (
-    <ExpenseForm
-      members={members}
-      categories={options.categories
-        .filter((category) => category.archivedAt === null)
-        .map((category) => ({ id: category.id, label: groupCategoryLabel(category, language) }))}
-      accounts={accounts}
-      personalCategories={personalCategories.map((category) => ({
-        id: category.id,
-        label: categoryLabel(category, language),
-      }))}
-      currentMemberId={options.selfMemberId}
-      initialValues={initialValues}
-      fieldErrors={fieldErrors}
-      issue={issue}
-      pending={pending}
-      onSubmit={(values) => {
-        void submit(values);
-      }}
-    />
+    <div className="grid gap-6">
+      <PageHeader title={tForm('title')} />
+      <ExpenseForm
+        members={members}
+        categories={options.categories
+          .filter((category) => category.archivedAt === null)
+          .map((category) => ({ id: category.id, label: groupCategoryLabel(category, language) }))}
+        accounts={accounts}
+        personalCategories={personalCategories.map((category) => ({
+          id: category.id,
+          label: categoryLabel(category, language),
+        }))}
+        currentMemberId={options.selfMemberId}
+        initialValues={initialValues}
+        fieldErrors={fieldErrors}
+        issue={issue}
+        pending={pending}
+        onSubmit={(values) => {
+          void submit(values);
+        }}
+      />
+    </div>
   );
 }

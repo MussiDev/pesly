@@ -110,7 +110,8 @@ test('a split the server refuses shows its message in the browser', async ({ pag
       status: 400,
       contentType: 'application/json',
       body: JSON.stringify({
-        error: { code: 'GROUP_SPLIT_AMOUNT_MISMATCH', message: 'The shares do not add up.' },
+        code: 'GROUP_SPLIT_AMOUNT_MISMATCH',
+        message: 'The shares do not add up.',
       }),
     });
   });
@@ -123,7 +124,7 @@ test('a split the server refuses shows its message in the browser', async ({ pag
   await page.getByLabel(form.fields.description, { exact: true }).fill('Rechazado');
   await page.getByRole('button', { name: form.submit }).click();
 
-  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByText(catalogs.es.errors.groupSplitAmountMismatch)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/es/groups/${groupId}/expenses/new$`));
 });
 
