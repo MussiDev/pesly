@@ -63,6 +63,17 @@ describe('credit-cards module import boundaries', () => {
     expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
   });
 
+  it.each([
+    ['apps/api/src/credit-cards/domain/probe.ts', "import { x } from '../../notices';"],
+    ['apps/api/src/credit-cards/application/probe.ts', "import { x } from '../../notices';"],
+    [
+      'apps/api/src/credit-cards/application/probe.ts',
+      "import { x } from '../../notices/application/notice';",
+    ],
+  ])('rejects credit-cards importing notices in %s: %s (sad path)', async (file, source) => {
+    expect(await restrictedImports(file, `${source}\n`)).toEqual(['no-restricted-imports']);
+  });
+
   it('keeps the older restrictions on credit-cards where the movements pattern was added (sad path)', async () => {
     for (const [file, source] of [
       ['apps/api/src/credit-cards/domain/probe.ts', "import pg from 'pg';"],

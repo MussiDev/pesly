@@ -4,7 +4,7 @@ import {
   createRatesSyncJob,
   type RateProvider,
 } from './exchange-rates';
-import { createAutomaticDebitJob } from './credit-cards/jobs';
+import { createAutomaticDebitJob, createStatementReminderJob } from './credit-cards/jobs';
 import { createEmailTransport, createEmailWorker } from './identity';
 import {
   CoingeckoPriceProvider,
@@ -15,7 +15,7 @@ import {
 import { createAutomaticDebitRecorder } from './movements/infrastructure/credit-cards/drizzle-automatic-debit-recorder';
 import { createCardPayments } from './movements/infrastructure/credit-cards/drizzle-card-payments';
 import { createCardPurchases } from './movements/infrastructure/credit-cards/drizzle-card-purchases';
-import { createNoticePublisher } from './notices';
+import { createNoticePublisher, createStatementReminderPublisher } from './notices';
 import { createRecurringExpenseRecorder } from './movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
 import { createRecurringJobs } from './recurring/jobs';
 import { parseWorkerEnv } from './shared/config/env';
@@ -27,7 +27,7 @@ import { createShutdown } from './shared/process/graceful-shutdown';
  * Worker process: delivers the PostgreSQL outbox through the transport named by EMAIL_PROVIDER and
  * refreshes the exchange rates through the provider named by RATE_PROVIDER, refreshes crypto prices
  * through the one named by PRICE_PROVIDER and takes the daily portfolio snapshots, records the
- * recurring payments that are due and the automatic debits of credit card statements. Run as many
+ * recurring payments that are due and the automatic debits of credit card statements and the statement due-date reminders. Run as many
  * as needed; row locks keep them from sending an email twice and the refresh claims keep each
  * provider to one call per hour.
  */
@@ -67,12 +67,24 @@ const recurringJobs = createRecurringJobs({
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
 });
 
+const cardPayments = createCardPayments(db);
+const cardPurchases = createCardPurchases(db);
+
 const automaticDebitJob = createAutomaticDebitJob({
   db,
   logger,
   recorder: createAutomaticDebitRecorder(db),
-  cardPayments: createCardPayments(db),
-  purchases: createCardPurchases(db),
+  cardPayments,
+  purchases: cardPurchases,
+  intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
+});
+
+const statementReminderJob = createStatementReminderJob({
+  db,
+  logger,
+  publisher: createStatementReminderPublisher(db),
+  cardPayments,
+  purchases: cardPurchases,
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
 });
 
@@ -90,6 +102,11 @@ logger.info(
 );
 automaticDebitJob.start();
 logger.info({ intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS }, 'automatic debit job started');
+statementReminderJob.start();
+logger.info(
+  { intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS },
+  'statement reminder job started',
+);
 
 const shutdown = createShutdown({
   name: 'email worker',
@@ -101,6 +118,7 @@ const shutdown = createShutdown({
       investmentsJobs.stop(),
       recurringJobs.stop(),
       automaticDebitJob.stop(),
+      statementReminderJob.stop(),
     ]);
     await pool.end();
   },
