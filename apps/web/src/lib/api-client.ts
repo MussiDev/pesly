@@ -5,6 +5,7 @@ import {
   listAccountsResponseSchema,
   listCategoriesResponseSchema,
   addHoldingResponseSchema,
+  importHoldingsResponseSchema,
   holdingResponseSchema,
   latestRatesResponseSchema,
   listMovementsResponseSchema,
@@ -49,6 +50,8 @@ import {
   type ListCategoriesResponse,
   type AddHoldingRequest,
   type AddHoldingResponse,
+  type ImportHoldingsRequest,
+  type ImportHoldingsResponse,
   type CreatePortfolioRequest,
   type HoldingResponse,
   type PortfolioListResponse,
@@ -488,6 +491,11 @@ export interface ApiClient {
   deletePortfolio(portfolioId: string): Promise<ApiResult<undefined>>;
   /** 201 when created, 200 when merged into an existing holding: see `merged`. */
   addHolding(portfolioId: string, body: AddHoldingRequest): Promise<ApiResult<AddHoldingResponse>>;
+  /** Replaces the holdings of a portfolio with the parsed rows of a Balanz file; the file itself is never sent. */
+  importHoldings(
+    portfolioId: string,
+    body: ImportHoldingsRequest,
+  ): Promise<ApiResult<ImportHoldingsResponse>>;
   updateHolding(holdingId: string, body: UpdateHoldingRequest): Promise<ApiResult<HoldingResponse>>;
   setHoldingPrice(holdingId: string, body: SetPriceRequest): Promise<ApiResult<HoldingResponse>>;
   setHoldingAutomaticPrice(holdingId: string): Promise<ApiResult<HoldingResponse>>;
@@ -1203,6 +1211,14 @@ export function createApiClient({
         path: `/investments/portfolios/${encodeURIComponent(portfolioId)}/holdings`,
         body,
         response: addHoldingResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    importHoldings: (portfolioId, body) =>
+      request({
+        method: 'POST',
+        path: `/investments/portfolios/${encodeURIComponent(portfolioId)}/holdings/import`,
+        body,
+        response: importHoldingsResponseSchema,
         refreshOnUnauthenticated: true,
       }),
     updateHolding: (holdingId, body) =>

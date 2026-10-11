@@ -351,6 +351,16 @@ All notable changes to this project are documented in this file. The format foll
   parallel runs create no duplicates. Migration `0025_notices` adds `recurring_payments.reminder_days`
   and the `notices` table. Push delivery of the same notices arrives in DISC-001-08d. No new
   dependency.
+- DISC-001-07c Import of Balanz holdings from the Excel export (`.xlsx`, sheet "Mis Instrumentos"):
+  the file is read in the browser and never uploaded, stored or logged, with a limit of 1 MB and
+  10 MB declared uncompressed. A preview lists the holdings it will add, update and remove before
+  anything changes, each holding starts in ARS and can be switched to USD, every instrument type is
+  accepted (unknown ones as "other"), and the total cost is the file's "Valor inicial". Confirming
+  replaces the portfolio's holdings in one transaction through
+  `POST /investments/portfolios/:portfolioId/holdings/import` (at most 1,000 holdings, 384 kb body
+  limit on that path only), with prices of source `import` dated by the file. A file that is not a valid
+  Balanz workbook (CSV, PDF, another sheet, a bad row, a repeated ticker) is refused whole. No
+  migration and no new dependency: it reuses `read-excel-file` from the statement import.
 - DISC-001-10e Automatic debit of credit card statements: a card can link one debit account per
   currency (`PUT /credit-cards/:id/debit-accounts`), chosen among the owner's open accounts of that
   currency and never a card account. From 06:00 in the owner's time zone on a statement's due date,

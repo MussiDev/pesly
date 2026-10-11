@@ -35,3 +35,6 @@ export const UNIT_PRICE_MAX = 10n ** 12n;
 
 /** A market price is "recent" while it is at most 24 hours old; only the web wording depends on it. */
 export const MARKET_PRICE_RECENT_WITHIN_MS = 24 * 3_600_000;
+
+/** The most holdings one Balanz import can carry (DISC-001-07c NFR-01). */
+export const IMPORT_MAX_HOLDINGS = 1000;
