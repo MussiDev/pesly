@@ -1,6 +1,11 @@
 import {
+  AppError,
+  activityPageSchema,
   addGhostMemberRequestSchema,
   balancesResponseSchema,
+  listActivityQuerySchema,
+  updateGroupExpenseRequestSchema,
+  updateSettlementRequestSchema,
   consolidationPreviewSchema,
   consolidationQuerySchema,
   createSettlementRequestSchema,
@@ -46,6 +51,14 @@ import { AddGhostMember } from '../../application/add-ghost-member';
 import { ClaimGhostMember } from '../../application/claim-ghost-member';
 import { CreateClaimLink } from '../../application/create-claim-link';
 import { CreateGroup } from '../../application/create-group';
+import { DeleteGroupExpense } from '../../application/delete-group-expense';
+import { DeleteSettlement } from '../../application/delete-settlement';
+import { GroupAccess } from '../../application/group-access';
+import { ListActivity } from '../../application/list-activity';
+import { UpdateGroupExpense } from '../../application/update-group-expense';
+import { UpdateSettlement } from '../../application/update-settlement';
+import { DrizzleActivityLogReader } from '../db/drizzle-activity-log-reader';
+import { presentActivityPage } from './group-activity-presenter';
 import { CreateGroupCategory } from '../../application/create-group-category';
 import { CreateInvitation } from '../../application/create-invitation';
 import { GetBalances } from '../../application/get-balances';
@@ -108,6 +121,8 @@ export interface GroupRoutesOptions {
 
 const groupListResponseSchema = z.array(groupResponseSchema);
 const categoryListResponseSchema = z.array(groupCategoryResponseSchema);
+const groupSettlementParamsSchema = z.object({ id: z.uuid(), settlementId: z.uuid() });
+const groupActivityEntryParamsSchema = z.object({ id: z.uuid(), entryId: z.uuid() });
 
 /** requireSession always sets auth before these routes; failing closed keeps that explicit. */
 function userIdOf(auth: AuthContext | undefined): string {
@@ -156,6 +171,12 @@ export function createGroupRoutes({
   });
   const previewConsolidation = new PreviewConsolidation({ groups, settlements, rates });
   const listSettlements = new ListSettlements({ groups, settlements });
+  const updateExpense = new UpdateGroupExpense({ groups, expenses, clock });
+  const deleteExpense = new DeleteGroupExpense({ groups, expenses, clock });
+  const updateSettlement = new UpdateSettlement({ groups, settlements, clock });
+  const deleteSettlement = new DeleteSettlement({ groups, settlements, clock });
+  const listActivity = new ListActivity({ groups, activity: new DrizzleActivityLogReader(db) });
+  const groupAccess = new GroupAccess(groups);
   const removeMember = new RemoveMember({ groups, clock });
   const leaveGroup = new LeaveGroup({ groups, clock });
 
@@ -404,6 +425,38 @@ export function createGroupRoutes({
       ),
     );
 
+    router.put(
+      '/groups/:id/expenses/:expenseId',
+      validate(
+        {
+          params: groupExpenseParamsSchema,
+          body: updateGroupExpenseRequestSchema,
+          response: groupExpenseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const expense = await updateExpense.execute(
+            userIdOf(auth),
+            params.id,
+            params.expenseId,
+            body,
+          );
+          audit('group expense updated', requestId, auth, params.id, { expenseId: expense.id });
+          res.json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.delete(
+      '/groups/:id/expenses/:expenseId',
+      validate({ params: groupExpenseParamsSchema }, async ({ params }, ctx) => {
+        await deleteExpense.execute(userIdOf(ctx.auth), params.id, params.expenseId);
+        audit('group expense deleted', ctx.requestId, ctx.auth, params.id, {
+          expenseId: params.expenseId,
+        });
+        ctx.res.sendStatus(204);
+      }),
+    );
+
     router.get(
       '/groups/:id/expense-options',
       validate(
@@ -494,6 +547,68 @@ export function createGroupRoutes({
         },
       ),
     );
+
+    router.patch(
+      '/groups/:id/settlements/:settlementId',
+      validate(
+        {
+          params: groupSettlementParamsSchema,
+          body: updateSettlementRequestSchema,
+          response: settlementResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const settlement = await updateSettlement.execute(
+            userIdOf(auth),
+            params.id,
+            params.settlementId,
+            body,
+          );
+          audit('group settlement updated', requestId, auth, params.id, {
+            settlementId: settlement.id,
+          });
+          res.json(presentSettlement(settlement));
+        },
+      ),
+    );
+
+    router.delete(
+      '/groups/:id/settlements/:settlementId',
+      validate({ params: groupSettlementParamsSchema }, async ({ params }, ctx) => {
+        await deleteSettlement.execute(userIdOf(ctx.auth), params.id, params.settlementId);
+        audit('group settlement deleted', ctx.requestId, ctx.auth, params.id, {
+          settlementId: params.settlementId,
+        });
+        ctx.res.sendStatus(204);
+      }),
+    );
+
+    router.get(
+      '/groups/:id/activity',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          query: listActivityQuerySchema,
+          response: activityPageSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
+          res.json(
+            presentActivityPage(await listActivity.execute(userIdOf(auth), params.id, query)),
+          );
+        },
+      ),
+    );
+
+    // The log is append-only (spec D8): members get a stable 405, after the membership check so a
+    // non-member still gets 404. The error handler sets the empty `Allow` header.
+    for (const method of ['put', 'patch', 'delete'] as const) {
+      router[method](
+        '/groups/:id/activity/:entryId',
+        validate({ params: groupActivityEntryParamsSchema }, async ({ params }, { auth }) => {
+          await groupAccess.member(userIdOf(auth), params.id);
+          throw new AppError('GROUP_ACTIVITY_LOG_IMMUTABLE');
+        }),
+      );
+    }
 
     router.delete(
       '/groups/:id/members/:memberId',
