@@ -1,15 +1,26 @@
 import { AppError, type AccountCurrency, type RateType } from '@pesly/shared';
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { ResourceNotFound } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
+  DeleteGroupSettlementData,
   GroupSettlementPageResult,
   GroupSettlementRepository,
   ListSettlementsPageQuery,
   NewGroupSettlement,
+  UpdateGroupSettlementData,
 } from '../../application/ports/group-settlement-repository';
 import {
+  isConsolidated,
+  settlementChangedMembers,
+  settlementSnapshot,
+  type SettlementEffect,
+} from '../../domain/group-change';
+import {
+  GroupRecordFormerMember,
   GroupSettlementAccountInvalid,
+  GroupSettlementConsolidated,
   GroupSettlementMemberInvalid,
   GroupSettlementStale,
 } from '../../domain/errors';
@@ -211,6 +222,40 @@ async function readSources(db: Executor, groupId: string): Promise<BalanceSource
   return { ARS: ars, USD: usd };
 }
 
+async function readSettlement(
+  db: Executor,
+  groupId: string,
+  settlementId: string,
+): Promise<GroupSettlement | null> {
+  const [row] = await db
+    .select(settlementColumns)
+    .from(groupSettlements)
+    .where(and(eq(groupSettlements.id, settlementId), eq(groupSettlements.groupId, groupId)));
+  if (!row) return null;
+  const legs = await loadLegs(db, groupId, [row.id]);
+  return toSettlement(row, legs.get(row.id) ?? []);
+}
+
+/** The group `for update` first (same order as `saveSettlement`), then the settlement in it. */
+async function lockAndLoad(
+  tx: GroupTx,
+  groupId: string,
+  settlementId: string,
+): Promise<GroupSettlement> {
+  await lockGroup(tx, groupId, 'update');
+  const stored = await readSettlement(tx, groupId, settlementId);
+  if (stored === null) throw new ResourceNotFound();
+  return stored;
+}
+
+function effectOf(settlement: GroupSettlement): SettlementEffect {
+  return {
+    fromMemberId: settlement.fromMemberId,
+    toMemberId: settlement.toMemberId,
+    legs: settlement.legs,
+  };
+}
+
 /** Rows strictly after the cursor in `(occurred_at desc, id desc)` order. */
 function afterCursor(cursor: Cursor | null): SQL | undefined {
   return cursor === null
@@ -289,19 +334,91 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
     return readSources(this.db, groupId);
   }
 
-  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
-  getSettlement(): Promise<GroupSettlement | null> {
-    return Promise.reject(new Error('not implemented: Block 4'));
+  async getSettlement(groupId: string, settlementId: string): Promise<GroupSettlement | null> {
+    return readSettlement(this.db, groupId, settlementId);
   }
 
-  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
-  updateSettlement(): Promise<GroupSettlement> {
-    return Promise.reject(new Error('not implemented: Block 4'));
+  async updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const stored = await lockAndLoad(tx, data.groupId, data.settlementId);
+        if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
+        const changed = settlementChangedMembers(effectOf(stored), {
+          fromMemberId: stored.fromMemberId,
+          toMemberId: stored.toMemberId,
+          legs: data.legs,
+        });
+        if (!(await allActiveMembers(tx, data.groupId, changed))) {
+          throw new GroupRecordFormerMember();
+        }
+        const [row] = await tx
+          .update(groupSettlements)
+          .set({ amount: data.amount, occurredAt: data.occurredAt })
+          .where(
+            and(
+              eq(groupSettlements.id, data.settlementId),
+              eq(groupSettlements.groupId, data.groupId),
+            ),
+          )
+          .returning(settlementColumns);
+        if (!row) throw new Error('Updating a group settlement returned no row');
+        await tx.delete(groupSettlementLegs).where(eq(groupSettlementLegs.settlementId, row.id));
+        const legs = data.legs.map((leg) => ({ ...leg })).sort(byCurrency);
+        await tx.insert(groupSettlementLegs).values(
+          legs.map((leg) => ({
+            settlementId: row.id,
+            groupId: data.groupId,
+            currency: leg.currency,
+            amount: leg.amount,
+          })),
+        );
+        // `before` is rebuilt from the row read under lock, not trusted from the caller (spec D4).
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: row.id,
+          createdAt: data.activity.createdAt,
+          before: settlementSnapshot(stored),
+          after: data.activity.after,
+        });
+        return toSettlement(row, legs);
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
   }
 
-  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
-  deleteSettlement(): Promise<void> {
-    return Promise.reject(new Error('not implemented: Block 4'));
+  async deleteSettlement(data: DeleteGroupSettlementData): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        const stored = await lockAndLoad(tx, data.groupId, data.settlementId);
+        const changed = settlementChangedMembers(effectOf(stored), null);
+        if (!(await allActiveMembers(tx, data.groupId, changed))) {
+          throw new GroupRecordFormerMember();
+        }
+        // The legs go by cascade.
+        await tx
+          .delete(groupSettlements)
+          .where(
+            and(
+              eq(groupSettlements.id, data.settlementId),
+              eq(groupSettlements.groupId, data.groupId),
+            ),
+          );
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: data.settlementId,
+          createdAt: data.activity.createdAt,
+          before: settlementSnapshot(stored),
+          after: null,
+        });
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
   }
 
   async listSettlements(

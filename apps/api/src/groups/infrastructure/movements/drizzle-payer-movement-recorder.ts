@@ -2,6 +2,7 @@ import { dateInTimeZone, todayInTimeZone } from '@pesly/shared';
 import { CreateMovement } from '../../../movements/application/create-movement';
 import { localDayRange } from '../../../movements/application/local-day-range';
 import type { UserPreferences } from '../../../movements/application/ports/user-preferences';
+import { UpdateMovement } from '../../../movements/application/update-movement';
 import { DrizzleAccountLookup } from '../../../movements/infrastructure/db/drizzle-account-lookup';
 import { DrizzleCategoryLookup } from '../../../movements/infrastructure/db/drizzle-category-lookup';
 import { DrizzleMovementRepository } from '../../../movements/infrastructure/db/drizzle-movement-repository';
@@ -14,7 +15,9 @@ import type { Clock } from '../../application/ports/clock';
 import type {
   PayerAccountCheck,
   PayerMovementRecorder,
+  PayerMovementRemoval,
   PayerMovementToRecord,
+  PayerMovementUpdate,
 } from '../../application/ports/payer-movement-recorder';
 import { SystemClock } from '../clock/system-clock';
 
@@ -82,14 +85,42 @@ export class DrizzlePayerMovementRecorder implements PayerMovementRecorder<Payer
     return { id: created.id };
   }
 
-  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
-  update(): Promise<void> {
-    return Promise.reject(new Error('not implemented: Block 4'));
+  async update(unit: PayerTx, change: PayerMovementUpdate): Promise<void> {
+    const db: Database = unit;
+    const scope = await writeScope(change.userId);
+    const movements = new DrizzleMovementRepository(db);
+    const existing = await movements.findById(scope, change.movementId);
+    // Gone (or not the payer's): nothing to rewrite, the expense edit still goes through (spec D6).
+    if (existing === null || existing.type !== 'expense') return;
+    const { timeZone } = await new DrizzleUserPreferences(db).find(change.userId);
+    const update = new UpdateMovement({
+      movements,
+      accounts: new DrizzleAccountLookup(db),
+      categories: new DrizzleCategoryLookup(db),
+      rates: new DrizzleRateLookup(db),
+      preferences: new DrizzleUserPreferences(db),
+      clock: this.clock,
+    });
+    // The rate stays as frozen when the movement was recorded; only amount, date and note move.
+    await update.execute(scope, change.movementId, {
+      type: 'expense',
+      accountId: existing.accountId,
+      categoryId: existing.categoryId,
+      amount: change.amount,
+      occurredAt: this.latestAllowed(change.occurredAt, timeZone),
+      note: change.note,
+      tags: existing.tags,
+      rate: { source: 'keep' },
+    });
   }
 
-  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
-  remove(): Promise<void> {
-    return Promise.reject(new Error('not implemented: Block 4'));
+  async remove(unit: PayerTx, removal: PayerMovementRemoval): Promise<void> {
+    const db: Database = unit;
+    // `false` means the movement is already gone, which is the state a removal wants.
+    await new DrizzleMovementRepository(db).delete(
+      await writeScope(removal.userId),
+      removal.movementId,
+    );
   }
 
   /**
