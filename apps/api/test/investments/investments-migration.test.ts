@@ -46,6 +46,7 @@ const LATER_MIGRATIONS = [
   '0029_card_automatic_debit',
   '0030_group_activity_log_changes',
   '0031_group_record_version',
+  '0032_card_statement_reminders',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

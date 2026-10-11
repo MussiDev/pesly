@@ -9,7 +9,12 @@ export interface StatementDates {
   dueDate: string;
 }
 
-export interface CreateCreditCardData extends CardDays {
+/** The three settings a card keeps: both default days and the reminder lead time. */
+export interface CardSettings extends CardDays {
+  reminderDays: number;
+}
+
+export interface CreateCreditCardData extends CardSettings {
   name: string;
   firstStatement: StatementDraft;
 }
@@ -44,11 +49,11 @@ export interface CreditCardRepository {
     statementId: string,
     dates: StatementDates,
   ): Promise<Statement | null>;
-  /** Saves the days and the recomputed statements atomically. */
+  /** Saves the settings and the recomputed statements atomically (an empty list leaves them as they are). */
   updateDays(
     scope: AccessScope<'write'>,
     cardId: string,
-    days: CardDays,
+    settings: CardSettings,
     statements: readonly Statement[],
   ): Promise<CreditCard | null>;
   /** Saves both debit links in one statement; `null` when the card is missing or not the caller's. */

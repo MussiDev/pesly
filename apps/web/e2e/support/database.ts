@@ -367,6 +367,71 @@ export async function backdateDebitLinks(email: string, cardName: string): Promi
   if (result.rows.length !== 1) throw new Error(`No card named ${cardName} for ${email}`);
 }
 
+/**
+ * Moves the dates of the oldest statement of the card named `cardName` of `email` so its reminder is
+ * due now: the closing date becomes today (the statement stays open, so the card's purchases belong
+ * to it) and the due date tomorrow. The reminder day is then in the past at any hour of the run, and
+ * the due date is never before the owner's today. With `closed`, the closing date is moved into the
+ * past instead, and the purchases of the card move back with it, as in `closeFirstStatement`.
+ */
+export async function makeFirstStatementDueSoon(
+  email: string,
+  cardName: string,
+  options: { closed?: boolean } = {},
+): Promise<void> {
+  const closed = options.closed === true;
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update credit_card_statements s
+          set closing_date = case when $3::boolean then current_date - 10 else current_date end,
+              due_date = current_date + 1
+         from credit_cards c join users u on u.id = c.owner_id
+        where s.card_id = c.id and u.email = $1 and c.name = $2
+          and s.id = (select id from credit_card_statements
+                       where card_id = c.id order by closing_date limit 1)
+       returning s.id`,
+      [email, cardName, closed],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No statement of ${cardName} for ${email}`);
+  if (!closed) return;
+  await withE2eDatabase((client) =>
+    client.query(
+      `update movements m
+          set occurred_at = m.occurred_at - interval '15 days'
+         from credit_cards c join users u on u.id = c.owner_id
+        where u.email = $1 and c.name = $2 and m.owner_id = u.id
+          and m.account_id in (c.ars_account_id, c.usd_account_id)
+          and m.type = 'expense'`,
+      [email, cardName],
+    ),
+  );
+}
+
+export interface CardStatementNotice {
+  text: string;
+  dueDate: string;
+  unread: boolean;
+}
+
+/** The statement reminders stored for `email`, oldest first. */
+export async function cardStatementNotices(email: string): Promise<CardStatementNotice[]> {
+  const { rows } = await withE2eDatabase((client) =>
+    client.query(
+      `select n.text, n.due_date::text as due_date, n.read_at is null as unread
+         from notices n join users u on u.id = n.owner_id
+        where u.email = $1 and n.kind = 'card_statement_due'
+        order by n.created_at, n.id`,
+      [email],
+    ),
+  );
+  return rows.map((row) => ({
+    text: String(row.text),
+    dueDate: String(row.due_date),
+    unread: row.unread === true,
+  }));
+}
+
 export interface AutomaticDebitRow {
   period: string;
   currency: string;

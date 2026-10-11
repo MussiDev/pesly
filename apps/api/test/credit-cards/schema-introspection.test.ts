@@ -201,6 +201,23 @@ describe('credit cards schema introspection', () => {
     expect(floats.rowCount).toBe(0);
   });
 
+  it('adds reminder_days as a not null smallint defaulting to 3 with a named 0 to 30 check (10f FR-02)', async () => {
+    const column = await connection.pool.query(
+      `select data_type, is_nullable, column_default from information_schema.columns
+        where table_schema = 'public' and table_name = 'credit_cards' and column_name = 'reminder_days'`,
+    );
+    expect(column.rows).toEqual([
+      { data_type: 'smallint', is_nullable: 'NO', column_default: '3' },
+    ]);
+    const check = await connection.pool.query<{ definition: string }>(
+      `select pg_get_constraintdef(c.oid) as definition from pg_constraint c
+         join pg_class t on t.oid = c.conrelid
+        where t.relname = 'credit_cards' and c.conname = 'credit_cards_reminder_days_check'`,
+    );
+    expect(check.rows).toHaveLength(1);
+    expect(check.rows[0]?.definition).toMatch(/reminder_days >= 0\) AND \(reminder_days <= 30/);
+  });
+
   it('stores installment amounts as bigint and ties purchases to their card, owner and category (10c NFR-01)', async () => {
     const amounts = await connection.pool.query<{ table_name: string; data_type: string }>(
       `select table_name, data_type from information_schema.columns

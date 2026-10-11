@@ -14,6 +14,8 @@ export interface CreditCard {
   name: string;
   closingDay: number;
   dueDay: number;
+  /** Days before a statement's due date on which the owner is reminded; 0 to 30. */
+  reminderDays: number;
   arsAccountId: string;
   usdAccountId: string;
   /** Automatic debit account per currency; `null` means no automatic debit in that currency. */

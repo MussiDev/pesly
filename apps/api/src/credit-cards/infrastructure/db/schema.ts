@@ -35,10 +35,13 @@ export const creditCards = pgTable(
     /** The owner's local date at link time: a debit is never due for an earlier statement. */
     debitArsLinkedOn: date('debit_ars_linked_on', { mode: 'string' }),
     debitUsdLinkedOn: date('debit_usd_linked_on', { mode: 'string' }),
+    /** Days before a statement's due date to notify the owner (DISC-001-10f); 0 means the due day. */
+    reminderDays: smallint('reminder_days').notNull().default(3),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },
   (table) => [
+    check('credit_cards_reminder_days_check', sql`${table.reminderDays} between 0 and 30`),
     // Mirrors the request validation as defence in depth (user decision D3).
     check('credit_cards_name_length_check', sql`char_length(${table.name}) between 1 and 46`),
     check('credit_cards_closing_day_check', sql`${table.closingDay} between 1 and 31`),

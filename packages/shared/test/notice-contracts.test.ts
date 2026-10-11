@@ -155,8 +155,28 @@ describe('notice response schemas', () => {
     ).toBe(true);
   });
 
-  it('knows the three kinds', () => {
-    expect(noticeKindSchema.options).toEqual(['reminder', 'recorded', 'not_recorded']);
+  it('knows the four kinds', () => {
+    expect(noticeKindSchema.options).toEqual([
+      'reminder',
+      'recorded',
+      'not_recorded',
+      'card_statement_due',
+    ]);
+  });
+
+  it('parses a card_statement_due notice in the list and rejects an unknown kind (FR-01)', () => {
+    const cardNotice = { ...notice, kind: 'card_statement_due' };
+    expect(
+      listNoticesResponseSchema.safeParse({ items: [cardNotice], nextCursor: null, unreadCount: 1 })
+        .success,
+    ).toBe(true);
+    expect(
+      listNoticesResponseSchema.safeParse({
+        items: [{ ...notice, kind: 'card_statement_overdue' }],
+        nextCursor: null,
+        unreadCount: 1,
+      }).success,
+    ).toBe(false);
   });
 
   it('validates params and the mark-all-read response', () => {

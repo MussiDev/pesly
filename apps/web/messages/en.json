@@ -591,12 +591,15 @@
       "closingDay": "Closing day",
       "dueDay": "Due day",
       "dayHint": "A day from 1 to 31. In shorter months the last day is used.",
+      "reminderDays": "Remind me … days before the due date",
+      "reminderDaysHint": "We remind you this many days before the due date, at 09:00. Use 0 to be reminded on the due date itself.",
       "submit": "Create card",
       "pending": "Creating…",
       "cancel": "Cancel"
     },
     "errors": {
       "dayInvalid": "Enter a day from 1 to 31.",
+      "reminderDaysInvalid": "Enter a whole number of days from 0 to 30.",
       "nameTaken": "One of the accounts this card needs already exists. Choose another name."
     },
     "detail": {
@@ -604,6 +607,8 @@
       "days": "Default days",
       "daysHint": "Changing a day also moves the dates of the open statements.",
       "saveDays": "Save days",
+      "reminderDays": "Remind me … days before the due date",
+      "reminderDaysHint": "We remind you this many days before the due date, at 09:00. Changing it does not move the dates of any statement.",
       "debitTitle": "Automatic debit",
       "debitArs": "Debit account in ARS",
       "debitUsd": "Debit account in USD",
@@ -1269,8 +1274,8 @@
   },
   "notices": {
     "title": "Notices",
-    "description": "Reminders and results of your recurring payments.",
-    "empty": "You have no notices yet. Reminders about your recurring payments will show up here.",
+    "description": "Reminders and results of your recurring payments, and reminders of your card statements.",
+    "empty": "You have no notices yet. Reminders about your recurring payments and your card statements will show up here.",
     "markAllRead": "Mark all as read",
     "loadMore": "Load more",
     "retry": "Try again",
