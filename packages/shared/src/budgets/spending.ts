@@ -4,8 +4,10 @@ import { budgetCurrencySchema } from './budget';
 
 export const BUDGET_PERCENT_USED_CAP = 1000;
 
-/** `YYYY-MM`, month 01 to 12. */
-export const budgetSpendingMonthSchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+/** `YYYY-MM`, month 01 to 12, year 1971 or later so the previous month still falls after the epoch. */
+export const budgetSpendingMonthSchema = z
+  .string()
+  .regex(/^(197[1-9]|19[89]\d|[2-9]\d{3})-(0[1-9]|1[0-2])$/);
 export type BudgetSpendingMonth = z.infer<typeof budgetSpendingMonthSchema>;
 
 /** `GET /budgets/spending` and `GET /budgets/:id/spending`; no month means the current month. */

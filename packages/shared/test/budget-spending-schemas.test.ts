@@ -27,13 +27,14 @@ const response = {
 };
 
 describe('budgetSpendingQuerySchema (AC-15, AC-16)', () => {
-  it('accepts 2026-10 and 2026-01', () => {
+  it('accepts 2026-10, 2026-01 and the first supported month 1971-01', () => {
+    expect(budgetSpendingMonthSchema.safeParse('1971-01').success).toBe(true);
     expect(budgetSpendingQuerySchema.safeParse({ month: '2026-10' }).success).toBe(true);
     expect(budgetSpendingQuerySchema.safeParse({ month: '2026-01' }).success).toBe(true);
     expect(budgetSpendingMonthSchema.safeParse('2026-12').success).toBe(true);
   });
 
-  it.each(['2026-13', '2026-00', '2026-1', '2026-10-01', '', 202610])(
+  it.each(['0000-01', '1970-12', '2026-13', '2026-00', '2026-1', '2026-10-01', '', 202610])(
     'rejects the month %j',
     (month) => {
       expect(budgetSpendingQuerySchema.safeParse({ month }).success).toBe(false);
