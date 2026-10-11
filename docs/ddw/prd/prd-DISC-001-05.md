@@ -17,7 +17,7 @@
 | DISC-001-05e | Groups Screens, Members and Invitations | prd-DISC-001-05e.md | 05a to 05d (API) and 04e (api-client group methods) | web only, done: branch `feat/DISC-001-05e-groups-core-ui` (PR open); groups list and create, detail with members, invitations, claim links, admin actions and leaving, join and claim pages, categories; the web split e to h awaits the owner's acceptance; next: 05f |
 | DISC-001-05f | Group Expenses Screens | not written yet | depends on e | expense list, the split editor (equal, percentage, exact), the default split and the personal shares view |
 | DISC-001-05g | Balances and Settlements Screens | prd-DISC-001-05g.md | depends on e (stacked on its branch) and on 05f only for `selfMemberId` | web only, done: branch `feat/DISC-001-05g-balances-settlements-ui`; balances per currency, suggested payments, single and consolidated settlements, history; carries the 05f commit that exposes `selfMemberId` (merge order decides who rebases) |
-| DISC-001-05h | Editing, Activity and Conflict Screens | not written yet | depends on f and g | edit and delete, the activity log, and mounting the 04e queue, sync badges and conflict resolution |
+| DISC-001-05h | Editing, Activity and Conflict Screens | prd-DISC-001-05h.md | depends on f and g | PRD written, not built: edit and delete, the activity log, and mounting the 04e queue, sync badges and conflict resolution |
 
 ## Suggested implementation order
 a → b → c → d, a chain: each one needs the one before it. DISC-001-04e (conflicts on group
