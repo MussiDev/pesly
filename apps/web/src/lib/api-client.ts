@@ -22,6 +22,16 @@ import {
   type CreateGroupCategoryRequest,
   type UpdateGroupCategoryRequest,
   settlementResponseSchema,
+  settlementPageSchema,
+  balancesResponseSchema,
+  consolidationPreviewSchema,
+  consolidationQuerySchema,
+  createSettlementRequestSchema,
+  type BalancesResponse,
+  type ConsolidationPreview,
+  type ConsolidationQuery,
+  type CreateSettlementRequest,
+  type SettlementPage,
   listAccountsResponseSchema,
   listCategoriesResponseSchema,
   addHoldingResponseSchema,
@@ -618,6 +628,22 @@ export interface ApiClient {
     baseVersion: number,
   ): Promise<ApiResult<undefined>>;
   getSettlement(groupId: string, settlementId: string): Promise<ApiResult<SettlementResponse>>;
+  /** Net balance per member and suggested payments, one block per currency. */
+  getGroupBalances(groupId: string): Promise<ApiResult<BalancesResponse>>;
+  listSettlements(
+    groupId: string,
+    query: { limit?: number; cursor?: string },
+  ): Promise<ApiResult<SettlementPage>>;
+  /** A body that fails the shared schema is refused before any request. */
+  createSettlement(
+    groupId: string,
+    body: CreateSettlementRequest,
+  ): Promise<ApiResult<SettlementResponse>>;
+  /** A query that fails the shared schema (equal members) is refused before any request. */
+  getConsolidationPreview(
+    groupId: string,
+    query: ConsolidationQuery,
+  ): Promise<ApiResult<ConsolidationPreview>>;
   updateSettlement(
     groupId: string,
     settlementId: string,
@@ -1554,6 +1580,56 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
+    getGroupBalances: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/balances`,
+          response: balancesResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listSettlements: (groupId, { limit, cursor }) =>
+      onGroup(groupId, (path) => {
+        const query = new URLSearchParams();
+        if (limit !== undefined) query.set('limit', String(limit));
+        if (cursor !== undefined) query.set('cursor', cursor);
+        const queryString = query.toString();
+        return request({
+          method: 'GET',
+          path: queryString ? `${path}/settlements?${queryString}` : `${path}/settlements`,
+          response: settlementPageSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    createSettlement: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        createSettlementRequestSchema.safeParse(body).success
+          ? request({
+              method: 'POST',
+              path: `${path}/settlements`,
+              body,
+              response: settlementResponseSchema,
+              refreshOnUnauthenticated: true,
+            })
+          : Promise.resolve(failure('VALIDATION_FAILED')),
+      ),
+    getConsolidationPreview: (groupId, query) =>
+      onGroup(groupId, (path) => {
+        const parsed = consolidationQuerySchema.safeParse(query);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        const params = new URLSearchParams({
+          memberA: parsed.data.memberA,
+          memberB: parsed.data.memberB,
+          currency: parsed.data.currency,
+        });
+        return request({
+          method: 'GET',
+          path: `${path}/settlements/consolidation?${params.toString()}`,
+          response: consolidationPreviewSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
     updateSettlement: (groupId, settlementId, body) =>
       onGroupRecord(groupId, 'settlements', settlementId, (path) =>
         request({
