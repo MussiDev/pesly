@@ -14,6 +14,7 @@ const card = {
   usdAccountId: '22222222-2222-4222-8222-222222222222',
   debitArsAccountId: null,
   debitUsdAccountId: null,
+  reminderDays: 3,
   createdAt: '2026-10-06T12:00:00.000Z',
 };
 
@@ -92,6 +93,50 @@ describe('credit cards api client', () => {
     expect(url).toBe(`${BASE_URL}/credit-cards/${CARD_ID}`);
     expect(init.method).toBe('PATCH');
     expect(JSON.parse(init.body as string)).toEqual({ closingDay: 20 });
+  });
+
+  it('sends reminderDays on create and on update and parses the card that carries it (AC-02)', async () => {
+    const { client, fetch } = clientWith(
+      jsonResponse(201, { ...card, reminderDays: 7 }),
+      jsonResponse(200, { ...card, reminderDays: 0 }),
+    );
+
+    expect(
+      await client.createCreditCard({ name: 'Visa', closingDay: 24, dueDay: 5, reminderDays: 7 }),
+    ).toMatchObject({ ok: true, data: { reminderDays: 7 } });
+    expect(await client.updateCreditCardDays(CARD_ID, { reminderDays: 0 })).toMatchObject({
+      ok: true,
+      data: { reminderDays: 0 },
+    });
+    expect(JSON.parse(requestAt(fetch, 0).init.body as string)).toEqual({
+      name: 'Visa',
+      closingDay: 24,
+      dueDay: 5,
+      reminderDays: 7,
+    });
+    expect(JSON.parse(requestAt(fetch, 1).init.body as string)).toEqual({ reminderDays: 0 });
+  });
+
+  it('maps a success body without reminderDays to unexpected (error path, AC-02)', async () => {
+    const withoutReminder: Record<string, unknown> = { ...card };
+    delete withoutReminder['reminderDays'];
+    const { client } = clientWith(jsonResponse(200, withoutReminder));
+
+    expect(await client.getCreditCard(CARD_ID)).toMatchObject({
+      ok: false,
+      code: 'INTERNAL',
+      messageKey: 'unexpected',
+    });
+  });
+
+  it('refuses ".." on update without a request (invalid input, FR-02)', async () => {
+    const { client, fetch } = clientWith();
+
+    expect(await client.updateCreditCardDays('..', { reminderDays: 1 })).toMatchObject({
+      ok: false,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('setCardDebitAccounts puts both links and parses the card (AC-01)', async () => {
