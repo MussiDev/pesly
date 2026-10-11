@@ -1329,6 +1329,52 @@
         "invalid": "This claim link is invalid, has expired or has already been used. Ask for a new one."
       }
     },
+    "invite": {
+      "title": "Invite people",
+      "description": "Create a link that lets someone join this group. It expires and can be used by anyone who has it.",
+      "create": "Create invitation link",
+      "creating": "Creating…",
+      "expires": "Expires {date}",
+      "linkLabel": "Link",
+      "copy": "Copy link",
+      "copied": "Link copied.",
+      "copyFailed": "Could not copy automatically. Select the link above and copy it by hand.",
+      "share": "Share",
+      "shareTitle": "Join my group on Pesly",
+      "ghost": {
+        "title": "Add a member without an account",
+        "description": "For someone who is not on Pesly yet. They can claim their place later with a link.",
+        "nameLabel": "Name",
+        "submit": "Add member",
+        "adding": "Adding…",
+        "errors": {
+          "nameRequired": "Enter a name.",
+          "nameTooLong": "The name is too long.",
+          "nameInvalid": "That name is not valid."
+        }
+      },
+      "claim": {
+        "title": "Claim links",
+        "description": "Give a member without an account a link so they can take their place when they sign up.",
+        "create": "Claim link for {name}",
+        "creating": "Creating…"
+      }
+    },
+    "categories": {
+      "title": "Group categories",
+      "back": "Back to group",
+      "listLabel": "Categories of the group",
+      "archivedBadge": "Archived",
+      "readOnly": "Only group admins can change the categories.",
+      "empty": "This group has no categories yet.",
+      "new": {
+        "title": "New category",
+        "description": "Add a category for the expenses of this group."
+      },
+      "submit": "Create category",
+      "pending": "Creating…",
+      "actions": { "restore": "Restore" }
+    },
     "detail": {
       "defaultRate": "Default exchange rate: {rateType}",
       "membersTitle": "Members",

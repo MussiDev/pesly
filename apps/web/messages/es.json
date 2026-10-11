@@ -1329,6 +1329,52 @@
         "invalid": "Este enlace no es válido, venció o ya se usó. Pedí uno nuevo."
       }
     },
+    "invite": {
+      "title": "Invitar personas",
+      "description": "Crea un enlace para que alguien se una a este grupo. Vence y lo puede usar cualquiera que lo tenga.",
+      "create": "Crear enlace de invitación",
+      "creating": "Creando…",
+      "expires": "Vence el {date}",
+      "linkLabel": "Enlace",
+      "copy": "Copiar enlace",
+      "copied": "Enlace copiado.",
+      "copyFailed": "No se pudo copiar automáticamente. Selecciona el enlace de arriba y cópialo a mano.",
+      "share": "Compartir",
+      "shareTitle": "Súmate a mi grupo en Pesly",
+      "ghost": {
+        "title": "Agregar un miembro sin cuenta",
+        "description": "Para alguien que todavía no está en Pesly. Puede reclamar su lugar después con un enlace.",
+        "nameLabel": "Nombre",
+        "submit": "Agregar miembro",
+        "adding": "Agregando…",
+        "errors": {
+          "nameRequired": "Ingresa un nombre.",
+          "nameTooLong": "El nombre es demasiado largo.",
+          "nameInvalid": "Ese nombre no es válido."
+        }
+      },
+      "claim": {
+        "title": "Enlaces para reclamar",
+        "description": "Dale a un miembro sin cuenta un enlace para que tome su lugar cuando se registre.",
+        "create": "Enlace para reclamar de {name}",
+        "creating": "Creando…"
+      }
+    },
+    "categories": {
+      "title": "Categorías del grupo",
+      "back": "Volver al grupo",
+      "listLabel": "Categorías del grupo",
+      "archivedBadge": "Archivada",
+      "readOnly": "Solo los administradores del grupo pueden cambiar las categorías.",
+      "empty": "Este grupo todavía no tiene categorías.",
+      "new": {
+        "title": "Nueva categoría",
+        "description": "Agrega una categoría para los gastos de este grupo."
+      },
+      "submit": "Crear categoría",
+      "pending": "Creando…",
+      "actions": { "restore": "Restaurar" }
+    },
     "detail": {
       "defaultRate": "Cotización por defecto: {rateType}",
       "membersTitle": "Miembros",

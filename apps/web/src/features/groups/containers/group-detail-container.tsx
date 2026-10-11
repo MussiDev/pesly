@@ -14,6 +14,8 @@ import { GroupAdminActions } from '../components/group-admin-actions';
 import { GroupMembers } from '../components/group-members';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
 import { LeaveGroupPanel } from '../components/leave-group-panel';
+import { GroupGhostContainer } from './group-ghost-container';
+import { GroupInviteContainer } from './group-invite-container';
 
 type ScreenState =
   GroupsLoadState | { kind: 'not-found' } | { kind: 'ready'; group: GroupDetailResponse };
@@ -197,8 +199,13 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
         onPromote={promote}
         onRemove={remove}
       />
-      {/* Block 4 mounts the invitation and ghost-member panels here (`panels` prop). */}
       <div data-slot="group-panels" className="grid gap-6 empty:hidden">
+        <GroupInviteContainer groupId={group.id} />
+        <GroupGhostContainer
+          groupId={group.id}
+          members={group.members}
+          reload={() => void reload()}
+        />
         {panels?.({ group, isAdmin, reload: () => void reload() })}
       </div>
       {isAdmin ? (
