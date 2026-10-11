@@ -7,7 +7,8 @@ export const NOTICE_NAME_MAX_LENGTH = 80;
 export interface NoticeTextInput {
   kind: NoticeKind;
   language: NoticeLanguage;
-  paymentName: string;
+  /** The recurring payment name, or the credit card name for `card_statement_due`. */
+  subjectName: string;
   dueDate: string;
   daysUntilDue?: number;
 }
@@ -36,13 +37,18 @@ function reminderText(name: string, language: NoticeLanguage, days: number): str
  * the stored text (NFR-05).
  */
 export function renderNoticeText(input: NoticeTextInput): string {
-  const name = Array.from(input.paymentName).slice(0, NOTICE_NAME_MAX_LENGTH).join('');
+  const name = Array.from(input.subjectName).slice(0, NOTICE_NAME_MAX_LENGTH).join('');
   const { language } = input;
   if (input.kind === 'reminder') {
     if (input.daysUntilDue === undefined) throw new Error('A reminder needs daysUntilDue');
     return reminderText(name, language, input.daysUntilDue);
   }
   const day = formatDay(input.dueDate, language);
+  if (input.kind === 'card_statement_due') {
+    return language === 'es'
+      ? `El resumen de ${name} vence el ${day}`
+      : `The ${name} statement is due on ${day}`;
+  }
   if (input.kind === 'recorded') {
     return language === 'es' ? `Se registró ${name} del ${day}` : `${name} of ${day} was recorded`;
   }

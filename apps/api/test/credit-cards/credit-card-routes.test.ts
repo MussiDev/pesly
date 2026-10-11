@@ -160,6 +160,39 @@ describe('POST /credit-cards and GET /credit-cards', () => {
     expect(s.lines.join('\n')).not.toContain('Visa');
   });
 
+  it('defaults the reminder days to 3 and stores the ones sent (FR-02)', async () => {
+    const s = await setup();
+    const defaulted = await createVisa(s.app, s.ana);
+    const custom = await createVisa(s.app, s.ana, {
+      name: 'Amex',
+      closingDay: 24,
+      dueDay: 5,
+      reminderDays: 0,
+    });
+
+    expect(defaulted.reminderDays).toBe(3);
+    expect(custom.reminderDays).toBe(0);
+    const list = await call(s.app, 'get', '/credit-cards', s.ana);
+    expect(list.body).toEqual({ items: [defaulted, custom] });
+    expect((await call(s.app, 'get', `/credit-cards/${custom.id}`, s.ana)).body).toEqual(custom);
+  });
+
+  it.each([-1, 31, 1.5, '3'])(
+    'answers 400 for reminderDays %j on create and stores nothing (invalid input, FR-02)',
+    async (reminderDays) => {
+      const s = await setup();
+      const response = await call(s.app, 'post', '/credit-cards', s.ana, {
+        name: 'Visa',
+        closingDay: 24,
+        dueDay: 5,
+        reminderDays,
+      });
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect((await call(s.app, 'get', '/credit-cards', s.ana)).body).toEqual({ items: [] });
+    },
+  );
+
   it.each([
     { closingDay: 0, dueDay: 5 },
     { closingDay: 24, dueDay: 32 },
@@ -288,6 +321,95 @@ describe('PATCH /credit-cards/:id', () => {
     const statements = await statementsOf(s.app, s.ana, card.id);
     expect(byPeriod(statements, '2026-11')?.closingDate).toBe('2026-11-20');
     expect(byPeriod(statements, '2026-10')?.closingDate).toBe('2026-10-24');
+  });
+
+  it('changes only the reminder days and leaves the days and statements (FR-02)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana);
+    const before = await statementsOf(s.app, s.ana, card.id);
+
+    const response = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.ana, {
+      reminderDays: 7,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ closingDay: 24, dueDay: 5, reminderDays: 7 });
+    expect(await statementsOf(s.app, s.ana, card.id)).toEqual(before);
+    expect((await call(s.app, 'get', `/credit-cards/${card.id}`, s.ana)).body).toMatchObject({
+      reminderDays: 7,
+    });
+    expect(s.lines.join('\n')).not.toContain('reminderDays');
+  });
+
+  it('audits a reminder change with request id, user id and card id, never the card name (FR-02)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana, {
+      name: 'Secret Galicia',
+      closingDay: 24,
+      dueDay: 5,
+    });
+    s.lines.length = 0;
+
+    const response = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.ana, {
+      reminderDays: 7,
+    });
+
+    expect(response.status).toBe(200);
+    const audit = s.lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((line) => line.msg === 'credit card days changed');
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ userId: s.anaId, cardId: card.id });
+    expect(typeof audit[0]?.requestId).toBe('string');
+    expect(audit[0]?.requestId).not.toBe('');
+    expect(s.lines.join('\n')).not.toContain('Secret Galicia');
+  });
+
+  it('answers 401 without a session and 403 before the email is verified on a reminder change (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana);
+
+    const anonymous = await call(s.app, 'patch', `/credit-cards/${card.id}`, undefined, {
+      reminderDays: 7,
+    });
+    const unverified = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.eve, {
+      reminderDays: 7,
+    });
+
+    expect(anonymous.status).toBe(401);
+    expect(unverified.status).toBe(403);
+    expect((await call(s.app, 'get', `/credit-cards/${card.id}`, s.ana)).body).toMatchObject({
+      reminderDays: 3,
+    });
+  });
+
+  it.each([-1, 31, 2.5, '3', null])(
+    'answers 400 for reminderDays %j and stores nothing (invalid input, FR-02)',
+    async (reminderDays) => {
+      const s = await setup();
+      const card = await createVisa(s.app, s.ana);
+      const response = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.ana, {
+        reminderDays,
+      });
+      expect(response.status).toBe(400);
+      expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+      expect((await call(s.app, 'get', `/credit-cards/${card.id}`, s.ana)).body).toMatchObject({
+        reminderDays: 3,
+      });
+    },
+  );
+
+  it('answers 404 to another user changing the reminder days (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana);
+    const response = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.bob, {
+      reminderDays: 7,
+    });
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    expect((await call(s.app, 'get', `/credit-cards/${card.id}`, s.ana)).body).toMatchObject({
+      reminderDays: 3,
+    });
   });
 
   it('answers 400 for an empty body or a name (invalid input, D4)', async () => {

@@ -19,6 +19,7 @@ function card(overrides: Partial<CreditCardResponse> = {}): CreditCardResponse {
     usdAccountId: '22222222-2222-4222-8222-222222222222',
     debitArsAccountId: null,
     debitUsdAccountId: null,
+    reminderDays: 3,
     createdAt: '2026-10-06T12:00:00.000Z',
     ...overrides,
   };
@@ -117,6 +118,7 @@ describe('CreateCreditCardContainer', () => {
       name: 'Visa',
       closingDay: 24,
       dueDay: 5,
+      reminderDays: 3,
     });
   });
 

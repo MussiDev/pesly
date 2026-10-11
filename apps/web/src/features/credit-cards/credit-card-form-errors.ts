@@ -1,6 +1,6 @@
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 
-export type CardFieldName = 'name' | 'closingDay' | 'dueDay';
+export type CardFieldName = 'name' | 'closingDay' | 'dueDay' | 'reminderDays';
 
 /** Catalog paths: the name rules are the account ones, the day and taken-name ones are the cards'. */
 export type CardFieldMessage =
@@ -8,6 +8,7 @@ export type CardFieldMessage =
   | 'accounts.errors.nameTooLong'
   | 'accounts.errors.nameInvalidCharacters'
   | 'creditCards.errors.dayInvalid'
+  | 'creditCards.errors.reminderDaysInvalid'
   | 'creditCards.errors.nameTaken';
 
 export interface CardFormErrors {

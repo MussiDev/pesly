@@ -28,6 +28,7 @@ async function ownerWithCard() {
     name: 'Visa',
     closingDay: 24,
     dueDay: 5,
+    reminderDays: 3,
     firstStatement: OCTOBER,
   });
   const categoryId = await newCategory(connection.pool, ownerId, 'expense');

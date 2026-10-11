@@ -87,6 +87,20 @@ describe('notices schema introspection (NFR-04)', () => {
     ]);
   });
 
+  it('allows exactly the four notice kinds in the kind check (10f FR-01)', async () => {
+    const result = await connection.pool.query<{ definition: string }>(
+      `select pg_get_constraintdef(c.oid) as definition from pg_constraint c
+         join pg_class t on t.oid = c.conrelid
+        where t.relname = 'notices' and c.conname = 'notices_kind_check'`,
+    );
+
+    expect(result.rows).toHaveLength(1);
+    const definition = result.rows[0]?.definition ?? '';
+    for (const kind of ['reminder', 'recorded', 'not_recorded', 'card_statement_due']) {
+      expect(definition).toContain(`'${kind}'`);
+    }
+  });
+
   it('declares the owner feed index, newest first, and the partial unread index', async () => {
     const found = await indexes();
     const byName = new Map(found.map((entry) => [entry.indexname, entry.indexdef]));

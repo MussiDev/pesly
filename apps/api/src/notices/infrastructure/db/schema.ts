@@ -16,7 +16,10 @@ export const notices = pgTable(
     ownerId: uuid('owner_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    kind: text('kind').$type<'reminder' | 'recorded' | 'not_recorded'>().notNull(),
+    kind: text('kind')
+      .$type<'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due'>()
+      .notNull(),
+    /** A recurring payment id, or a credit card statement id for `card_statement_due` (DISC-001-10f); never a foreign key. */
     paymentId: uuid('payment_id').notNull(),
     dueDate: date('due_date', { mode: 'string' }).notNull(),
     text: text('text').notNull(),
@@ -24,7 +27,10 @@ export const notices = pgTable(
     readAt: timestamptz('read_at'),
   },
   (table) => [
-    check('notices_kind_check', sql`${table.kind} in ('reminder', 'recorded', 'not_recorded')`),
+    check(
+      'notices_kind_check',
+      sql`${table.kind} in ('reminder', 'recorded', 'not_recorded', 'card_statement_due')`,
+    ),
     check('notices_text_length_check', sql`char_length(${table.text}) between 1 and 300`),
     unique('notices_kind_payment_due_unique').on(table.kind, table.paymentId, table.dueDate),
     index('notices_owner_created_idx').on(table.ownerId, table.createdAt.desc(), table.id.desc()),

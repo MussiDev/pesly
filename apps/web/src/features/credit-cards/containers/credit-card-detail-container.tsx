@@ -29,6 +29,7 @@ import { DebitAccountsForm } from '../components/debit-accounts-form';
 import { InstallmentPurchaseList } from '../components/installment-purchase-list';
 import type { StatementDatesValues } from '../components/statement-dates-form';
 import { StatementList } from '../components/statement-list';
+import { buildCardUpdate, parseReminderDays } from '../card-reminder-request';
 import { parseDay } from '../credit-card-form-errors';
 import { buildDebitAccountsRequest, debitCandidates } from '../debit-accounts-request';
 
@@ -190,26 +191,39 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
   async function saveDays(values: CardDaysValues) {
     const closingDay = parseDay(values.closingDay);
     const dueDay = parseDay(values.dueDay);
-    if (closingDay === null || dueDay === null) {
+    const reminderDays = parseReminderDays(values.reminderDays);
+    if (closingDay === null || dueDay === null || reminderDays === null) {
       setDaysErrors({
         ...(closingDay === null ? { closingDay: 'creditCards.errors.dayInvalid' } : {}),
         ...(dueDay === null ? { dueDay: 'creditCards.errors.dayInvalid' } : {}),
+        ...(reminderDays === null
+          ? { reminderDays: 'creditCards.errors.reminderDaysInvalid' }
+          : {}),
       });
       return;
     }
-    setPending(true);
+    if (state.kind !== 'ready') return;
+    // Only the changed fields go out, so a reminder-only save never moves the open statements.
+    const body = buildCardUpdate(state.card, { closingDay, dueDay, reminderDays });
     setDaysErrors({});
+    if (body === null) return;
+    setPending(true);
     setNotice(undefined);
-    const result = await api.updateCreditCardDays(cardId, { closingDay, dueDay });
+    const result = await api.updateCreditCardDays(cardId, body);
     setPending(false);
+    const movesDays = body.closingDay !== undefined || body.dueDay !== undefined;
     if (result.ok) {
       const card = result.data;
       setState((current) => (current.kind === 'ready' ? { ...current, card } : current));
-      await reloadStatements();
+      if (movesDays) await reloadStatements();
     } else if (handleShared(result)) {
       return;
     } else if (result.code === 'VALIDATION_FAILED') {
-      setDaysErrors({ closingDay: 'creditCards.detail.daysConflict' });
+      setDaysErrors(
+        movesDays
+          ? { closingDay: 'creditCards.detail.daysConflict' }
+          : { reminderDays: 'creditCards.errors.reminderDaysInvalid' },
+      );
     } else {
       setNotice(`errors.${result.messageKey}`);
     }
@@ -304,7 +318,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
         pendingDebt={state.pendingDebt}
       />
       <CardDaysForm
-        key={`${String(state.card.closingDay)}-${String(state.card.dueDay)}`}
+        key={`${String(state.card.closingDay)}-${String(state.card.dueDay)}-${String(state.card.reminderDays)}`}
         card={state.card}
         pending={pending}
         errors={daysErrors}

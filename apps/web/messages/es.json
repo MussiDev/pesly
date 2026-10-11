@@ -591,12 +591,15 @@
       "closingDay": "Día de cierre",
       "dueDay": "Día de vencimiento",
       "dayHint": "Un día del 1 al 31. En los meses más cortos se usa el último día.",
+      "reminderDays": "Avisarme … días antes del vencimiento",
+      "reminderDaysHint": "Te avisamos esta cantidad de días antes del vencimiento, a las 09:00. Usa 0 para recibir el aviso el mismo día del vencimiento.",
       "submit": "Crear tarjeta",
       "pending": "Creando…",
       "cancel": "Cancelar"
     },
     "errors": {
       "dayInvalid": "Ingresa un día del 1 al 31.",
+      "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30.",
       "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elige otro nombre."
     },
     "detail": {
@@ -611,6 +614,8 @@
       "debitSave": "Guardar débito automático",
       "debitConnectionNeeded": "Necesitas conexión para guardar el débito automático. Tu selección se conserva, inténtalo de nuevo cuando estés en línea.",
       "saveDays": "Guardar días",
+      "reminderDays": "Avisarme … días antes del vencimiento",
+      "reminderDaysHint": "Te avisamos esta cantidad de días antes del vencimiento, a las 09:00. Cambiarlo no mueve las fechas de ningún resumen.",
       "accumulated": "Acumulado",
       "cycleDay": "Día {day} de {length} del ciclo",
       "futureInstallments": "Cuotas a futuro",
@@ -1269,8 +1274,8 @@
   },
   "notices": {
     "title": "Avisos",
-    "description": "Recordatorios y resultados de tus pagos recurrentes.",
-    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes aparecerán aquí.",
+    "description": "Recordatorios y resultados de tus pagos recurrentes, y recordatorios de los resúmenes de tus tarjetas.",
+    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes y de los resúmenes de tus tarjetas aparecerán aquí.",
     "markAllRead": "Marcar todos como leídos",
     "loadMore": "Cargar más",
     "retry": "Reintentar",

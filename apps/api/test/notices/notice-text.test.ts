@@ -9,7 +9,7 @@ describe('renderNoticeText: reminder', () => {
       renderNoticeText({
         kind: 'reminder',
         language: 'es',
-        paymentName: 'Luz',
+        subjectName: 'Luz',
         daysUntilDue: 1,
         dueDate: DUE,
       }),
@@ -21,7 +21,7 @@ describe('renderNoticeText: reminder', () => {
       renderNoticeText({
         kind: 'reminder',
         language: 'en',
-        paymentName: 'Electricity',
+        subjectName: 'Electricity',
         daysUntilDue: 1,
         dueDate: DUE,
       }),
@@ -38,7 +38,7 @@ describe('renderNoticeText: reminder', () => {
       renderNoticeText({
         kind: 'reminder',
         language,
-        paymentName: 'Luz',
+        subjectName: 'Luz',
         daysUntilDue,
         dueDate: DUE,
       }),
@@ -49,7 +49,7 @@ describe('renderNoticeText: reminder', () => {
 describe('renderNoticeText: invalid input', () => {
   it('rejects a reminder without days instead of guessing', () => {
     expect(() =>
-      renderNoticeText({ kind: 'reminder', language: 'es', paymentName: 'Luz', dueDate: DUE }),
+      renderNoticeText({ kind: 'reminder', language: 'es', subjectName: 'Luz', dueDate: DUE }),
     ).toThrow('daysUntilDue');
   });
 });
@@ -59,13 +59,13 @@ describe('renderNoticeText: recorded and not recorded', () => {
     const es = renderNoticeText({
       kind: 'recorded',
       language: 'es',
-      paymentName: 'Luz',
+      subjectName: 'Luz',
       dueDate: DUE,
     });
     const en = renderNoticeText({
       kind: 'recorded',
       language: 'en',
-      paymentName: 'Luz',
+      subjectName: 'Luz',
       dueDate: DUE,
     });
     expect(es).toBe(
@@ -79,13 +79,13 @@ describe('renderNoticeText: recorded and not recorded', () => {
     const es = renderNoticeText({
       kind: 'not_recorded',
       language: 'es',
-      paymentName: 'Luz',
+      subjectName: 'Luz',
       dueDate: DUE,
     });
     const en = renderNoticeText({
       kind: 'not_recorded',
       language: 'en',
-      paymentName: 'Luz',
+      subjectName: 'Luz',
       dueDate: DUE,
     });
     expect(es).toMatch(/^No se pudo registrar Luz del 5 .*\. Está pendiente de tu confirmación\.$/);
@@ -97,10 +97,38 @@ describe('renderNoticeText: recorded and not recorded', () => {
       renderNoticeText({
         kind: 'recorded',
         language: 'en',
-        paymentName: 'X',
+        subjectName: 'X',
         dueDate: '2026-01-01',
       }),
     ).toBe('X of Jan 1 was recorded');
+  });
+});
+
+describe('renderNoticeText: card_statement_due', () => {
+  it('names the card and the due date in both languages (AC-08)', () => {
+    const base = {
+      kind: 'card_statement_due',
+      subjectName: 'Visa',
+      dueDate: '2026-11-05',
+    } as const;
+    expect(renderNoticeText({ ...base, language: 'en' })).toBe(
+      'The Visa statement is due on Nov 5',
+    );
+    expect(renderNoticeText({ ...base, language: 'es' })).toBe('El resumen de Visa vence el 5 nov');
+  });
+
+  it('truncates a long card name to 80 characters and stays within 300 (AC-08)', () => {
+    for (const language of ['es', 'en'] as const) {
+      const text = renderNoticeText({
+        kind: 'card_statement_due',
+        language,
+        subjectName: 'V'.repeat(200),
+        dueDate: '2026-11-05',
+      });
+      expect(text).toContain('V'.repeat(80));
+      expect(text).not.toContain('V'.repeat(81));
+      expect(text.length).toBeLessThan(300);
+    }
   });
 });
 
@@ -111,12 +139,12 @@ describe('renderNoticeText: privacy and limits', () => {
       renderNoticeText({
         kind: 'reminder',
         language,
-        paymentName: 'Rent',
+        subjectName: 'Rent',
         daysUntilDue: 2,
         dueDate: DUE,
       }),
-      renderNoticeText({ kind: 'recorded', language, paymentName: 'Rent', dueDate: DUE }),
-      renderNoticeText({ kind: 'not_recorded', language, paymentName: 'Rent', dueDate: DUE }),
+      renderNoticeText({ kind: 'recorded', language, subjectName: 'Rent', dueDate: DUE }),
+      renderNoticeText({ kind: 'not_recorded', language, subjectName: 'Rent', dueDate: DUE }),
     ]);
     expect(texts).toHaveLength(6);
     for (const text of texts) {
@@ -129,7 +157,7 @@ describe('renderNoticeText: privacy and limits', () => {
     const text = renderNoticeText({
       kind: 'not_recorded',
       language: 'es',
-      paymentName: 'N'.repeat(200),
+      subjectName: 'N'.repeat(200),
       dueDate: DUE,
     });
     expect(text).toContain('N'.repeat(80));

@@ -1,6 +1,11 @@
 'use client';
 
-import { CARD_NAME_MAX_LENGTH } from '@pesly/shared';
+import {
+  CARD_NAME_MAX_LENGTH,
+  CARD_REMINDER_DAYS_DEFAULT,
+  CARD_REMINDER_DAYS_MAX,
+  CARD_REMINDER_DAYS_MIN,
+} from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,7 +24,11 @@ export interface CreditCardFormValues {
   name: string;
   closingDay: string;
   dueDay: string;
+  reminderDays: string;
 }
+
+/** Days before the due date the reminder is sent unless the user changes it. */
+const DEFAULT_REMINDER_DAYS = String(CARD_REMINDER_DAYS_DEFAULT);
 
 interface CreditCardFormProps {
   pending: boolean;
@@ -34,6 +43,7 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
     name: '',
     closingDay: '',
     dueDay: '',
+    reminderDays: DEFAULT_REMINDER_DAYS,
   });
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -92,6 +102,18 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
           <FormMessage>{message(errors.fields?.dueDay)}</FormMessage>
         </FormItem>
       </div>
+      <FormItem invalid={Boolean(errors.fields?.reminderDays)} hasDescription>
+        <FormLabel>{t('creditCards.form.reminderDays')}</FormLabel>
+        <FormControl
+          type="number"
+          inputMode="numeric"
+          min={CARD_REMINDER_DAYS_MIN}
+          max={CARD_REMINDER_DAYS_MAX}
+          {...field('reminderDays')}
+        />
+        <FormDescription>{t('creditCards.form.reminderDaysHint')}</FormDescription>
+        <FormMessage>{message(errors.fields?.reminderDays)}</FormMessage>
+      </FormItem>
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? t('creditCards.form.pending') : t('creditCards.form.submit')}
