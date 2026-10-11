@@ -49,6 +49,7 @@ export function ClaimLinkPanel({
                   <Button
                     variant="outline"
                     size="sm"
+                    className="max-w-full py-2 text-left break-words whitespace-normal"
                     disabled={pending}
                     onClick={() => {
                       onCreate(ghost.id);
