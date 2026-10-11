@@ -6,6 +6,7 @@ import { DrizzleDeletionGrantRepository } from '../../src/identity/infrastructur
 import { DrizzleOAuthStateRepository } from '../../src/identity/infrastructure/db/drizzle-oauth-state-repository';
 import { DrizzleSessionRepository } from '../../src/identity/infrastructure/db/drizzle-session-repository';
 import { eraseUserCreditCards } from '../../src/credit-cards';
+import { eraseUserGroups } from '../../src/groups';
 import { eraseUserMovements } from '../../src/movements';
 import { eraseUserRecurring } from '../../src/recurring';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
@@ -62,6 +63,10 @@ interface RegisteredTable {
   policy: ErasurePolicy;
   /** For `erase-step`: the constraints of this table that may be non-cascading. */
   stepConstraints?: readonly string[];
+  /** Counts the user's rows when the table has no user column; `$1` is the user id. */
+  rowsSql?: string;
+  /** The rows belong to a group, which outlives its former member (the member row becomes a ghost). */
+  survivesErasure?: boolean;
   /** Creates one real row for the user. */
   seed: (context: SeedContext) => Promise<void>;
 }
@@ -83,6 +88,37 @@ const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
   'recurring_payments_account_owner_fk',
   'recurring_payments_category_owner_fk',
 ] as const;
+
+/** The restricting key from `group_members` to users (migration 0026); the step turns the member into a ghost. */
+const GROUP_MEMBERS_STEP_CONSTRAINTS = ['group_members_user_id_users_id_fk'] as const;
+
+/** The restricting member keys and the set-null movement key of `group_expenses` (migration 0027). */
+const GROUP_EXPENSES_STEP_CONSTRAINTS = [
+  'group_expenses_payer_group_fk',
+  'group_expenses_creator_group_fk',
+  'group_expenses_payer_movement_id_movements_id_fk',
+] as const;
+
+/** The restricting member key of `group_expense_shares` (migration 0027). */
+const GROUP_EXPENSE_SHARES_STEP_CONSTRAINTS = ['group_expense_shares_member_group_fk'] as const;
+
+/** The restricting member key of `group_activity_log` (migration 0027). */
+const GROUP_ACTIVITY_LOG_STEP_CONSTRAINTS = ['group_activity_log_member_group_fk'] as const;
+
+/** The restricting member keys and the set-null account key of `group_settlements` (migration 0028). */
+const GROUP_SETTLEMENTS_STEP_CONSTRAINTS = [
+  'group_settlements_from_group_fk',
+  'group_settlements_to_group_fk',
+  'group_settlements_creator_group_fk',
+  'group_settlements_account_member_group_fk',
+  'group_settlements_account_id_accounts_id_fk',
+] as const;
+
+/** The name of the group a seeder creates for one user, so rows without a user column can be counted. */
+const groupNameFor = (userId: string): string => `erasure-${userId}`;
+
+const GROUP_ROWS_SQL = (table: string): string =>
+  `select count(*) as n from ${table} t join groups g on g.id = t.group_id where g.name = 'erasure-' || $1::text`;
 
 /** The restricting composite keys of `movements` (migrations 0014 and 0016). */
 const MOVEMENTS_STEP_CONSTRAINTS = [
@@ -523,6 +559,184 @@ const REGISTRY: readonly RegisteredTable[] = [
       );
     },
   },
+  {
+    table: 'group_members',
+    userColumn: 'user_id',
+    policy: 'erase-step',
+    // The key to users restricts, so the step turns the membership into a ghost before the user goes.
+    stepConstraints: GROUP_MEMBERS_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      const group = await query(
+        context,
+        "insert into groups (name, default_rate_type) values ($1, 'blue') returning id",
+        [groupNameFor(context.userId)],
+      );
+      const groupId = (group.rows[0] as { id: string }).id;
+      await query(
+        context,
+        "insert into group_members (group_id, user_id, role) values ($1, $2, 'admin')",
+        [groupId, context.userId],
+      );
+      await query(
+        context,
+        "insert into group_members (group_id, display_name) values ($1, 'Ghost')",
+        [groupId],
+      );
+    },
+  },
+  {
+    table: 'group_invitations',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_invitations'),
+    policy: 'cascade',
+    survivesErasure: true,
+    // Registered after group_members: the invitation was created by the member that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_invitations (group_id, token_hash, created_by_member_id, expires_at)
+         select m.group_id, $2, m.id, $3 from group_members m where m.user_id = $1`,
+        [context.userId, `invitation-${context.userId}`, new Date('2026-12-01T00:00:00.000Z')],
+      );
+    },
+  },
+  {
+    table: 'group_claim_links',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_claim_links'),
+    policy: 'cascade',
+    survivesErasure: true,
+    // Registered after group_members: the link is for the ghost member that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_claim_links (group_id, member_id, token_hash)
+         select m.group_id, m.id, $2 from group_members m
+         join group_members u on u.group_id = m.group_id and u.user_id = $1
+         where m.display_name = 'Ghost'`,
+        [context.userId, `claim-${context.userId}`],
+      );
+    },
+  },
+  {
+    table: 'group_expenses',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_expenses'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    // The member keys restrict because the step turns the member into a ghost instead of deleting
+    // it; the movement key sets null, so the expense outlives the erased account (migration 0027).
+    stepConstraints: GROUP_EXPENSES_STEP_CONSTRAINTS,
+    // Registered after group_members: the expense is paid by the member that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        `with category as (
+           insert into group_categories (group_id, default_key, icon, color)
+           select m.group_id, 'food', 'utensils', 'red' from group_members m where m.user_id = $1
+           returning id, group_id
+         )
+         insert into group_expenses
+           (group_id, payer_member_id, created_by_member_id, amount, currency, occurred_at,
+            category_id, description, split_mode)
+         select m.group_id, m.id, m.id, 1000, 'ARS', now(), c.id, 'Dinner', 'equal'
+         from group_members m join category c on c.group_id = m.group_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_expense_shares',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_expense_shares'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    stepConstraints: GROUP_EXPENSE_SHARES_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_expense_shares (expense_id, member_id, group_id, amount)
+         select e.id, m.id, e.group_id, 1000
+         from group_expenses e join group_members m on m.id = e.payer_member_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_default_split_shares',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_default_split_shares'),
+    policy: 'cascade',
+    survivesErasure: true,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_default_split_shares (group_id, member_id, basis_points)
+         select m.group_id, m.id, 10000 from group_members m where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_activity_log',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_activity_log'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    stepConstraints: GROUP_ACTIVITY_LOG_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_activity_log (group_id, member_id, action, subject_id, created_at)
+         select e.group_id, e.payer_member_id, 'expense_created', e.id, now()
+         from group_expenses e join group_members m on m.id = e.payer_member_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_settlements',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_settlements'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    // The member keys restrict because the step turns the member into a ghost instead of deleting
+    // it; the account key sets null, so the settlement outlives the erased account (migration 0028).
+    stepConstraints: GROUP_SETTLEMENTS_STEP_CONSTRAINTS,
+    // Registered after group_members: the ghost the seeder created pays the user.
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_settlements
+           (group_id, from_member_id, to_member_id, created_by_member_id, currency, amount, occurred_at)
+         select u.group_id, g.id, u.id, u.id, 'ARS', 500, now()
+         from group_members u
+         join group_members g on g.group_id = u.group_id and g.display_name = 'Ghost'
+         where u.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_settlement_legs',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_settlement_legs'),
+    policy: 'cascade',
+    survivesErasure: true,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_settlement_legs (settlement_id, group_id, currency, amount)
+         select s.id, s.group_id, 'ARS', 500
+         from group_settlements s join group_members m on m.id = s.to_member_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
 ];
 
 /** Created by the access-control tests and never dropped; they are not user data of the product. */
@@ -611,7 +825,7 @@ async function guardViolations(
 
 async function rowsFor(entry: RegisteredTable, userId: string): Promise<number> {
   const result = await connection.pool.query<{ n: string }>(
-    `select count(*) as n from ${entry.table} where ${entry.userColumn} = $1`,
+    entry.rowsSql ?? `select count(*) as n from ${entry.table} where ${entry.userColumn} = $1`,
     [userId],
   );
   return Number(result.rows[0]?.n ?? 0);
@@ -843,9 +1057,10 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     const recurringStep = vi.fn(eraseUserRecurring);
     const movementsStep = vi.fn(eraseUserMovements);
     const cardsStep = vi.fn(eraseUserCreditCards);
+    const groupsStep = vi.fn(eraseUserGroups);
     const harness = createIdentityHarness(connection, {
       realSessions: true,
-      beforeUserErased: [recurringStep, movementsStep, cardsStep],
+      beforeUserErased: [recurringStep, movementsStep, cardsStep, groupsStep],
     });
     const other = await seeded(harness, 'bea@example.com');
     // The deleting user signs in before 2FA is seeded, so the sign-in needs no second factor.
@@ -863,8 +1078,10 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     for (const entry of REGISTRY) {
       expect(await rowsFor(entry, userId), `${entry.table} before`).toBeGreaterThan(0);
     }
+    const userBefore = new Map<string, number>();
     const otherBefore = new Map<string, number>();
     for (const entry of REGISTRY) {
+      userBefore.set(entry.table, await rowsFor(entry, userId));
       otherBefore.set(entry.table, await rowsFor(entry, other.userId));
     }
 
@@ -879,8 +1096,13 @@ describe('deleting an account leaves no row of the user behind (NFR-01, AC-01)',
     expect(movementsStep.mock.calls[0]?.[1]).toBe(userId);
     expect(cardsStep).toHaveBeenCalledTimes(1);
     expect(cardsStep.mock.calls[0]?.[1]).toBe(userId);
+    expect(groupsStep).toHaveBeenCalledTimes(1);
+    expect(groupsStep.mock.calls[0]?.[1]).toBe(userId);
     for (const entry of REGISTRY) {
-      expect(await rowsFor(entry, userId), `${entry.table} after`).toBe(0);
+      // The group outlives its former member: its invitations and claim links stay, unlinked from the user.
+      expect(await rowsFor(entry, userId), `${entry.table} after`).toBe(
+        entry.survivesErasure ? userBefore.get(entry.table) : 0,
+      );
       expect(await rowsFor(entry, other.userId), `${entry.table} of the other user`).toBe(
         otherBefore.get(entry.table),
       );

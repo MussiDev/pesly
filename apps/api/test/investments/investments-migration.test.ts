@@ -40,6 +40,9 @@ const LATER_MIGRATIONS = [
   '0023_recurring_payments',
   '0024_recurring_auto_recording_from',
   '0025_notices',
+  '0026_groups',
+  '0027_group_expenses',
+  '0028_group_settlements',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -65,6 +68,17 @@ const LATER_TABLES = [
   'recurring_occurrences',
   'recurring_payments',
   'notices',
+  'group_activity_log',
+  'group_categories',
+  'group_claim_links',
+  'group_default_split_shares',
+  'group_expense_shares',
+  'group_expenses',
+  'group_invitations',
+  'group_members',
+  'group_settlement_legs',
+  'group_settlements',
+  'groups',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 
