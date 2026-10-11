@@ -18,7 +18,18 @@ import type {
   AutomaticDebitSource,
 } from '../../src/credit-cards/application/ports/automatic-debit-source';
 import type { Clock } from '../../src/credit-cards/application/ports/clock';
+import type {
+  StatementReminderInput,
+  StatementReminderPublisher,
+  StatementReminderRef,
+} from '../../src/credit-cards/application/ports/statement-reminder-publisher';
+import type {
+  ReminderLanguage,
+  StatementReminderEntry,
+  StatementReminderSource,
+} from '../../src/credit-cards/application/ports/statement-reminder-source';
 import { settledKey } from '../../src/credit-cards/domain/automatic-debit';
+import { reminderKey } from '../../src/credit-cards/domain/statement-reminder';
 import type {
   DebitAccountInfo,
   DebitAccounts,
@@ -558,6 +569,68 @@ export class FakeAutomaticDebitSource implements AutomaticDebitSource {
       .slice(0, limit)
       .map(({ ownerId, card }) => ({ ownerId, timeZone: this.timeZones.zone, card }));
     return Promise.resolve(entries);
+  }
+}
+
+/** Lists every card of an `InMemoryCreditCards`, in the zone of `FakeTimeZones`. */
+export class FakeStatementReminderSource implements StatementReminderSource {
+  /** Language per owner; `es` when absent. */
+  readonly languages = new Map<string, ReminderLanguage>();
+  /** When set, `page` rejects with it. */
+  failWith: Error | null = null;
+
+  constructor(
+    private readonly cards: InMemoryCreditCards,
+    private readonly timeZones: FakeTimeZones,
+  ) {}
+
+  page(afterId: string | null, limit: number): Promise<StatementReminderEntry[]> {
+    if (this.failWith) return Promise.reject(this.failWith);
+    const entries = [...this.cards.cards.values()]
+      .filter(({ card }) => afterId === null || card.id > afterId)
+      .sort((a, b) => a.card.id.localeCompare(b.card.id))
+      .slice(0, limit)
+      .map(({ ownerId, card }) => ({
+        ownerId,
+        timeZone: this.timeZones.zone,
+        language: this.languages.get(ownerId) ?? ('es' as const),
+        card,
+      }));
+    return Promise.resolve(entries);
+  }
+}
+
+/** In-memory notices keyed by (owner, statement, due date), like the unique key of the table. */
+export class FakeStatementReminderPublisher implements StatementReminderPublisher {
+  readonly created = new Map<string, StatementReminderInput>();
+  /** Owners whose `published` read rejects. */
+  readonly failingOwners = new Set<string>();
+  publishCalls = 0;
+
+  private keyOf(ownerId: string, statementId: string, dueDate: string): string {
+    return `${ownerId}|${reminderKey(statementId, dueDate)}`;
+  }
+
+  published(ownerId: string, refs: readonly StatementReminderRef[]): Promise<Set<string>> {
+    if (this.failingOwners.has(ownerId)) {
+      return Promise.reject(new Error(`storage down for ${ownerId} Visa 4000000 es`));
+    }
+    const keys = refs
+      .filter((ref) => this.created.has(this.keyOf(ownerId, ref.statementId, ref.dueDate)))
+      .map((ref) => reminderKey(ref.statementId, ref.dueDate));
+    return Promise.resolve(new Set(keys));
+  }
+
+  publishMany(inputs: readonly StatementReminderInput[]): Promise<number> {
+    this.publishCalls += 1;
+    let created = 0;
+    for (const input of inputs) {
+      const key = this.keyOf(input.ownerId, input.statementId, input.dueDate);
+      if (this.created.has(key)) continue;
+      this.created.set(key, input);
+      created += 1;
+    }
+    return Promise.resolve(created);
   }
 }
 
