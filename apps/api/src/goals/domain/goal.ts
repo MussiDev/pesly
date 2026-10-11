@@ -1,4 +1,4 @@
-import type { AccountCurrency } from '@pesly/shared';
+import { MOVEMENT_AMOUNT_MAX_MINOR_UNITS, type AccountCurrency } from '@pesly/shared';
 import { InvalidGoalInput } from './errors';
 
 /** A savings goal. Money is in minor units; `targetDate` is a `YYYY-MM-DD` calendar day. */
@@ -29,7 +29,7 @@ export const MAX_GOALS = 100;
 export const GOAL_NAME_MAX_LENGTH = 80;
 
 /** The largest request amount; progress of unlinked goals never goes above it, so sums fit int64. */
-export const MAX_GOAL_PROGRESS = 9_999_999_999_999_999n;
+export const MAX_GOAL_PROGRESS = MOVEMENT_AMOUNT_MAX_MINOR_UNITS;
 
 /** Name rules of the contract, repeated here so a use case never stores what the schema would refuse. */
 export function assertGoalName(name: string): void {

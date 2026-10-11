@@ -50,8 +50,8 @@ DISC-001-06b to 06d.
 - D6: A withdrawal runs in one transaction: lock the goal row (`select … for update` scoped to the owner), reject a
   linked goal, sum the entries, reject an amount larger than the progress with 409
   `GOAL_WITHDRAWAL_EXCEEDS_PROGRESS` (equal to the progress is allowed), and insert. Contributions take the same
-  lock and refuse, with 409 `GOAL_PROGRESS_TOO_LARGE`, a result above 9,999,999,999,999,999 minor units (the
-  largest request amount), so the stored sums stay inside int64 (NFR-01). Two concurrent withdrawals therefore
+  lock and refuse, with 409 `GOAL_PROGRESS_TOO_LARGE`, a result above 1,000,000,000,000,000 minor units (10^15,
+  `MOVEMENT_AMOUNT_MAX_MINOR_UNITS`, the largest request amount), so the stored sums stay inside int64 (NFR-01). Two concurrent withdrawals therefore
   cannot overdraw a goal (PRD risk).
 - D7: Derived fields live in the domain as pure functions of `(target, progress, targetDate, today)`:
   `percentage` is the integer part of `progress × 100 / target` using bigint arithmetic, 0 when progress is
@@ -302,7 +302,7 @@ goal and the account, currency, archive, linked, limit, progress).
 - [ ] Any use case on another user's goal answers 404 and changes nothing; the list holds only the caller's
       goals — validates AC-15, AC-16
 - [ ] The 101st goal is rejected with a 409 conflict — validates AC-24
-- [ ] A contribution that would push progress above 9,999,999,999,999,999 minor units is a 409 conflict —
+- [ ] A contribution that would push progress above 10^15 (1,000,000,000,000,000) minor units is a 409 conflict —
       validates NFR-01
 
 **Completion criterion**

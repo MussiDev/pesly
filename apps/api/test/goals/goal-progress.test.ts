@@ -1,10 +1,24 @@
+import { MOVEMENT_AMOUNT_MAX_MINOR_UNITS } from '@pesly/shared';
 import { describe, expect, it } from 'vitest';
+import { MAX_GOAL_PROGRESS, assertGoalAmount } from '../../src/goals/domain/goal';
 import {
   goalStatus,
   monthlyAmountNeeded,
   monthsLeft,
   percentageOf,
 } from '../../src/goals/domain/goal-progress';
+
+describe('goal amount cap', () => {
+  it('is the largest amount a movement may carry, the same bound the repository enforces', () => {
+    expect(MAX_GOAL_PROGRESS).toBe(MOVEMENT_AMOUNT_MAX_MINOR_UNITS);
+    expect(() => {
+      assertGoalAmount(MOVEMENT_AMOUNT_MAX_MINOR_UNITS, 'body.amount');
+    }).not.toThrow();
+    expect(() => {
+      assertGoalAmount(MOVEMENT_AMOUNT_MAX_MINOR_UNITS + 1n, 'body.amount');
+    }).toThrow();
+  });
+});
 
 describe('percentageOf', () => {
   it('is the integer floor of progress over target (AC-09)', () => {

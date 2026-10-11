@@ -13,3 +13,5 @@ export * from './application/update-goal';
 export * from './application/delete-goal';
 export * from './application/record-goal-entry';
 export * from './application/list-goal-entries';
+export * from './infrastructure/http/goal-routes';
+export { eraseUserGoals } from './infrastructure/db/erase-user-goals';

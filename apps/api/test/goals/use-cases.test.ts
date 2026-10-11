@@ -251,13 +251,13 @@ describe('entries', () => {
     const scope = await writeScopeFor(ALICE);
     await t.record.execute(scope, goal.id, {
       kind: 'contribution',
-      amount: 9_999_999_999_999_999n,
+      amount: 10n ** 15n,
     });
     await expectCode(
       t.record.execute(scope, goal.id, { kind: 'contribution', amount: 1n }),
       'GOAL_PROGRESS_TOO_LARGE',
     );
-    expect((await t.get.execute(scope, goal.id)).progress).toBe(9_999_999_999_999_999n);
+    expect((await t.get.execute(scope, goal.id)).progress).toBe(10n ** 15n);
   });
 
   it('rejects an amount of 0 or less', async () => {
