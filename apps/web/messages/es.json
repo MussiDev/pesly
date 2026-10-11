@@ -398,6 +398,7 @@
     "groupSettlementStale": "Los saldos cambiaron desde que los revisaste. Revisalos de nuevo.",
     "groupRecordEditForbidden": "Solo quien lo registró, o un administrador del grupo, puede modificarlo o eliminarlo.",
     "groupRecordFormerMember": "Este registro involucra a alguien que dejó el grupo, por eso no se puede modificar ni eliminar.",
+    "groupRecordConflict": "Otra persona modificó este registro. Revisá ambas versiones y elegí una.",
     "groupSettlementConsolidated": "Un pago combinado no se puede editar. Eliminalo y registralo de nuevo.",
     "groupActivityLogImmutable": "El historial de actividad no se puede modificar.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",

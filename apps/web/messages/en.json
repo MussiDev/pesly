@@ -398,6 +398,7 @@
     "groupSettlementStale": "The balances changed since you reviewed them. Review them again.",
     "groupRecordEditForbidden": "Only the person who recorded this, or a group admin, can change or delete it.",
     "groupRecordFormerMember": "This record involves someone who left the group, so it cannot be changed or deleted.",
+    "groupRecordConflict": "This record was changed by someone else. Review both versions and choose one.",
     "groupSettlementConsolidated": "A combined payment cannot be edited. Delete it and record it again.",
     "groupActivityLogImmutable": "The activity log cannot be changed.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
