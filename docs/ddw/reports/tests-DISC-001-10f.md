@@ -107,5 +107,5 @@ Paths: API tests are under `apps/api/test/credit-cards/` unless a directory is g
 - Failing-first evidence is per implementer report, not recoverable per commit (each block landed as one
   commit with its tests); it is listed per block in `docs/ddw/reports/verify-DISC-001-10f.md`. Some blocks
   failed only at suite level (`module not found`), not on a single assertion.
-- The migration `when` of `0031_card_statement_reminders` (1791750600000) must be re-checked against the
+- The migration `when` of `0032_card_statement_reminders` (1791760600000) must be re-checked against the
   maximum of `main` before merge (see the Drizzle migration merge rule).

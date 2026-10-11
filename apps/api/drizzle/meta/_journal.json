@@ -215,8 +215,15 @@
     {
       "idx": 31,
       "version": "7",
-      "when": 1791750600000,
-      "tag": "0031_card_statement_reminders",
+      "when": 1791760000000,
+      "tag": "0031_group_record_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791760600000,
+      "tag": "0032_card_statement_reminders",
       "breakpoints": true
     }
   ]

@@ -89,6 +89,10 @@ describe('group settlements schema introspection', () => {
   it('stores amounts and the rate as bigint, and left_at as a nullable timestamptz', async () => {
     expect((await column('group_settlements', 'amount'))?.data_type).toBe('bigint');
     expect((await column('group_settlements', 'rate'))?.data_type).toBe('bigint');
+    expect(await column('group_settlements', 'version')).toEqual({
+      data_type: 'integer',
+      is_nullable: 'NO',
+    });
     expect((await column('group_settlement_legs', 'amount'))?.data_type).toBe('bigint');
     expect(await column('group_members', 'left_at')).toEqual({
       data_type: 'timestamp with time zone',
@@ -101,6 +105,7 @@ describe('group settlements schema introspection', () => {
       expect.arrayContaining([
         'group_settlements_currency_check',
         'group_settlements_amount_check',
+        'group_settlements_version_check',
         'group_settlements_distinct_members_check',
         'group_settlements_amount_or_rate_check',
         'group_settlements_rate_positive_check',

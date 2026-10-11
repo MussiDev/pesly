@@ -2,6 +2,9 @@ import {
   accountResponseSchema,
   categoryResponseSchema,
   errorResponseSchema,
+  groupExpenseResponseSchema,
+  groupRecordConflictSchema,
+  settlementResponseSchema,
   listAccountsResponseSchema,
   listCategoriesResponseSchema,
   addHoldingResponseSchema,
@@ -58,6 +61,11 @@ import {
   type PortfolioResponse,
   type SetPriceRequest,
   type UpdateHoldingRequest,
+  type GroupExpenseResponse,
+  type GroupRecordConflict,
+  type SettlementResponse,
+  type UpdateGroupExpenseRequest,
+  type UpdateSettlementRequest,
   type PasswordResetConfirmRequest,
   type PasswordResetConfirmResponse,
   type PasswordResetRequest,
@@ -187,6 +195,7 @@ export type ApiErrorKey =
   | 'groupSettlementStale'
   | 'groupRecordEditForbidden'
   | 'groupRecordFormerMember'
+  | 'groupRecordConflict'
   | 'groupSettlementConsolidated'
   | 'groupActivityLogImmutable'
   | 'offlineNoCopy'
@@ -203,6 +212,18 @@ export interface ApiFailure {
   fields?: string[];
   /** Whole seconds to wait, read from the `Retry-After` header; absent when it was missing or unusable. */
   retryAfterSeconds?: number;
+  /** Only on a `GROUP_RECORD_CONFLICT`: the record as the server holds it now. */
+  current?: GroupRecordConflict['current'];
+}
+
+/** The outcome of a group change the server refused because the record changed meanwhile (D3). */
+export type ApiGroupConflict = ApiFailure & {
+  code: 'GROUP_RECORD_CONFLICT';
+  current: GroupRecordConflict['current'];
+};
+
+export function isGroupRecordConflict<T>(result: ApiResult<T>): result is ApiGroupConflict {
+  return !result.ok && result.code === 'GROUP_RECORD_CONFLICT' && result.current !== undefined;
 }
 
 export type ApiResult<T> = { ok: true; data: T } | ApiFailure;
@@ -268,6 +289,7 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GROUP_SETTLEMENT_STALE: 'groupSettlementStale',
   GROUP_RECORD_EDIT_FORBIDDEN: 'groupRecordEditForbidden',
   GROUP_RECORD_FORMER_MEMBER: 'groupRecordFormerMember',
+  GROUP_RECORD_CONFLICT: 'groupRecordConflict',
   GROUP_SETTLEMENT_CONSOLIDATED: 'groupSettlementConsolidated',
   GROUP_ACTIVITY_LOG_IMMUTABLE: 'groupActivityLogImmutable',
 };
@@ -290,6 +312,30 @@ function resourcePath(collection: string, id: string): string | null {
 
 function failure(code: ApiFailureCode): ApiFailure {
   return { ok: false, code, messageKey: MESSAGE_KEY_BY_CODE[code] };
+}
+
+/** Only a 409 whose `details.current` is a real group record is a conflict; anything else is not. */
+function isConflictCode(payload: unknown): boolean {
+  return (
+    typeof payload === 'object' &&
+    payload !== null &&
+    'code' in payload &&
+    payload.code === 'GROUP_RECORD_CONFLICT'
+  );
+}
+
+function readGroupConflict(payload: unknown): ApiGroupConflict | undefined {
+  if (!isConflictCode(payload) || typeof payload !== 'object' || payload === null) {
+    return undefined;
+  }
+  const details = 'details' in payload ? payload.details : undefined;
+  const parsed = groupRecordConflictSchema.safeParse(details);
+  if (!parsed.success) return undefined;
+  return {
+    ...failure('GROUP_RECORD_CONFLICT'),
+    code: 'GROUP_RECORD_CONFLICT',
+    current: parsed.data.current,
+  };
 }
 
 /** Required by the API's origin guard on state-changing requests (CSRF defence in depth). */
@@ -520,6 +566,29 @@ export interface ApiClient {
   listAllTags(query: ListAllTagsParams): Promise<ApiResult<ListTagsResponse>>;
   /** The stored rates only: the API never reaches the external source for this call. */
   getLatestRates(): Promise<ApiResult<LatestRatesResponse>>;
+  getGroupExpense(groupId: string, expenseId: string): Promise<ApiResult<GroupExpenseResponse>>;
+  /** A full replacement based on `body.baseVersion`; a stale one answers a conflict outcome. */
+  updateGroupExpense(
+    groupId: string,
+    expenseId: string,
+    body: UpdateGroupExpenseRequest,
+  ): Promise<ApiResult<GroupExpenseResponse>>;
+  deleteGroupExpense(
+    groupId: string,
+    expenseId: string,
+    baseVersion: number,
+  ): Promise<ApiResult<undefined>>;
+  getSettlement(groupId: string, settlementId: string): Promise<ApiResult<SettlementResponse>>;
+  updateSettlement(
+    groupId: string,
+    settlementId: string,
+    body: UpdateSettlementRequest,
+  ): Promise<ApiResult<SettlementResponse>>;
+  deleteSettlement(
+    groupId: string,
+    settlementId: string,
+    baseVersion: number,
+  ): Promise<ApiResult<undefined>>;
 }
 
 /**
@@ -559,6 +628,13 @@ export function createApiClient({
     const payload: unknown = await response.json().catch(() => undefined);
 
     if (!response.ok) {
+      // `details` of a conflict is an object, which the generic error schema (string values) rejects.
+      if (response.status === 409) {
+        const conflict = readGroupConflict(payload);
+        if (conflict !== undefined) return conflict;
+        // A conflict without its record cannot be resolved, so it is an unexpected answer.
+        if (isConflictCode(payload)) return failure('INTERNAL');
+      }
       const parsed = errorResponseSchema.safeParse(payload);
       if (!parsed.success) return failure('INTERNAL');
       const retryAfterSeconds = readRetryAfterSeconds(response);
@@ -681,6 +757,19 @@ export function createApiClient({
   ): Promise<ApiResult<T>> {
     const path = resourcePath('movements', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onGroupRecord<T>(
+    groupId: string,
+    collection: string,
+    recordId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const group = resourcePath('groups', groupId);
+    const record = resourcePath(collection, recordId);
+    return group === null || record === null
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(`${group}${record}`);
   }
 
   return {
@@ -1338,5 +1427,61 @@ export function createApiClient({
         response: latestRatesResponseSchema,
         refreshOnUnauthenticated: true,
       }),
+    getGroupExpense: (groupId, expenseId) =>
+      onGroupRecord(groupId, 'expenses', expenseId, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: groupExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateGroupExpense: (groupId, expenseId, body) =>
+      onGroupRecord(groupId, 'expenses', expenseId, (path) =>
+        request({
+          method: 'PUT',
+          path,
+          body,
+          response: groupExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteGroupExpense: (groupId, expenseId, baseVersion) =>
+      onGroupRecord(groupId, 'expenses', expenseId, (path) =>
+        request({
+          method: 'DELETE',
+          path: `${path}?baseVersion=${String(baseVersion)}`,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    getSettlement: (groupId, settlementId) =>
+      onGroupRecord(groupId, 'settlements', settlementId, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: settlementResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateSettlement: (groupId, settlementId, body) =>
+      onGroupRecord(groupId, 'settlements', settlementId, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: settlementResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    deleteSettlement: (groupId, settlementId, baseVersion) =>
+      onGroupRecord(groupId, 'settlements', settlementId, (path) =>
+        request({
+          method: 'DELETE',
+          path: `${path}?baseVersion=${String(baseVersion)}`,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
   };
 }

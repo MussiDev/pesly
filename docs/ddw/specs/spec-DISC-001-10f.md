@@ -17,7 +17,7 @@ job of the `credit-cards` module (`StatementReminderJob`, the `setTimeout` chain
 statements have reached their reminder day (the due date minus `reminder_days`, from 09:00 local, through the due date
 itself), skips the ones whose notice already exists, computes the unpaid amount of the rest with the same
 `buildStatementViews` the screen uses, and publishes ONE in-app notice for each statement that still owes something in some
-currency. The notice goes through the 08c notices pipeline: a new kind `card_statement_due` (migration `0031` extends
+currency. The notice goes through the 08c notices pipeline: a new kind `card_statement_due` (migration `0032` extends
 `notices_kind_check`), stored in the existing `notices` table with the statement id in `payment_id` (the column has no
 foreign key), unique per (kind, statement id, due date) by the existing unique constraint, written with
 `INSERT ... ON CONFLICT DO NOTHING`. Repeated or concurrent passes therefore create no duplicate, and a statement whose due
@@ -34,7 +34,7 @@ These are not stated by the PRD; the owner ratifies them at approval.
   rename or second unique index is needed. A rename to `subject_id` was rejected: it would change the unique constraint and
   every reader while an older API instance is still running during a rolling deploy. The overload is documented on the
   column and on the adapter; the new port speaks of `statementId`, never `paymentId`.
-- D2: New notice kind `card_statement_due`. Migration `0031` drops and re-adds `notices_kind_check` with the fourth value;
+- D2: New notice kind `card_statement_due`. Migration `0032` drops and re-adds `notices_kind_check` with the fourth value;
   `NOTICE_KINDS` in `packages/shared` gains it, because the web client parses notices with `noticeKindSchema` and an
   unknown kind would make the whole notices list fail to parse.
 - D3: `credit_cards.reminder_days smallint not null default 3`, check 0 to 30. The default backfills every existing card
@@ -145,12 +145,12 @@ Request `CreateCreditCardRequest`: new field `reminderDays?: number`, integer 0 
 **Completion criterion**
 `pnpm --filter @pesly/shared exec vitest run` passes and `pnpm typecheck` shows only the expected consumers of `CreditCardResponse` still to update.
 
-## Block 2 — Migration 0031 and schema
+## Block 2 — Migration 0032 and schema
 **Files**
-- `apps/api/drizzle/0031_card_statement_reminders.sql` (new) — adds the card column and its check, and extends the notice kind check.
-- `apps/api/drizzle/rollback/0031_card_statement_reminders.down.sql` (new) — reverse script, runnable twice.
-- `apps/api/drizzle/meta/0031_snapshot.json` (new) — snapshot chained from `0030_snapshot.json` (`prevId` `42087736-a106-420c-a529-29b0325d06f0`).
-- `apps/api/drizzle/meta/_journal.json` (modified) — entry `idx 31`, tag `0031_card_statement_reminders`, `when` 1791750600000.
+- `apps/api/drizzle/0032_card_statement_reminders.sql` (new) — adds the card column and its check, and extends the notice kind check.
+- `apps/api/drizzle/rollback/0032_card_statement_reminders.down.sql` (new) — reverse script, runnable twice.
+- `apps/api/drizzle/meta/0032_snapshot.json` (new) — snapshot chained from `0031_snapshot.json` (`prevId` `ec8fbd48-cda1-4887-94e4-b4b1f53debe1`).
+- `apps/api/drizzle/meta/_journal.json` (modified) — entry `idx 32`, tag `0032_card_statement_reminders`, `when` 1791760600000.
 - `apps/api/src/credit-cards/infrastructure/db/schema.ts` (modified) — the `reminderDays` column and its check on `creditCards`.
 - `apps/api/src/notices/infrastructure/db/schema.ts` (modified) — the kind type and check with the fourth value, a comment on `payment_id` (D1).
 - `apps/api/test/credit-cards/schema-introspection.test.ts` and `apps/api/test/notices/schema-introspection.test.ts` (modified), `apps/api/test/credit-cards/statement-reminders-migration.test.ts` (new) — journal, defaults, rollback.
@@ -161,12 +161,12 @@ is a constant default, so PostgreSQL stores it without rewriting the table and e
 `ADD CONSTRAINT "credit_cards_reminder_days_check" CHECK ("reminder_days" between 0 and 30)`. Then `notices_kind_check` is dropped and
 re-added with `('reminder', 'recorded', 'not_recorded', 'card_statement_due')`; existing rows all satisfy it, so the swap only scans
 the small `notices` table. The notices table gains no column and no index: the existing unique constraint and the owner indexes already
-serve the new kind (D1). The journal `when` is greater than 1791750000000, the maximum on `main` (0030), and must still exceed
+serve the new kind (D1). The journal `when` is greater than 1791760000000, the maximum on `main` (0031), and must still exceed
 `main`'s maximum at merge time (drizzle-migration merge rule: re-check and bump before merging).
 The rollback first deletes the notices of the new kind (the restored check would refuse them), then restores the old check,
 then drops the card check and column, then forgets its row in `drizzle.__drizzle_migrations` (`created_at` = the `when`); applying it
 loses every card's reminder setting and every statement reminder notice, so it is a manual plan step with a backup, stated in the
-script header like 0025 and 0029. Order: run it BEFORE the rollback of 0030 (newest `when` first).
+script header like 0025 and 0029. Order: run it BEFORE the rollback of 0031 (newest `when` first).
 
 **Data model**
 `credit_cards` (new column)
@@ -186,17 +186,17 @@ Not applicable: no input; the database refuses a reminder setting outside 0 to 3
 - A second notice with the same (kind, statement id, due date) is a unique violation, turned into "not created" by `ON CONFLICT DO NOTHING` (Block 6).
 
 **Required tests**
-- [ ] migration registry: journal entry idx 31 exists, its `when` is the greatest of the journal, and `0031_snapshot.json` chains on 0030's id — validates NFR-02
+- [ ] migration registry: journal entry idx 32 exists, its `when` is the greatest of the journal, and `0032_snapshot.json` chains on 0031's id — validates NFR-02
 - [ ] after the migration, existing cards read `reminder_days` 3 and a new card without the field reads 3 — validates AC-01
 - [ ] a card with `reminder_days` -1 or 31 violates `credit_cards_reminder_days_check`, and 0 and 30 are accepted (sad path) — validates AC-03
 - [ ] a notice of kind `card_statement_due` is accepted and a notice of kind `other` violates `notices_kind_check` (sad path) — validates FR-01
 - [ ] two notices with the same kind, statement id and due date are a duplicate that raises the unique violation, and another due date for the same statement succeeds — validates AC-05
 - [ ] the notices of the existing kinds are untouched by the migration, and the rollback deletes only the notices of the new kind — validates FR-01
-- [ ] the rollback runs twice, restores the 0030 schema (no `reminder_days`, the old kind check) and the migration re-applies — validates NFR-02
+- [ ] the rollback runs twice, restores the 0031 schema (no `reminder_days`, the old kind check) and the migration re-applies — validates NFR-02
 - [ ] introspection: the new column, its check and the four-value kind check exist as declared — validates FR-02
 
 **Completion criterion**
-`pnpm --filter ./apps/api test` passes the migration and introspection tests against a fresh database, and `when` of 0031 is above 1791750000000 and above `main`'s maximum at merge time.
+`pnpm --filter ./apps/api test` passes the migration and introspection tests against a fresh database, and `when` of 0032 is above 1791760000000 and above `main`'s maximum at merge time.
 
 ## Block 3 — Card reminder days: domain and use cases
 **Files**
@@ -555,10 +555,10 @@ Not applicable: the flows type the card fields, the reminder days and the expens
 The e2e spec lints and typechecks; the orchestrator runs it one at a time with the recurring, notices and debit specs, and `pnpm test` passes the guards.
 
 ## Rollback
-The migration is additive except for the notice kind check swap. The reverse script `0031_card_statement_reminders.down.sql` deletes the
+The migration is additive except for the notice kind check swap. The reverse script `0032_card_statement_reminders.down.sql` deletes the
 notices of kind `card_statement_due`, restores the three-value `notices_kind_check`, drops `credit_cards_reminder_days_check` and the
 `reminder_days` column, and forgets the journal entry, so every card's reminder setting and every statement reminder notice is lost (take a
-backup, stop the API and the worker, run it as a whole, then revert the commits; run it before the rollback of 0030). Notices of the three
+backup, stop the API and the worker, run it as a whole, then revert the commits; run it before the rollback of 0031). Notices of the three
 older kinds are untouched. Reverting the code without the script is NOT fully safe: an older worker never creates the new kind, but the rows
 that exist would make an older web client fail to parse the notices list, so delete them first (the first statement of the script) or ship
 the web revert last. The code revert alone leaves `reminder_days` unread, which is harmless.
@@ -567,6 +567,6 @@ the web revert last. The code revert alone leaves `reminder_days` unread, which 
 - `pnpm lint`, `pnpm typecheck`, `pnpm test`, the build commands and `pnpm audit --prod --audit-level high` pass; no runtime dependency was added.
 - Every acceptance criterion AC-01 to AC-09 has a passing test named in a block above; NFR-01 is covered by the fake-clock pass tests (08:59, 09:00, 09:10, downtime, past due date, two zones), NFR-02 by the unique key, the sequential and concurrent pass tests.
 - Coverage stays at or above 80% lines, branches and functions over the whole workspace (the web fields and the job count too).
-- The `when` of 0031 is above the maximum on `main` at the time of the merge (re-check and bump if another migration landed).
+- The `when` of 0032 is above the maximum on `main` at the time of the merge (re-check and bump if another migration landed).
 - The job and the cross-owner source are reachable only from `worker.ts`; the API process does not import them; `credit-cards` imports neither `notices` nor `movements`.
 - Logs of the job contain identifiers only: no card name, amount, language or time zone; stored notice texts contain no amount and no account name.

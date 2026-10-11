@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Module | `apps/api/src/credit-cards` (reminder domain, use case, ports, cross-owner source, job loop, `jobs.ts`, card reminder days), `apps/api/src/notices` (reminder text, publisher adapter), `apps/api/src/worker.ts`, `apps/api/drizzle/0031_card_statement_reminders.sql`, `packages/shared/src/credit-cards`, `packages/shared/src/notices`, `apps/web/src/features/credit-cards` (reminder days request builder, forms, containers) |
+| Module | `apps/api/src/credit-cards` (reminder domain, use case, ports, cross-owner source, job loop, `jobs.ts`, card reminder days), `apps/api/src/notices` (reminder text, publisher adapter), `apps/api/src/worker.ts`, `apps/api/drizzle/0032_card_statement_reminders.sql`, `packages/shared/src/credit-cards`, `packages/shared/src/notices`, `apps/web/src/features/credit-cards` (reminder days request builder, forms, containers) |
 | Line coverage | 96.87% |
 | Branch coverage | 90.92% |
 | Function coverage | 94.69% |
@@ -40,7 +40,7 @@ findings and their resolution in commit `d024944` are in `docs/ddw/security/sast
 
 ## Spec blocks
 - ✅ Block 1 — Shared contract: every task done; tests `packages/shared/test/credit-card-schemas.test.ts`, `notice-contracts.test.ts`
-- ✅ Block 2 — Migration 0031 and schema: every task done; tests `statement-reminders-migration.test.ts`, `schema-introspection.test.ts` (credit-cards and notices), the registry in `identity/migration.test.ts`; journal `when` 1791750600000, to be re-checked against `main` before merge
+- ✅ Block 2 — Migration 0032 and schema: every task done; tests `statement-reminders-migration.test.ts`, `schema-introspection.test.ts` (credit-cards and notices), the registry in `identity/migration.test.ts`; journal `when` 1791760600000, to be re-checked against `main` before merge
 - ✅ Block 3 — Card reminder days, domain and use cases: every task done; tests `use-cases.test.ts`
 - ✅ Block 4 — Card reminder days, repository, presenter and routes: every task done; tests `credit-card-repository.test.ts`, `credit-card-routes.test.ts`
 - ✅ Block 5 — Reminder domain, ports and use case: every task done; tests `statement-reminders.test.ts`
@@ -56,7 +56,7 @@ findings and their resolution in commit `d024944` are in `docs/ddw/security/sast
 - ✅ NFR-01 and NFR-02 are asserted by the tests listed in the traceability table above, with the 09:00 rule and the 15 minute window checked with a fake clock in two owner time zones and the idempotency checked on a real database with simultaneous passes
 - ⚠️ Test-first evidence is per implementer report, not per commit (each block landed as one commit with its tests, so it cannot be recovered from git). Each implementer reported the tests failing before the implementation: Block 1, 7 of 7 failing (for example `expected undefined to be 0` because the constants were missing, and `options array had only 3 entries`); Block 2, 10 of 34 failing in the first 4 files run (ENOENT on the rollback file, check violation `23514` for the new kind, journal `idx` undefined); Block 3, 5 of 6 failing (`expected undefined to be 3`); Block 4, 40 failures in the two files (`expected 500 to be 201` on the response schema, `expected undefined to be 7`); Block 5, 26 of 26 (module not found, no assertion ran); Block 6, 27 failing (`createStatementReminderPublisher is not a function`); Block 7, 24 of 24 (module not found); Block 8, 6 of 10 failing (the worker source did not contain `createStatementReminderJob`, and `no-restricted-imports` was expected for the notices probes); Block 9, 17 cases (module not found); Block 10, 21 failing (missing label, body lacked `reminderDays: 3`); Block 11, the e2e typecheck stopped on TS2305 for the missing helpers
 - ⚠️ Honest scope of that evidence: Blocks 5, 7 and 9 failed only at suite level (module not found), so no single assertion was seen to fail before the implementation existed; the other blocks failed on named assertions or checks
-- ⚠️ The migration `when` 1791750600000 (journal entry idx 31) must be re-checked against the maximum of `main` before merge and bumped if another migration landed first (Drizzle migration merge rule)
+- ⚠️ The migration `when` 1791760600000 (journal entry idx 32) must be re-checked against the maximum of `main` before merge and bumped if another migration landed first (Drizzle migration merge rule)
 - ⚠️ Block 8 added a rule to `eslint.config.mjs` (`NOTICES_IMPORTS`) that the spec Files list did not name at first; it is now listed in the spec
 - ⚠️ The e2e check of the deleted-card criterion is a smoke check; its real proof is `apps/api/test/credit-cards/statement-reminder-job.test.ts`
 - ⚠️ Open low items, accepted: `NOTICES_IMPORTS` covers only the credit-cards domain and application (the index and infrastructure are not covered, and the notices adapter's type-only import is guarded by a probe test), the plain-text rendering of the card name relies on the existing notices screen test, and `ensureStatements` runs per card on every pass (D14); none changes behavior today

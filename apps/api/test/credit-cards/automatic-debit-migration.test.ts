@@ -148,8 +148,9 @@ const insertClaim = (
 
 describe('0029_card_automatic_debit migration', () => {
   it('leaves existing cards with no automatic debit when applied after a rollback (AC-01)', async () => {
-    // 0031 and 0030 have the greater journal `when`, so it goes first: the migrator replays only what is newer.
-    await client.query(await fileOf('rollback/0031_card_statement_reminders.down.sql'));
+    // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
+    await client.query(await fileOf('rollback/0031_group_record_version.down.sql'));
     await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const card = await createCard();
@@ -314,8 +315,9 @@ describe('0029_card_automatic_debit migration', () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
-    // 0031 and 0030 have the greater journal `when`, so it goes first: the migrator replays only what is newer.
-    await client.query(await fileOf('rollback/0031_card_statement_reminders.down.sql'));
+    // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
+    await client.query(await fileOf('rollback/0031_group_record_version.down.sql'));
     await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -324,7 +326,7 @@ describe('0029_card_automatic_debit migration', () => {
       before.filter((name) => !NEW_COLUMNS.includes(name) && name !== 'reminder_days'),
     );
     expect(await claimTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 3);
+    expect(await appliedMigrations()).toBe(countBefore - 4);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await cardColumns()).toEqual(before);

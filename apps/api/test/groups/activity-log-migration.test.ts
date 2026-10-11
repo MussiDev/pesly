@@ -151,7 +151,8 @@ describe('0030_group_activity_log_changes migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
-    await client.query(await fileOf('rollback/0031_card_statement_reminders.down.sql'));
+    await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
+    await client.query(await fileOf('rollback/0031_group_record_version.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
@@ -159,7 +160,7 @@ describe('0030_group_activity_log_changes migration', () => {
     expect(await triggerCount()).toBe(0);
     expect(await functionCount()).toBe(0);
     expect(await publicTableCount()).toBe(tablesBefore);
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     const kept = await client.query(
       'select action from group_activity_log where group_id = $1 order by action',
       [f.group],

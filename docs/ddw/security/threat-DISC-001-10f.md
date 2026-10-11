@@ -10,7 +10,7 @@
 ## Components
 | Component | Source in the spec |
 |---|---|
-| `apps/api/drizzle/0031_card_statement_reminders.sql` | Block 2 |
+| `apps/api/drizzle/0032_card_statement_reminders.sql` | Block 2 |
 | `apps/api/src/credit-cards/infrastructure/db/schema.ts` | Block 2 |
 | `apps/api/src/notices/infrastructure/db/schema.ts` | Block 2 |
 | `apps/api/src/credit-cards/application/update-credit-card-days.ts` | Block 3 |
@@ -43,7 +43,7 @@
   (unchanged validation, now also pacing this job).
 
 ## STRIDE analysis
-### `apps/api/drizzle/0031_card_statement_reminders.sql`
+### `apps/api/drizzle/0032_card_statement_reminders.sql`
 - **Spoofing:** not applicable, a migration carries no identity.
 - **Tampering:** one column with a constant default and a check, and a swap of the notice kind check; existing cards read
   3 and existing notices satisfy the new check, so no row changes meaning (R-08). The check is dropped and re-added in the

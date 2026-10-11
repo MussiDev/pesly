@@ -71,6 +71,7 @@ describe('DrizzleActivityLogReader', () => {
     await settlements.deleteSettlement({
       groupId: w.groupId,
       settlementId: saved.id,
+      baseVersion: saved.version,
       activity: {
         action: 'settlement_deleted',
         memberId: w.anaMember,

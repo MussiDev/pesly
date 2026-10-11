@@ -39,6 +39,8 @@ export interface SettlementChangeActivity {
 export interface UpdateGroupSettlementData {
   groupId: string;
   settlementId: string;
+  /** The version the client saw; compared with the stored one under lock (spec 04e D2). */
+  baseVersion: number;
   amount?: bigint;
   occurredAt?: Date;
   activity: SettlementChangeActivity & {
@@ -50,6 +52,7 @@ export interface UpdateGroupSettlementData {
 export interface DeleteGroupSettlementData {
   groupId: string;
   settlementId: string;
+  baseVersion: number;
   activity: SettlementChangeActivity & { action: 'settlement_deleted'; after: null };
 }
 
@@ -100,7 +103,9 @@ export interface GroupSettlementRepository {
   getSettlement(groupId: string, settlementId: string): Promise<GroupSettlement | null>;
   /**
    * One transaction under the group row `for update` (spec D4): load the settlement in the group
-   * (`ResourceNotFound` when gone), throw `GroupSettlementConsolidated` when it is consolidated,
+   * (`ResourceNotFound` when gone), throw `GroupRecordConflictError` with the stored record when
+   * `baseVersion` differs from the stored `version` (older or newer; nothing is written, spec 04e
+   * D3), throw `GroupSettlementConsolidated` when it is consolidated,
    * resolve the unspecified `amount` and `occurredAt` from that row, recompute under lock which
    * members' balances change (`settlementChangedMembers`) and throw `GroupRecordFormerMember` when
    * one is no longer active (or `ResourceNotFound` when the acting member is), rewrite `amount`,
@@ -109,7 +114,7 @@ export interface GroupSettlementRepository {
    */
   updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement>;
   /**
-   * Same locks and former-member check; the legs go by cascade and the log row is written. A
+   * Same locks, `baseVersion` check and former-member check; the legs go by cascade and the log row is written. A
    * consolidated settlement may be deleted.
    */
   deleteSettlement(data: DeleteGroupSettlementData): Promise<void>;

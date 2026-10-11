@@ -15,6 +15,7 @@ import {
   DeleteSettlement,
   expenseSnapshot,
   GetBalances,
+  GroupRecordConflictError,
   GroupRecordFormerMember,
   JoinGroup,
   LeaveGroup,
@@ -186,6 +187,7 @@ function edit(
   overrides: Partial<UpdateGroupExpenseRequest> = {},
 ): UpdateGroupExpenseRequest {
   return {
+    baseVersion: 1,
     amount: '6000000',
     occurredAt: clock.now().toISOString(),
     categoryId: s.categoryId,
@@ -227,7 +229,7 @@ describe('change permission (D1)', () => {
     expect(updated.description).toBe('Cena editada');
     expect(expenses.expenses).toHaveLength(1);
 
-    await deleteExpense.execute(BOB, s.groupId, saved.id);
+    await deleteExpense.execute(BOB, s.groupId, saved.id, 2);
     expect(expenses.expenses).toHaveLength(0);
   });
 
@@ -237,12 +239,13 @@ describe('change permission (D1)', () => {
     const saved = await newSettlement(s, s.alice, s.bob, '1000000', CAROL);
 
     const updated = await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 1,
       amount: '1500000',
     });
     expect(updated.amount).toBe(1500000n);
     expect(updated.legs).toEqual([{ currency: 'ARS', amount: 1500000n }]);
 
-    await deleteSettlement.execute(ALICE, s.groupId, saved.id);
+    await deleteSettlement.execute(ALICE, s.groupId, saved.id, 2);
     expect(settlements.settlements).toHaveLength(0);
   });
 
@@ -255,7 +258,7 @@ describe('change permission (D1)', () => {
     expect(await codeOf(updateExpense.execute(CAROL, s.groupId, saved.id, edit(s)))).toBe(
       'GROUP_RECORD_EDIT_FORBIDDEN',
     );
-    expect(await codeOf(deleteExpense.execute(CAROL, s.groupId, saved.id))).toBe(
+    expect(await codeOf(deleteExpense.execute(CAROL, s.groupId, saved.id, 1))).toBe(
       'GROUP_RECORD_EDIT_FORBIDDEN',
     );
 
@@ -270,10 +273,12 @@ describe('change permission (D1)', () => {
     const before = structuredClone(settlements.settlements);
     const logBefore = expenses.activity.length;
 
-    expect(await codeOf(updateSettlement.execute(BOB, s.groupId, saved.id, { amount: '5' }))).toBe(
-      'GROUP_RECORD_EDIT_FORBIDDEN',
-    );
-    expect(await codeOf(deleteSettlement.execute(BOB, s.groupId, saved.id))).toBe(
+    expect(
+      await codeOf(
+        updateSettlement.execute(BOB, s.groupId, saved.id, { baseVersion: 1, amount: '5' }),
+      ),
+    ).toBe('GROUP_RECORD_EDIT_FORBIDDEN');
+    expect(await codeOf(deleteSettlement.execute(BOB, s.groupId, saved.id, 1))).toBe(
       'GROUP_RECORD_EDIT_FORBIDDEN',
     );
 
@@ -303,11 +308,16 @@ describe('access order (AC-12)', () => {
       expect(await codeOf(updateExpense.execute(userId, s.groupId, saved.id, edit(s)))).toBe(
         'NOT_FOUND',
       );
-      expect(await codeOf(deleteExpense.execute(userId, s.groupId, saved.id))).toBe('NOT_FOUND');
+      expect(await codeOf(deleteExpense.execute(userId, s.groupId, saved.id, 1))).toBe('NOT_FOUND');
       expect(
-        await codeOf(updateSettlement.execute(userId, s.groupId, settlement.id, { amount: '5' })),
+        await codeOf(
+          updateSettlement.execute(userId, s.groupId, settlement.id, {
+            baseVersion: 1,
+            amount: '5',
+          }),
+        ),
       ).toBe('NOT_FOUND');
-      expect(await codeOf(deleteSettlement.execute(userId, s.groupId, settlement.id))).toBe(
+      expect(await codeOf(deleteSettlement.execute(userId, s.groupId, settlement.id, 1))).toBe(
         'NOT_FOUND',
       );
       expect(await codeOf(listActivity.execute(userId, s.groupId, {}))).toBe('NOT_FOUND');
@@ -334,11 +344,15 @@ describe('access order (AC-12)', () => {
     expect(await codeOf(updateExpense.execute(ALICE, s.groupId, missing, edit(s)))).toBe(
       'NOT_FOUND',
     );
-    expect(await codeOf(deleteExpense.execute(ALICE, other.group.id, saved.id))).toBe('NOT_FOUND');
-    expect(await codeOf(deleteSettlement.execute(ALICE, s.groupId, missing))).toBe('NOT_FOUND');
-    expect(await codeOf(updateSettlement.execute(ALICE, s.groupId, missing, { amount: '5' }))).toBe(
+    expect(await codeOf(deleteExpense.execute(ALICE, other.group.id, saved.id, 1))).toBe(
       'NOT_FOUND',
     );
+    expect(await codeOf(deleteSettlement.execute(ALICE, s.groupId, missing, 1))).toBe('NOT_FOUND');
+    expect(
+      await codeOf(
+        updateSettlement.execute(ALICE, s.groupId, missing, { baseVersion: 1, amount: '5' }),
+      ),
+    ).toBe('NOT_FOUND');
   });
 });
 
@@ -438,7 +452,7 @@ describe('UpdateGroupExpense', () => {
     expect(expenses.activity).toHaveLength(logBefore);
   });
 
-  it('does not revert an amount edit that lands between its read and its write when only the date changes', async () => {
+  it('refuses a date-only edit based on a version that an amount edit replaced between its read and its write', async () => {
     const s = await setup();
     await newExpense(s, '4000000');
     const saved = await newSettlement(s, s.alice, s.bob, '1000000', ALICE);
@@ -447,19 +461,27 @@ describe('UpdateGroupExpense', () => {
     // The use case reads the stale row, then another request edits the amount before the write.
     vi.spyOn(settlements, 'getSettlement').mockImplementationOnce(async (groupId, id) => {
       const stale = await original(groupId, id);
-      await updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '2500000' });
+      await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+        baseVersion: 1,
+        amount: '2500000',
+      });
       return stale;
     });
 
-    const dateOnly = await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+    const dateOnly = updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 1,
       occurredAt: newDate.toISOString(),
     });
 
-    expect(dateOnly).toMatchObject({ amount: 2500000n, occurredAt: newDate });
-    expect(dateOnly.legs).toEqual([{ currency: 'ARS', amount: 2500000n }]);
+    // The amount edit moved the record to version 2: the date-only edit based on 1 is refused
+    // instead of silently mixing with it, and the amount edit stays as it was written.
+    expect(await codeOf(dateOnly)).toBe('GROUP_RECORD_CONFLICT');
+    const stored = await settlements.getSettlement(s.groupId, saved.id);
+    expect(stored).toMatchObject({ amount: 2500000n, version: 2 });
+    expect(stored?.occurredAt).toEqual(saved.occurredAt);
     const log = expenses.activity.filter((r) => r.action === 'settlement_updated');
-    expect(settlementSnapshotSchema.parse(log[1]?.before).amount).toBe('2500000');
-    expect(settlementSnapshotSchema.parse(log[1]?.after).amount).toBe('2500000');
+    expect(log).toHaveLength(1);
+    expect(settlementSnapshotSchema.parse(log[0]?.after).amount).toBe('2500000');
   });
 
   it('is an invalid request with an amount of 0 or a date more than 1 day ahead (400)', async () => {
@@ -541,7 +563,7 @@ describe('UpdateGroupExpense', () => {
     expect(saved.payerMovementId).toBeNull();
 
     await updateExpense.execute(ALICE, s.groupId, saved.id, edit(s));
-    await deleteExpense.execute(ALICE, s.groupId, saved.id);
+    await deleteExpense.execute(ALICE, s.groupId, saved.id, 2);
 
     expect(recorder.calls).toEqual([]);
   });
@@ -558,7 +580,9 @@ describe('UpdateGroupExpense', () => {
     await expect(updateExpense.execute(BOB, s.groupId, saved.id, edit(s))).rejects.toThrow(
       'forced failure',
     );
-    await expect(deleteExpense.execute(BOB, s.groupId, saved.id)).rejects.toThrow('forced failure');
+    await expect(deleteExpense.execute(BOB, s.groupId, saved.id, 1)).rejects.toThrow(
+      'forced failure',
+    );
 
     expect(expenses.expenses).toEqual(stored);
     expect(recorder.movements).toEqual(movements);
@@ -574,7 +598,7 @@ describe('DeleteGroupExpense', () => {
     clock.advance(7000);
     const at = clock.now();
 
-    await deleteExpense.execute(BOB, s.groupId, saved.id);
+    await deleteExpense.execute(BOB, s.groupId, saved.id, 1);
 
     const row = expenses.activity.find((r) => r.action === 'expense_deleted');
     expect(row).toMatchObject({
@@ -591,7 +615,7 @@ describe('DeleteGroupExpense', () => {
     const saved = await newExpense(s, '4000000');
     const movementId = saved.payerMovementId as string;
 
-    await deleteExpense.execute(BOB, s.groupId, saved.id);
+    await deleteExpense.execute(BOB, s.groupId, saved.id, 1);
 
     expect(recorder.calls).toEqual([
       expect.objectContaining({ kind: 'remove', userId: BOB, movementId }),
@@ -608,7 +632,7 @@ describe('settlement changes', () => {
     const saved = await newSettlement(s, s.alice, s.bob, '1000000', ALICE);
     expect(await getBalances.execute(ALICE, s.groupId)).not.toEqual(before);
 
-    await deleteSettlement.execute(ALICE, s.groupId, saved.id);
+    await deleteSettlement.execute(ALICE, s.groupId, saved.id, 1);
 
     expect(await getBalances.execute(ALICE, s.groupId)).toEqual(before);
   });
@@ -620,11 +644,13 @@ describe('settlement changes', () => {
     const newDate = new Date(clock.now().getTime() - DAY_MS);
 
     const dateOnly = await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 1,
       occurredAt: newDate.toISOString(),
     });
     expect(dateOnly).toMatchObject({ amount: 1000000n, occurredAt: newDate });
 
     const both = await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 2,
       amount: '2000000',
       occurredAt: clock.now().toISOString(),
     });
@@ -639,11 +665,18 @@ describe('settlement changes', () => {
     const saved = await newSettlement(s, s.alice, s.bob, '1000000', ALICE);
 
     expect(
-      await codeOf(updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '0' })),
+      await codeOf(
+        updateSettlement.execute(ALICE, s.groupId, saved.id, { baseVersion: 1, amount: '0' }),
+      ),
     ).toBe('VALIDATION_FAILED');
     const tooFar = new Date(clock.now().getTime() + DAY_MS + 1000).toISOString();
     expect(
-      await codeOf(updateSettlement.execute(ALICE, s.groupId, saved.id, { occurredAt: tooFar })),
+      await codeOf(
+        updateSettlement.execute(ALICE, s.groupId, saved.id, {
+          baseVersion: 1,
+          occurredAt: tooFar,
+        }),
+      ),
     ).toBe('VALIDATION_FAILED');
   });
 
@@ -654,12 +687,15 @@ describe('settlement changes', () => {
     clock.advance(3000);
     const editedAt = clock.now();
     await updateSettlement
-      .execute(BOB, s.groupId, saved.id, { amount: '1500000' })
+      .execute(BOB, s.groupId, saved.id, { baseVersion: 1, amount: '1500000' })
       .catch(() => undefined);
-    await updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '1500000' });
+    await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 1,
+      amount: '1500000',
+    });
     clock.advance(3000);
     const deletedAt = clock.now();
-    await deleteSettlement.execute(ALICE, s.groupId, saved.id);
+    await deleteSettlement.execute(ALICE, s.groupId, saved.id, 2);
 
     const updated = expenses.activity.find((r) => r.action === 'settlement_updated');
     expect(updated).toMatchObject({
@@ -689,9 +725,9 @@ describe('settlement changes', () => {
     settlements.failAfterLegs = true;
 
     await expect(
-      updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '5' }),
+      updateSettlement.execute(ALICE, s.groupId, saved.id, { baseVersion: 1, amount: '5' }),
     ).rejects.toThrow('forced failure');
-    await expect(deleteSettlement.execute(ALICE, s.groupId, saved.id)).rejects.toThrow(
+    await expect(deleteSettlement.execute(ALICE, s.groupId, saved.id, 1)).rejects.toThrow(
       'forced failure',
     );
 
@@ -734,11 +770,13 @@ describe('consolidated settlements', () => {
     expect(await getBalances.execute(ALICE, s.groupId)).not.toEqual(before);
 
     expect(
-      await codeOf(updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '5' })),
+      await codeOf(
+        updateSettlement.execute(ALICE, s.groupId, saved.id, { baseVersion: 1, amount: '5' }),
+      ),
     ).toBe('GROUP_SETTLEMENT_CONSOLIDATED');
     expect(settlements.settlements[0]).toEqual(saved);
 
-    await deleteSettlement.execute(ALICE, s.groupId, saved.id);
+    await deleteSettlement.execute(ALICE, s.groupId, saved.id, 1);
     expect(await getBalances.execute(ALICE, s.groupId)).toEqual(before);
   });
 });
@@ -769,13 +807,15 @@ describe('members who left (D5)', () => {
     expect(await codeOf(updateExpense.execute(BOB, s.groupId, saved.id, edit(s)))).toBe(
       'GROUP_RECORD_FORMER_MEMBER',
     );
-    expect(await codeOf(deleteExpense.execute(BOB, s.groupId, saved.id))).toBe(
+    expect(await codeOf(deleteExpense.execute(BOB, s.groupId, saved.id, 1))).toBe(
       'GROUP_RECORD_FORMER_MEMBER',
     );
     expect(
-      await codeOf(updateSettlement.execute(ALICE, s.groupId, settlement.id, { amount: '1' })),
+      await codeOf(
+        updateSettlement.execute(ALICE, s.groupId, settlement.id, { baseVersion: 1, amount: '1' }),
+      ),
     ).toBe('GROUP_RECORD_FORMER_MEMBER');
-    expect(await codeOf(deleteSettlement.execute(ALICE, s.groupId, settlement.id))).toBe(
+    expect(await codeOf(deleteSettlement.execute(ALICE, s.groupId, settlement.id, 1))).toBe(
       'GROUP_RECORD_FORMER_MEMBER',
     );
 
@@ -874,6 +914,7 @@ describe('members who left (D5)', () => {
       expenses.deleteExpense({
         groupId: s.groupId,
         expenseId: saved.id,
+        baseVersion: saved.version,
         rateType: 'blue',
         activity: {
           action: 'expense_deleted',
@@ -894,7 +935,7 @@ describe('ListActivity', () => {
     clock.advance(1000);
     await updateExpense.execute(BOB, s.groupId, saved.id, edit(s));
     clock.advance(1000);
-    await deleteExpense.execute(BOB, s.groupId, saved.id);
+    await deleteExpense.execute(BOB, s.groupId, saved.id, 2);
 
     for (const userId of [ALICE, BOB, CAROL]) {
       const page = await listActivity.execute(userId, s.groupId, {});
@@ -1053,6 +1094,7 @@ describe('random operations', () => {
         const amount = int(1, 10_000_000);
         const first = Math.floor(amount / 2);
         await updateExpense.execute(ALICE, s.groupId, target.id, {
+          baseVersion: target.version,
           amount: String(amount),
           occurredAt: date(),
           categoryId: s.categoryId,
@@ -1069,7 +1111,8 @@ describe('random operations', () => {
         });
         counts.edit += 1;
       } else if (roll < 0.65 && expenses.expenses.length > 0) {
-        await deleteExpense.execute(ALICE, s.groupId, pick(expenses.expenses).id);
+        const target = pick(expenses.expenses);
+        await deleteExpense.execute(ALICE, s.groupId, target.id, target.version);
         counts.remove += 1;
       } else if (roll < 0.9) {
         const from = pick(everyone);
@@ -1084,12 +1127,15 @@ describe('random operations', () => {
         });
         counts.settle += 1;
       } else if (roll < 0.96 && settlements.settlements.length > 0) {
-        await updateSettlement.execute(ALICE, s.groupId, pick(settlements.settlements).id, {
+        const target = pick(settlements.settlements);
+        await updateSettlement.execute(ALICE, s.groupId, target.id, {
+          baseVersion: target.version,
           amount: String(int(1, 5_000_000)),
         });
         counts.settleEdit += 1;
       } else if (settlements.settlements.length > 0) {
-        await deleteSettlement.execute(ALICE, s.groupId, pick(settlements.settlements).id);
+        const target = pick(settlements.settlements);
+        await deleteSettlement.execute(ALICE, s.groupId, target.id, target.version);
         counts.settleRemove += 1;
       }
       if (op % 500 === 0) await sumsAreZero();
@@ -1117,5 +1163,95 @@ describe('random operations', () => {
     }
     expect(Object.values(counts).every((n) => n > 0)).toBe(true);
     expect(Date.now() - started).toBeLessThan(10_000);
+  });
+});
+
+describe('version check (spec 04e D2, D3)', () => {
+  it('applies an edit with the current version and raises it by 1 (AC-01)', async () => {
+    const s = await setup();
+    const saved = await newExpense(s, '4000000');
+    expect(saved.version).toBe(1);
+
+    const first = await updateExpense.execute(BOB, s.groupId, saved.id, edit(s));
+    const second = await updateExpense.execute(
+      BOB,
+      s.groupId,
+      saved.id,
+      edit(s, { baseVersion: 2, description: 'Otra' }),
+    );
+
+    expect([first.version, second.version]).toEqual([2, 3]);
+  });
+
+  it('refuses a stale or future version with the server record and writes nothing (AC-01, AC-04)', async () => {
+    const s = await setup();
+    const saved = await newExpense(s, '4000000');
+    await updateExpense.execute(BOB, s.groupId, saved.id, edit(s));
+    const stored = structuredClone(expenses.expenses);
+    const logRows = expenses.activity.length;
+    const movementCalls = recorder.calls.length;
+    const balances = await getBalances.execute(ALICE, s.groupId);
+
+    for (const baseVersion of [1, 3]) {
+      const failure = await updateExpense
+        .execute(ALICE, s.groupId, saved.id, edit(s, { baseVersion, amount: '9000000' }))
+        .catch((error: unknown) => error);
+      expect(failure).toBeInstanceOf(GroupRecordConflictError);
+      expect(failure).toMatchObject({
+        code: 'GROUP_RECORD_CONFLICT',
+        baseVersion,
+        record: { kind: 'expense', current: { id: saved.id, version: 2, amount: 6000000n } },
+      });
+      expect(await codeOf(deleteExpense.execute(ALICE, s.groupId, saved.id, baseVersion))).toBe(
+        'GROUP_RECORD_CONFLICT',
+      );
+    }
+
+    expect(expenses.expenses).toEqual(stored);
+    expect(expenses.activity).toHaveLength(logRows);
+    expect(recorder.calls).toHaveLength(movementCalls);
+    expect(await getBalances.execute(ALICE, s.groupId)).toEqual(balances);
+  });
+
+  it('refuses a stale settlement edit or deletion and writes nothing (AC-01)', async () => {
+    const s = await setup();
+    await newExpense(s, '4000000');
+    const saved = await newSettlement(s, s.alice, s.bob, '1000000', ALICE);
+    await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      baseVersion: 1,
+      amount: '1500000',
+    });
+    const logRows = expenses.activity.length;
+
+    const patch = await updateSettlement
+      .execute(ALICE, s.groupId, saved.id, { baseVersion: 1, amount: '7' })
+      .catch((error: unknown) => error);
+    expect(patch).toMatchObject({
+      code: 'GROUP_RECORD_CONFLICT',
+      record: { kind: 'settlement', current: { id: saved.id, version: 2, amount: 1500000n } },
+    });
+    expect(await codeOf(deleteSettlement.execute(ALICE, s.groupId, saved.id, 1))).toBe(
+      'GROUP_RECORD_CONFLICT',
+    );
+
+    expect(settlements.settlements).toHaveLength(1);
+    expect(settlements.settlements[0]?.amount).toBe(1500000n);
+    expect(expenses.activity).toHaveLength(logRows);
+  });
+
+  it('answers 404 and 403 before any conflict, so a stale version reveals nothing', async () => {
+    const s = await setup();
+    const saved = await newExpense(s, '4000000');
+    await updateExpense.execute(BOB, s.groupId, saved.id, edit(s));
+
+    expect(await codeOf(updateExpense.execute(STRANGER, s.groupId, saved.id, edit(s)))).toBe(
+      'NOT_FOUND',
+    );
+    expect(await codeOf(updateExpense.execute(CAROL, s.groupId, saved.id, edit(s)))).toBe(
+      'GROUP_RECORD_EDIT_FORBIDDEN',
+    );
+    expect(await codeOf(deleteExpense.execute(CAROL, s.groupId, saved.id, 1))).toBe(
+      'GROUP_RECORD_EDIT_FORBIDDEN',
+    );
   });
 });

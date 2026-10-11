@@ -398,6 +398,7 @@
     "groupSettlementStale": "Los saldos cambiaron desde que los revisaste. Revisalos de nuevo.",
     "groupRecordEditForbidden": "Solo quien lo registró, o un administrador del grupo, puede modificarlo o eliminarlo.",
     "groupRecordFormerMember": "Este registro involucra a alguien que dejó el grupo, por eso no se puede modificar ni eliminar.",
+    "groupRecordConflict": "Otra persona modificó este registro. Revisá ambas versiones y elegí una.",
     "groupSettlementConsolidated": "Un pago combinado no se puede editar. Eliminalo y registralo de nuevo.",
     "groupActivityLogImmutable": "El historial de actividad no se puede modificar.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
@@ -1421,6 +1422,32 @@
       "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
       "modeRequired": "Elegí cómo se registra.",
       "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30."
+    }
+  },
+  "groupConflict": {
+    "titleExpense": "Este gasto cambió mientras estabas sin conexión",
+    "titleSettlement": "Este pago cambió mientras estabas sin conexión",
+    "description": "Alguien más lo cambió antes de que tu cambio llegara al servidor. Elegí qué versión conservar.",
+    "mine": "Mía",
+    "server": "Del servidor",
+    "keepMine": "Conservar la mía",
+    "keepServer": "Conservar la del servidor",
+    "differs": "(difiere)",
+    "deleted": "Eliminaste este registro",
+    "unknownCategory": "Categoría desconocida",
+    "unknownMember": "Integrante desconocido",
+    "error": "No pudimos aplicar tu elección. Las dos versiones siguen aquí; probá de nuevo.",
+    "fields": {
+      "amount": "Monto",
+      "date": "Fecha",
+      "category": "Categoría",
+      "description": "Descripción",
+      "split": "División"
+    },
+    "splitModes": {
+      "equal": "División en partes iguales",
+      "percentage": "Porcentajes",
+      "exact": "Montos exactos"
     }
   }
 }

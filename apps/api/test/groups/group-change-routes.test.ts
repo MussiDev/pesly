@@ -70,7 +70,7 @@ describe('PUT and DELETE /groups/:id/expenses/:expenseId', () => {
     const fetched = await call(w.api.app, 'get', path, w.bob.cookies);
     expect(groupExpenseResponseSchema.parse(fetched.body).amount).toBe('6000000');
 
-    const deleted = await call(w.api.app, 'delete', path, w.bob.cookies);
+    const deleted = await call(w.api.app, 'delete', `${path}?baseVersion=2`, w.bob.cookies);
     expect(deleted.status).toBe(204);
     expect((await call(w.api.app, 'get', path, w.bob.cookies)).status).toBe(404);
   });
@@ -82,7 +82,9 @@ describe('PUT and DELETE /groups/:id/expenses/:expenseId', () => {
 
     const edited = await call(w.api.app, 'put', path, w.ana.cookies, updateExpenseBody(w));
     expect(edited.status).toBe(200);
-    expect((await call(w.api.app, 'delete', path, w.ana.cookies)).status).toBe(204);
+    expect((await call(w.api.app, 'delete', `${path}?baseVersion=2`, w.ana.cookies)).status).toBe(
+      204,
+    );
   });
 
   it('answers 403 to a member who is neither the author nor an admin and changes nothing (AC-03)', async () => {
@@ -91,7 +93,7 @@ describe('PUT and DELETE /groups/:id/expenses/:expenseId', () => {
     const path = `/groups/${w.groupId}/expenses/${expense.id}`;
 
     const put = await call(w.api.app, 'put', path, w.carol.cookies, updateExpenseBody(w));
-    const del = await call(w.api.app, 'delete', path, w.carol.cookies);
+    const del = await call(w.api.app, 'delete', `${path}?baseVersion=1`, w.carol.cookies);
 
     expect(put.status).toBe(403);
     expect((put.body as { code: string }).code).toBe('GROUP_RECORD_EDIT_FORBIDDEN');
@@ -177,7 +179,7 @@ describe('PUT and DELETE /groups/:id/expenses/:expenseId', () => {
     const path = `/groups/${w.groupId}/expenses/${expense.id}`;
 
     const put = await call(w.api.app, 'put', path, w.ana.cookies, updateExpenseBody(w));
-    const del = await call(w.api.app, 'delete', path, w.ana.cookies);
+    const del = await call(w.api.app, 'delete', `${path}?baseVersion=1`, w.ana.cookies);
 
     expect(put.status).toBe(409);
     expect((put.body as { code: string }).code).toBe('GROUP_RECORD_FORMER_MEMBER');
@@ -192,7 +194,10 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     const settlement = await recordSettlement(w);
     const path = `/groups/${w.groupId}/settlements/${settlement.id}`;
 
-    const edited = await call(w.api.app, 'patch', path, w.ana.cookies, { amount: '250000' });
+    const edited = await call(w.api.app, 'patch', path, w.ana.cookies, {
+      baseVersion: 1,
+      amount: '250000',
+    });
     expect(edited.status).toBe(200);
     expect(settlementResponseSchema.parse(edited.body)).toMatchObject({
       id: settlement.id,
@@ -200,7 +205,9 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
       legs: [{ currency: 'ARS', amount: '250000' }],
     });
 
-    expect((await call(w.api.app, 'delete', path, w.ana.cookies)).status).toBe(204);
+    expect((await call(w.api.app, 'delete', `${path}?baseVersion=2`, w.ana.cookies)).status).toBe(
+      204,
+    );
     const rows = await connection.pool.query('select 1 from group_settlements where id = $1', [
       settlement.id,
     ]);
@@ -212,8 +219,11 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     const settlement = await recordSettlement(w);
     const path = `/groups/${w.groupId}/settlements/${settlement.id}`;
 
-    const patch = await call(w.api.app, 'patch', path, w.carol.cookies, { amount: '250000' });
-    const del = await call(w.api.app, 'delete', path, w.carol.cookies);
+    const patch = await call(w.api.app, 'patch', path, w.carol.cookies, {
+      baseVersion: 1,
+      amount: '250000',
+    });
+    const del = await call(w.api.app, 'delete', `${path}?baseVersion=1`, w.carol.cookies);
 
     expect(patch.status).toBe(403);
     expect((patch.body as { code: string }).code).toBe('GROUP_RECORD_EDIT_FORBIDDEN');
@@ -235,7 +245,7 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     const deleted = await call(
       w.api.app,
       'delete',
-      `/groups/${w.groupId}/settlements/${settlement.id}`,
+      `/groups/${w.groupId}/settlements/${settlement.id}?baseVersion=1`,
       w.bob.cookies,
     );
 
@@ -248,7 +258,9 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     const settlement = await recordSettlement(w);
     const path = `/groups/${w.groupId}/settlements/${settlement.id}`;
 
-    expect((await call(w.api.app, 'patch', path, w.bob.cookies, {})).status).toBe(400);
+    expect((await call(w.api.app, 'patch', path, w.bob.cookies, { baseVersion: 1 })).status).toBe(
+      400,
+    );
     const unknownKey = await call(w.api.app, 'patch', path, w.bob.cookies, {
       amount: '5',
       currency: 'USD',
@@ -267,8 +279,11 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     await leave(w, w.carol);
     const path = `/groups/${w.groupId}/settlements/${settlement.id}`;
 
-    const patch = await call(w.api.app, 'patch', path, w.ana.cookies, { amount: '1' });
-    const del = await call(w.api.app, 'delete', path, w.ana.cookies);
+    const patch = await call(w.api.app, 'patch', path, w.ana.cookies, {
+      baseVersion: 1,
+      amount: '1',
+    });
+    const del = await call(w.api.app, 'delete', `${path}?baseVersion=1`, w.ana.cookies);
 
     expect(patch.status).toBe(409);
     expect((patch.body as { code: string }).code).toBe('GROUP_RECORD_FORMER_MEMBER');
@@ -307,11 +322,16 @@ describe('PATCH and DELETE /groups/:id/settlements/:settlementId', () => {
     expect(created.status).toBe(201);
     const path = `/groups/${w.groupId}/settlements/${settlementResponseSchema.parse(created.body).id}`;
 
-    const patch = await call(w.api.app, 'patch', path, w.ana.cookies, { amount: '1' });
+    const patch = await call(w.api.app, 'patch', path, w.ana.cookies, {
+      baseVersion: 1,
+      amount: '1',
+    });
 
     expect(patch.status).toBe(409);
     expect((patch.body as { code: string }).code).toBe('GROUP_SETTLEMENT_CONSOLIDATED');
-    expect((await call(w.api.app, 'delete', path, w.ana.cookies)).status).toBe(204);
+    expect((await call(w.api.app, 'delete', `${path}?baseVersion=1`, w.ana.cookies)).status).toBe(
+      204,
+    );
   });
 
   it('keeps the consolidation preview route ahead of the settlement id routes', async () => {
@@ -334,7 +354,7 @@ describe('GET /groups/:id/activity', () => {
     w.api.clock.advance(3_600_000);
     await call(w.api.app, 'put', path, w.bob.cookies, updateExpenseBody(w));
     w.api.clock.advance(3_600_000);
-    await call(w.api.app, 'delete', path, w.ana.cookies);
+    await call(w.api.app, 'delete', `${path}?baseVersion=2`, w.ana.cookies);
 
     const page = await activity(w, '', w.carol);
 
@@ -376,7 +396,7 @@ describe('GET /groups/:id/activity', () => {
     await call(
       w.api.app,
       'delete',
-      `/groups/${w.groupId}/settlements/${settlement.id}`,
+      `/groups/${w.groupId}/settlements/${settlement.id}?baseVersion=1`,
       w.bob.cookies,
     );
 
@@ -436,9 +456,13 @@ describe('access (AC-12)', () => {
     const base = `/groups/${w.groupId}`;
     return [
       { method: 'put', path: `${base}/expenses/${expenseId}`, body: updateExpenseBody(w) },
-      { method: 'delete', path: `${base}/expenses/${expenseId}` },
-      { method: 'patch', path: `${base}/settlements/${settlementId}`, body: { amount: '5' } },
-      { method: 'delete', path: `${base}/settlements/${settlementId}` },
+      { method: 'delete', path: `${base}/expenses/${expenseId}?baseVersion=1` },
+      {
+        method: 'patch',
+        path: `${base}/settlements/${settlementId}`,
+        body: { baseVersion: 1, amount: '5' },
+      },
+      { method: 'delete', path: `${base}/settlements/${settlementId}?baseVersion=1` },
       { method: 'get', path: `${base}/activity` },
       { method: 'put', path: `${base}/activity/${entryId}`, body: {} },
       { method: 'patch', path: `${base}/activity/${entryId}`, body: {} },
@@ -506,11 +530,22 @@ describe('access (AC-12)', () => {
         w.ana.cookies,
         updateExpenseBody(w),
       ),
-      await call(w.api.app, 'delete', `${base}/expenses/${unknownId()}`, w.ana.cookies),
+      await call(
+        w.api.app,
+        'delete',
+        `${base}/expenses/${unknownId()}?baseVersion=1`,
+        w.ana.cookies,
+      ),
       await call(w.api.app, 'patch', `${base}/settlements/${unknownId()}`, w.ana.cookies, {
+        baseVersion: 1,
         amount: '5',
       }),
-      await call(w.api.app, 'delete', `${base}/settlements/${unknownId()}`, w.ana.cookies),
+      await call(
+        w.api.app,
+        'delete',
+        `${base}/settlements/${unknownId()}?baseVersion=1`,
+        w.ana.cookies,
+      ),
     ];
 
     expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404]);
@@ -521,7 +556,7 @@ describe('access (AC-12)', () => {
     const response = await call(
       w.api.app,
       'delete',
-      `/groups/${w.groupId}/settlements/not-a-uuid`,
+      `/groups/${w.groupId}/settlements/not-a-uuid?baseVersion=1`,
       w.ana.cookies,
     );
     expect(response.status).toBe(400);

@@ -75,6 +75,7 @@ export class UpdateSettlement {
     return this.deps.settlements.updateSettlement({
       groupId,
       settlementId,
+      baseVersion: data.baseVersion,
       ...(data.amount !== undefined ? { amount } : {}),
       ...(data.occurredAt !== undefined ? { occurredAt } : {}),
       activity: {

@@ -1,5 +1,5 @@
 {
-  "id": "26737939-dc77-40bd-ae3e-3c9cee1a148d",
+  "id": "ec8fbd48-cda1-4887-94e4-b4b1f53debe1",
   "prevId": "42087736-a106-420c-a529-29b0325d06f0",
   "version": "7",
   "dialect": "postgresql",
@@ -877,13 +877,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "reminder_days": {
-          "name": "reminder_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1046,10 +1039,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "credit_cards_reminder_days_check": {
-          "name": "credit_cards_reminder_days_check",
-          "value": "\"credit_cards\".\"reminder_days\" between 0 and 30"
-        },
         "credit_cards_name_length_check": {
           "name": "credit_cards_name_length_check",
           "value": "char_length(\"credit_cards\".\"name\") between 1 and 46"
@@ -2249,6 +2238,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         }
       },
       "indexes": {
@@ -2394,6 +2390,10 @@
         "group_expenses_split_mode_check": {
           "name": "group_expenses_split_mode_check",
           "value": "\"group_expenses\".\"split_mode\" in ('equal', 'percentage', 'exact')"
+        },
+        "group_expenses_version_check": {
+          "name": "group_expenses_version_check",
+          "value": "\"group_expenses\".\"version\" >= 1"
         }
       },
       "isRLSEnabled": false
@@ -2886,6 +2886,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
         }
       },
       "indexes": {
@@ -3068,6 +3075,10 @@
         "group_settlements_account_member_party_check": {
           "name": "group_settlements_account_member_party_check",
           "value": "\"group_settlements\".\"account_member_id\" is null or \"group_settlements\".\"account_member_id\" in (\"group_settlements\".\"from_member_id\", \"group_settlements\".\"to_member_id\")"
+        },
+        "group_settlements_version_check": {
+          "name": "group_settlements_version_check",
+          "value": "\"group_settlements\".\"version\" >= 1"
         }
       },
       "isRLSEnabled": false
@@ -5611,7 +5622,7 @@
       "checkConstraints": {
         "notices_kind_check": {
           "name": "notices_kind_check",
-          "value": "\"notices\".\"kind\" in ('reminder', 'recorded', 'not_recorded', 'card_statement_due')"
+          "value": "\"notices\".\"kind\" in ('reminder', 'recorded', 'not_recorded')"
         },
         "notices_text_length_check": {
           "name": "notices_text_length_check",

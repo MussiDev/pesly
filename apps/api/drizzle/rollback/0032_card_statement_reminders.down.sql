@@ -1,10 +1,10 @@
--- Reverse of 0031_card_statement_reminders.sql. Deletes every `card_statement_due` notice (the
+-- Reverse of 0032_card_statement_reminders.sql. Deletes every `card_statement_due` notice (the
 -- restored check would refuse them), restores the previous `notices_kind_check`, and drops
 -- `credit_cards.reminder_days` with its check, so every card's reminder setting is lost; nothing
 -- else is touched. Notices of the other kinds stay.
 -- Rollback plan: take a backup first, stop the API and the worker, run this script as a whole
 -- (psql -1 -f), then revert the commit that added the migration. Apply it BEFORE the rollback of
--- 0030 (newest `when` first).
+-- 0031 (newest `when` first).
 
 -- Guarded so the script also runs after the rollback of 0025 has dropped `notices`.
 DO $$
@@ -21,5 +21,5 @@ ALTER TABLE IF EXISTS "credit_cards" DROP CONSTRAINT IF EXISTS "credit_cards_rem
 ALTER TABLE IF EXISTS "credit_cards" DROP COLUMN IF EXISTS "reminder_days";
 
 -- Forget the migration so `pnpm db:migrate` applies it again; `created_at` is the journal's
--- `when` for 0031_card_statement_reminders.
-DELETE FROM "drizzle"."__drizzle_migrations" WHERE "created_at" = 1791750600000;
+-- `when` for 0032_card_statement_reminders.
+DELETE FROM "drizzle"."__drizzle_migrations" WHERE "created_at" = 1791760600000;

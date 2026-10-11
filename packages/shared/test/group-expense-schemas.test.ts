@@ -223,6 +223,7 @@ describe('response schemas', () => {
       { memberId: A, amount: '5000' },
       { memberId: B, amount: '5000' },
     ],
+    version: 1,
   };
 
   it('parses an expense, a page and the options', () => {

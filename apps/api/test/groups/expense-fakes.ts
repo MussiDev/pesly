@@ -18,6 +18,7 @@ import {
   type PayerMovementUpdate,
   type UpdateGroupExpenseData,
 } from '../../src/groups';
+import { GroupRecordConflictError } from '../../src/groups/domain/errors';
 import { ResourceNotFound } from '../../src/shared/access';
 import type {
   DefaultSplit,
@@ -270,6 +271,7 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       splitMode: data.splitMode,
       payerMovementId,
       createdAt: data.activity.createdAt,
+      version: 1,
       shares: data.shares.map((share) => ({ ...share })),
     };
     this.expenses.push(expense);
@@ -295,6 +297,9 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
     );
     const stored = this.expenses[index];
     if (stored === undefined) throw new ResourceNotFound();
+    if (data.baseVersion !== stored.version) {
+      throw new GroupRecordConflictError({ kind: 'expense', current: stored }, data.baseVersion);
+    }
     // The lock-time recheck of D5, from the row read under lock.
     assertChangedMembersActive(
       expenseChangedMembers(stored, {
@@ -323,6 +328,7 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       categoryId: data.categoryId,
       description: data.description,
       splitMode: data.splitMode,
+      version: stored.version + 1,
       shares: data.shares.map((share) => ({ ...share })),
     };
     this.ledger.applyExpense(stored, -1n);
@@ -340,6 +346,9 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
     );
     const stored = this.expenses[index];
     if (stored === undefined) throw new ResourceNotFound();
+    if (data.baseVersion !== stored.version) {
+      throw new GroupRecordConflictError({ kind: 'expense', current: stored }, data.baseVersion);
+    }
     assertChangedMembersActive(expenseChangedMembers(stored, null), this.activeIds(data.groupId));
     const unit = newUnitOfWork();
     if (stored.payerMovementId !== null) {

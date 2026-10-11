@@ -165,6 +165,7 @@ describe('consolidation, balances and settlement reading', () => {
     rateSource: null,
     rateType: null,
     createdAt: NOW,
+    version: 1,
   };
 
   it('accepts a settlement response and a page of them', () => {

@@ -9,6 +9,7 @@ import {
   type GroupExpense,
   type GroupSettlement,
 } from '../../src/groups';
+import { GroupRecordConflictError } from '../../src/groups/domain/errors';
 import { DrizzleGroupExpenseRepository } from '../../src/groups/infrastructure/db/drizzle-group-expense-repository';
 import { DrizzleGroupSettlementRepository } from '../../src/groups/infrastructure/db/drizzle-group-settlement-repository';
 import { DrizzlePayerMovementRecorder } from '../../src/groups/infrastructure/movements/drizzle-payer-movement-recorder';
@@ -100,6 +101,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
       deletePlain: 0,
       createConsolidated: 0,
       deleteConsolidated: 0,
+      staleAttempt: 0,
     };
     let successfulWrites = 0;
 
@@ -125,6 +127,78 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
       const kind = random();
       const at = new Date(NOW.getTime() + op);
       const currency = pick(CURRENCIES);
+
+      // A stale or future base version is refused whatever the operation: it must write nothing,
+      // so the ledger and the log count below never move (spec 04e D3).
+      if (random() < 0.15 && (liveExpenses.length > 0 || livePlain.length > 0)) {
+        const wrongBy = pick([-1, 1, 2]);
+        const target = liveExpenses.length > 0 && random() < 0.5 ? pick(liveExpenses) : null;
+        const settlementTarget = target === null && livePlain.length > 0 ? pick(livePlain) : null;
+        const stale = target ?? settlementTarget;
+        if (stale !== null) {
+          const baseVersion = stale.version + wrongBy;
+          const activityBase = { memberId: w.anaMember, createdAt: at };
+          const attempt =
+            target !== null
+              ? random() < 0.5
+                ? expenses.updateExpense({
+                    groupId: w.groupId,
+                    expenseId: target.id,
+                    baseVersion,
+                    amount: 1n,
+                    occurredAt: target.occurredAt,
+                    categoryId: target.categoryId,
+                    description: 'Stale',
+                    splitMode: 'exact',
+                    shares: [{ memberId: target.payerMemberId, amount: 1n, basisPoints: null }],
+                    rateType: 'mep',
+                    activity: {
+                      ...activityBase,
+                      action: 'expense_updated',
+                      before: expenseSnapshot(target),
+                      after: expenseSnapshot(target),
+                    },
+                  })
+                : expenses.deleteExpense({
+                    groupId: w.groupId,
+                    expenseId: target.id,
+                    baseVersion,
+                    rateType: 'mep',
+                    activity: {
+                      ...activityBase,
+                      action: 'expense_deleted',
+                      before: expenseSnapshot(target),
+                      after: null,
+                    },
+                  })
+              : random() < 0.5
+                ? settlements.updateSettlement({
+                    groupId: w.groupId,
+                    settlementId: stale.id,
+                    baseVersion,
+                    amount: 1n,
+                    activity: {
+                      ...activityBase,
+                      action: 'settlement_updated',
+                      before: settlementSnapshot(stale as GroupSettlement),
+                      after: settlementSnapshot(stale as GroupSettlement),
+                    },
+                  })
+                : settlements.deleteSettlement({
+                    groupId: w.groupId,
+                    settlementId: stale.id,
+                    baseVersion,
+                    activity: {
+                      ...activityBase,
+                      action: 'settlement_deleted',
+                      before: settlementSnapshot(stale as GroupSettlement),
+                      after: null,
+                    },
+                  });
+          await expect(attempt).rejects.toBeInstanceOf(GroupRecordConflictError);
+          counts.staleAttempt += 1;
+        }
+      }
 
       if (kind < 0.12) {
         // Direct SQL bulk insert, as in 05c: no log row, so it is not counted as a write.
@@ -165,6 +239,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
         const updated = await expenses.updateExpense({
           groupId: w.groupId,
           expenseId: stored.id,
+          baseVersion: stored.version,
           amount,
           occurredAt,
           categoryId: stored.categoryId,
@@ -197,6 +272,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
         await expenses.deleteExpense({
           groupId: w.groupId,
           expenseId: stored.id,
+          baseVersion: stored.version,
           rateType: 'mep',
           activity: {
             action: 'expense_deleted',
@@ -236,6 +312,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
         const updated = await settlements.updateSettlement({
           groupId: w.groupId,
           settlementId: stored.id,
+          baseVersion: stored.version,
           amount,
           occurredAt,
           activity: {
@@ -256,6 +333,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
         await settlements.deleteSettlement({
           groupId: w.groupId,
           settlementId: stored.id,
+          baseVersion: stored.version,
           activity: {
             action: 'settlement_deleted',
             memberId: w.anaMember,
@@ -297,6 +375,7 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
         await settlements.deleteSettlement({
           groupId: w.groupId,
           settlementId: stored.id,
+          baseVersion: stored.version,
           activity: {
             action: 'settlement_deleted',
             memberId: w.anaMember,
