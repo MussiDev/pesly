@@ -21,7 +21,7 @@ test.beforeEach(async () => {
 
 /** From the signed-in home: profile, then the link of the danger card. */
 async function openDeleteAccount(page: Page): Promise<void> {
-  await page.getByRole('link', { name: es.app.nav.profile }).click();
+  await page.getByRole('link', { name: es.app.nav.settings }).click();
   await expect(page).toHaveURL(/\/es\/settings\/profile$/);
   await page.getByRole('link', { name: es.profile.deleteAccount.link }).click();
   await expect(page).toHaveURL(/\/es\/settings\/delete-account$/);
