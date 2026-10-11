@@ -3,7 +3,22 @@ import { dateInTimeZone } from '@pesly/shared';
 import type { AccountActivity } from '../../src/credit-cards/application/ports/account-activity';
 import type { CardPayments } from '../../src/credit-cards/application/ports/card-payments';
 import type { CardPurchases } from '../../src/credit-cards/application/ports/card-purchases';
+import type {
+  AutomaticDebitKey,
+  AutomaticDebitLog,
+  AutomaticDebitSettlement,
+  ClaimResult,
+} from '../../src/credit-cards/application/ports/automatic-debit-log';
+import type {
+  AutomaticDebitRecorder,
+  AutomaticDebitTransfer,
+} from '../../src/credit-cards/application/ports/automatic-debit-recorder';
+import type {
+  AutomaticDebitEntry,
+  AutomaticDebitSource,
+} from '../../src/credit-cards/application/ports/automatic-debit-source';
 import type { Clock } from '../../src/credit-cards/application/ports/clock';
+import { settledKey } from '../../src/credit-cards/domain/automatic-debit';
 import type {
   DebitAccountInfo,
   DebitAccounts,
@@ -520,6 +535,90 @@ export class FakeDebitAccounts implements DebitAccounts {
     const account = this.accounts.get(accountId);
     if (!account || account.ownerId !== scope.userId) return Promise.resolve(null);
     return Promise.resolve({ currency: account.currency, archived: account.archived });
+  }
+}
+
+/** Lists the cards with a debit account of an `InMemoryCreditCards`, in the zone of `FakeTimeZones`. */
+export class FakeAutomaticDebitSource implements AutomaticDebitSource {
+  /** When set, `page` rejects with it. */
+  failWith: Error | null = null;
+
+  constructor(
+    private readonly cards: InMemoryCreditCards,
+    private readonly timeZones: FakeTimeZones,
+  ) {}
+
+  page(afterId: string | null, limit: number): Promise<AutomaticDebitEntry[]> {
+    if (this.failWith) return Promise.reject(this.failWith);
+    const entries = [...this.cards.cards.values()]
+      .filter(({ card }) => card.debitAccounts.ARS !== null || card.debitAccounts.USD !== null)
+      .filter(({ card }) => afterId === null || card.id > afterId)
+      .sort((a, b) => a.card.id.localeCompare(b.card.id))
+      .slice(0, limit)
+      .map(({ ownerId, card }) => ({ ownerId, timeZone: this.timeZones.zone, card }));
+    return Promise.resolve(entries);
+  }
+}
+
+/** In-memory claim rows: a throw in `settle` stores nothing, like the rolled-back transaction. */
+export class InMemoryAutomaticDebitLog implements AutomaticDebitLog {
+  readonly rows = new Map<string, AutomaticDebitSettlement>();
+  /** Card ids whose `settledKeys` read rejects. */
+  readonly failingCards = new Set<string>();
+
+  private keyOf(scope: AccessScope, key: AutomaticDebitKey): string {
+    return `${scope.userId}|${key.cardId}|${key.period}|${key.currency}`;
+  }
+
+  settledKeys(scope: AccessScope<'write'>, cardId: string): Promise<ReadonlySet<string>> {
+    if (this.failingCards.has(cardId)) return Promise.reject(new Error('storage down'));
+    const prefix = `${scope.userId}|${cardId}|`;
+    const keys = new Set<string>();
+    for (const row of this.rows.keys()) {
+      if (row.startsWith(prefix)) {
+        const [period, currency] = row.slice(prefix.length).split('|');
+        keys.add(settledKey(period ?? '', (currency ?? 'ARS') as Currency));
+      }
+    }
+    return Promise.resolve(keys);
+  }
+
+  async withClaim(
+    scope: AccessScope<'write'>,
+    key: AutomaticDebitKey,
+    settle: () => Promise<AutomaticDebitSettlement | null>,
+  ): Promise<ClaimResult> {
+    const id = this.keyOf(scope, key);
+    if (this.rows.has(id)) return { claimed: false };
+    const settlement = await settle();
+    if (settlement) this.rows.set(id, settlement);
+    return { claimed: true, settlement };
+  }
+}
+
+/**
+ * Stores the transfers in a `FakePaymentRecorder` (so `FakeCardPayments` sees them) keyed by the
+ * movement id: recording an id again returns the stored one.
+ */
+export class FakeAutomaticDebitRecorder implements AutomaticDebitRecorder {
+  /** Errors to raise, keyed by source account id; nothing is stored for them. */
+  readonly failures = new Map<string, Error>();
+  /** How many calls reached the recorder. */
+  calls = 0;
+
+  constructor(private readonly store: FakePaymentRecorder) {}
+
+  recordOnce(
+    scope: AccessScope<'write'>,
+    movementId: string,
+    transfer: AutomaticDebitTransfer,
+  ): Promise<{ id: string }> {
+    this.calls += 1;
+    const failure = this.failures.get(transfer.sourceAccountId);
+    if (failure) return Promise.reject(failure);
+    const stored = this.store.payments.find((payment) => payment.id === movementId);
+    if (!stored) this.store.payments.push({ ownerId: scope.userId, id: movementId, ...transfer });
+    return Promise.resolve({ id: movementId });
   }
 }
 
