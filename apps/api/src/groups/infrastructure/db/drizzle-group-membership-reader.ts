@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { GroupMembershipReader } from '../../../shared/access/group-membership-reader';
 import type { Database } from '../../../shared/db/client';
 import { groupMembers } from './schema';
@@ -11,7 +11,7 @@ export class DrizzleGroupMembershipReader implements GroupMembershipReader {
     const rows = await this.db
       .select({ groupId: groupMembers.groupId })
       .from(groupMembers)
-      .where(eq(groupMembers.userId, userId))
+      .where(and(eq(groupMembers.userId, userId), isNull(groupMembers.leftAt)))
       .orderBy(asc(groupMembers.groupId));
     return rows.map((row) => row.groupId);
   }

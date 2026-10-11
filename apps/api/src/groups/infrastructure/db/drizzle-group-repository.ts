@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
@@ -8,6 +8,7 @@ import type {
   CreateGroupData,
   GroupRepository,
   NewGroupCategory,
+  RemoveMemberData,
   ReplaceClaimLinkData,
   UpdateGroupCategoryFields,
   UpsertInvitationData,
@@ -17,12 +18,23 @@ import type { GroupCategory } from '../../domain/group-category';
 import {
   GroupAlreadyMember,
   GroupCategoryNameTaken,
+  GroupLastAdmin,
+  GroupMemberHasBalance,
   GroupMemberLimitReached,
   TokenInvalid,
 } from '../../domain/errors';
-import type { Member } from '../../domain/member';
+import type { FormerMember, Member } from '../../domain/member';
+import { ResourceNotFound } from '../../../shared/access';
 import { users } from './foreign-relations';
-import { groupCategories, groupClaimLinks, groupInvitations, groupMembers, groups } from './schema';
+import { memberBalances } from './member-balances';
+import {
+  groupCategories,
+  groupClaimLinks,
+  groupDefaultSplitShares,
+  groupInvitations,
+  groupMembers,
+  groups,
+} from './schema';
 
 /** The transaction handle drizzle passes to the callback of `Database.transaction`. */
 type Tx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -60,6 +72,9 @@ const categoryColumns = {
   createdAt: groupCategories.createdAt,
 };
 
+/** A member who left keeps the row but is invisible to every lookup (spec D11). */
+const active = isNull(groupMembers.leftAt);
+
 function selectMembers(db: Database | Tx) {
   return db
     .select(memberColumns)
@@ -71,7 +86,7 @@ async function memberCount(db: Database | Tx, groupId: string): Promise<number> 
   const [row] = await db
     .select({ n: count() })
     .from(groupMembers)
-    .where(eq(groupMembers.groupId, groupId));
+    .where(and(eq(groupMembers.groupId, groupId), active));
   return row?.n ?? 0;
 }
 
@@ -88,14 +103,14 @@ async function isMember(tx: Tx, groupId: string, userId: string): Promise<boolea
   const [row] = await tx
     .select({ id: groupMembers.id })
     .from(groupMembers)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), active))
     .limit(1);
   return row !== undefined;
 }
 
 async function requireMember(tx: Tx, groupId: string, memberId: string): Promise<Member> {
   const [row] = await selectMembers(tx)
-    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId)))
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId), active))
     .limit(1);
   if (!row) throw new Error('Reading back a group member returned no row');
   return row;
@@ -137,14 +152,14 @@ export class DrizzleGroupRepository implements GroupRepository {
 
   async findMember(groupId: string, userId: string): Promise<Member | null> {
     const [row] = await selectMembers(this.db)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), active))
       .limit(1);
     return row ?? null;
   }
 
   async findMemberById(groupId: string, memberId: string): Promise<Member | null> {
     const [row] = await selectMembers(this.db)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId)))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId), active))
       .limit(1);
     return row ?? null;
   }
@@ -157,9 +172,22 @@ export class DrizzleGroupRepository implements GroupRepository {
       .limit(1);
     if (!group) return null;
     const members = await selectMembers(this.db)
-      .where(eq(groupMembers.groupId, groupId))
+      .where(and(eq(groupMembers.groupId, groupId), active))
       .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.id));
-    return { group, members };
+    const former = await this.db
+      .select({
+        id: groupMembers.id,
+        displayName: memberColumns.displayName,
+        leftAt: groupMembers.leftAt,
+      })
+      .from(groupMembers)
+      .leftJoin(users, eq(users.id, groupMembers.userId))
+      .where(and(eq(groupMembers.groupId, groupId), isNotNull(groupMembers.leftAt)))
+      .orderBy(asc(groupMembers.leftAt), asc(groupMembers.id));
+    const formerMembers = former.flatMap((row): FormerMember[] =>
+      row.leftAt === null ? [] : [{ id: row.id, displayName: row.displayName, leftAt: row.leftAt }],
+    );
+    return { group, members, formerMembers };
   }
 
   async getSummary(groupId: string, userId: string): Promise<GroupSummary | null> {
@@ -167,7 +195,7 @@ export class DrizzleGroupRepository implements GroupRepository {
       .select({ group: groupColumns, role: groupMembers.role })
       .from(groupMembers)
       .innerJoin(groups, eq(groups.id, groupMembers.groupId))
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId), active))
       .limit(1);
     if (!row) return null;
     return { group: row.group, role: row.role, memberCount: await memberCount(this.db, groupId) };
@@ -178,16 +206,19 @@ export class DrizzleGroupRepository implements GroupRepository {
       .select({ group: groupColumns, role: groupMembers.role })
       .from(groupMembers)
       .innerJoin(groups, eq(groups.id, groupMembers.groupId))
-      .where(eq(groupMembers.userId, userId))
+      .where(and(eq(groupMembers.userId, userId), active))
       .orderBy(asc(groupMembers.joinedAt), asc(groupMembers.id));
     if (own.length === 0) return [];
     const counts = await this.db
       .select({ groupId: groupMembers.groupId, n: count() })
       .from(groupMembers)
       .where(
-        inArray(
-          groupMembers.groupId,
-          own.map((row) => row.group.id),
+        and(
+          inArray(
+            groupMembers.groupId,
+            own.map((row) => row.group.id),
+          ),
+          active,
         ),
       )
       .groupBy(groupMembers.groupId);
@@ -255,12 +286,18 @@ export class DrizzleGroupRepository implements GroupRepository {
 
   async replaceClaimLink(data: ReplaceClaimLinkData): Promise<void> {
     await this.db.transaction(async (tx) => {
+      // Group first, then member, then link: the order removeMember follows (spec D10).
+      await lockGroup(tx, data.groupId);
       // Serializes concurrent replacements of one ghost's link; the unique index is the backstop.
-      await tx
+      const [locked] = await tx
         .select({ id: groupMembers.id })
         .from(groupMembers)
-        .where(and(eq(groupMembers.id, data.memberId), eq(groupMembers.groupId, data.groupId)))
+        .where(
+          and(eq(groupMembers.id, data.memberId), eq(groupMembers.groupId, data.groupId), active),
+        )
         .for('update');
+      // The ghost left while this request waited: no link for a member who is gone.
+      if (!locked) throw new ResourceNotFound();
       await tx
         .delete(groupClaimLinks)
         .where(and(eq(groupClaimLinks.memberId, data.memberId), isNull(groupClaimLinks.usedAt)));
@@ -275,7 +312,16 @@ export class DrizzleGroupRepository implements GroupRepository {
   async claimGhost(data: ClaimGhostData): Promise<Member> {
     try {
       return await this.db.transaction(async (tx) => {
-        // A concurrent claim of the same link waits on this row, then finds `used_at` set.
+        // The group lock comes before any member or link row, as in removeMember (spec D10); the
+        // link is only read here to find the group.
+        const [found] = await tx
+          .select({ groupId: groupClaimLinks.groupId })
+          .from(groupClaimLinks)
+          .where(and(eq(groupClaimLinks.tokenHash, data.tokenHash), isNull(groupClaimLinks.usedAt)))
+          .limit(1);
+        if (!found) throw new TokenInvalid();
+        await lockGroup(tx, found.groupId);
+        // A concurrent claim of the same link waits on the group lock, then finds `used_at` set.
         const [link] = await tx
           .update(groupClaimLinks)
           .set({ usedAt: data.now })
@@ -292,6 +338,7 @@ export class DrizzleGroupRepository implements GroupRepository {
               eq(groupMembers.id, link.memberId),
               eq(groupMembers.groupId, link.groupId),
               isNull(groupMembers.userId),
+              active,
             ),
           )
           .returning({ id: groupMembers.id });
@@ -307,7 +354,7 @@ export class DrizzleGroupRepository implements GroupRepository {
     const updated = await this.db
       .update(groupMembers)
       .set({ role: 'admin' })
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId)))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.id, memberId), active))
       .returning({ id: groupMembers.id });
     if (updated.length === 0) return null;
     return this.findMemberById(groupId, memberId);
@@ -368,4 +415,68 @@ export class DrizzleGroupRepository implements GroupRepository {
       return mapCategoryName(error);
     }
   }
+
+  async removeMember(data: RemoveMemberData): Promise<Member> {
+    return this.db.transaction(async (tx) => {
+      // Group first, then member: the order every write path of the group follows (spec D10). It
+      // also serializes removals, so two admins cannot leave each other without an admin.
+      await lockGroup(tx, data.groupId);
+      // The member lock is what serialises this removal with an expense or settlement (spec D10).
+      const [locked] = await tx
+        .select({ id: groupMembers.id })
+        .from(groupMembers)
+        .where(
+          and(eq(groupMembers.id, data.memberId), eq(groupMembers.groupId, data.groupId), active),
+        )
+        .for('update');
+      if (!locked) throw new ResourceNotFound();
+      const member = await requireMember(tx, data.groupId, data.memberId);
+      const balances = await memberBalances(tx, data.groupId, data.memberId);
+      if (balances.ARS !== 0n || balances.USD !== 0n) throw new GroupMemberHasBalance(balances);
+      if (member.role === 'admin') await assertNotLastAdmin(tx, data.groupId, data.memberId);
+      await tx
+        .update(groupMembers)
+        .set({ leftAt: data.leftAt })
+        .where(eq(groupMembers.id, data.memberId));
+      await tx
+        .delete(groupInvitations)
+        .where(eq(groupInvitations.createdByMemberId, data.memberId));
+      await tx
+        .delete(groupClaimLinks)
+        .where(and(eq(groupClaimLinks.memberId, data.memberId), isNull(groupClaimLinks.usedAt)));
+      await resetSplitContaining(tx, data.groupId, data.memberId);
+      return member;
+    });
+  }
+}
+
+async function assertNotLastAdmin(tx: Tx, groupId: string, memberId: string): Promise<void> {
+  const others = and(eq(groupMembers.groupId, groupId), ne(groupMembers.id, memberId), active);
+  const [remaining] = await tx.select({ n: count() }).from(groupMembers).where(others);
+  if ((remaining?.n ?? 0) === 0) return;
+  const [admins] = await tx
+    .select({ n: count() })
+    .from(groupMembers)
+    .where(and(others, eq(groupMembers.role, 'admin')));
+  if ((admins?.n ?? 0) === 0) throw new GroupLastAdmin();
+}
+
+/** A percentage split that names a member who leaves no longer adds up: back to `equal` (D9). */
+async function resetSplitContaining(tx: Tx, groupId: string, memberId: string): Promise<void> {
+  const [row] = await tx
+    .select({ memberId: groupDefaultSplitShares.memberId })
+    .from(groupDefaultSplitShares)
+    .where(
+      and(
+        eq(groupDefaultSplitShares.groupId, groupId),
+        eq(groupDefaultSplitShares.memberId, memberId),
+      ),
+    )
+    .limit(1);
+  if (!row) return;
+  await tx.delete(groupDefaultSplitShares).where(eq(groupDefaultSplitShares.groupId, groupId));
+  await tx
+    .update(groups)
+    .set({ defaultSplitMode: 'equal', updatedAt: new Date() })
+    .where(eq(groups.id, groupId));
 }

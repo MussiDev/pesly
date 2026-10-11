@@ -185,6 +185,7 @@ describe('response schemas', () => {
           { id: UUID, displayName: null, isGhost: false, role: 'admin', joinedAt: NOW },
           { id: UUID, displayName: 'Pedro', isGhost: true, role: 'member', joinedAt: NOW },
         ],
+        formerMembers: [],
       }).success,
     ).toBe(true);
   });

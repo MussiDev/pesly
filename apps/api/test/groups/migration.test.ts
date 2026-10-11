@@ -58,8 +58,9 @@ async function appliedMigrations(): Promise<number> {
 async function groupTables(): Promise<string[]> {
   const result = await client.query<{ table_name: string }>(
     `select table_name from information_schema.tables
-      where table_schema = 'public' and (table_name = 'groups' or table_name like 'group\\_%')
+      where table_schema = 'public' and table_name = any($1)
       order by table_name`,
+    [GROUP_TABLES],
   );
   return result.rows.map((row) => row.table_name);
 }
@@ -121,12 +122,15 @@ describe('0026_groups migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
+    // Newest first: 0027 and 0028 add tables that reference the 0026 ones.
+    await client.query(await fileOf('rollback/0028_group_settlements.down.sql'));
+    await client.query(await fileOf('rollback/0027_group_expenses.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await groupTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 6);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await groupTables()).toEqual(GROUP_TABLES);

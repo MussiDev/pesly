@@ -40,7 +40,15 @@ export function presentGroup(summary: GroupSummary): GroupResponse {
 }
 
 export function presentGroupDetail(detail: GroupWithMembers): GroupDetailResponse {
-  return { ...presentGroup(detail), members: detail.members.map(presentMember) };
+  return {
+    ...presentGroup(detail),
+    members: detail.members.map(presentMember),
+    formerMembers: detail.formerMembers.map((former) => ({
+      id: former.id,
+      displayName: former.displayName,
+      leftAt: former.leftAt.toISOString(),
+    })),
+  };
 }
 
 /** The raw token leaves the API here and only here; the database keeps its hash. */
