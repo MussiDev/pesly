@@ -3,6 +3,20 @@ import {
   categoryResponseSchema,
   errorResponseSchema,
   groupExpenseResponseSchema,
+  groupExpensePageSchema,
+  expenseOptionsResponseSchema,
+  defaultSplitResponseSchema,
+  defaultSplitRequestSchema,
+  createGroupExpenseRequestSchema,
+  personalSharesPageSchema,
+  type CreateGroupExpenseRequest,
+  type DefaultSplitRequest,
+  type DefaultSplitResponse,
+  type ExpenseOptionsResponse,
+  type GroupExpensePage,
+  type ListGroupExpensesQuery,
+  type PersonalSharesPage,
+  type PersonalSharesQuery,
   groupRecordConflictSchema,
   groupResponseSchema,
   groupDetailResponseSchema,
@@ -605,6 +619,24 @@ export interface ApiClient {
   listAllTags(query: ListAllTagsParams): Promise<ApiResult<ListTagsResponse>>;
   /** The stored rates only: the API never reaches the external source for this call. */
   getLatestRates(): Promise<ApiResult<LatestRatesResponse>>;
+  /** An invalid body is refused locally and sends no request. */
+  createGroupExpense(
+    groupId: string,
+    body: CreateGroupExpenseRequest,
+  ): Promise<ApiResult<GroupExpenseResponse>>;
+  listGroupExpenses(
+    groupId: string,
+    query: Pick<ListGroupExpensesQuery, 'limit' | 'cursor'>,
+  ): Promise<ApiResult<GroupExpensePage>>;
+  getExpenseOptions(groupId: string): Promise<ApiResult<ExpenseOptionsResponse>>;
+  /** An invalid body is refused locally and sends no request. */
+  setDefaultSplit(
+    groupId: string,
+    body: DefaultSplitRequest,
+  ): Promise<ApiResult<DefaultSplitResponse>>;
+  listPersonalShares(
+    query: Pick<PersonalSharesQuery, 'from' | 'to' | 'limit' | 'cursor'>,
+  ): Promise<ApiResult<PersonalSharesPage>>;
   getGroupExpense(groupId: string, expenseId: string): Promise<ApiResult<GroupExpenseResponse>>;
   /** A full replacement based on `body.baseVersion`; a stale one answers a conflict outcome. */
   updateGroupExpense(
@@ -1517,6 +1549,66 @@ export function createApiClient({
         response: latestRatesResponseSchema,
         refreshOnUnauthenticated: true,
       }),
+    createGroupExpense: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        createGroupExpenseRequestSchema.safeParse(body).success
+          ? request({
+              method: 'POST',
+              path: `${path}/expenses`,
+              body,
+              response: groupExpenseResponseSchema,
+              refreshOnUnauthenticated: true,
+            })
+          : Promise.resolve(failure('VALIDATION_FAILED')),
+      ),
+    listGroupExpenses: (groupId, { limit, cursor }) =>
+      onGroup(groupId, (path) => {
+        const query = new URLSearchParams();
+        if (limit !== undefined) query.set('limit', String(limit));
+        if (cursor !== undefined) query.set('cursor', cursor);
+        const queryString = query.toString();
+        return request({
+          method: 'GET',
+          path: queryString ? `${path}/expenses?${queryString}` : `${path}/expenses`,
+          response: groupExpensePageSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    getExpenseOptions: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/expense-options`,
+          response: expenseOptionsResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    setDefaultSplit: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        defaultSplitRequestSchema.safeParse(body).success
+          ? request({
+              method: 'PUT',
+              path: `${path}/default-split`,
+              body,
+              response: defaultSplitResponseSchema,
+              refreshOnUnauthenticated: true,
+            })
+          : Promise.resolve(failure('VALIDATION_FAILED')),
+      ),
+    listPersonalShares: ({ from, to, limit, cursor }) => {
+      const query = new URLSearchParams();
+      if (from !== undefined) query.set('from', from);
+      if (to !== undefined) query.set('to', to);
+      if (limit !== undefined) query.set('limit', String(limit));
+      if (cursor !== undefined) query.set('cursor', cursor);
+      const queryString = query.toString();
+      return request({
+        method: 'GET',
+        path: queryString ? `/groups/personal/shares?${queryString}` : '/groups/personal/shares',
+        response: personalSharesPageSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
     getGroupExpense: (groupId, expenseId) =>
       onGroupRecord(groupId, 'expenses', expenseId, (path) =>
         request({
