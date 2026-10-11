@@ -88,7 +88,11 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Unit and integration tests (shard ${{ matrix.shard }}/4)
-        run: pnpm exec vitest run --coverage --reporter=blob --shard=${{ matrix.shard }}/4
+        # A shard runs a quarter of the suite, so the floor is enforced once, on the merged report.
+        run: >-
+          pnpm exec vitest run --coverage --reporter=blob --shard=${{ matrix.shard }}/4
+          --coverage.thresholds.lines=0 --coverage.thresholds.branches=0
+          --coverage.thresholds.functions=0
       - name: Upload blob report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
