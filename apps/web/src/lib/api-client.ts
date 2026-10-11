@@ -179,6 +179,10 @@ export type ApiErrorKey =
   | 'groupMemberHasBalance'
   | 'groupLastAdmin'
   | 'groupSettlementStale'
+  | 'groupRecordEditForbidden'
+  | 'groupRecordFormerMember'
+  | 'groupSettlementConsolidated'
+  | 'groupActivityLogImmutable'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -254,6 +258,10 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GROUP_MEMBER_HAS_BALANCE: 'groupMemberHasBalance',
   GROUP_LAST_ADMIN: 'groupLastAdmin',
   GROUP_SETTLEMENT_STALE: 'groupSettlementStale',
+  GROUP_RECORD_EDIT_FORBIDDEN: 'groupRecordEditForbidden',
+  GROUP_RECORD_FORMER_MEMBER: 'groupRecordFormerMember',
+  GROUP_SETTLEMENT_CONSOLIDATED: 'groupSettlementConsolidated',
+  GROUP_ACTIVITY_LOG_IMMUTABLE: 'groupActivityLogImmutable',
 };
 
 /**

@@ -108,6 +108,20 @@ export const createGroupExpenseRequestSchema = z.strictObject({
 
 export type CreateGroupExpenseRequest = z.infer<typeof createGroupExpenseRequestSchema>;
 
+/**
+ * `PUT /groups/:id/expenses/:expenseId` (spec D2): a full replacement validated like creation.
+ * Currency, payer, payer account and creator are fixed, so a body that names them is invalid.
+ */
+export const updateGroupExpenseRequestSchema = z.strictObject({
+  amount: movementAmountSchema,
+  occurredAt: occurredAtSchema,
+  categoryId: z.uuid(),
+  description: groupExpenseDescriptionSchema,
+  split: splitSchema,
+});
+
+export type UpdateGroupExpenseRequest = z.infer<typeof updateGroupExpenseRequestSchema>;
+
 export const groupExpenseParamsSchema = z.object({ id: z.uuid(), expenseId: z.uuid() });
 
 export type GroupExpenseParams = z.infer<typeof groupExpenseParamsSchema>;

@@ -44,3 +44,4 @@ export * from './notices';
 export * from './groups/group';
 export * from './groups/expense';
 export * from './groups/settlement';
+export * from './groups/activity';

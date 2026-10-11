@@ -57,6 +57,10 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   GROUP_MEMBER_HAS_BALANCE: 409,
   GROUP_LAST_ADMIN: 409,
   GROUP_SETTLEMENT_STALE: 409,
+  GROUP_RECORD_EDIT_FORBIDDEN: 403,
+  GROUP_RECORD_FORMER_MEMBER: 409,
+  GROUP_SETTLEMENT_CONSOLIDATED: 409,
+  GROUP_ACTIVITY_LOG_IMMUTABLE: 405,
   INTERNAL: 500,
 };
 
@@ -138,6 +142,8 @@ export function createErrorHandler(logger: Logger): ErrorRequestHandler {
       logger.warn(context, 'request rejected');
     }
     if (retryAfterSeconds !== undefined) res.setHeader('Retry-After', String(retryAfterSeconds));
+    // RFC 9110: a 405 names the methods the target allows; a log entry allows none, so it is empty.
+    if (status === 405) res.setHeader('Allow', '');
     res.status(status).json(body);
   };
 }

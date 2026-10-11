@@ -71,3 +71,27 @@ describe('group settlement and membership error codes over HTTP', () => {
     expect(response.body).toEqual({ code });
   });
 });
+
+describe('group record change error codes over HTTP', () => {
+  it.each<[ErrorCode, number]>([
+    ['GROUP_RECORD_EDIT_FORBIDDEN', 403],
+    ['GROUP_RECORD_FORMER_MEMBER', 409],
+    ['GROUP_SETTLEMENT_CONSOLIDATED', 409],
+    ['GROUP_ACTIVITY_LOG_IMMUTABLE', 405],
+  ])('%s answers %i with its code in the body (AC-03, AC-11)', async (code, status) => {
+    const response = await request(appThrowing(code)).get('/boom');
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ code });
+  });
+
+  it('a 405 carries an empty Allow header: the log entry allows no method', async () => {
+    const response = await request(appThrowing('GROUP_ACTIVITY_LOG_IMMUTABLE')).get('/boom');
+    expect(response.headers).toHaveProperty('allow');
+    expect(response.headers.allow).toBe('');
+  });
+
+  it('a non-405 error carries no Allow header', async () => {
+    const response = await request(appThrowing('GROUP_LAST_ADMIN')).get('/boom');
+    expect(response.headers.allow).toBeUndefined();
+  });
+});
