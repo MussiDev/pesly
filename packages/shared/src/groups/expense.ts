@@ -16,6 +16,18 @@ export const GROUP_SPLIT_MODES = ['equal', 'percentage', 'exact'] as const;
 export const groupSplitModeSchema = z.enum(GROUP_SPLIT_MODES);
 export type GroupSplitMode = z.infer<typeof groupSplitModeSchema>;
 
+/** The largest value of the PostgreSQL `integer` column that holds a record version (spec D1). */
+export const GROUP_RECORD_VERSION_MAX = 2147483647;
+
+/** The version a record has on the server; it starts at 1 and grows by 1 on every change. */
+export const groupRecordVersionSchema = z.number().int().min(1).max(GROUP_RECORD_VERSION_MAX);
+
+/** The version the client last saw; required on every change so nothing is overwritten silently (D2). */
+export const baseVersionSchema = groupRecordVersionSchema;
+
+/** `baseVersion` in a DELETE query string: coerced from text, then bounded like the body field. */
+export const baseVersionQuerySchema = z.coerce.number().int().min(1).max(GROUP_RECORD_VERSION_MAX);
+
 /** Same trimming and control-character rules as names, with the 1 to 200 bound of spec D13. */
 export const groupExpenseDescriptionSchema = boundedNameSchema(
   GROUP_EXPENSE_DESCRIPTION_MAX_LENGTH,
@@ -118,6 +130,7 @@ export const updateGroupExpenseRequestSchema = z.strictObject({
   categoryId: z.uuid(),
   description: groupExpenseDescriptionSchema,
   split: splitSchema,
+  baseVersion: baseVersionSchema,
 });
 
 export type UpdateGroupExpenseRequest = z.infer<typeof updateGroupExpenseRequestSchema>;
@@ -125,6 +138,13 @@ export type UpdateGroupExpenseRequest = z.infer<typeof updateGroupExpenseRequest
 export const groupExpenseParamsSchema = z.object({ id: z.uuid(), expenseId: z.uuid() });
 
 export type GroupExpenseParams = z.infer<typeof groupExpenseParamsSchema>;
+
+/** `DELETE /groups/:id/expenses/:expenseId?baseVersion=N` (spec D2). */
+export const deleteGroupExpenseQuerySchema = z.strictObject({
+  baseVersion: baseVersionQuerySchema,
+});
+
+export type DeleteGroupExpenseQuery = z.infer<typeof deleteGroupExpenseQuerySchema>;
 
 const pageLimitSchema = z.coerce.number().int().min(1).max(GROUP_EXPENSES_PAGE_SIZE_MAX).optional();
 
@@ -171,6 +191,7 @@ export const groupExpenseResponseSchema = z.object({
   payerMovementId: z.string().nullable(),
   createdAt: z.iso.datetime(),
   shares: z.array(groupExpenseShareResponseSchema),
+  version: groupRecordVersionSchema,
 });
 
 export type GroupExpenseResponse = z.infer<typeof groupExpenseResponseSchema>;

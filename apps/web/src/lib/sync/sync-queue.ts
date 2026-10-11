@@ -5,10 +5,13 @@ import { loadQueue, markRejected, settleSent, type QueuedMovement } from '@/lib/
 import { putRecentMovement, removeRecentMovement } from '@/lib/local-store/reference-cache';
 import { openLocalStore, type LocalStore } from '@/lib/local-store/stores';
 import { retryDelaySeconds } from './backoff';
+import { hasGroupApi, runGroupLocked, type GroupSyncApi } from './group-sync';
 import { notifyQueueChanged, notifySyncFinished } from './sync-events';
 import { runSyncPass, type SyncPassOutcome, type SyncStopReason } from './sync-pass';
 
-type SyncApi = Pick<ApiClient, 'createMovement' | 'updateMovement' | 'deleteMovement'>;
+/** The group endpoints are optional: without them the pass only sends movements. */
+type SyncApi = Pick<ApiClient, 'createMovement' | 'updateMovement' | 'deleteMovement'> &
+  Partial<GroupSyncApi>;
 
 /** Users whose pass is running in this tab: the guard for a browser without Web Locks. */
 const runningHere = new Set<string>();
@@ -116,10 +119,32 @@ async function runLocked(userId: string, api: SyncApi): Promise<SyncPassOutcome 
         changed = true;
       },
     });
-    if (hasChanged()) notifyQueueChanged();
-    if (outcome.sent > 0) notifySyncFinished();
-    planRetry(userId, api, outcome);
-    return outcome;
+    // A pass that stopped says nothing about one record, and the group records would hit the same
+    // wall: they wait for the retry. Otherwise the group queue goes in the same pass, under the same
+    // lock.
+    let merged: SyncPassOutcome = outcome;
+    let groupsChanged = false;
+    if (outcome.stopped === undefined && hasGroupApi(api)) {
+      const groups = await runGroupLocked(userId, api);
+      if (groups !== undefined) {
+        groupsChanged = groups.changed;
+        const { conflicts, ...rest } = groups.outcome;
+        merged = {
+          ...outcome,
+          sent: outcome.sent + rest.sent,
+          rejected: outcome.rejected + rest.rejected,
+          ...(rest.stopped === undefined ? {} : { stopped: rest.stopped }),
+          ...(rest.retryAfterSeconds === undefined
+            ? {}
+            : { retryAfterSeconds: rest.retryAfterSeconds }),
+          ...(conflicts > 0 ? { conflicts } : {}),
+        };
+      }
+    }
+    if (hasChanged() || groupsChanged) notifyQueueChanged();
+    if (merged.sent > 0) notifySyncFinished();
+    planRetry(userId, api, merged);
+    return merged;
   } catch {
     // Whatever went wrong, the queue is left as it was and the next trigger tries again.
     return undefined;

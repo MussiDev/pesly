@@ -51,6 +51,8 @@ export interface ExpenseChangeActivity {
 export interface UpdateGroupExpenseData {
   groupId: string;
   expenseId: string;
+  /** The version the client saw; compared with the stored one under lock (spec 04e D2). */
+  baseVersion: number;
   amount: bigint;
   occurredAt: Date;
   categoryId: string;
@@ -66,6 +68,7 @@ export interface UpdateGroupExpenseData {
 export interface DeleteGroupExpenseData {
   groupId: string;
   expenseId: string;
+  baseVersion: number;
   rateType: RateType;
   activity: ExpenseChangeActivity & { action: 'expense_deleted'; after: null };
 }
@@ -112,12 +115,16 @@ export interface GroupExpenseRepository {
    * active member, replace the fields and the shares, insert the log row with `before` taken from
    * the row read under lock (spec D10) and, when `payerMovementId` is set, call
    * `PayerMovementRecorder.update` on the same unit under the payer's own scope (spec D6). A null
-   * `payerMovementId` touches no movement. Any failure leaves nothing behind.
+   * `payerMovementId` touches no movement. Right after the row is read under lock, a `baseVersion`
+   * different from the stored `version` (older or newer) throws `GroupRecordConflictError` with the
+   * stored record and writes nothing; otherwise the version grows by 1 (spec 04e D1, D3). Any
+   * failure leaves nothing behind.
    */
   updateExpense(data: UpdateGroupExpenseData): Promise<GroupExpense>;
   /**
    * Same locks and checks as `updateExpense` with no new values: the expense and its shares go,
    * the log row is written, and `PayerMovementRecorder.remove` runs when `payerMovementId` is set.
+   * The same `baseVersion` check applies before anything is removed.
    */
   deleteExpense(data: DeleteGroupExpenseData): Promise<void>;
   listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult>;

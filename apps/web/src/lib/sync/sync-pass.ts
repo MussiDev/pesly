@@ -1,4 +1,5 @@
-import type { ApiResult } from '@/lib/api-client';
+import { isGroupRecordConflict, type ApiGroupConflict, type ApiResult } from '@/lib/api-client';
+import type { QueuedGroupChange } from '@/lib/local-store/group-queue';
 import type { QueuedMovement } from '@/lib/local-store/queue';
 
 /** How many movements are sent at the same time: enough for a long queue, gentle on the API. */
@@ -21,6 +22,8 @@ export interface SyncPassOutcome {
   rejected: number;
   stopped?: SyncStopReason;
   retryAfterSeconds?: number;
+  /** Group records someone else changed first (04e): kept apart from the rejected, never retried. */
+  conflicts?: number;
 }
 
 export interface SyncPassOptions {
@@ -43,22 +46,25 @@ const STOP_BY_CODE: Partial<Record<string, SyncStopReason>> = {
   INTERNAL: 'server-error',
 };
 
-/**
- * Sends the queued movements with a few requests in flight and decides per answer: a success
- * removes the movement, a failure that says nothing about it stops the pass, and any other failure
- * is the server refusing that movement, which is flagged and the pass goes on. The same id is sent
- * on every attempt, so a movement the server already stored is answered as a repeat, never created
- * twice; that is what makes stopping, retrying and two passes at once safe.
- */
-export async function runSyncPass({
-  items,
+interface PassCore<T> {
+  items: readonly T[];
+  send: (item: T) => Promise<ApiResult<unknown>>;
+  onSent: (item: T, data: unknown) => void | Promise<void>;
+  onRejected: (item: T, code: string) => void | Promise<void>;
+  onConflict?: (item: T, failure: ApiGroupConflict) => void | Promise<void>;
+  concurrency: number;
+}
+
+/** The loop both passes share: a few requests in flight, one decision per answer. */
+async function runPass<T>({
+  items: pending,
   send,
   onSent,
   onRejected,
-  concurrency = SYNC_CONCURRENCY,
-}: SyncPassOptions): Promise<SyncPassOutcome> {
-  const pending = items.filter((item) => item.rejection === undefined);
-  const outcome: SyncPassOutcome = { sent: 0, rejected: 0 };
+  onConflict,
+  concurrency,
+}: PassCore<T>): Promise<SyncPassOutcome & { conflicts: number }> {
+  const outcome: SyncPassOutcome & { conflicts: number } = { sent: 0, rejected: 0, conflicts: 0 };
   let next = 0;
   // A function, not the property: TypeScript would narrow `stopped` to `undefined` across the awaits.
   const isStopped = () => outcome.stopped !== undefined;
@@ -80,9 +86,9 @@ export async function runSyncPass({
       if (result.ok) {
         outcome.sent += 1;
         try {
-          await onSent(item.id, result.data);
+          await onSent(item, result.data);
         } catch {
-          // Left in the queue, the movement is sent again and the server answers it as a repeat.
+          // Left in the queue, the change is sent again and the server answers it as a repeat.
         }
         continue;
       }
@@ -98,11 +104,21 @@ export async function runSyncPass({
         return;
       }
 
+      if (onConflict !== undefined && isGroupRecordConflict(result)) {
+        outcome.conflicts += 1;
+        try {
+          await onConflict(item, result);
+        } catch {
+          // Not stored, the next pass sends it again and the server answers the conflict again.
+        }
+        continue;
+      }
+
       outcome.rejected += 1;
       try {
-        await onRejected(item.id, result.code);
+        await onRejected(item, result.code);
       } catch {
-        // Not flagged, the movement is tried again by the next pass and refused again.
+        // Not flagged, the change is tried again by the next pass and refused again.
       }
     }
   }
@@ -110,4 +126,63 @@ export async function runSyncPass({
   const workers = Math.max(1, Math.min(concurrency, pending.length));
   await Promise.all(Array.from({ length: workers }, work));
   return outcome;
+}
+
+/**
+ * Sends the queued movements with a few requests in flight and decides per answer: a success
+ * removes the movement, a failure that says nothing about it stops the pass, and any other failure
+ * is the server refusing that movement, which is flagged and the pass goes on. The same id is sent
+ * on every attempt, so a movement the server already stored is answered as a repeat, never created
+ * twice; that is what makes stopping, retrying and two passes at once safe.
+ */
+export async function runSyncPass({
+  items,
+  send,
+  onSent,
+  onRejected,
+  concurrency = SYNC_CONCURRENCY,
+}: SyncPassOptions): Promise<SyncPassOutcome> {
+  const outcome: SyncPassOutcome = await runPass<QueuedMovement>({
+    items: items.filter((item) => item.rejection === undefined),
+    send,
+    onSent: (item, data) => onSent(item.id, data),
+    onRejected: (item, code) => onRejected(item.id, code),
+    concurrency,
+  });
+  delete outcome.conflicts;
+  return outcome;
+}
+
+export interface GroupSyncPassOptions {
+  /** The queue, oldest first; the ones flagged as rejected or in conflict are skipped. */
+  items: readonly QueuedGroupChange[];
+  send: (item: QueuedGroupChange) => Promise<ApiResult<unknown>>;
+  onSent: (item: QueuedGroupChange, data: unknown) => void | Promise<void>;
+  onRejected: (item: QueuedGroupChange, code: string) => void | Promise<void>;
+  /** The record changed on the server first: keep its copy next to the local change. */
+  onConflict: (item: QueuedGroupChange, failure: ApiGroupConflict) => void | Promise<void>;
+  concurrency?: number;
+}
+
+/**
+ * The same decisions for group record changes, plus one: a conflict answer is stored and the pass
+ * goes on, and a record in conflict is skipped by every later pass until the person resolves it
+ * (FR-01). Its outcome always carries `conflicts`.
+ */
+export function runGroupSyncPass({
+  items,
+  send,
+  onSent,
+  onRejected,
+  onConflict,
+  concurrency = SYNC_CONCURRENCY,
+}: GroupSyncPassOptions): Promise<SyncPassOutcome & { conflicts: number }> {
+  return runPass<QueuedGroupChange>({
+    items: items.filter((item) => item.rejection === undefined && item.conflict === undefined),
+    send,
+    onSent,
+    onRejected,
+    onConflict,
+    concurrency,
+  });
 }

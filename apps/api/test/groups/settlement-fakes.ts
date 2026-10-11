@@ -29,6 +29,7 @@ import {
   type SettlementAccountChecker,
   type UpdateGroupSettlementData,
 } from '../../src/groups';
+import { GroupRecordConflictError } from '../../src/groups/domain/errors';
 import { ResourceNotFound } from '../../src/shared/access';
 import type { InMemoryGroupExpenseRepository } from './expense-fakes';
 import { InMemoryGroupRepository } from './fakes';
@@ -166,6 +167,7 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
       rateSource: data.rate?.source ?? null,
       rateType: data.rate?.type ?? null,
       createdAt: data.activity.createdAt,
+      version: 1,
     };
     if (this.failAfterLegs) throw new Error('forced failure');
     this.settlements.push(settlement);
@@ -195,6 +197,9 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
     );
     const stored = this.settlements[index];
     if (stored === undefined) throw new ResourceNotFound();
+    if (data.baseVersion !== stored.version) {
+      throw new GroupRecordConflictError({ kind: 'settlement', current: stored }, data.baseVersion);
+    }
     if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
     // What the request did not name comes from the row read under lock, like the adapter.
     const amount = data.amount ?? stored.amount;
@@ -213,6 +218,7 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
       amount,
       occurredAt: data.occurredAt ?? stored.occurredAt,
       legs,
+      version: stored.version + 1,
     };
     if (this.failAfterLegs) throw new Error('forced failure');
     this.expenses.ledger.applySettlement(stored, -1n);
@@ -233,6 +239,9 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
     );
     const stored = this.settlements[index];
     if (stored === undefined) throw new ResourceNotFound();
+    if (data.baseVersion !== stored.version) {
+      throw new GroupRecordConflictError({ kind: 'settlement', current: stored }, data.baseVersion);
+    }
     assertChangedMembersActive(
       settlementChangedMembers(stored, null),
       this.activeIds(data.groupId),

@@ -3,9 +3,10 @@ import { isWipePending } from './wipe-marker';
 
 /**
  * Version 1 had the two object stores and the index the list needs; version 2 adds the queue of
- * movements saved without a connection. The upgrade keeps everything that version 1 stored.
+ * movements saved without a connection; version 3 adds the queue of changes to group expenses and
+ * settlements. Each upgrade keeps everything the previous version stored.
  */
-export const DATABASE_VERSION = 2;
+export const DATABASE_VERSION = 3;
 
 /** Out-of-line keys such as `accounts` or `tags`: one value per kind of reference data. */
 export const REFERENCE_STORE = 'reference';
@@ -19,7 +20,16 @@ export const OCCURRED_AT_INDEX = 'occurredAt';
 export const QUEUE_STORE = 'queue';
 export const QUEUE_CREATED_AT_INDEX = 'createdAt';
 
-export type StoreName = typeof REFERENCE_STORE | typeof MOVEMENTS_STORE | typeof QUEUE_STORE;
+/**
+ * Changes to existing group expenses and settlements saved on the device and not yet sent, keyed by
+ * `<kind>:<id>` (an expense and a settlement never share a record). Apart from `queue` on purpose:
+ * personal movements and group records have different contracts.
+ */
+export const GROUP_QUEUE_STORE = 'groupQueue';
+export const GROUP_QUEUE_CREATED_AT_INDEX = 'createdAt';
+
+export type StoreName =
+  typeof REFERENCE_STORE | typeof MOVEMENTS_STORE | typeof QUEUE_STORE | typeof GROUP_QUEUE_STORE;
 
 /** IndexedDB is missing or refused to open (a private window, an old browser, a blocked upgrade). */
 export class LocalStoreUnavailable extends Error {
@@ -66,6 +76,10 @@ export async function openLocalDatabase(userId: string): Promise<IDBDatabase> {
       if (!database.objectStoreNames.contains(QUEUE_STORE)) {
         const queue = database.createObjectStore(QUEUE_STORE, { keyPath: 'id' });
         queue.createIndex(QUEUE_CREATED_AT_INDEX, QUEUE_CREATED_AT_INDEX);
+      }
+      if (!database.objectStoreNames.contains(GROUP_QUEUE_STORE)) {
+        const groupQueue = database.createObjectStore(GROUP_QUEUE_STORE, { keyPath: 'key' });
+        groupQueue.createIndex(GROUP_QUEUE_CREATED_AT_INDEX, GROUP_QUEUE_CREATED_AT_INDEX);
       }
     };
     request.onsuccess = () => {

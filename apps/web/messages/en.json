@@ -398,6 +398,7 @@
     "groupSettlementStale": "The balances changed since you reviewed them. Review them again.",
     "groupRecordEditForbidden": "Only the person who recorded this, or a group admin, can change or delete it.",
     "groupRecordFormerMember": "This record involves someone who left the group, so it cannot be changed or deleted.",
+    "groupRecordConflict": "This record was changed by someone else. Review both versions and choose one.",
     "groupSettlementConsolidated": "A combined payment cannot be edited. Delete it and record it again.",
     "groupActivityLogImmutable": "The activity log cannot be changed.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
@@ -1416,6 +1417,32 @@
       "endBeforeStart": "The end date cannot be before the start date.",
       "modeRequired": "Choose how it is recorded.",
       "reminderDaysInvalid": "Enter a whole number of days from 0 to 30."
+    }
+  },
+  "groupConflict": {
+    "titleExpense": "This expense changed while you were offline",
+    "titleSettlement": "This settlement changed while you were offline",
+    "description": "Someone else changed it before your change reached the server. Choose which version to keep.",
+    "mine": "Mine",
+    "server": "Server's",
+    "keepMine": "Keep mine",
+    "keepServer": "Keep server's",
+    "differs": "(differs)",
+    "deleted": "You deleted this record",
+    "unknownCategory": "Unknown category",
+    "unknownMember": "Unknown member",
+    "error": "We could not apply your choice. Both versions are still here; try again.",
+    "fields": {
+      "amount": "Amount",
+      "date": "Date",
+      "category": "Category",
+      "description": "Description",
+      "split": "Split"
+    },
+    "splitModes": {
+      "equal": "Equal split",
+      "percentage": "Percentages",
+      "exact": "Exact amounts"
     }
   }
 }

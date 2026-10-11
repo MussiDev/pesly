@@ -246,7 +246,7 @@ describe('local store', () => {
     const store = await openLocalStore(ANA);
 
     await new Promise<void>((resolve, reject) => {
-      const request = indexedDB.open(`pesly-${ANA}`, 3);
+      const request = indexedDB.open(`pesly-${ANA}`, 4);
       request.onupgradeneeded = () => undefined;
       request.onblocked = () => {
         reject(new Error('the upgrade was blocked by an open connection'));

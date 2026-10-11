@@ -60,6 +60,7 @@ const STATUS_BY_CODE: Record<ErrorCode, number> = {
   GROUP_LAST_ADMIN: 409,
   GROUP_SETTLEMENT_STALE: 409,
   GROUP_RECORD_EDIT_FORBIDDEN: 403,
+  GROUP_RECORD_CONFLICT: 409,
   GROUP_RECORD_FORMER_MEMBER: 409,
   GROUP_SETTLEMENT_CONSOLIDATED: 409,
   GROUP_ACTIVITY_LOG_IMMUTABLE: 405,
@@ -76,6 +77,20 @@ export class HttpError extends AppError {
   constructor(status: number, code: ErrorCode, fields?: string[]) {
     super(code, code, fields);
     this.status = status;
+  }
+}
+
+/**
+ * An error whose body carries structured `details` (an object, not the string map of
+ * `ErrorResponse`), such as the server record of a `GROUP_RECORD_CONFLICT` (spec 04e D3). The
+ * route builds `details` from a typed presenter; the handler only echoes it.
+ */
+export class StructuredDetailsError extends AppError {
+  constructor(
+    code: ErrorCode,
+    readonly structuredDetails: Readonly<Record<string, unknown>>,
+  ) {
+    super(code);
   }
 }
 
@@ -97,18 +112,22 @@ function isBodyParserError(error: unknown): error is BodyParserError {
   );
 }
 
+/** `ErrorResponse` with `details` widened for the one family of errors that nests an object. */
+type ErrorBody = Omit<ErrorResponse, 'details'> & { details?: Readonly<Record<string, unknown>> };
+
 interface MappedError {
   status: number;
-  body: ErrorResponse;
+  body: ErrorBody;
   retryAfterSeconds?: number;
 }
 
 function mapError(error: unknown): MappedError {
   if (error instanceof AppError) {
     const status = error instanceof HttpError ? error.status : STATUS_BY_CODE[error.code];
-    const body: ErrorResponse = { code: error.code };
+    const body: ErrorBody = { code: error.code };
     if (error.fields) body.fields = [...error.fields];
     if (error.details) body.details = { ...error.details };
+    if (error instanceof StructuredDetailsError) body.details = error.structuredDetails;
     return error instanceof RetryableError
       ? { status, body, retryAfterSeconds: error.retryAfterSeconds }
       : { status, body };

@@ -22,6 +22,7 @@ import {
   type GroupExpenseShare,
   type PersonalShare,
 } from '../../domain/group-expense';
+import { GroupRecordConflictError } from '../../domain/errors';
 import {
   assertChangedMembersActive,
   expenseChangedMembers,
@@ -65,6 +66,7 @@ const expenseColumns = {
   splitMode: groupExpenses.splitMode,
   payerMovementId: groupExpenses.payerMovementId,
   createdAt: groupExpenses.createdAt,
+  version: groupExpenses.version,
 };
 
 type ExpenseRow = typeof groupExpenses.$inferSelect;
@@ -215,6 +217,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           data.expenseId,
           data.activity.memberId,
           data.shares.map((share) => share.memberId),
+          data.baseVersion,
         );
         const { stored, payerUserId } = locked;
         const newShares = data.shares.map((share) => ({
@@ -236,6 +239,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
             categoryId: data.categoryId,
             description: data.description,
             splitMode: data.splitMode,
+            version: sql`${groupExpenses.version} + 1`,
           })
           .where(eq(groupExpenses.id, stored.id))
           .returning(expenseColumns);
@@ -297,6 +301,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           data.expenseId,
           data.activity.memberId,
           [],
+          data.baseVersion,
         );
         assertChangedMembersActive(
           expenseChangedMembers(
@@ -344,6 +349,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     expenseId: string,
     actorMemberId: string,
     extraMemberIds: readonly string[],
+    baseVersion: number,
   ): Promise<{
     stored: GroupExpense;
     payerUserId: string | null;
@@ -382,6 +388,11 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     if (members.length !== wanted.length) throw new GroupSplitMemberInvalid();
     if (!members.some((member) => member.id === actorMemberId && member.leftAt === null)) {
       throw new ResourceNotFound();
+    }
+    // After the record and the acting member are known (a conflict never reveals a record the
+    // caller cannot touch) and before any write: an older or newer version is refused (spec 04e D3).
+    if (baseVersion !== stored.version) {
+      throw new GroupRecordConflictError({ kind: 'expense', current: stored }, baseVersion);
     }
     return {
       stored,

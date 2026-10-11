@@ -8,6 +8,7 @@ import {
   type NewGroupExpense,
   type UpdateGroupExpenseData,
 } from '../../src/groups';
+import { GroupRecordConflictError } from '../../src/groups/domain/errors';
 import { DrizzleGroupExpenseRepository } from '../../src/groups/infrastructure/db/drizzle-group-expense-repository';
 import { DrizzleGroupRepository } from '../../src/groups/infrastructure/db/drizzle-group-repository';
 import { DrizzlePayerMovementRecorder } from '../../src/groups/infrastructure/movements/drizzle-payer-movement-recorder';
@@ -172,6 +173,7 @@ function updateOf(
   return {
     groupId: w.groupId,
     expenseId,
+    baseVersion: overrides.baseVersion ?? 1,
     amount,
     occurredAt,
     categoryId,
@@ -196,10 +198,16 @@ function updateOf(
   };
 }
 
-function deleteOf(w: World, expenseId: string, before: ExpenseSnapshot): DeleteGroupExpenseData {
+function deleteOf(
+  w: World,
+  expenseId: string,
+  before: ExpenseSnapshot,
+  baseVersion = 1,
+): DeleteGroupExpenseData {
   return {
     groupId: w.groupId,
     expenseId,
+    baseVersion,
     rateType: 'mep',
     activity: {
       action: 'expense_deleted',
@@ -608,14 +616,28 @@ describe('updateExpense', () => {
     },
   );
 
-  it('serialises two concurrent edits of one expense and chains their before values', async () => {
+  it('serialises two concurrent edits on the same version: one applies, one conflicts, and the retry chains their before values', async () => {
     const w = await newWorld();
     const { saved, before } = await stored(w, expenseOf(w));
+    expect(saved.version).toBe(1);
 
-    await Promise.all([
+    const outcomes = await Promise.allSettled([
       repository.updateExpense(updateOf(w, saved.id, before, { description: 'Primera' })),
       repository.updateExpense(updateOf(w, saved.id, before, { description: 'Segunda' })),
     ]);
+
+    expect(outcomes.filter((o) => o.status === 'fulfilled')).toHaveLength(1);
+    const lost = outcomes.find((o) => o.status === 'rejected');
+    expect(lost?.reason).toBeInstanceOf(GroupRecordConflictError);
+    expect((await repository.getExpense(w.groupId, saved.id))?.version).toBe(2);
+    const loserIndex = outcomes[0].status === 'rejected' ? 0 : 1;
+    await repository.updateExpense(
+      updateOf(w, saved.id, before, {
+        description: loserIndex === 0 ? 'Primera' : 'Segunda',
+        baseVersion: 2,
+      }),
+    );
+    expect((await repository.getExpense(w.groupId, saved.id))?.version).toBe(3);
 
     const rows = await logRows(w.groupId, 'expense_updated');
     expect(rows).toHaveLength(2);

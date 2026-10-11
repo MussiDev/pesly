@@ -412,8 +412,8 @@ All notable changes to this project are documented in this file. The format foll
   Migration `0028_group_settlements` adds two tables and `group_members.left_at`. Editing and deleting
   settlements and the log view arrive in DISC-001-05d, the group screens in a later ticket. No new dependency.
 - DISC-001-05d Group record editing and activity log: the member who recorded a group expense or settlement, or
-  an admin, can edit or delete it (`PUT` and `DELETE /groups/:id/expenses/:expenseId`, `PATCH` and `DELETE
-  /groups/:id/settlements/:settlementId`); anyone else gets 403. An expense edit replaces amount, date, category,
+  an admin, can edit or delete it (`PUT` and `DELETE` on `/groups/:id/expenses/:expenseId`, `PATCH` and
+  `DELETE` on `/groups/:id/settlements/:settlementId`); anyone else gets 403. An expense edit replaces amount, date, category,
   description and split with the creation rules (currency and payer are not editable), a settlement edit changes
   its amount and date (a consolidated one can only be deleted), balances are recomputed from the stored rows and
   the payer's account movement follows the expense in the same transaction. An edit or deletion that would change
@@ -423,6 +423,16 @@ All notable changes to this project are documented in this file. The format foll
   entry routes answer 405. Non-members get 404 everywhere. Migration `0030_group_activity_log_changes` adds two
   `jsonb` columns, a check and the trigger. Completing it unblocks DISC-001-04e (conflicts on group movements);
   the group screens arrive in a later ticket. No new dependency.
+- DISC-001-04e Conflicts on group movements: every group expense and settlement carries a `version` that grows
+  with each change, and editing or deleting one requires the `baseVersion` it was based on (`PUT` and `PATCH`
+  body, `DELETE` query). A change made on an older version is not applied: the API answers 409
+  `GROUP_RECORD_CONFLICT` with the server record in `details.current`, writes nothing and adds no log entry, so
+  the other members keep seeing the server version. On the device, changes to existing group records queue in
+  a new `groupQueue` store, a conflict becomes a fourth sync state, and the user keeps either version in one
+  atomic local step ("keep mine" resends on the new version); a repeat of an edit the server already applied is
+  settled without a conflict, except for percentage splits. Migration `0031_group_record_version` adds a
+  `version` column with a check to two tables. Offline creation of group expenses stays online-only and the
+  group screens arrive in a later ticket. No new dependency.
 
 ### Changed
 

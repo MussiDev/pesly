@@ -79,6 +79,7 @@ export function updateExpenseBody(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
   return {
+    baseVersion: 1,
     amount: '6000000',
     occurredAt: OCCURRED_AT,
     categoryId: w.categoryId,

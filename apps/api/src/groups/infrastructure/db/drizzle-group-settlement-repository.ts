@@ -18,6 +18,7 @@ import {
   type SettlementEffect,
 } from '../../domain/group-change';
 import {
+  GroupRecordConflictError,
   GroupRecordFormerMember,
   GroupSettlementAccountInvalid,
   GroupSettlementConsolidated,
@@ -82,6 +83,7 @@ const settlementColumns = {
   rateSource: groupSettlements.rateSource,
   rateType: groupSettlements.rateType,
   createdAt: groupSettlements.createdAt,
+  version: groupSettlements.version,
 };
 
 type SettlementRow = typeof groupSettlements.$inferSelect;
@@ -242,12 +244,17 @@ async function lockAndLoad(
   groupId: string,
   settlementId: string,
   actorMemberId: string,
+  baseVersion: number,
 ): Promise<GroupSettlement> {
   await lockGroup(tx, groupId, 'update');
   // The acting member must still be active, or the answer is 404 like a non-member.
   if (!(await allActiveMembers(tx, groupId, [actorMemberId]))) throw new ResourceNotFound();
   const stored = await readSettlement(tx, groupId, settlementId);
   if (stored === null) throw new ResourceNotFound();
+  // Still before any write: an older or newer version is refused (spec 04e D3).
+  if (baseVersion !== stored.version) {
+    throw new GroupRecordConflictError({ kind: 'settlement', current: stored }, baseVersion);
+  }
   return stored;
 }
 
@@ -349,6 +356,7 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
           data.groupId,
           data.settlementId,
           data.activity.memberId,
+          data.baseVersion,
         );
         if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
         // What the request did not name is what the lock just read, never an earlier read.
@@ -365,7 +373,7 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
         }
         const [row] = await tx
           .update(groupSettlements)
-          .set({ amount, occurredAt })
+          .set({ amount, occurredAt, version: sql`${groupSettlements.version} + 1` })
           .where(
             and(
               eq(groupSettlements.id, data.settlementId),
@@ -410,6 +418,7 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
           data.groupId,
           data.settlementId,
           data.activity.memberId,
+          data.baseVersion,
         );
         const changed = settlementChangedMembers(effectOf(stored), null);
         if (!(await allActiveMembers(tx, data.groupId, changed))) {

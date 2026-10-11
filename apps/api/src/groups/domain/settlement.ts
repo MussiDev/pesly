@@ -36,6 +36,8 @@ export interface GroupSettlement {
   rateSource: SettlementRateSource | null;
   rateType: RateType | null;
   createdAt: Date;
+  /** Starts at 1 and grows by 1 with every change (spec 04e D1). */
+  version: number;
 }
 
 /** The rate a consolidated settlement stores: `automatic` carries its type, `manual` has none. */

@@ -27,7 +27,12 @@ export class DeleteGroupExpense {
    * The author or an admin (spec D1). Refuses with 409 when a member who left paid or holds a
    * share, since deleting would give them a balance (D5). The log row keeps the values it had.
    */
-  async execute(userId: string, groupId: string, expenseId: string): Promise<void> {
+  async execute(
+    userId: string,
+    groupId: string,
+    expenseId: string,
+    baseVersion: number,
+  ): Promise<void> {
     const caller = await this.access.member(userId, groupId);
     const expense = await this.deps.expenses.getExpense(groupId, expenseId);
     if (expense === null) throw new ResourceNotFound();
@@ -43,6 +48,7 @@ export class DeleteGroupExpense {
     await this.deps.expenses.deleteExpense({
       groupId,
       expenseId,
+      baseVersion,
       rateType: detail.group.defaultRateType,
       activity: {
         action: 'expense_deleted',

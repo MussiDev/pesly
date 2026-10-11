@@ -4,6 +4,8 @@ import {
   addGhostMemberRequestSchema,
   balancesResponseSchema,
   listActivityQuerySchema,
+  deleteGroupExpenseQuerySchema,
+  deleteSettlementQuerySchema,
   updateGroupExpenseRequestSchema,
   updateSettlementRequestSchema,
   consolidationPreviewSchema,
@@ -43,7 +45,7 @@ import { z } from 'zod';
 import type { RouterFactory } from '../../../app';
 import type { Database } from '../../../shared/db/client';
 import type { AuthContext } from '../../../shared/http/auth-context';
-import { HttpError } from '../../../shared/http/error-handler';
+import { HttpError, StructuredDetailsError } from '../../../shared/http/error-handler';
 import { requireVerifiedEmail } from '../../../shared/http/require-verified-email';
 import { validate } from '../../../shared/http/validate';
 import type { Logger } from '../../../shared/logging/logger';
@@ -51,6 +53,7 @@ import { AddGhostMember } from '../../application/add-ghost-member';
 import { ClaimGhostMember } from '../../application/claim-ghost-member';
 import { CreateClaimLink } from '../../application/create-claim-link';
 import { CreateGroup } from '../../application/create-group';
+import { GroupRecordConflictError } from '../../domain/errors';
 import { DeleteGroupExpense } from '../../application/delete-group-expense';
 import { DeleteSettlement } from '../../application/delete-settlement';
 import { GroupAccess } from '../../application/group-access';
@@ -189,6 +192,43 @@ export function createGroupRoutes({
     extra: { expenseId?: string; settlementId?: string; memberId?: string } = {},
   ): void => {
     logger.info({ requestId, userId: auth?.userId, groupId, ...extra }, message);
+  };
+
+  /**
+   * Runs a change and turns a version conflict into the 409 of spec 04e D3: the record as the
+   * server holds it goes in `details.current`, the same body a GET answers. The audit line carries
+   * ids and both versions only; never an amount or a description.
+   */
+  const withConflictBody = async <T>(
+    requestId: string,
+    auth: AuthContext | undefined,
+    groupId: string,
+    run: () => Promise<T>,
+  ): Promise<T> => {
+    try {
+      return await run();
+    } catch (error) {
+      if (!(error instanceof GroupRecordConflictError)) throw error;
+      const { record } = error;
+      logger.info(
+        {
+          requestId,
+          userId: auth?.userId,
+          groupId,
+          ...(record.kind === 'expense'
+            ? { expenseId: record.current.id }
+            : { settlementId: record.current.id }),
+          baseVersion: error.baseVersion,
+          storedVersion: error.storedVersion,
+        },
+        'group record conflict',
+      );
+      const current =
+        record.kind === 'expense'
+          ? presentGroupExpense(record.current)
+          : presentSettlement(record.current);
+      throw new StructuredDetailsError(error.code, { current });
+    }
   };
 
   return ({ requireSession }) => {
@@ -434,11 +474,8 @@ export function createGroupRoutes({
           response: groupExpenseResponseSchema,
         },
         async ({ params, body }, { res, auth, requestId }) => {
-          const expense = await updateExpense.execute(
-            userIdOf(auth),
-            params.id,
-            params.expenseId,
-            body,
+          const expense = await withConflictBody(requestId, auth, params.id, () =>
+            updateExpense.execute(userIdOf(auth), params.id, params.expenseId, body),
           );
           audit('group expense updated', requestId, auth, params.id, { expenseId: expense.id });
           res.json(presentGroupExpense(expense));
@@ -448,13 +485,23 @@ export function createGroupRoutes({
 
     router.delete(
       '/groups/:id/expenses/:expenseId',
-      validate({ params: groupExpenseParamsSchema }, async ({ params }, ctx) => {
-        await deleteExpense.execute(userIdOf(ctx.auth), params.id, params.expenseId);
-        audit('group expense deleted', ctx.requestId, ctx.auth, params.id, {
-          expenseId: params.expenseId,
-        });
-        ctx.res.sendStatus(204);
-      }),
+      validate(
+        { params: groupExpenseParamsSchema, query: deleteGroupExpenseQuerySchema },
+        async ({ params, query }, ctx) => {
+          await withConflictBody(ctx.requestId, ctx.auth, params.id, () =>
+            deleteExpense.execute(
+              userIdOf(ctx.auth),
+              params.id,
+              params.expenseId,
+              query.baseVersion,
+            ),
+          );
+          audit('group expense deleted', ctx.requestId, ctx.auth, params.id, {
+            expenseId: params.expenseId,
+          });
+          ctx.res.sendStatus(204);
+        },
+      ),
     );
 
     router.get(
@@ -557,11 +604,8 @@ export function createGroupRoutes({
           response: settlementResponseSchema,
         },
         async ({ params, body }, { res, auth, requestId }) => {
-          const settlement = await updateSettlement.execute(
-            userIdOf(auth),
-            params.id,
-            params.settlementId,
-            body,
+          const settlement = await withConflictBody(requestId, auth, params.id, () =>
+            updateSettlement.execute(userIdOf(auth), params.id, params.settlementId, body),
           );
           audit('group settlement updated', requestId, auth, params.id, {
             settlementId: settlement.id,
@@ -573,13 +617,23 @@ export function createGroupRoutes({
 
     router.delete(
       '/groups/:id/settlements/:settlementId',
-      validate({ params: groupSettlementParamsSchema }, async ({ params }, ctx) => {
-        await deleteSettlement.execute(userIdOf(ctx.auth), params.id, params.settlementId);
-        audit('group settlement deleted', ctx.requestId, ctx.auth, params.id, {
-          settlementId: params.settlementId,
-        });
-        ctx.res.sendStatus(204);
-      }),
+      validate(
+        { params: groupSettlementParamsSchema, query: deleteSettlementQuerySchema },
+        async ({ params, query }, ctx) => {
+          await withConflictBody(ctx.requestId, ctx.auth, params.id, () =>
+            deleteSettlement.execute(
+              userIdOf(ctx.auth),
+              params.id,
+              params.settlementId,
+              query.baseVersion,
+            ),
+          );
+          audit('group settlement deleted', ctx.requestId, ctx.auth, params.id, {
+            settlementId: params.settlementId,
+          });
+          ctx.res.sendStatus(204);
+        },
+      ),
     );
 
     router.get(

@@ -36,11 +36,16 @@ describe('edit and delete audit trail (AC-08, AC-09)', () => {
     );
     expect(edit.status).toBe(200);
     const patch = await call(w.api.app, 'patch', settlementPath, w.bob.cookies, {
+      baseVersion: 1,
       amount: '7654323',
     });
     expect(patch.status).toBe(200);
-    expect((await call(w.api.app, 'delete', settlementPath, w.bob.cookies)).status).toBe(204);
-    expect((await call(w.api.app, 'delete', expensePath, w.bob.cookies)).status).toBe(204);
+    expect(
+      (await call(w.api.app, 'delete', `${settlementPath}?baseVersion=2`, w.bob.cookies)).status,
+    ).toBe(204);
+    expect(
+      (await call(w.api.app, 'delete', `${expensePath}?baseVersion=2`, w.bob.cookies)).status,
+    ).toBe(204);
 
     const lines = w.api.logLines();
     const expected: [string, string][] = [
@@ -75,7 +80,7 @@ describe('edit and delete audit trail (AC-08, AC-09)', () => {
     const response = await call(
       w.api.app,
       'delete',
-      `/groups/${w.groupId}/expenses/${expense.id}`,
+      `/groups/${w.groupId}/expenses/${expense.id}?baseVersion=1`,
       w.carol.cookies,
     );
 
