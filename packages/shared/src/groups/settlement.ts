@@ -63,6 +63,22 @@ export const createSettlementRequestSchema = z.discriminatedUnion('kind', [
 
 export type CreateSettlementRequest = z.infer<typeof createSettlementRequestSchema>;
 
+/**
+ * `PATCH /groups/:id/settlements/:settlementId` (spec D2): a partial update of a plain settlement's
+ * amount and date; parties, currency and account are fixed. Whether the settlement is consolidated
+ * is checked by the use case.
+ */
+export const updateSettlementRequestSchema = z
+  .strictObject({
+    amount: movementAmountSchema.optional(),
+    occurredAt: occurredAtSchema.optional(),
+  })
+  .refine((request) => request.amount !== undefined || request.occurredAt !== undefined, {
+    message: 'Send at least one of amount or occurredAt',
+  });
+
+export type UpdateSettlementRequest = z.infer<typeof updateSettlementRequestSchema>;
+
 /** `GET /groups/:id/settlements/consolidation`. */
 export const consolidationQuerySchema = z
   .strictObject({

@@ -104,7 +104,7 @@ export function isTooFarAhead(occurredAt: Date, now: Date): boolean {
 export function orderSplitMembers(
   payerMemberId: string,
   splitMemberIds: readonly string[],
-  members: readonly Member[],
+  members: readonly Pick<Member, 'id' | 'joinedAt'>[],
 ): string[] {
   const inSplit = new Set(splitMemberIds);
   const rest = members

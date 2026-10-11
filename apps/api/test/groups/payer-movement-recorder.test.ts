@@ -194,3 +194,144 @@ describe('record', () => {
     ).rejects.toBeInstanceOf(RateRequired);
   });
 });
+
+describe('update', () => {
+  async function recorded() {
+    const { userId, accountId, categoryId } = await world();
+    const { id } = await connection.db.transaction((tx) =>
+      recorder.record(tx, {
+        userId,
+        accountId,
+        categoryId,
+        amount: 4_000_000n,
+        occurredAt: new Date('2026-10-09T15:00:00.000Z'),
+        note: 'Supermercado',
+        rateType: 'mep',
+      }),
+    );
+    return { userId, accountId, categoryId, id };
+  }
+
+  it('rewrites amount, date and note on the same account and category and keeps the frozen rate', async () => {
+    const { userId, accountId, categoryId, id } = await recorded();
+    await connection.pool.query('delete from exchange_rates');
+
+    await connection.db.transaction((tx) =>
+      recorder.update(tx, {
+        userId,
+        movementId: id,
+        amount: 5_500_000n,
+        occurredAt: new Date('2026-10-08T10:00:00.000Z'),
+        note: 'Verduleria',
+        rateType: 'blue',
+      }),
+    );
+
+    const row = await storedMovement(id);
+    expect(row).toMatchObject({
+      account_id: accountId,
+      category_id: categoryId,
+      amount: '5500000',
+      note: 'Verduleria',
+      rate: '13000000',
+      rate_type: 'mep',
+    });
+    expect(row?.occurred_at.toISOString()).toBe('2026-10-08T10:00:00.000Z');
+  });
+
+  it('clamps a date one day ahead to the end of today in the payer time zone', async () => {
+    const { userId, id } = await recorded();
+
+    await connection.db.transaction((tx) =>
+      recorder.update(tx, {
+        userId,
+        movementId: id,
+        amount: 100n,
+        occurredAt: new Date(NOW.getTime() + 24 * 60 * 60 * 1000),
+        note: 'Mañana',
+        rateType: 'mep',
+      }),
+    );
+
+    expect((await storedMovement(id))?.occurred_at.toISOString()).toBe('2026-10-11T02:59:59.999Z');
+  });
+
+  it('does nothing and does not fail for a missing movement', async () => {
+    const { userId } = await world();
+
+    await expect(
+      connection.db.transaction((tx) =>
+        recorder.update(tx, {
+          userId,
+          movementId: '00000000-0000-4000-8000-000000000000',
+          amount: 100n,
+          occurredAt: NOW,
+          note: 'x',
+          rateType: 'mep',
+        }),
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it('does not touch a movement of another user (404 as missing)', async () => {
+    const { id } = await recorded();
+    const stranger = await world();
+
+    await connection.db.transaction((tx) =>
+      recorder.update(tx, {
+        userId: stranger.userId,
+        movementId: id,
+        amount: 1n,
+        occurredAt: NOW,
+        note: 'hijack',
+        rateType: 'mep',
+      }),
+    );
+
+    expect((await storedMovement(id))?.amount).toBe('4000000');
+  });
+});
+
+describe('remove', () => {
+  it('deletes the movement under the payer scope', async () => {
+    const { userId, accountId, categoryId } = await world();
+    const { id } = await connection.db.transaction((tx) =>
+      recorder.record(tx, {
+        userId,
+        accountId,
+        categoryId,
+        amount: 100n,
+        occurredAt: NOW,
+        note: 'x',
+        rateType: 'mep',
+      }),
+    );
+
+    await connection.db.transaction((tx) => recorder.remove(tx, { userId, movementId: id }));
+
+    expect(await storedMovement(id)).toBeUndefined();
+  });
+
+  it('does nothing for a missing movement and keeps a movement of another user', async () => {
+    const { userId, accountId, categoryId } = await world();
+    const stranger = await world();
+    const { id } = await connection.db.transaction((tx) =>
+      recorder.record(tx, {
+        userId,
+        accountId,
+        categoryId,
+        amount: 100n,
+        occurredAt: NOW,
+        note: 'x',
+        rateType: 'mep',
+      }),
+    );
+
+    await connection.db.transaction(async (tx) => {
+      await recorder.remove(tx, { userId, movementId: '00000000-0000-4000-8000-000000000000' });
+      await recorder.remove(tx, { userId: stranger.userId, movementId: id });
+    });
+
+    expect(await storedMovement(id)).toBeDefined();
+  });
+});

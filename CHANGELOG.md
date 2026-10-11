@@ -411,6 +411,18 @@ All notable changes to this project are documented in this file. The format foll
   keeps them under "Former member", and each settlement adds a creation entry to the group activity log.
   Migration `0028_group_settlements` adds two tables and `group_members.left_at`. Editing and deleting
   settlements and the log view arrive in DISC-001-05d, the group screens in a later ticket. No new dependency.
+- DISC-001-05d Group record editing and activity log: the member who recorded a group expense or settlement, or
+  an admin, can edit or delete it (`PUT` and `DELETE /groups/:id/expenses/:expenseId`, `PATCH` and `DELETE
+  /groups/:id/settlements/:settlementId`); anyone else gets 403. An expense edit replaces amount, date, category,
+  description and split with the creation rules (currency and payer are not editable), a settlement edit changes
+  its amount and date (a consolidated one can only be deleted), balances are recomputed from the stored rows and
+  the payer's account movement follows the expense in the same transaction. An edit or deletion that would change
+  the balance of a member who left answers 409. Every edit and deletion writes a log entry with the values before
+  and after (amounts as integer strings), and `GET /groups/:id/activity` shows the log, newest first and paginated,
+  to every member; a database trigger forbids updating or deleting log rows while the group exists and the log
+  entry routes answer 405. Non-members get 404 everywhere. Migration `0030_group_activity_log_changes` adds two
+  `jsonb` columns, a check and the trigger. Completing it unblocks DISC-001-04e (conflicts on group movements);
+  the group screens arrive in a later ticket. No new dependency.
 
 ### Changed
 

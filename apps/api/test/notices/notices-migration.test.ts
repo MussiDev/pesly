@@ -42,8 +42,9 @@ afterAll(async () => {
 
 const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`, 'utf8');
 
-/** 0029, 0028, 0027 and 0026 have a greater journal `when`, so they go first: the migrator replays only what is newer. */
+/** 0030, 0029, 0028, 0027 and 0026 have a greater journal `when`, so they go first: the migrator replays only what is newer. */
 async function rollBackNewerThan0025(): Promise<void> {
+  await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
   await client.query(await fileOf('rollback/0029_card_automatic_debit.down.sql'));
   await client.query(await fileOf('rollback/0028_group_settlements.down.sql'));
   await client.query(await fileOf('rollback/0027_group_expenses.down.sql'));
@@ -203,7 +204,7 @@ describe('0025_notices migration', () => {
 
     expect(await paymentColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticesTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 5);
+    expect(await appliedMigrations()).toBe(countBefore - 6);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await paymentColumns()).toEqual(before);

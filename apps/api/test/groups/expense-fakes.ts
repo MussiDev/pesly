@@ -1,5 +1,25 @@
 import { randomUUID } from 'node:crypto';
 import type {
+  AccountCurrency,
+  ExpenseSnapshot,
+  GroupActivityAction,
+  SettlementSnapshot,
+} from '@pesly/shared';
+import {
+  assertChangedMembersActive,
+  expenseChangedMembers,
+  expenseSnapshot,
+  type BalanceSources,
+  type BalanceSourcesByCurrency,
+  type DeleteGroupExpenseData,
+  type GroupSettlement,
+  type Member,
+  type PayerMovementRemoval,
+  type PayerMovementUpdate,
+  type UpdateGroupExpenseData,
+} from '../../src/groups';
+import { ResourceNotFound } from '../../src/shared/access';
+import type {
   DefaultSplit,
   GroupExpense,
   GroupExpensePageResult,
@@ -18,7 +38,17 @@ import type { InMemoryGroupRepository } from './fakes';
 /** The fake "transaction": what the repository stages and only commits when the write succeeds. */
 export interface FakeUnitOfWork {
   movements: RecordedMovement[];
+  updates: PayerMovementUpdate[];
+  removals: PayerMovementRemoval[];
 }
+
+export function newUnitOfWork(): FakeUnitOfWork {
+  return { movements: [], updates: [], removals: [] };
+}
+
+/** One call of update or remove, recorded when it is made (committed or not). */
+export type RecordedMovementCall =
+  ({ kind: 'update' } & PayerMovementUpdate) | ({ kind: 'remove' } & PayerMovementRemoval);
 
 export interface RecordedMovement extends PayerMovementToRecord {
   id: string;
@@ -39,6 +69,7 @@ export class InMemoryPayerMovementRecorder implements PayerMovementRecorder<Fake
   readonly categories = new Map<string, FakeCategory>();
   /** Committed movements only. */
   readonly movements: RecordedMovement[] = [];
+  readonly calls: RecordedMovementCall[] = [];
 
   seedAccount(userId: string, currency: 'ARS' | 'USD'): string {
     const id = randomUUID();
@@ -73,6 +104,43 @@ export class InMemoryPayerMovementRecorder implements PayerMovementRecorder<Fake
     return { id: recorded.id };
   }
 
+  async update(unit: FakeUnitOfWork, change: PayerMovementUpdate): Promise<void> {
+    await Promise.resolve();
+    this.calls.push({ kind: 'update', ...change });
+    unit.updates.push(change);
+  }
+
+  async remove(unit: FakeUnitOfWork, removal: PayerMovementRemoval): Promise<void> {
+    await Promise.resolve();
+    this.calls.push({ kind: 'remove', ...removal });
+    unit.removals.push(removal);
+  }
+
+  /** The commit of a unit of work: staged inserts, rewrites and deletions become visible. */
+  commit(unit: FakeUnitOfWork): void {
+    this.movements.push(...unit.movements);
+    for (const change of unit.updates) {
+      const index = this.movements.findIndex(
+        (m) => m.id === change.movementId && m.userId === change.userId,
+      );
+      const current = this.movements[index];
+      if (current === undefined) continue;
+      this.movements[index] = {
+        ...current,
+        amount: change.amount,
+        occurredAt: change.occurredAt,
+        note: change.note,
+        rateType: change.rateType,
+      };
+    }
+    for (const removal of unit.removals) {
+      const index = this.movements.findIndex(
+        (m) => m.id === removal.movementId && m.userId === removal.userId,
+      );
+      if (index >= 0) this.movements.splice(index, 1);
+    }
+  }
+
   /** Account balance as derived from committed movements (an expense lowers it). */
   spentOn(accountId: string): bigint {
     return this.movements
@@ -85,9 +153,69 @@ export interface ActivityRow {
   id: string;
   groupId: string;
   memberId: string;
-  action: 'expense_created' | 'settlement_created';
+  action: GroupActivityAction;
   subjectId: string;
   createdAt: Date;
+  before: ExpenseSnapshot | SettlementSnapshot | null;
+  after: ExpenseSnapshot | SettlementSnapshot | null;
+}
+
+interface MutableSources {
+  paid: Map<string, bigint>;
+  shares: Map<string, bigint>;
+  legs: Map<string, bigint>;
+}
+
+function emptySources(): MutableSources {
+  return { paid: new Map(), shares: new Map(), legs: new Map() };
+}
+
+function addTo(map: Map<string, bigint>, key: string, value: bigint): void {
+  const next = (map.get(key) ?? 0n) + value;
+  if (next === 0n) map.delete(key);
+  else map.set(key, next);
+}
+
+/**
+ * The balance sources of every group, kept up to date row by row (apply a row, or revert it with
+ * the opposite sign) so 10,000 operations stay linear; the SQL aggregates derive the same values.
+ */
+export class FakeLedger {
+  private readonly byGroup = new Map<string, Record<AccountCurrency, MutableSources>>();
+
+  applyExpense(expense: GroupExpense, sign: 1n | -1n): void {
+    const sources = this.totalsOf(expense.groupId)[expense.currency];
+    addTo(sources.paid, expense.payerMemberId, expense.amount * sign);
+    for (const share of expense.shares) addTo(sources.shares, share.memberId, share.amount * sign);
+  }
+
+  applySettlement(settlement: GroupSettlement, sign: 1n | -1n): void {
+    for (const leg of settlement.legs) {
+      const sources = this.totalsOf(settlement.groupId)[leg.currency];
+      addTo(sources.legs, settlement.fromMemberId, leg.amount * sign);
+      addTo(sources.legs, settlement.toMemberId, -leg.amount * sign);
+    }
+  }
+
+  /** A copy, so callers cannot change the ledger. */
+  sourcesOf(groupId: string): BalanceSourcesByCurrency {
+    const totals = this.totalsOf(groupId);
+    const copy = (sources: BalanceSources): BalanceSources => ({
+      paid: new Map(sources.paid),
+      shares: new Map(sources.shares),
+      legs: new Map(sources.legs),
+    });
+    return { ARS: copy(totals.ARS), USD: copy(totals.USD) };
+  }
+
+  private totalsOf(groupId: string): Record<AccountCurrency, MutableSources> {
+    let totals = this.byGroup.get(groupId);
+    if (totals === undefined) {
+      totals = { ARS: emptySources(), USD: emptySources() };
+      this.byGroup.set(groupId, totals);
+    }
+    return totals;
+  }
 }
 
 function encodeCursor(occurredAt: Date, id: string): string {
@@ -113,6 +241,7 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
   readonly expenses: GroupExpense[] = [];
   readonly activity: ActivityRow[] = [];
   readonly defaultSplits = new Map<string, DefaultSplit>();
+  readonly ledger = new FakeLedger();
   /** When set, the write fails after the movement was staged (atomicity test). */
   failAfterMovement = false;
 
@@ -122,7 +251,7 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
   ) {}
 
   async saveExpense(data: NewGroupExpense): Promise<GroupExpense> {
-    const unit: FakeUnitOfWork = { movements: [] };
+    const unit = newUnitOfWork();
     let payerMovementId: string | null = null;
     if (data.payerMovement !== null) {
       payerMovementId = (await this.recorder.record(unit, data.payerMovement)).id;
@@ -151,9 +280,117 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       action: data.activity.action,
       subjectId: expense.id,
       createdAt: data.activity.createdAt,
+      before: null,
+      after: null,
     });
-    this.recorder.movements.push(...unit.movements);
+    this.ledger.applyExpense(expense, 1n);
+    this.recorder.commit(unit);
     return expense;
+  }
+
+  async updateExpense(data: UpdateGroupExpenseData): Promise<GroupExpense> {
+    await Promise.resolve();
+    const index = this.expenses.findIndex(
+      (e) => e.groupId === data.groupId && e.id === data.expenseId,
+    );
+    const stored = this.expenses[index];
+    if (stored === undefined) throw new ResourceNotFound();
+    // The lock-time recheck of D5, from the row read under lock.
+    assertChangedMembersActive(
+      expenseChangedMembers(stored, {
+        payerMemberId: stored.payerMemberId,
+        amount: data.amount,
+        shares: data.shares,
+      }),
+      this.activeIds(data.groupId),
+    );
+    const unit = newUnitOfWork();
+    if (stored.payerMovementId !== null) {
+      await this.recorder.update(unit, {
+        userId: this.payerUserId(stored),
+        movementId: stored.payerMovementId,
+        amount: data.amount,
+        occurredAt: data.occurredAt,
+        note: data.description,
+        rateType: data.rateType,
+      });
+    }
+    if (this.failAfterMovement) throw new Error('forced failure');
+    const updated: GroupExpense = {
+      ...stored,
+      amount: data.amount,
+      occurredAt: data.occurredAt,
+      categoryId: data.categoryId,
+      description: data.description,
+      splitMode: data.splitMode,
+      shares: data.shares.map((share) => ({ ...share })),
+    };
+    this.ledger.applyExpense(stored, -1n);
+    this.ledger.applyExpense(updated, 1n);
+    this.expenses[index] = updated;
+    this.logChange(data.groupId, stored.id, { ...data.activity, before: expenseSnapshot(stored) });
+    this.recorder.commit(unit);
+    return updated;
+  }
+
+  async deleteExpense(data: DeleteGroupExpenseData): Promise<void> {
+    await Promise.resolve();
+    const index = this.expenses.findIndex(
+      (e) => e.groupId === data.groupId && e.id === data.expenseId,
+    );
+    const stored = this.expenses[index];
+    if (stored === undefined) throw new ResourceNotFound();
+    assertChangedMembersActive(expenseChangedMembers(stored, null), this.activeIds(data.groupId));
+    const unit = newUnitOfWork();
+    if (stored.payerMovementId !== null) {
+      await this.recorder.remove(unit, {
+        userId: this.payerUserId(stored),
+        movementId: stored.payerMovementId,
+      });
+    }
+    if (this.failAfterMovement) throw new Error('forced failure');
+    this.ledger.applyExpense(stored, -1n);
+    this.expenses.splice(index, 1);
+    this.logChange(data.groupId, stored.id, { ...data.activity, before: expenseSnapshot(stored) });
+    this.recorder.commit(unit);
+  }
+
+  /** Appends the log row of an edit or a deletion; the settlement fake shares it. */
+  logChange(
+    groupId: string,
+    subjectId: string,
+    activity: {
+      action: GroupActivityAction;
+      memberId: string;
+      createdAt: Date;
+      before: ExpenseSnapshot | SettlementSnapshot;
+      after: ExpenseSnapshot | SettlementSnapshot | null;
+    },
+  ): void {
+    this.activity.push({
+      id: randomUUID(),
+      groupId,
+      memberId: activity.memberId,
+      action: activity.action,
+      subjectId,
+      createdAt: activity.createdAt,
+      before: activity.before,
+      after: activity.after,
+    });
+  }
+
+  private activeIds(groupId: string): ReadonlySet<string> {
+    return new Set(this.groups.membersOf(groupId).map((m) => m.id));
+  }
+
+  /** The payer's user, also when the payer has left (the member row is kept). */
+  private payerUserId(expense: GroupExpense): string {
+    const former = (this.groups as { formerMembers?: readonly Member[] }).formerMembers ?? [];
+    const payer = [...this.groups.members, ...former].find((m) => m.id === expense.payerMemberId);
+    if (payer?.userId === undefined || payer.userId === null) {
+      throw new Error('A payer movement needs a registered payer');
+    }
+    return payer.userId;
   }
 
   async listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult> {

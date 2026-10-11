@@ -148,7 +148,8 @@ describe('0027_group_expenses migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
-    // 0029 and 0028 have the greater journal `when`s and hang from the same members: they go first.
+    // 0030, 0029 and 0028 have the greater journal `when`s and hang from the same members: they go first.
+    await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
     await client.query(await fileOf('rollback/0029_card_automatic_debit.down.sql'));
     await client.query(await fileOf('rollback/0028_group_settlements.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -157,7 +158,7 @@ describe('0027_group_expenses migration', () => {
     expect(await addedTables()).toEqual([]);
     expect(await hasDefaultSplitModeColumn()).toBe(false);
     expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 3);
-    expect(await appliedMigrations()).toBe(countBefore - 3);
+    expect(await appliedMigrations()).toBe(countBefore - 4);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await addedTables()).toEqual(ADDED_TABLES);

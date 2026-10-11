@@ -165,7 +165,8 @@ describe('0028_group_settlements migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
-    // 0029 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0030 and 0029 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
     await client.query(await fileOf('rollback/0029_card_automatic_debit.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -175,7 +176,7 @@ describe('0028_group_settlements migration', () => {
     expect(await indexDefinition('group_members_group_user_unique')).not.toMatch(/left_at/);
     expect(await indexDefinition('group_members_group_user_unique')).toMatch(/user_id IS NOT NULL/);
     expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 1);
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     const group = await createGroup();
     const member = await createGhost(group);
     expect(
@@ -340,7 +341,7 @@ describe('0028_group_settlements migration', () => {
 
     expect(await log('settlement_created')).toBeUndefined();
     expect(await log('expense_created')).toBeUndefined();
-    expect(await log('settlement_deleted')).toBe('23514');
+    expect(await log('settlement_exported')).toBe('23514');
   });
 
   it('has the journal entry at idx 28 with a when above 0027, and chains its snapshot onto 0027', async () => {

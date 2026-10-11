@@ -22,6 +22,24 @@ export interface PayerMovementToRecord {
   rateType: RateType;
 }
 
+/** The expense edit as it reaches the payer's movement (spec D6): same account and category. */
+export interface PayerMovementUpdate {
+  /** The payer's user: the movement is written under this user's scope, never the editor's. */
+  userId: string;
+  movementId: string;
+  amount: bigint;
+  /** Clamped by the adapter like at creation. */
+  occurredAt: Date;
+  /** The expense description. */
+  note: string;
+  rateType: RateType;
+}
+
+export interface PayerMovementRemoval {
+  userId: string;
+  movementId: string;
+}
+
 /**
  * Groups-side port over `accounts`, `categories` and `movements`. `Tx` is the unit of work the
  * repository opened (a Drizzle transaction): the repository calls `record` with it, so the
@@ -35,4 +53,11 @@ export interface PayerMovementRecorder<Tx = unknown> {
   isUsable(check: PayerAccountCheck): Promise<boolean>;
   /** Inserts the movement inside `unit` and returns its id. Never opens its own transaction. */
   record(unit: Tx, movement: PayerMovementToRecord): Promise<{ id: string }>;
+  /**
+   * Rewrites the movement inside `unit` under the payer's scope (spec D6): new amount, date and
+   * note on the same account and category. A movement that no longer exists is a no-op.
+   */
+  update(unit: Tx, change: PayerMovementUpdate): Promise<void>;
+  /** Deletes the movement inside `unit` under the payer's scope; a missing one is a no-op. */
+  remove(unit: Tx, removal: PayerMovementRemoval): Promise<void>;
 }

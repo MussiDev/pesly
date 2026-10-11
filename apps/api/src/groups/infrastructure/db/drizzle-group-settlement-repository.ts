@@ -1,15 +1,26 @@
 import { AppError, type AccountCurrency, type RateType } from '@pesly/shared';
 import { and, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { ResourceNotFound } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
+  DeleteGroupSettlementData,
   GroupSettlementPageResult,
   GroupSettlementRepository,
   ListSettlementsPageQuery,
   NewGroupSettlement,
+  UpdateGroupSettlementData,
 } from '../../application/ports/group-settlement-repository';
 import {
+  isConsolidated,
+  settlementChangedMembers,
+  settlementSnapshot,
+  type SettlementEffect,
+} from '../../domain/group-change';
+import {
+  GroupRecordFormerMember,
   GroupSettlementAccountInvalid,
+  GroupSettlementConsolidated,
   GroupSettlementMemberInvalid,
   GroupSettlementStale,
 } from '../../domain/errors';
@@ -211,6 +222,43 @@ async function readSources(db: Executor, groupId: string): Promise<BalanceSource
   return { ARS: ars, USD: usd };
 }
 
+async function readSettlement(
+  db: Executor,
+  groupId: string,
+  settlementId: string,
+): Promise<GroupSettlement | null> {
+  const [row] = await db
+    .select(settlementColumns)
+    .from(groupSettlements)
+    .where(and(eq(groupSettlements.id, settlementId), eq(groupSettlements.groupId, groupId)));
+  if (!row) return null;
+  const legs = await loadLegs(db, groupId, [row.id]);
+  return toSettlement(row, legs.get(row.id) ?? []);
+}
+
+/** The group `for update` first (same order as `saveSettlement`), then the settlement in it. */
+async function lockAndLoad(
+  tx: GroupTx,
+  groupId: string,
+  settlementId: string,
+  actorMemberId: string,
+): Promise<GroupSettlement> {
+  await lockGroup(tx, groupId, 'update');
+  // The acting member must still be active, or the answer is 404 like a non-member.
+  if (!(await allActiveMembers(tx, groupId, [actorMemberId]))) throw new ResourceNotFound();
+  const stored = await readSettlement(tx, groupId, settlementId);
+  if (stored === null) throw new ResourceNotFound();
+  return stored;
+}
+
+function effectOf(settlement: GroupSettlement): SettlementEffect {
+  return {
+    fromMemberId: settlement.fromMemberId,
+    toMemberId: settlement.toMemberId,
+    legs: settlement.legs,
+  };
+}
+
 /** Rows strictly after the cursor in `(occurred_at desc, id desc)` order. */
 function afterCursor(cursor: Cursor | null): SQL | undefined {
   return cursor === null
@@ -287,6 +335,108 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
 
   readBalanceSources(groupId: string): Promise<BalanceSourcesByCurrency> {
     return readSources(this.db, groupId);
+  }
+
+  async getSettlement(groupId: string, settlementId: string): Promise<GroupSettlement | null> {
+    return readSettlement(this.db, groupId, settlementId);
+  }
+
+  async updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const stored = await lockAndLoad(
+          tx,
+          data.groupId,
+          data.settlementId,
+          data.activity.memberId,
+        );
+        if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
+        // What the request did not name is what the lock just read, never an earlier read.
+        const amount = data.amount ?? stored.amount;
+        const occurredAt = data.occurredAt ?? stored.occurredAt;
+        const newLegs = [{ currency: stored.currency, amount }];
+        const changed = settlementChangedMembers(effectOf(stored), {
+          fromMemberId: stored.fromMemberId,
+          toMemberId: stored.toMemberId,
+          legs: newLegs,
+        });
+        if (!(await allActiveMembers(tx, data.groupId, changed))) {
+          throw new GroupRecordFormerMember();
+        }
+        const [row] = await tx
+          .update(groupSettlements)
+          .set({ amount, occurredAt })
+          .where(
+            and(
+              eq(groupSettlements.id, data.settlementId),
+              eq(groupSettlements.groupId, data.groupId),
+            ),
+          )
+          .returning(settlementColumns);
+        if (!row) throw new Error('Updating a group settlement returned no row');
+        await tx.delete(groupSettlementLegs).where(eq(groupSettlementLegs.settlementId, row.id));
+        const legs = newLegs;
+        await tx.insert(groupSettlementLegs).values(
+          legs.map((leg) => ({
+            settlementId: row.id,
+            groupId: data.groupId,
+            currency: leg.currency,
+            amount: leg.amount,
+          })),
+        );
+        // `before` and `after` are rebuilt from the row read under lock, not trusted from the
+        // caller (spec D4).
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: row.id,
+          createdAt: data.activity.createdAt,
+          before: settlementSnapshot(stored),
+          after: settlementSnapshot({ ...stored, amount, occurredAt, legs }),
+        });
+        return toSettlement(row, legs);
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
+  }
+
+  async deleteSettlement(data: DeleteGroupSettlementData): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        const stored = await lockAndLoad(
+          tx,
+          data.groupId,
+          data.settlementId,
+          data.activity.memberId,
+        );
+        const changed = settlementChangedMembers(effectOf(stored), null);
+        if (!(await allActiveMembers(tx, data.groupId, changed))) {
+          throw new GroupRecordFormerMember();
+        }
+        // The legs go by cascade.
+        await tx
+          .delete(groupSettlements)
+          .where(
+            and(
+              eq(groupSettlements.id, data.settlementId),
+              eq(groupSettlements.groupId, data.groupId),
+            ),
+          );
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: data.settlementId,
+          createdAt: data.activity.createdAt,
+          before: settlementSnapshot(stored),
+          after: null,
+        });
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
   }
 
   async listSettlements(
