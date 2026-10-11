@@ -289,6 +289,21 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
     return readSources(this.db, groupId);
   }
 
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  getSettlement(): Promise<GroupSettlement | null> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  updateSettlement(): Promise<GroupSettlement> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  deleteSettlement(): Promise<void> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
   async listSettlements(
     groupId: string,
     query: ListSettlementsPageQuery,

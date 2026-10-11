@@ -1,16 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import type { AccountCurrency, RateType } from '@pesly/shared';
 import {
+  assertChangedMembersActive,
   balancesByCurrency,
   GroupLastAdmin,
+  GroupSettlementConsolidated,
   GroupMemberHasBalance,
   GroupSettlementMemberInvalid,
   GroupSettlementStale,
   hasOpenBalance,
+  isConsolidated,
   pairLegs,
-  type BalanceSources,
+  settlementChangedMembers,
+  settlementSnapshot,
   type BalanceSourcesByCurrency,
   type DefaultSplit,
+  type DeleteGroupSettlementData,
   type GroupDetail,
   type GroupSettlement,
   type GroupSettlementPageResult,
@@ -22,6 +27,7 @@ import {
   type RemoveMemberData,
   type SettlementAccountCheck,
   type SettlementAccountChecker,
+  type UpdateGroupSettlementData,
 } from '../../src/groups';
 import { ResourceNotFound } from '../../src/shared/access';
 import type { InMemoryGroupExpenseRepository } from './expense-fakes';
@@ -99,26 +105,6 @@ export class InMemoryMembershipGroupRepository extends InMemoryGroupRepository {
   }
 }
 
-function emptySources(): BalanceSources & {
-  paid: Map<string, bigint>;
-  shares: Map<string, bigint>;
-  legs: Map<string, bigint>;
-} {
-  return { paid: new Map(), shares: new Map(), legs: new Map() };
-}
-
-function add(map: Map<string, bigint>, key: string, value: bigint): void {
-  map.set(key, (map.get(key) ?? 0n) + value);
-}
-
-function copy(sources: BalanceSources): BalanceSources {
-  return {
-    paid: new Map(sources.paid),
-    shares: new Map(sources.shares),
-    legs: new Map(sources.legs),
-  };
-}
-
 function newestFirst(a: GroupSettlement, b: GroupSettlement): number {
   const byTime = b.occurredAt.getTime() - a.occurredAt.getTime();
   if (byTime !== 0) return byTime;
@@ -141,13 +127,6 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
   readonly settlements: GroupSettlement[] = [];
   /** When set, the write fails after the legs were staged (atomicity test). */
   failAfterLegs = false;
-  private readonly totals = new Map<
-    string,
-    Record<AccountCurrency, ReturnType<typeof emptySources>>
-  >();
-  private foldedExpenses = 0;
-  private foldedSettlements = 0;
-
   constructor(
     private readonly groups: InMemoryMembershipGroupRepository,
     private readonly expenses: InMemoryGroupExpenseRepository,
@@ -190,6 +169,7 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
     };
     if (this.failAfterLegs) throw new Error('forced failure');
     this.settlements.push(settlement);
+    this.expenses.ledger.applySettlement(settlement, 1n);
     this.expenses.activity.push({
       id: randomUUID(),
       groupId: data.groupId,
@@ -197,8 +177,73 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
       action: data.activity.action,
       subjectId: settlement.id,
       createdAt: data.activity.createdAt,
+      before: null,
+      after: null,
     });
     return settlement;
+  }
+
+  async getSettlement(groupId: string, settlementId: string): Promise<GroupSettlement | null> {
+    await Promise.resolve();
+    return this.settlements.find((s) => s.groupId === groupId && s.id === settlementId) ?? null;
+  }
+
+  async updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement> {
+    await Promise.resolve();
+    const index = this.settlements.findIndex(
+      (s) => s.groupId === data.groupId && s.id === data.settlementId,
+    );
+    const stored = this.settlements[index];
+    if (stored === undefined) throw new ResourceNotFound();
+    if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
+    // The lock-time recheck of D5, from the row read under lock.
+    assertChangedMembersActive(
+      settlementChangedMembers(stored, {
+        fromMemberId: stored.fromMemberId,
+        toMemberId: stored.toMemberId,
+        legs: data.legs,
+      }),
+      this.activeIds(data.groupId),
+    );
+    const updated: GroupSettlement = {
+      ...stored,
+      amount: data.amount,
+      occurredAt: data.occurredAt,
+      legs: data.legs.map((leg) => ({ ...leg })),
+    };
+    if (this.failAfterLegs) throw new Error('forced failure');
+    this.expenses.ledger.applySettlement(stored, -1n);
+    this.expenses.ledger.applySettlement(updated, 1n);
+    this.settlements[index] = updated;
+    this.expenses.logChange(data.groupId, stored.id, {
+      ...data.activity,
+      before: settlementSnapshot(stored),
+    });
+    return updated;
+  }
+
+  async deleteSettlement(data: DeleteGroupSettlementData): Promise<void> {
+    await Promise.resolve();
+    const index = this.settlements.findIndex(
+      (s) => s.groupId === data.groupId && s.id === data.settlementId,
+    );
+    const stored = this.settlements[index];
+    if (stored === undefined) throw new ResourceNotFound();
+    assertChangedMembersActive(
+      settlementChangedMembers(stored, null),
+      this.activeIds(data.groupId),
+    );
+    if (this.failAfterLegs) throw new Error('forced failure');
+    this.expenses.ledger.applySettlement(stored, -1n);
+    this.settlements.splice(index, 1);
+    this.expenses.logChange(data.groupId, stored.id, {
+      ...data.activity,
+      before: settlementSnapshot(stored),
+    });
+  }
+
+  private activeIds(groupId: string): ReadonlySet<string> {
+    return new Set(this.groups.membersOf(groupId).map((m) => m.id));
   }
 
   async readBalanceSources(groupId: string): Promise<BalanceSourcesByCurrency> {
@@ -225,37 +270,7 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
   }
 
   private sourcesOf(groupId: string): BalanceSourcesByCurrency {
-    this.fold();
-    const totals = this.totalsOf(groupId);
-    return { ARS: copy(totals.ARS), USD: copy(totals.USD) };
-  }
-
-  private totalsOf(groupId: string): Record<AccountCurrency, ReturnType<typeof emptySources>> {
-    let totals = this.totals.get(groupId);
-    if (totals === undefined) {
-      totals = { ARS: emptySources(), USD: emptySources() };
-      this.totals.set(groupId, totals);
-    }
-    return totals;
-  }
-
-  private fold(): void {
-    for (; this.foldedExpenses < this.expenses.expenses.length; this.foldedExpenses += 1) {
-      const expense = this.expenses.expenses[this.foldedExpenses];
-      if (expense === undefined) continue;
-      const sources = this.totalsOf(expense.groupId)[expense.currency];
-      add(sources.paid, expense.payerMemberId, expense.amount);
-      for (const share of expense.shares) add(sources.shares, share.memberId, share.amount);
-    }
-    for (; this.foldedSettlements < this.settlements.length; this.foldedSettlements += 1) {
-      const settlement = this.settlements[this.foldedSettlements];
-      if (settlement === undefined) continue;
-      for (const leg of settlement.legs) {
-        const sources = this.totalsOf(settlement.groupId)[leg.currency];
-        add(sources.legs, settlement.fromMemberId, leg.amount);
-        add(sources.legs, settlement.toMemberId, -leg.amount);
-      }
-    }
+    return this.expenses.ledger.sourcesOf(groupId);
   }
 
   /** Test helper: do the stored balances of the group sum to zero in each currency? */

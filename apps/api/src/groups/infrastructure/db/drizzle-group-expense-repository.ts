@@ -192,6 +192,16 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     }
   }
 
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  updateExpense(): Promise<GroupExpense> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  deleteExpense(): Promise<void> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
   async listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult> {
     const cursor = query.cursor === undefined ? null : decodeCursor(query.cursor);
     const rows = await this.db

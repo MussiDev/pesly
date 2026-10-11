@@ -82,6 +82,16 @@ export class DrizzlePayerMovementRecorder implements PayerMovementRecorder<Payer
     return { id: created.id };
   }
 
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  update(): Promise<void> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
+  // TODO(DISC-001-05d Block 4): not implemented yet, Block 3 only extends the port.
+  remove(): Promise<void> {
+    return Promise.reject(new Error('not implemented: Block 4'));
+  }
+
   /**
    * Movements reject a date after today in the user's time zone, while an expense may be dated 1
    * day ahead (spec D13), so a later date is clamped to the last instant of today.
