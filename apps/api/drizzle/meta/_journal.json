@@ -197,6 +197,13 @@
       "when": 1791670861757,
       "tag": "0028_group_settlements",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791678105362,
+      "tag": "0029_group_activity_log_changes",
+      "breakpoints": true
     }
   ]
 }
