@@ -13,6 +13,7 @@ export interface GetExpenseOptionsDependencies {
 }
 
 export interface ExpenseOptions {
+  selfMemberId: string;
   /** Oldest first. */
   members: Member[];
   /** Non-archived only. */
@@ -30,7 +31,7 @@ export class GetExpenseOptions {
 
   /** Any member: everything a new expense needs, in one call (spec D9). */
   async execute(userId: string, groupId: string): Promise<ExpenseOptions> {
-    await this.access.member(userId, groupId);
+    const caller = await this.access.member(userId, groupId);
     const detail = await this.deps.groups.getGroup(groupId);
     if (detail === null) throw new ResourceNotFound();
     const [categories, defaultSplit] = await Promise.all([
@@ -38,6 +39,7 @@ export class GetExpenseOptions {
       this.deps.expenses.getDefaultSplit(groupId),
     ]);
     return {
+      selfMemberId: caller.id,
       members: detail.members,
       categories: categories.filter((category) => category.archivedAt === null),
       defaultSplit,

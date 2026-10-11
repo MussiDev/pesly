@@ -14,6 +14,7 @@ const OPTIONS = `GET /groups/${GROUP_ID}/expense-options`;
 const PUT = `PUT /groups/${GROUP_ID}/default-split`;
 
 const options = (defaultSplit: object = { mode: 'equal' }) => ({
+  selfMemberId: ANA,
   members: [
     { id: ANA, displayName: 'Ana', isGhost: false, joinedAt: '2026-10-01T00:00:00.000Z' },
     { id: BEN, displayName: 'Ben', isGhost: false, joinedAt: '2026-10-02T00:00:00.000Z' },

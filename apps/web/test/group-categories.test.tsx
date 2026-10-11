@@ -25,6 +25,7 @@ const group = (role: 'admin' | 'member') => ({
   role,
   memberCount: 1,
   createdAt: '2026-10-01T00:00:00.000Z',
+  selfMemberId: 'self-member',
   members: [],
   formerMembers: [],
 });

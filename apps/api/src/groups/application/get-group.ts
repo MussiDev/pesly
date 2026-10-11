@@ -7,7 +7,8 @@ export interface GetGroupDependencies {
   groups: GroupRepository;
 }
 
-export type GroupWithMembers = GroupSummary & Pick<GroupDetail, 'members' | 'formerMembers'>;
+export type GroupWithMembers = GroupSummary &
+  Pick<GroupDetail, 'members' | 'formerMembers'> & { selfMemberId: string };
 
 export class GetGroup {
   private readonly access: GroupAccess;
@@ -24,6 +25,7 @@ export class GetGroup {
       group: detail.group,
       role: caller.role,
       memberCount: detail.members.length,
+      selfMemberId: caller.id,
       members: detail.members,
       formerMembers: detail.formerMembers,
     };

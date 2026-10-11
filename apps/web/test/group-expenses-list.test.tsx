@@ -15,6 +15,7 @@ const MORE = (cursor: string) => `GET /groups/${GROUP_ID}/expenses?limit=50&curs
 const OPTIONS = `GET /groups/${GROUP_ID}/expense-options`;
 
 const options = {
+  selfMemberId: ME,
   members: [
     { id: ME, displayName: 'Joaquin', isGhost: false, joinedAt: '2026-10-01T00:00:00.000Z' },
     { id: ANA, displayName: 'Ana', isGhost: false, joinedAt: '2026-10-01T00:00:00.000Z' },

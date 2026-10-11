@@ -119,6 +119,7 @@ describe('api client: group expenses (DISC-001-05f Block 1)', () => {
 
   it('getExpenseOptions returns members, categories, default split and rate type', async () => {
     const options = {
+      selfMemberId: MEMBER_A,
       members: [
         { id: MEMBER_A, displayName: 'Ana', isGhost: false, joinedAt: '2026-10-01T00:00:00.000Z' },
       ],

@@ -34,6 +34,7 @@ const member = (id: string, displayName: string) => ({
 });
 
 const options = (defaultSplit: unknown = { mode: 'equal' }) => ({
+  selfMemberId: ANA,
   members: [member(ANA, 'Ana'), member(BRUNO, 'Bruno'), member(CARLA, 'Carla')],
   categories: [
     {

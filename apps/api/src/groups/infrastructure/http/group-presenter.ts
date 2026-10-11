@@ -42,6 +42,7 @@ export function presentGroup(summary: GroupSummary): GroupResponse {
 export function presentGroupDetail(detail: GroupWithMembers): GroupDetailResponse {
   return {
     ...presentGroup(detail),
+    selfMemberId: detail.selfMemberId,
     members: detail.members.map(presentMember),
     formerMembers: detail.formerMembers.map((former) => ({
       id: former.id,
