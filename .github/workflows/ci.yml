@@ -90,7 +90,7 @@ jobs:
       - name: Unit and integration tests (shard ${{ matrix.shard }}/4)
         # A shard runs a quarter of the suite, so the floor is enforced once, on the merged report.
         run: >-
-          pnpm exec vitest run --coverage --reporter=blob --shard=${{ matrix.shard }}/4
+          pnpm exec vitest run --coverage --reporter=default --reporter=blob --shard=${{ matrix.shard }}/4
           --coverage.thresholds.lines=0 --coverage.thresholds.branches=0
           --coverage.thresholds.functions=0
       - name: Upload blob report
