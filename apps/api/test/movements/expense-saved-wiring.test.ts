@@ -3,7 +3,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { ExpenseSavedHook } from '../../src/movements/application/ports/expense-saved-listener';
-import { createExpenseRecorder } from '../../src/movements/infrastructure/accounts/drizzle-expense-recorder';
+import {
+  createExpenseRecorder,
+  createMovementsExpenseRecorder,
+} from '../../src/movements/infrastructure/accounts/drizzle-expense-recorder';
 import { createRecurringExpenseRecorder } from '../../src/movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -73,6 +76,23 @@ describe('expense recorders and the expense saved hook', () => {
     await recorder.recordOnce(scope, id, expense);
     await recorder.recordOnce(scope, id, expense);
 
+    expect(calls).toEqual([
+      { userId: ownerId, categoryId, occurredAt },
+      { userId: ownerId, categoryId, occurredAt },
+    ]);
+  });
+
+  it('recordUnmetered skips the hook while record and recordUnmeteredWithId run it (statement import)', async () => {
+    const { ownerId, categoryId, expense } = await setup();
+    const { hook, calls } = recordingHook();
+    const recorder = createMovementsExpenseRecorder(connection.db, logger, { expenseSaved: hook });
+    const scope = await writeScope(ownerId);
+
+    await recorder.recordUnmetered(scope, expense);
+    expect(calls).toEqual([]);
+
+    await recorder.record(scope, expense);
+    await recorder.recordUnmeteredWithId(scope, randomUUID(), expense);
     expect(calls).toEqual([
       { userId: ownerId, categoryId, occurredAt },
       { userId: ownerId, categoryId, occurredAt },

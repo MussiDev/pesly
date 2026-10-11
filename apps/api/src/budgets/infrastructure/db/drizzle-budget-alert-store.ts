@@ -73,7 +73,6 @@ export class DrizzleBudgetAlertStore implements BudgetAlertStore {
             }),
           })),
         )
-        .onConflictDoNothing({ target: [notices.kind, notices.paymentId, notices.dueDate] })
         .returning({ id: notices.id });
       return created.length;
     });

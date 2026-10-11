@@ -224,6 +224,18 @@ describe('BestEffortExpenseSavedHook', () => {
     expect(failures).toEqual([{ errorName: 'AppError', errorCode: 'NOT_FOUND', userId: ALICE }]);
   });
 
+  it('reads the SQLSTATE from the driver error under cause, never the message', async () => {
+    const driver = Object.assign(new Error('driver detail'), { code: '40001' });
+    listener.behavior = () =>
+      Promise.reject(new Error(`wrapped ${BUDGET_NAME} 15000`, { cause: driver }));
+
+    await hook.run(await writeScopeFor(ALICE), event);
+
+    expect(failures).toEqual([{ errorName: 'Error', errorCode: '40001', userId: ALICE }]);
+    expect(JSON.stringify(failures)).not.toContain(BUDGET_NAME);
+    expect(JSON.stringify(failures)).not.toContain('driver detail');
+  });
+
   it('reports a non-error rejection with a generic name', async () => {
     // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- a non-Error reason is the case under test
     listener.behavior = () => Promise.reject(`leak ${BUDGET_NAME}`);

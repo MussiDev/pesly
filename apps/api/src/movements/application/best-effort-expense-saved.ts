@@ -18,7 +18,9 @@ export interface ExpenseSavedFailure {
 function describeFailure(error: unknown, userId: string): ExpenseSavedFailure {
   if (error instanceof AppError) return { errorName: error.name, errorCode: error.code, userId };
   if (error instanceof Error) {
-    const code = (error as { code?: unknown }).code;
+    // Drizzle wraps the driver error: the SQLSTATE sits on `cause`, never in the logged message.
+    const code =
+      (error as { code?: unknown }).code ?? (error.cause as { code?: unknown } | undefined)?.code;
     return {
       errorName: error.name,
       errorCode: typeof code === 'string' ? code : undefined,

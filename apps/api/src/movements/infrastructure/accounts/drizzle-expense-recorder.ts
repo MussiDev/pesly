@@ -45,6 +45,8 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
     private readonly recordManualMovement: RecordManualMovement,
     private readonly createMovement: CreateMovement,
     private readonly movements: MovementRepository,
+    /** Statement import: hundreds of lines in one request must not each run an alert evaluation. */
+    private readonly bulkCreateMovement: CreateMovement = createMovement,
   ) {}
 
   async record(
@@ -59,7 +61,7 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }> {
-    const movement = await this.createMovement.execute(scope, toInput(expense));
+    const movement = await this.bulkCreateMovement.execute(scope, toInput(expense));
     return { id: movement.id, occurredAt: movement.occurredAt };
   }
 
@@ -90,15 +92,19 @@ function buildRecorder(
   { writeLimit, clock = new SystemClock(), expenseSaved }: ExpenseRecorderOptions,
 ): MovementsExpenseRecorder {
   const movements = new DrizzleMovementRepository(db);
-  const createMovement = new CreateMovement({
+  const baseDeps = {
     movements,
     accounts: new DrizzleAccountLookup(db),
     categories: new DrizzleCategoryLookup(db),
     rates: new DrizzleRateLookup(db),
     preferences: new DrizzleUserPreferences(db),
     clock,
+  };
+  const createMovement = new CreateMovement({
+    ...baseDeps,
     ...(expenseSaved === undefined ? {} : { expenseSaved }),
   });
+  const bulkCreateMovement = new CreateMovement(baseDeps);
   return new MovementsExpenseRecorder(
     new RecordManualMovement(
       {
@@ -114,6 +120,7 @@ function buildRecorder(
     ),
     createMovement,
     movements,
+    bulkCreateMovement,
   );
 }
 

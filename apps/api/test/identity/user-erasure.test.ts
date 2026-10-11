@@ -682,6 +682,18 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'budget_alert_marks',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into budget_alert_marks (budget_id, owner_id, month, threshold) select id, owner_id, '2026-10-01', 80 from budgets where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
     table: 'group_members',
     userColumn: 'user_id',
     policy: 'erase-step',
