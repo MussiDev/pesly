@@ -1,5 +1,5 @@
 ```
-/ddw-validate-spec C:/Users/Joako/Desktop/argent-06b/docs/ddw/specs/spec-DISC-001-06b.md — PASSED
+/ddw-validate-spec docs/ddw/specs/spec-DISC-001-06b.md — PASSED
 ────────────────────────────────────────────────────────────────
   ✅ F-SPEC-01: all 7 FR from the PRD are referenced by a block
   ✅ F-SPEC-02: all 24 AC from the PRD are named by at least one test
@@ -14,10 +14,10 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contract, domain rules and ports) (9 files, 605 words), Block 2 (Data model, migration and Drizzle adapters) (9 files, 877 words), Block 3 (Use cases) (4 files, 603 words), Block 4 (Routes and composition root) (5 files, 592 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 1 (Shared contract, domain rules and ports) (9 files, 605 words), Block 2 (Data model, migration and Drizzle adapters) (9 files, 982 words), Block 3 (Use cases) (4 files, 613 words), Block 4 (Routes and composition root) (5 files, 619 words)
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.
-  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 0 in total for this document
+  ✅ F-SPEC-LOOP: 0 loop(s) since a human decided, under the ceiling of 3; 1 in total for this document
 ────────────────────────────────────────────────────────────────
 Total: 13 passed, 0 failed, 1 warnings
 Result: PASSED

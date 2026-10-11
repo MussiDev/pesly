@@ -6,7 +6,7 @@
 | PRD | docs/ddw/prd/prd-DISC-001-06b.md |
 | Tier | FEATURE |
 | Date | 2026-10-11 |
-| Spec loops | 0 |
+| Spec loops | 1 |
 | Loops since last human decision | 0 |
 
 ## Summary
@@ -45,8 +45,12 @@ computation and alerts are not built (DISC-001-06c and 06d), and no web screen i
   unknown or foreign id, 404 `NOT_FOUND` (not distinguishable, as for every foreign resource); an
   income category, 400 `BUDGET_CATEGORY_KIND_INVALID`; an archived category, 409 `CATEGORY_ARCHIVED`
   (existing code). Archiving a category later does not change a budget that already uses it. The
-  foreign key is `on delete no action`: deleting a category a budget uses fails with the existing
-  `CATEGORY_IN_USE`, and account erasure, which cascades both sides in one statement, still succeeds.
+  foreign key is `on delete no action` and `DEFERRABLE INITIALLY DEFERRED`: deleting a category a
+  budget uses fails with the existing `CATEGORY_IN_USE` (the violation surfaces at the end of the
+  autocommit delete statement; a caller wrapping the delete in a larger transaction would see it at
+  `COMMIT`), and account erasure, which deletes the user's budgets and categories in one transaction,
+  still succeeds because the check runs after both sides are gone. Only this key is deferred; the
+  owner-scoped keys between the budget tables are immediate.
 - D5: Subcategories (FR-02). Only the selected ids are stored. Every read also returns
   `coveredCategoryIds`: the selected ids plus the ids of their children, read from `categories` in the
   same scoped query at read time, so a subcategory created later is covered without an edit (AC-06).
@@ -72,14 +76,16 @@ computation and alerts are not built (DISC-001-06c and 06d), and no web screen i
   cascade`. No movement or category is touched (AC-17). Answers 204.
 - D10: Account erasure (PRD 01f). Every new table reaches `users` only through cascading keys
   (`budgets.owner_id` cascade, and the children cascade from `budgets`), and the category key is `no
-  action`, so no erasure step is needed and `beforeUserErased` is unchanged. The four tables are added
+  action` and deferred (D4), so no erasure step is needed and `beforeUserErased` is unchanged. The four tables are added
   to the erasure registry as policy `cascade`, and `build-output.test.ts` lists them, so the guards
   that fail on an unregistered user table stay green.
 - D11: Migration `0034_budgets`: four new tables, additive, no change to existing tables. The goals
   ticket (06a) uses 0033 on another branch; the two are renumbered at merge. Its journal `when` must
   exceed the maximum on `main` at merge time (now 1791760600000 for 0032) and the one of 0033, per the
   Drizzle merge rule. Rollback script `0034_budgets.down.sql`, idempotent, drops the four tables
-  (destructive for budget data only).
+  (destructive for budget data only) and deletes the journal row of 0034 from
+  `drizzle.__drizzle_migrations` (by its `created_at`, the journal `when`, pinned by a test) so the
+  migration can be applied again. The journal entry is idx 34; idx 33 is skipped (reserved for goals).
 - D12: Ports and boundaries. The module declares ports for the clock, the user time zone and the
   category reader. Its infrastructure imports `users` and `categories` only through
   `infrastructure/db/foreign-relations.ts` (as drizzle-kit needs for the foreign keys). Domain and
@@ -205,7 +211,9 @@ passes.
   `budgetVersionCategories`, `budgetVersionThresholds`.
 - `apps/api/src/budgets/infrastructure/db/foreign-relations.ts` (new) — re-exports `users` and
   `categories`.
-- `apps/api/drizzle/0034_budgets.sql` (generated), `apps/api/drizzle/meta/*` (generated),
+- `apps/api/drizzle/0034_budgets.sql` (generated, then hand-edited to add `DEFERRABLE INITIALLY
+  DEFERRED` to the category key, which drizzle-kit cannot express), `apps/api/drizzle/meta/*`
+  (generated; the snapshot therefore lacks `DEFERRABLE`),
   `apps/api/drizzle/rollback/0034_budgets.down.sql` (new).
 - `apps/api/src/budgets/infrastructure/db/drizzle-budget-repository.ts` (new) — the repository, with
   the transaction of D8 and the version writes of D2.
@@ -219,14 +227,17 @@ passes.
   `budget-repository.test.ts`, `category-reader.test.ts` (new; need `TEST_DATABASE_URL`).
 
 **Logic**
-Generated with drizzle-kit from the schema file, then the journal `when` checked against `main`.
+Generated with drizzle-kit from the schema file, then the 0034 SQL is hand-edited (the category key
+is made deferrable; the snapshot does not record it) and the journal `when` checked against `main`.
 `create` opens a transaction, takes `pg_advisory_xact_lock` on the owner, counts the owner's budgets
 and inserts the budget, its first version, categories and thresholds, or throws `BudgetLimitReached` at
-50. `update` loads the budget through `scopedTo`, deletes the version of the current month if present
-(its children cascade) and inserts the merged one, in one transaction. `listCurrent` and `findById`
+50. `update` takes the budget's row lock through `scopedTo`, reads the version in force under that lock,
+applies the caller's merge function to it, deletes the version of the current month if present (its
+children cascade) and inserts the merged one, in one transaction, so two concurrent partial edits
+both survive. `listCurrent` and `findById`
 return the version in force with its categories and thresholds and compute the covered categories by
 joining `categories` on `parent_id` for the selected ids, inside the same owner scope. `delete` removes
-the budget row. A foreign-key violation on the category keys is rethrown as the typed error of D4; no
+the budget row. Any violation of the category key in the repository is rethrown as `ResourceNotFound` (404, D4); no
 `catch` swallows anything.
 
 **Data model**
@@ -242,21 +253,24 @@ the budget row. A foreign-key violation on the category keys is rethrown as the 
   not null; `kind` text not null default `expense` (check `expense`). Primary key `(version_id,
   category_id)`. Composite fk `(version_id, owner_id) → budget_versions(id, owner_id)` on delete
   cascade; composite fk `(category_id, owner_id, kind) → categories(id, owner_id, kind)` on delete no
-  action; index `(category_id)`.
+  action, DEFERRABLE INITIALLY DEFERRED; index `(category_id)`.
 - `budget_version_thresholds`: `version_id` uuid not null; `owner_id` uuid not null; `percent` smallint
   not null (check 1 to 200). Primary key `(version_id, percent)`. Composite fk `(version_id, owner_id) →
   budget_versions(id, owner_id)` on delete cascade.
 - No `real`, `double precision` or `numeric` column anywhere.
 
 **Error handling**
-- A constraint violation surfaces as a database error that the repository maps: category keys to the
-  errors of D4, anything else is rethrown.
+- A constraint violation surfaces as a database error that the repository maps: any violation of the
+  category key answers `ResourceNotFound` (404), anything else is rethrown. Deleting a category in use
+  is mapped by the categories repository to `CATEGORY_IN_USE` (409).
 
 **Required tests**
 - [ ] The migration applies on an empty database and on a copy of `main`'s schema; the rollback script
       is idempotent and removes only the four tables — validates NFR-01 (backstops exist)
 - [ ] Introspection: the four tables have 0 `real`, `double precision` or `numeric` columns, `amount`
-      is `bigint`, the checks, unique indexes and composite keys above exist — validates NFR-01
+      is `bigint`, the checks, unique indexes and composite keys above exist, and only the category key is deferrable
+      and deferred — validates NFR-01
+- [ ] Two concurrent partial edits (name and amount) of one budget both persist
 - [ ] The journal `when` of 0034 is greater than 1791760600000
 - [ ] Creating a budget with two categories and no thresholds stores one version with thresholds 80 and
       100 and rollover off; the list returns it — validates AC-01, AC-07, AC-09
@@ -301,9 +315,9 @@ run 20 times without a failure, and `pnpm --filter ./apps/api` typechecks.
 - `CreateBudget`: validates the categories through the `CategoryReader` port (D4), normalizes the
   thresholds, computes the month start from the `Clock` and `UserTimeZone` ports, and hands budget and
   first version to the repository, which enforces the limit (D8).
-- `UpdateBudget`: loads the budget (404 when missing or foreign), merges the changes into the version in
-  force, validates a changed category set as in create, and asks the repository to write the version of
-  the current month (D2). An edit that changes nothing still writes the version of the month.
+- `UpdateBudget`: checks the budget exists (404 when missing or foreign), validates a changed category
+  set as in create, and asks the repository to write the version of the current month (D2), passing a
+  merge function that the repository applies to the version in force under the row lock. An edit that changes nothing still writes the version of the month.
 - `ListBudgets`, `GetBudget`: return the version in force with covered categories; a budget whose first
   version is in a future month relative to the caller's zone is shown with its first version.
 - `DeleteBudget`: 404 for missing or foreign, otherwise removes it.
@@ -412,5 +426,7 @@ Route and flow tests pass; `pnpm lint`, `pnpm typecheck` and `pnpm test` are gre
 - `pnpm lint`, `pnpm typecheck`, `pnpm test:coverage` (80% lines, branches and functions over the three
   packages together) and `pnpm audit --prod --audit-level high` pass.
 - The migration `when` is greater than the maximum on `main` at merge time, and 0034 is renumbered
-  behind the goals migration if 06a merges first.
+  behind the goals migration if 06a merges first (journal idx 34, with 33 skipped).
+- The rollback script, run twice, removes the four tables and the 0034 journal row, and the migration
+  applies again afterwards.
 - No other module's behaviour changed, and no web screen was added (06f).

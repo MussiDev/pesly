@@ -1,6 +1,7 @@
 import type { Express } from 'express';
 import request from 'supertest';
 import { createBudgetRoutes } from '../../src/budgets';
+import { createCategoryRoutes } from '../../src/categories';
 import type { DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
 import { createIdentityHarness } from '../helpers/identity-harness';
@@ -30,7 +31,11 @@ export interface Owner {
   cookies: SessionCookies;
 }
 
-export function buildApp(connection: DatabaseConnection, clock: MovableClock = new MovableClock()) {
+export function buildApp(
+  connection: DatabaseConnection,
+  clock: MovableClock = new MovableClock(),
+  options: { withCategoryRoutes?: boolean } = {},
+) {
   const lines: string[] = [];
   const logger = createLogger({
     level: 'debug',
@@ -38,7 +43,10 @@ export function buildApp(connection: DatabaseConnection, clock: MovableClock = n
   });
   const harness = createIdentityHarness(connection, {
     realSessions: true,
-    routerFactories: [createBudgetRoutes({ db: connection.db, logger, clock })],
+    routerFactories: [
+      createBudgetRoutes({ db: connection.db, logger, clock }),
+      ...(options.withCategoryRoutes ? [createCategoryRoutes({ db: connection.db, logger })] : []),
+    ],
   });
   return { app: harness.app, lines, clock };
 }

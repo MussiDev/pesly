@@ -198,6 +198,9 @@ export class DrizzleCategoryRepository implements CategoryRepository {
         .returning({ id: categories.id });
       return rows.length === 1;
     } catch (error) {
+      // The budgets category key is DEFERRABLE INITIALLY DEFERRED, so its violation surfaces here
+      // (end of this autocommit statement) only because the delete is not wrapped in a larger
+      // transaction; a caller that does wrap it would see the error at COMMIT instead.
       throw violatedConstraint(error, '23503') === undefined ? error : new CategoryInUse();
     }
   }

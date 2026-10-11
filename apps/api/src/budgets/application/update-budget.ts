@@ -17,22 +17,23 @@ export class UpdateBudget {
     input: UpdateBudgetRequest,
   ): Promise<Budget> {
     const monthStart = await monthStartFor(this.deps, scope.userId);
-    const current = notFoundUnlessAllowed(await this.deps.budgets.findById(scope, id, monthStart));
+    // Existence check only: the version to merge into is read again under the row lock.
+    notFoundUnlessAllowed(await this.deps.budgets.findById(scope, id, monthStart));
     if (input.categoryIds !== undefined) {
       await assertBudgetCategories(this.deps, scope, input.categoryIds);
     }
-    const version = mergeVersion(
-      current.version,
-      {
-        name: input.name,
-        amount: input.amount === undefined ? undefined : BigInt(input.amount),
-        rollover: input.rollover,
-        categoryIds: input.categoryIds,
-        thresholds:
-          input.thresholds === undefined ? undefined : normalizeThresholds(input.thresholds),
-      },
-      monthStart,
+    const changes = {
+      name: input.name,
+      amount: input.amount === undefined ? undefined : BigInt(input.amount),
+      rollover: input.rollover,
+      categoryIds: input.categoryIds,
+      thresholds:
+        input.thresholds === undefined ? undefined : normalizeThresholds(input.thresholds),
+    };
+    return notFoundUnlessAllowed(
+      await this.deps.budgets.update(scope, id, monthStart, (current) =>
+        mergeVersion(current, changes, monthStart),
+      ),
     );
-    return notFoundUnlessAllowed(await this.deps.budgets.update(scope, id, version, monthStart));
   }
 }

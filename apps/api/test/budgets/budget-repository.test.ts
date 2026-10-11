@@ -148,11 +148,8 @@ describe('DrizzleBudgetRepository', () => {
       ).rows;
     const before = await snapshot();
 
-    const updated = await budgets.update(
-      ana.write,
-      created.id,
+    const updated = await budgets.update(ana.write, created.id, OCTOBER, () =>
       versionOf([cat], { effectiveFrom: OCTOBER, name: 'Food 2', amount: 20000000n }),
-      OCTOBER,
     );
 
     expect(updated?.version.effectiveFrom).toBe(OCTOBER);
@@ -171,17 +168,11 @@ describe('DrizzleBudgetRepository', () => {
       { currency: 'ARS', version: versionOf([cat]) },
       SEPTEMBER,
     );
-    await budgets.update(
-      ana.write,
-      created.id,
+    await budgets.update(ana.write, created.id, OCTOBER, () =>
       versionOf([cat], { effectiveFrom: OCTOBER, name: 'One', thresholds: [50] }),
-      OCTOBER,
     );
-    const second = await budgets.update(
-      ana.write,
-      created.id,
+    const second = await budgets.update(ana.write, created.id, OCTOBER, () =>
       versionOf([cat], { effectiveFrom: OCTOBER, name: 'Two', thresholds: [90, 110] }),
-      OCTOBER,
     );
 
     expect(second?.version.name).toBe('Two');
@@ -202,12 +193,10 @@ describe('DrizzleBudgetRepository', () => {
       OCTOBER,
     );
 
+    const foreign = await bea.category();
     await expect(
-      budgets.update(
-        ana.write,
-        created.id,
-        versionOf([await bea.category()], { effectiveFrom: OCTOBER, name: 'Changed' }),
-        OCTOBER,
+      budgets.update(ana.write, created.id, OCTOBER, () =>
+        versionOf([foreign], { effectiveFrom: OCTOBER, name: 'Changed' }),
       ),
     ).rejects.toThrow(ResourceNotFound);
 
@@ -226,8 +215,9 @@ describe('DrizzleBudgetRepository', () => {
     expect(await budgets.findById(bea.read, created.id, OCTOBER)).toBeNull();
     expect(await budgets.findById(bea.read, randomUUID(), OCTOBER)).toBeNull();
     expect(await budgets.listCurrent(bea.read, OCTOBER)).toEqual([]);
+    const beaCategory = await bea.category();
     expect(
-      await budgets.update(bea.write, created.id, versionOf([await bea.category()]), OCTOBER),
+      await budgets.update(bea.write, created.id, OCTOBER, () => versionOf([beaCategory])),
     ).toBeNull();
     expect(await budgets.delete(bea.write, created.id)).toBe(false);
     expect(await budgets.findById(ana.read, created.id, OCTOBER)).not.toBeNull();
@@ -241,11 +231,8 @@ describe('DrizzleBudgetRepository', () => {
       { currency: 'ARS', version: versionOf([cat]) },
       OCTOBER,
     );
-    await budgets.update(
-      ana.write,
-      created.id,
+    await budgets.update(ana.write, created.id, '2026-11-01', () =>
       versionOf([cat], { effectiveFrom: '2026-11-01' }),
-      '2026-11-01',
     );
     const categoriesBefore = await count('select count(*) as n from categories');
 

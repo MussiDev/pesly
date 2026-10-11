@@ -104,6 +104,17 @@ describe('0034_budgets migration', () => {
     expect(users.rowCount).toBe(1);
   });
 
+  it('has a rollback script that forgets exactly the journal when of its migration', async () => {
+    const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
+      entries: { when: number; tag: string }[];
+    };
+    const own = journal.entries.find((entry) => entry.tag === TAG);
+    const script = await fileOf(`rollback/${TAG}.down.sql`);
+
+    expect(own?.when).toBeDefined();
+    expect(script).toContain(`"created_at" = ${own?.when}`);
+  });
+
   it('has the journal entry with the greatest when, above main, chained to the previous one', async () => {
     const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
       entries: { idx: number; when: number; tag: string }[];

@@ -134,12 +134,13 @@ export class InMemoryBudgetRepository implements BudgetRepository {
   async update(
     scope: AccessScope<'write'>,
     id: string,
-    version: BudgetVersion,
     monthStart: string,
+    change: (current: BudgetVersion) => BudgetVersion,
   ): Promise<Budget | null> {
     await Promise.resolve();
     const row = this.visible(scope, id);
     if (!row) return null;
+    const version = change(this.read(row, monthStart).version);
     row.versions = [
       ...row.versions.filter((existing) => existing.effectiveFrom !== version.effectiveFrom),
       clone(version),

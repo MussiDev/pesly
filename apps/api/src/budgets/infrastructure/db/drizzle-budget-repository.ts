@@ -212,8 +212,8 @@ export class DrizzleBudgetRepository implements BudgetRepository {
   async update(
     scope: AccessScope<'write'>,
     id: string,
-    version: BudgetVersion,
     monthStart: string,
+    change: (current: BudgetVersion) => BudgetVersion,
   ): Promise<Budget | null> {
     try {
       return await this.db.transaction(async (tx) => {
@@ -225,6 +225,9 @@ export class DrizzleBudgetRepository implements BudgetRepository {
           .where(ownBudget(scope, id))
           .for('update');
         if (!own) return null;
+        // Read under the lock, so a concurrent edit committed meanwhile is part of what is merged.
+        const [existing] = await loadBudgets(tx, scope, monthStart, id);
+        const version = change(required(existing, 'budget').version);
         await tx
           .delete(budgetVersions)
           .where(

@@ -96,4 +96,25 @@ describe('budget flows', () => {
     expect(read.status).toBe(200);
     expect(read.body.id).toBe(created.body.id);
   });
+
+  it('keeps both fields when two partial edits of one budget run concurrently', async () => {
+    const clock = new MovableClock(new Date('2026-09-15T16:00:00.000Z'));
+    const { app } = buildApp(connection, clock);
+    const ana = await addUser(connection, app, 'ana');
+    const category = await newCategory(connection.pool, ana.id, 'expense');
+    clock.current = new Date('2026-10-15T16:00:00.000Z');
+
+    for (let round = 0; round < 5; round += 1) {
+      const created = await call(app, 'post', '/budgets', ana.cookies, body(category));
+      const path = `/budgets/${created.body.id}`;
+      const [renamed, resized] = await Promise.all([
+        call(app, 'patch', path, ana.cookies, { name: `Renamed ${round}` }),
+        call(app, 'patch', path, ana.cookies, { amount: '2000' }),
+      ]);
+      expect([renamed.status, resized.status]).toEqual([200, 200]);
+
+      const final = await call(app, 'get', path, ana.cookies);
+      expect(final.body).toMatchObject({ name: `Renamed ${round}`, amount: '2000' });
+    }
+  });
 });

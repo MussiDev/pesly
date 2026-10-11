@@ -209,4 +209,18 @@ describe('budget routes', () => {
       expect(logged).not.toContain(secret);
     }
   });
+
+  it('answers 409 CATEGORY_IN_USE when deleting a category a budget uses, and keeps it', async () => {
+    const { app } = buildApp(connection, undefined, { withCategoryRoutes: true });
+    const ana = await addUser(connection, app, 'ana');
+    const category = await newCategory(connection.pool, ana.id, 'expense');
+    await call(app, 'post', '/budgets', ana.cookies, body(category));
+
+    const response = await call(app, 'delete', `/categories/${category}`, ana.cookies);
+
+    expect(response.status).toBe(409);
+    expect(codeOf(response)).toBe('CATEGORY_IN_USE');
+    const rows = await connection.pool.query('select 1 from categories where id = $1', [category]);
+    expect(rows.rowCount).toBe(1);
+  });
 });

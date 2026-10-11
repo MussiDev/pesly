@@ -24,14 +24,17 @@ export interface BudgetRepository {
   /** Ordered by creation, then id. */
   listCurrent(scope: AccessScope, monthStart: string): Promise<Budget[]>;
   /**
-   * Replaces the version of `version.effectiveFrom` if it exists, otherwise inserts it, in one
-   * transaction. Earlier versions are never touched. `null` when the budget is not in scope.
+   * Takes the budget's row lock, reads the version in force for `monthStart` under it and passes
+   * it to `change`, then replaces the version of the returned `effectiveFrom` if it exists,
+   * otherwise inserts it, in one transaction. Merging under the lock keeps two concurrent partial
+   * edits from overwriting each other. `change` must be synchronous and free of side effects.
+   * Earlier versions are never touched. `null` when the budget is not in scope.
    */
   update(
     scope: AccessScope<'write'>,
     id: string,
-    version: BudgetVersion,
     monthStart: string,
+    change: (current: BudgetVersion) => BudgetVersion,
   ): Promise<Budget | null>;
   /** `false` when nothing in scope matched. Versions, categories and thresholds cascade. */
   delete(scope: AccessScope<'write'>, id: string): Promise<boolean>;
