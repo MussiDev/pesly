@@ -55,7 +55,8 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   forbidOnly: isCI,
-  retries: isCI ? 2 : 0,
+  // One retry absorbs a flaky test; two made every broken test cost three full timeouts.
+  retries: isCI ? 1 : 0,
   reporter: isCI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: WEB_URL,
