@@ -6,7 +6,7 @@ import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0025_notices';
-const NEWER_TAGS = ['0027_card_automatic_debit', '0026_groups'];
+const NEWER_TAG = '0026_groups';
 const PREVIOUS_WHEN = 1791585171427;
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -42,9 +42,12 @@ afterAll(async () => {
 
 const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`, 'utf8');
 
-/** 0027 and 0026 have greater journal `when`s, so they go first: the migrator replays only what is newer. */
+/** 0029, 0028, 0027 and 0026 have a greater journal `when`, so they go first: the migrator replays only what is newer. */
 async function rollBackNewerThan0025(): Promise<void> {
-  for (const tag of NEWER_TAGS) await client.query(await fileOf(`rollback/${tag}.down.sql`));
+  await client.query(await fileOf('rollback/0029_card_automatic_debit.down.sql'));
+  await client.query(await fileOf('rollback/0028_group_settlements.down.sql'));
+  await client.query(await fileOf('rollback/0027_group_expenses.down.sql'));
+  await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
 }
 
 async function appliedMigrations(): Promise<number> {
@@ -200,7 +203,7 @@ describe('0025_notices migration', () => {
 
     expect(await paymentColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticesTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 3);
+    expect(await appliedMigrations()).toBe(countBefore - 5);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await paymentColumns()).toEqual(before);

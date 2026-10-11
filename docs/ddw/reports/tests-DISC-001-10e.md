@@ -88,5 +88,5 @@ this is a reading of the source, not a per-branch report.
 - Failing-first evidence is per implementer report, not recoverable per commit (each block landed as one
   commit with its tests): the implementers reported suite-level `module not found` failures for the new
   domain, adapter and job files and assertion failures for the changes to existing files.
-- The migration `when` of `0027_card_automatic_debit` (1791747000000) must be re-checked against the
+- The migration `when` of `0029_card_automatic_debit` (1791747000000) must be re-checked against the
   maximum of `main` before merge (see the Drizzle migration merge rule).

@@ -111,7 +111,9 @@ describe('groups schema introspection', () => {
     );
     const found = await indexes();
     expect(found.group_members_group_user_unique).toMatch(/UNIQUE.*\(group_id, user_id\)/);
-    expect(found.group_members_group_user_unique).toMatch(/WHERE \(user_id IS NOT NULL\)/);
+    expect(found.group_members_group_user_unique).toMatch(
+      /WHERE \(\(user_id IS NOT NULL\) AND \(left_at IS NULL\)\)/,
+    );
     expect(found.group_claim_links_member_unused_unique).toMatch(/UNIQUE.*\(member_id\)/);
     expect(found.group_claim_links_member_unused_unique).toMatch(/WHERE \(used_at IS NULL\)/);
     expect(found.group_categories_group_default_key_unique).toMatch(

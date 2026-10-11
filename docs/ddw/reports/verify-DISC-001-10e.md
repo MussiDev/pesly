@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Module | `apps/api/src/credit-cards` (automatic debit domain, use cases, claim log, source, job loop, `jobs.ts`, debit accounts route), `apps/api/src/movements/infrastructure/credit-cards` (transfer recorder), `apps/api/src/worker.ts`, `apps/api/src/shared/config/env.ts`, `apps/api/drizzle/0027_card_automatic_debit.sql`, `packages/shared/src/credit-cards`, `apps/web/src/features/credit-cards` (debit accounts form and request builder) |
+| Module | `apps/api/src/credit-cards` (automatic debit domain, use cases, claim log, source, job loop, `jobs.ts`, debit accounts route), `apps/api/src/movements/infrastructure/credit-cards` (transfer recorder), `apps/api/src/worker.ts`, `apps/api/src/shared/config/env.ts`, `apps/api/drizzle/0029_card_automatic_debit.sql`, `packages/shared/src/credit-cards`, `apps/web/src/features/credit-cards` (debit accounts form and request builder) |
 | Line coverage | 96.76% |
 | Branch coverage | 90.89% |
 | Function coverage | 94.71% |
@@ -43,7 +43,7 @@ independent `ddw-arch-auditor` findings are resolved in `docs/ddw/security/sast-
 
 ## Spec blocks
 - ✅ Block 1 — Shared contract and error codes: every task done; tests `packages/shared/test/credit-card-schemas.test.ts`
-- ✅ Block 2 — Migration 0027 and schema: every task done; tests `automatic-debit-migration.test.ts`, `schema-introspection.test.ts`, the registry in `identity/migration.test.ts`; journal `when` 1791747000000, to be re-checked against `main` before merge
+- ✅ Block 2 — Migration 0029 and schema: every task done; tests `automatic-debit-migration.test.ts`, `schema-introspection.test.ts`, the registry in `identity/migration.test.ts`; journal `when` 1791747000000, to be re-checked against `main` before merge
 - ✅ Block 3 — Card domain and link use case: every task done; tests `debit-accounts.test.ts`
 - ✅ Block 4 — Automatic debit domain and use case: every task done; tests `automatic-debit.test.ts`
 - ✅ Block 5 — Linking adapters: every task done; tests `credit-card-repository.test.ts`, `erasure-step.test.ts`, `user-erasure.test.ts`
@@ -59,7 +59,7 @@ independent `ddw-arch-auditor` findings are resolved in `docs/ddw/security/sast-
 - ✅ Sad-path tests: every input has one: a wrong-currency account, the card's own account, an account of another user, an archived account, a non-uuid card id, a missing session, an unverified email, an archived or removed debit account at the due date, a plain exception in one card that does not stop the next, a claim that rolls back and is retried, a malformed period and an inconsistent claim row at the database, a foreign source or destination account in the recorder, and in the web client a 404, a network failure, an unauthenticated save and a load failure
 - ✅ NFR-01 to NFR-03 are asserted by the tests listed in the traceability table above, with the 15 minute window checked with a fake clock and the idempotency checked on a real database
 - ⚠️ Test-first evidence is per implementer report, not per commit: each implementer reported tests failing before the implementation (suite-level `module not found` or assertion failures), but each block landed as one commit with its tests, so it cannot be recovered from git
-- ⚠️ The migration `when` 1791747000000 (journal entry idx 27) must be re-checked against the maximum of `main` before merge and bumped if another migration landed first (Drizzle migration merge rule)
+- ⚠️ The migration `when` 1791747000000 (journal entry idx 29) must be re-checked against the maximum of `main` before merge and bumped if another migration landed first (Drizzle migration merge rule)
 - ⚠️ Open low items, accepted as test-strength notes: L2 (the crash-rerun case settles with a null `movement_id`), L3, L4 and L6; none changes behavior
 - ⚠️ The SHA-256 of the transfer id is written by hand in the domain because the domain may not import `node:crypto`; it is checked against the real digest by a test (documented decision D2)
 - ⚠️ If the user deletes the transfer in the seconds between a crash and the rerun, the rerun records it once more, bounded to one remainder (residual edge of the threat model)

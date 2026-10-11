@@ -360,7 +360,7 @@ All notable changes to this project are documented in this file. The format foll
   stays unpaid). A statement due before the link date is never debited, and a worker that was stopped
   records the debit on its first pass. A claim per statement and currency plus a deterministic transfer id
   make repeated, concurrent or interrupted runs record exactly one transfer. Migration
-  `0027_card_automatic_debit` adds four columns to `credit_cards` and the `card_automatic_debits` table.
+  `0029_card_automatic_debit` adds four columns to `credit_cards` and the `card_automatic_debits` table.
   The card page has an automatic debit accounts section. No new dependency.
 - DISC-001-05a Groups, members and roles: `POST /groups` creates a group with a name and a default rate
   type and makes its creator an admin, with the top-level expense categories of the default list. Any member
@@ -372,6 +372,35 @@ All notable changes to this project are documented in this file. The format foll
   same 400. A non-member gets 404 on every group route. Deleting an account turns the user's memberships into
   "Former member" ghosts. Migration `0026_groups` adds five tables. Expenses, balances, settlements and the
   group screens arrive in DISC-001-05b to 05d. No new dependency.
+- DISC-001-05b Group expenses and splits: any member records an expense in ARS or USD with one payer
+  (any member, ghosts included), a non-archived group category and a split equal, by percentages (stored as
+  basis points) or by exact amounts. Shares always add up to the amount; the leftover minor units go one by
+  one to the payer first and then in joining order. A percentage total off 100% or an exact total off the
+  amount answers 400 with the total or the signed difference. When the caller is the payer, the full amount
+  leaves one of their accounts in the expense currency in the same transaction, as an expense movement with
+  the rate of the group's rate type; a ghost or another member as payer records no movement. Admins store a
+  default split that `GET /groups/:id/expense-options` returns with the members and the current categories;
+  `GET /groups/personal/shares` shows the caller's shares and, as payer, the receivable, which are neither
+  movements nor income. Shares follow a claimed ghost because they point to the member, and each expense adds
+  a creation entry to the group activity log. Non-members get 404 on every route. Migration
+  `0027_group_expenses` adds four tables and `groups.default_split_mode`. Balances and settlements arrive in
+  DISC-001-05c, editing and the log view in 05d, and the group screens in a later ticket. No new dependency.
+- DISC-001-05c Group balances and settlements: `GET /groups/:id/balances` shows each member's balance in ARS
+  and USD separately, derived from the expenses, shares and settlements (never stored), with a short list of
+  simplified payments per currency (greedy, at most one payment fewer than the members with a balance, not
+  provably minimal). Any member records a settlement between two active members in one currency; paying more
+  than is owed reverses the debt. A party who is the caller may attach one of their accounts in that currency:
+  its balance rises or drops by the amount, and the settlement is neither an expense nor an income (it creates
+  no movement row). Two members can consolidate both currencies into one: the preview returns the debts and
+  the stored rate of the group's default rate type, a manual rate replaces it, the cash is converted with
+  half-up rounding, and a request whose debts moved since the preview answers 409. A member leaves
+  (`POST /groups/:id/leave`) or an admin removes one (`DELETE /groups/:id/members/:memberId`) only at balance 0
+  in both currencies, otherwise 409 with the balance; the last admin cannot leave while others remain. Leaving
+  is soft: history stays, `GET /groups/:id` lists `formerMembers`, a person who left gets 404 like a
+  non-member and can rejoin with a new member row. A claimed ghost keeps its settlements, a deleted account
+  keeps them under "Former member", and each settlement adds a creation entry to the group activity log.
+  Migration `0028_group_settlements` adds two tables and `group_members.left_at`. Editing and deleting
+  settlements and the log view arrive in DISC-001-05d, the group screens in a later ticket. No new dependency.
 
 ### Changed
 

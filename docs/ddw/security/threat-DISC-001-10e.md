@@ -10,7 +10,7 @@
 ## Components
 | Component | Source in the spec |
 |---|---|
-| `apps/api/drizzle/0027_card_automatic_debit.sql` | Block 2 |
+| `apps/api/drizzle/0029_card_automatic_debit.sql` | Block 2 |
 | `apps/api/src/credit-cards/infrastructure/db/schema.ts` | Block 2 |
 | `apps/api/src/credit-cards/application/set-card-debit-accounts.ts` | Block 3 |
 | `apps/api/src/credit-cards/infrastructure/db/drizzle-credit-card-repository.ts` | Block 5 |
@@ -44,7 +44,7 @@
   the process (unchanged validation, now also pacing this job).
 
 ## STRIDE analysis
-### `apps/api/drizzle/0027_card_automatic_debit.sql`
+### `apps/api/drizzle/0029_card_automatic_debit.sql`
 - **Spoofing:** not applicable, a migration carries no identity.
 - **Tampering:** additive and nullable: existing cards get `null` in the four columns, so no card
   debits anything until its owner links an account; the composite keys, the card-account check and the

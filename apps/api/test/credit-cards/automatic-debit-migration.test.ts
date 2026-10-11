@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const TAG = '0027_card_automatic_debit';
-const PREVIOUS_WHEN = 1791661150964;
+const TAG = '0029_card_automatic_debit';
+const PREVIOUS_WHEN = 1791670861757;
 const NEW_COLUMNS = [
   'debit_ars_account_id',
   'debit_ars_linked_on',
@@ -146,7 +146,7 @@ const insertClaim = (
     ],
   );
 
-describe('0027_card_automatic_debit migration', () => {
+describe('0029_card_automatic_debit migration', () => {
   it('leaves existing cards with no automatic debit when applied after a rollback (AC-01)', async () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const card = await createCard();
@@ -307,7 +307,7 @@ describe('0027_card_automatic_debit migration', () => {
     expect(result.rowCount).toBe(0);
   });
 
-  it('is reverted by its rollback, which runs twice, restoring the 0026 schema, and re-applies', async () => {
+  it('is reverted by its rollback, which runs twice, restoring the 0028 schema, and re-applies', async () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
@@ -323,17 +323,17 @@ describe('0027_card_automatic_debit migration', () => {
     expect(await claimTableExists()).toBe(true);
   });
 
-  it('has the journal entry at idx 27 with a when above 0026, and chains its snapshot onto 0026', async () => {
+  it('has the journal entry at idx 29 with a when above 0028, and chains its snapshot onto 0028', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
     );
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
-    expect(own?.idx).toBe(27);
+    expect(own?.idx).toBe(29);
     expect(own?.when).toBeGreaterThan(PREVIOUS_WHEN);
-    expect((await read<{ prevId: string }>('0027_snapshot.json')).prevId).toBe(
-      (await read<{ id: string }>('0026_snapshot.json')).id,
+    expect((await read<{ prevId: string }>('0029_snapshot.json')).prevId).toBe(
+      (await read<{ id: string }>('0028_snapshot.json')).id,
     );
   });
 });

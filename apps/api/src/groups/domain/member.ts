@@ -11,6 +11,13 @@ export interface Member {
   joinedAt: Date;
 }
 
+/** A member who left or was removed; named so the history that mentions them stays readable. */
+export interface FormerMember {
+  id: string;
+  displayName: string | null;
+  leftAt: Date;
+}
+
 export function isGhost(member: Member): boolean {
   return member.userId === null;
 }

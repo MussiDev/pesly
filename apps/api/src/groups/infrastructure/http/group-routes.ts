@@ -1,18 +1,35 @@
 import {
   addGhostMemberRequestSchema,
+  balancesResponseSchema,
+  consolidationPreviewSchema,
+  consolidationQuerySchema,
+  createSettlementRequestSchema,
+  listSettlementsQuerySchema,
+  settlementPageSchema,
+  settlementResponseSchema,
   claimGhostRequestSchema,
   claimLinkResponseSchema,
   createGroupCategoryRequestSchema,
+  createGroupExpenseRequestSchema,
   createGroupRequestSchema,
+  defaultSplitRequestSchema,
+  defaultSplitResponseSchema,
+  expenseOptionsResponseSchema,
   groupCategoryParamsSchema,
   groupCategoryResponseSchema,
   groupDetailResponseSchema,
+  groupExpensePageSchema,
+  groupExpenseParamsSchema,
+  groupExpenseResponseSchema,
   groupIdParamsSchema,
   groupMemberParamsSchema,
   groupMemberResponseSchema,
   groupResponseSchema,
   invitationResponseSchema,
   joinGroupRequestSchema,
+  listGroupExpensesQuerySchema,
+  personalSharesPageSchema,
+  personalSharesQuerySchema,
   updateGroupCategoryRequestSchema,
   updateGroupRequestSchema,
 } from '@pesly/shared';
@@ -31,17 +48,47 @@ import { CreateClaimLink } from '../../application/create-claim-link';
 import { CreateGroup } from '../../application/create-group';
 import { CreateGroupCategory } from '../../application/create-group-category';
 import { CreateInvitation } from '../../application/create-invitation';
+import { GetBalances } from '../../application/get-balances';
+import { GetExpenseOptions } from '../../application/get-expense-options';
 import { GetGroup } from '../../application/get-group';
+import { GetGroupExpense } from '../../application/get-group-expense';
 import { JoinGroup } from '../../application/join-group';
+import { LeaveGroup } from '../../application/leave-group';
 import { ListGroupCategories } from '../../application/list-group-categories';
+import { ListGroupExpenses } from '../../application/list-group-expenses';
 import { ListGroups } from '../../application/list-groups';
+import { ListSettlements } from '../../application/list-settlements';
+import { ListPersonalShares } from '../../application/list-personal-shares';
 import { MakeAdmin } from '../../application/make-admin';
 import type { Clock } from '../../application/ports/clock';
+import { PreviewConsolidation } from '../../application/preview-consolidation';
+import { RecordGroupExpense } from '../../application/record-group-expense';
+import { RecordSettlement } from '../../application/record-settlement';
+import { RemoveMember } from '../../application/remove-member';
+import { SetDefaultSplit } from '../../application/set-default-split';
 import { UpdateGroup } from '../../application/update-group';
 import { UpdateGroupCategory } from '../../application/update-group-category';
 import { SystemClock } from '../clock/system-clock';
 import { RandomTokenSource } from '../crypto/random-token-source';
+import { DrizzleSettlementAccountChecker } from '../accounts/drizzle-settlement-account-checker';
+import { DrizzleGroupExpenseRepository } from '../db/drizzle-group-expense-repository';
 import { DrizzleGroupRepository } from '../db/drizzle-group-repository';
+import { DrizzleGroupSettlementRepository } from '../db/drizzle-group-settlement-repository';
+import { DrizzlePayerMovementRecorder } from '../movements/drizzle-payer-movement-recorder';
+import { DrizzleRateReader } from '../rates/drizzle-rate-reader';
+import {
+  presentDefaultSplit,
+  presentExpenseOptions,
+  presentGroupExpense,
+  presentGroupExpensePage,
+  presentPersonalSharesPage,
+} from './group-expense-presenter';
+import {
+  presentBalancesResponse,
+  presentConsolidationPreview,
+  presentSettlement,
+  presentSettlementPage,
+} from './group-settlement-presenter';
 import {
   presentClaimLink,
   presentGroup,
@@ -75,6 +122,8 @@ export function createGroupRoutes({
   clock = new SystemClock(),
 }: GroupRoutesOptions): RouterFactory {
   const groups = new DrizzleGroupRepository(db);
+  const payerMovements = new DrizzlePayerMovementRecorder(db, clock);
+  const expenses = new DrizzleGroupExpenseRepository(db, payerMovements);
   const tokens = new RandomTokenSource();
   const createGroup = new CreateGroup({ groups });
   const listGroups = new ListGroups({ groups });
@@ -89,6 +138,26 @@ export function createGroupRoutes({
   const listCategories = new ListGroupCategories({ groups });
   const createCategory = new CreateGroupCategory({ groups });
   const updateCategory = new UpdateGroupCategory({ groups, clock });
+  const recordExpense = new RecordGroupExpense({ groups, expenses, payerMovements, clock });
+  const listExpenses = new ListGroupExpenses({ groups, expenses });
+  const getExpense = new GetGroupExpense({ groups, expenses });
+  const getExpenseOptions = new GetExpenseOptions({ groups, expenses });
+  const setDefaultSplit = new SetDefaultSplit({ groups, expenses });
+  const listPersonalShares = new ListPersonalShares({ expenses });
+  const settlements = new DrizzleGroupSettlementRepository(db);
+  const rates = new DrizzleRateReader(db);
+  const getBalances = new GetBalances({ groups, settlements });
+  const recordSettlement = new RecordSettlement({
+    groups,
+    settlements,
+    accounts: new DrizzleSettlementAccountChecker(db),
+    rates,
+    clock,
+  });
+  const previewConsolidation = new PreviewConsolidation({ groups, settlements, rates });
+  const listSettlements = new ListSettlements({ groups, settlements });
+  const removeMember = new RemoveMember({ groups, clock });
+  const leaveGroup = new LeaveGroup({ groups, clock });
 
   // Audit lines carry ids only: never a token, a group name, a member name or an email.
   const audit = (
@@ -96,8 +165,9 @@ export function createGroupRoutes({
     requestId: string,
     auth: AuthContext | undefined,
     groupId: string,
+    extra: { expenseId?: string; settlementId?: string; memberId?: string } = {},
   ): void => {
-    logger.info({ requestId, userId: auth?.userId, groupId }, message);
+    logger.info({ requestId, userId: auth?.userId, groupId, ...extra }, message);
   };
 
   return ({ requireSession }) => {
@@ -144,6 +214,23 @@ export function createGroupRoutes({
           const claimed = await claimGhostMember.execute(userIdOf(auth), body.token);
           audit('ghost member claimed', requestId, auth, claimed.group.id);
           res.json(presentGroup(claimed));
+        },
+      ),
+    );
+
+    // Before `/groups/:id/...` so `personal` is never read as a group id.
+    router.get(
+      '/groups/personal/shares',
+      validate(
+        { query: personalSharesQuerySchema, response: personalSharesPageSchema },
+        async ({ query }, { res, auth }) => {
+          const page = await listPersonalShares.execute(userIdOf(auth), {
+            ...(query.limit !== undefined ? { limit: query.limit } : {}),
+            ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+            ...(query.from !== undefined ? { from: new Date(query.from) } : {}),
+            ...(query.to !== undefined ? { to: new Date(query.to) } : {}),
+          });
+          res.json(presentPersonalSharesPage(page));
         },
       ),
     );
@@ -272,6 +359,161 @@ export function createGroupRoutes({
           res.json(presentGroupCategory(category));
         },
       ),
+    );
+
+    router.post(
+      '/groups/:id/expenses',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          body: createGroupExpenseRequestSchema,
+          response: groupExpenseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const expense = await recordExpense.execute(userIdOf(auth), params.id, body);
+          audit('group expense created', requestId, auth, params.id, { expenseId: expense.id });
+          res.status(201).json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/expenses',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          query: listGroupExpensesQuerySchema,
+          response: groupExpensePageSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
+          res.json(
+            presentGroupExpensePage(await listExpenses.execute(userIdOf(auth), params.id, query)),
+          );
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/expenses/:expenseId',
+      validate(
+        { params: groupExpenseParamsSchema, response: groupExpenseResponseSchema },
+        async ({ params }, { res, auth }) => {
+          const expense = await getExpense.execute(userIdOf(auth), params.id, params.expenseId);
+          res.json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/expense-options',
+      validate(
+        { params: groupIdParamsSchema, response: expenseOptionsResponseSchema },
+        async ({ params }, { res, auth }) => {
+          res.json(
+            presentExpenseOptions(await getExpenseOptions.execute(userIdOf(auth), params.id)),
+          );
+        },
+      ),
+    );
+
+    router.put(
+      '/groups/:id/default-split',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          body: defaultSplitRequestSchema,
+          response: defaultSplitResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const split = await setDefaultSplit.execute(userIdOf(auth), params.id, body);
+          audit('group default split changed', requestId, auth, params.id);
+          res.json(presentDefaultSplit(split));
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/balances',
+      validate(
+        { params: groupIdParamsSchema, response: balancesResponseSchema },
+        async ({ params }, { res, auth }) => {
+          res.json(presentBalancesResponse(await getBalances.execute(userIdOf(auth), params.id)));
+        },
+      ),
+    );
+
+    router.post(
+      '/groups/:id/settlements',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          body: createSettlementRequestSchema,
+          response: settlementResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const settlement = await recordSettlement.execute(userIdOf(auth), params.id, body);
+          audit('group settlement created', requestId, auth, params.id, {
+            settlementId: settlement.id,
+          });
+          res.status(201).json(presentSettlement(settlement));
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/settlements',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          query: listSettlementsQuerySchema,
+          response: settlementPageSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
+          res.json(
+            presentSettlementPage(await listSettlements.execute(userIdOf(auth), params.id, query)),
+          );
+        },
+      ),
+    );
+
+    // A literal segment, registered before any `/groups/:id/settlements/:settlementId` pattern.
+    router.get(
+      '/groups/:id/settlements/consolidation',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          query: consolidationQuerySchema,
+          response: consolidationPreviewSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
+          res.json(
+            presentConsolidationPreview(
+              await previewConsolidation.execute(userIdOf(auth), params.id, query),
+            ),
+          );
+        },
+      ),
+    );
+
+    router.delete(
+      '/groups/:id/members/:memberId',
+      validate(
+        { params: groupMemberParamsSchema },
+        async ({ params }, { res, auth, requestId }) => {
+          await removeMember.execute(userIdOf(auth), params.id, params.memberId);
+          audit('group member removed', requestId, auth, params.id, { memberId: params.memberId });
+          res.sendStatus(204);
+        },
+      ),
+    );
+
+    router.post(
+      '/groups/:id/leave',
+      validate({ params: groupIdParamsSchema }, async ({ params }, { res, auth, requestId }) => {
+        const memberId = await leaveGroup.execute(userIdOf(auth), params.id);
+        audit('group member left', requestId, auth, params.id, { memberId });
+        res.sendStatus(204);
+      }),
     );
 
     return router;

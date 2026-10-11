@@ -7,7 +7,10 @@ const CHUNK_SIZE = 500;
 
 /**
  * Both sides of a movement count: the source column loses (or gains, for income) `amount`, the
- * destination column of a transfer or exchange gains `destination_amount`.
+ * destination column of a transfer or exchange gains `destination_amount`. A group settlement
+ * that names the account adds its cash when the account owner is the receiving member and
+ * subtracts it when they are the paying one (spec 05c D5); it is not a movement, so no movement
+ * total changes.
  *
  * UNSCOPED BY DESIGN (see the port): every result is keyed by the ids it was given, and rows of
  * other accounts are never selected.
@@ -36,11 +39,23 @@ class DrizzleAccountMovements implements AccountMovements {
         .from(movements)
         .where(inArray(movements.destinationAccountId, chunk))
         .groupBy(movements.destinationAccountId);
+      const settled = await this.db.execute<{ account_id: string; total: string }>(sql`
+        select account_id, sum(
+          case when account_member_id = to_member_id then amount
+               when account_member_id = from_member_id then -amount
+               else 0 end)::text as total
+        from group_settlements
+        where account_id in (${sql.join(
+          chunk.map((id) => sql`${id}::uuid`),
+          sql`, `,
+        )})
+        group by account_id`);
       for (const row of sources) addTo(sums, row.accountId, BigInt(row.total));
       for (const row of destinations) {
         // The filter above excludes null destinations, so this guard only narrows the type.
         if (row.accountId !== null) addTo(sums, row.accountId, BigInt(row.total));
       }
+      for (const row of settled.rows) addTo(sums, row.account_id, BigInt(row.total));
     }
     return sums;
   }
@@ -51,7 +66,12 @@ class DrizzleAccountMovements implements AccountMovements {
       .from(movements)
       .where(or(eq(movements.accountId, accountId), eq(movements.destinationAccountId, accountId)))
       .limit(1);
-    return row !== undefined;
+    if (row !== undefined) return true;
+    // Read as SQL: `request-path.test.ts` keeps this module off other modules' persistence files.
+    const settlements = await this.db.execute(
+      sql`select 1 from group_settlements where account_id = ${accountId}::uuid limit 1`,
+    );
+    return settlements.rows.length > 0;
   }
 }
 

@@ -17,6 +17,7 @@ import {
   type IssuedToken,
   type Member,
   type NewGroupCategory,
+  type RemoveMemberData,
   type ReplaceClaimLinkData,
   type TokenSource,
   type UpdateGroupCategoryFields,
@@ -105,7 +106,7 @@ export class InMemoryGroupRepository implements GroupRepository {
     await Promise.resolve();
     const group = this.groups.get(groupId);
     if (group === undefined) return null;
-    return { group, members: this.membersOf(groupId) };
+    return { group, members: this.membersOf(groupId), formerMembers: [] };
   }
 
   async getSummary(groupId: string, userId: string): Promise<GroupSummary | null> {
@@ -228,6 +229,13 @@ export class InMemoryGroupRepository implements GroupRepository {
     };
     list[index] = updated;
     return updated;
+  }
+
+  /** Needs the balances of the settlement fakes: see `InMemoryMembershipGroupRepository`. */
+  removeMember(data: RemoveMemberData): Promise<Member> {
+    return Promise.reject(
+      new Error(`removeMember(${data.memberId}) needs InMemoryMembershipGroupRepository`),
+    );
   }
 
   /** Test helper: puts a member in without the use-case rules. */

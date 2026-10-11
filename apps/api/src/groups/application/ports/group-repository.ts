@@ -60,6 +60,13 @@ export interface UpdateGroupCategoryFields {
   archivedAt?: Date | null;
 }
 
+export interface RemoveMemberData {
+  groupId: string;
+  memberId: string;
+  /** The instant stored in `left_at`; comes from the `Clock`. */
+  leftAt: Date;
+}
+
 /**
  * Atomic operations named after intent; the Drizzle adapter makes each one a single transaction.
  * Rules that need state but no atomicity (roles, name clashes) run in the use cases.
@@ -103,4 +110,14 @@ export interface GroupRepository {
     categoryId: string,
     fields: UpdateGroupCategoryFields,
   ): Promise<GroupCategory | null>;
+  /**
+   * Soft exit of an active member (spec D9, D10), one transaction: lock the member row `for
+   * update`, compute the member's balance in both currencies, check the last-admin rule, set
+   * `left_at`, delete the member's invitation and unused claim link and reset a percentage default
+   * split that contained them to `equal`. Returns the member as they were. Throws, in this order:
+   * `ResourceNotFound` when the member is not an active member of the group;
+   * `GroupMemberHasBalance` when either balance is not 0; `GroupLastAdmin` when the member is the
+   * only admin and other active members remain. A failure rolls every change back.
+   */
+  removeMember(data: RemoveMemberData): Promise<Member>;
 }

@@ -71,7 +71,7 @@ interface RegisteredTable {
   seed: (context: SeedContext) => Promise<void>;
 }
 
-/** The restricting composite keys from `credit_cards` to the linked and debit accounts (migrations 0019, 0027). */
+/** The restricting composite keys from `credit_cards` to the linked and debit accounts (migrations 0019, 0029). */
 const CREDIT_CARDS_STEP_CONSTRAINTS = [
   'credit_cards_ars_account_owner_fk',
   'credit_cards_usd_account_owner_fk',
@@ -93,6 +93,28 @@ const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
 
 /** The restricting key from `group_members` to users (migration 0026); the step turns the member into a ghost. */
 const GROUP_MEMBERS_STEP_CONSTRAINTS = ['group_members_user_id_users_id_fk'] as const;
+
+/** The restricting member keys and the set-null movement key of `group_expenses` (migration 0027). */
+const GROUP_EXPENSES_STEP_CONSTRAINTS = [
+  'group_expenses_payer_group_fk',
+  'group_expenses_creator_group_fk',
+  'group_expenses_payer_movement_id_movements_id_fk',
+] as const;
+
+/** The restricting member key of `group_expense_shares` (migration 0027). */
+const GROUP_EXPENSE_SHARES_STEP_CONSTRAINTS = ['group_expense_shares_member_group_fk'] as const;
+
+/** The restricting member key of `group_activity_log` (migration 0027). */
+const GROUP_ACTIVITY_LOG_STEP_CONSTRAINTS = ['group_activity_log_member_group_fk'] as const;
+
+/** The restricting member keys and the set-null account key of `group_settlements` (migration 0028). */
+const GROUP_SETTLEMENTS_STEP_CONSTRAINTS = [
+  'group_settlements_from_group_fk',
+  'group_settlements_to_group_fk',
+  'group_settlements_creator_group_fk',
+  'group_settlements_account_member_group_fk',
+  'group_settlements_account_id_accounts_id_fk',
+] as const;
 
 /** The name of the group a seeder creates for one user, so rows without a user column can be counted. */
 const groupNameFor = (userId: string): string => `erasure-${userId}`;
@@ -608,6 +630,125 @@ const REGISTRY: readonly RegisteredTable[] = [
          join group_members u on u.group_id = m.group_id and u.user_id = $1
          where m.display_name = 'Ghost'`,
         [context.userId, `claim-${context.userId}`],
+      );
+    },
+  },
+  {
+    table: 'group_expenses',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_expenses'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    // The member keys restrict because the step turns the member into a ghost instead of deleting
+    // it; the movement key sets null, so the expense outlives the erased account (migration 0027).
+    stepConstraints: GROUP_EXPENSES_STEP_CONSTRAINTS,
+    // Registered after group_members: the expense is paid by the member that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        `with category as (
+           insert into group_categories (group_id, default_key, icon, color)
+           select m.group_id, 'food', 'utensils', 'red' from group_members m where m.user_id = $1
+           returning id, group_id
+         )
+         insert into group_expenses
+           (group_id, payer_member_id, created_by_member_id, amount, currency, occurred_at,
+            category_id, description, split_mode)
+         select m.group_id, m.id, m.id, 1000, 'ARS', now(), c.id, 'Dinner', 'equal'
+         from group_members m join category c on c.group_id = m.group_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_expense_shares',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_expense_shares'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    stepConstraints: GROUP_EXPENSE_SHARES_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_expense_shares (expense_id, member_id, group_id, amount)
+         select e.id, m.id, e.group_id, 1000
+         from group_expenses e join group_members m on m.id = e.payer_member_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_default_split_shares',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_default_split_shares'),
+    policy: 'cascade',
+    survivesErasure: true,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_default_split_shares (group_id, member_id, basis_points)
+         select m.group_id, m.id, 10000 from group_members m where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_activity_log',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_activity_log'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    stepConstraints: GROUP_ACTIVITY_LOG_STEP_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_activity_log (group_id, member_id, action, subject_id, created_at)
+         select e.group_id, e.payer_member_id, 'expense_created', e.id, now()
+         from group_expenses e join group_members m on m.id = e.payer_member_id
+         where m.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_settlements',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_settlements'),
+    policy: 'erase-step',
+    survivesErasure: true,
+    // The member keys restrict because the step turns the member into a ghost instead of deleting
+    // it; the account key sets null, so the settlement outlives the erased account (migration 0028).
+    stepConstraints: GROUP_SETTLEMENTS_STEP_CONSTRAINTS,
+    // Registered after group_members: the ghost the seeder created pays the user.
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_settlements
+           (group_id, from_member_id, to_member_id, created_by_member_id, currency, amount, occurred_at)
+         select u.group_id, g.id, u.id, u.id, 'ARS', 500, now()
+         from group_members u
+         join group_members g on g.group_id = u.group_id and g.display_name = 'Ghost'
+         where u.user_id = $1`,
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'group_settlement_legs',
+    userColumn: 'group_id',
+    rowsSql: GROUP_ROWS_SQL('group_settlement_legs'),
+    policy: 'cascade',
+    survivesErasure: true,
+    seed: async (context) => {
+      await query(
+        context,
+        `insert into group_settlement_legs (settlement_id, group_id, currency, amount)
+         select s.id, s.group_id, 'ARS', 500
+         from group_settlements s join group_members m on m.id = s.to_member_id
+         where m.user_id = $1`,
+        [context.userId],
       );
     },
   },

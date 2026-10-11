@@ -108,20 +108,20 @@ Response entity `CreditCardResponse`, new fields: `debitArsAccountId: string | n
 **Completion criterion**
 `pnpm --filter @pesly/shared exec vitest run` passes and `pnpm typecheck` shows only the expected consumers of `CreditCardResponse` still to update.
 
-## Block 2 — Migration 0027 and schema
+## Block 2 — Migration 0029 and schema
 
 **Files**
-- `apps/api/drizzle/0027_card_automatic_debit.sql` (new) — adds the four `credit_cards` columns, their keys and checks, and creates `card_automatic_debits`.
-- `apps/api/drizzle/rollback/0027_card_automatic_debit.down.sql` (new) — reverse script, runnable twice.
-- `apps/api/drizzle/meta/0027_snapshot.json` (new) — snapshot chained from `0026_snapshot.json` (`prevId` `26a44ee5-a7df-4865-88df-fce5759ca8f7`).
-- `apps/api/drizzle/meta/_journal.json` (modified) — entry `idx 27`, tag `0027_card_automatic_debit`, `when` 1791747000000.
+- `apps/api/drizzle/0029_card_automatic_debit.sql` (new) — adds the four `credit_cards` columns, their keys and checks, and creates `card_automatic_debits`.
+- `apps/api/drizzle/rollback/0029_card_automatic_debit.down.sql` (new) — reverse script, runnable twice.
+- `apps/api/drizzle/meta/0029_snapshot.json` (new) — snapshot chained from `0028_snapshot.json` (`prevId` `25db298d-d59c-44ce-ba69-e87c63d35bd8`).
+- `apps/api/drizzle/meta/_journal.json` (modified) — entry `idx 29`, tag `0029_card_automatic_debit`, `when` 1791747000000.
 - `apps/api/src/credit-cards/infrastructure/db/schema.ts` (modified) — the four columns, keys and checks on `creditCards`; the `cardAutomaticDebits` table.
 - `apps/api/test/credit-cards/schema-introspection.test.ts` (modified) — the new keys, checks and indexes.
 - `apps/api/test/credit-cards/automatic-debit-migration.test.ts` (new) — journal, defaults, rollback.
 
 **Logic**
 Additive and non-destructive: existing cards get `null` in the four new columns, so no card has an automatic debit until the
-owner links one. The journal `when` is greater than 1791661150964, the maximum on `main` (0026), and must still exceed
+owner links one. The journal `when` is greater than 1791670861757, the maximum on `main` (0028), and must still exceed
 `main`'s maximum at merge time (drizzle-migration merge rule: re-check and bump before merging). The rollback drops the new
 table and columns and deletes its row from `drizzle.__drizzle_migrations`; applying it loses every debit link and claim, so it
 is a manual plan step with a backup, stated in the script header like 0025.
@@ -159,7 +159,7 @@ Not applicable: no input; the database refuses a currency, status, reason, perio
 - Deleting a debit account while a card points at it is refused by the restrict key.
 
 **Required tests**
-- [ ] migration registry: journal entry idx 27 exists, its `when` is the greatest of the journal, and `0027_snapshot.json` chains on 0026's id — validates NFR-03
+- [ ] migration registry: journal entry idx 29 exists, its `when` is the greatest of the journal, and `0029_snapshot.json` chains on 0028's id — validates NFR-03
 - [ ] after the migration, existing cards have all four new columns `null` — validates AC-04
 - [ ] a debit account of another owner or an unknown id violates the composite key (sad path) — validates AC-05
 - [ ] a debit account equal to the card's ARS or USD account violates its check, and a link date without an account violates `credit_cards_debit_ars_linked_check` (sad path) — validates AC-05
@@ -167,11 +167,11 @@ Not applicable: no input; the database refuses a currency, status, reason, perio
 - [ ] inserting the same (card, period, currency) twice is a duplicate that raises the unique violation, and another currency succeeds — validates AC-09
 - [ ] inserting a status, currency, reason or period outside the allowed values, or `recorded` without a `movement_id`, is an error from the checks (sad path) — validates NFR-03
 - [ ] deleting the card cascades to its claim rows and leaves other owners' rows — validates NFR-03
-- [ ] the rollback runs twice and restores the 0026 schema, and the migration re-applies — validates NFR-03
+- [ ] the rollback runs twice and restores the 0028 schema, and the migration re-applies — validates NFR-03
 - [ ] introspection: the four keys, checks and indexes exist as declared — validates FR-01
 
 **Completion criterion**
-`pnpm --filter ./apps/api test` passes the migration and introspection tests against a fresh database, and `when` of 0027 is above 1791661150964 and above `main`'s maximum at merge time.
+`pnpm --filter ./apps/api test` passes the migration and introspection tests against a fresh database, and `when` of 0029 is above 1791670861757 and above `main`'s maximum at merge time.
 
 ## Block 3 — Card domain and link use case
 
@@ -607,7 +607,7 @@ Not applicable: the flows type nothing but the expense amount through the existi
 The e2e spec lints and typechecks; the orchestrator runs it one at a time with the recurring and notices specs, and `pnpm test` passes the guards.
 
 ## Rollback
-The migration is additive; the reverse script `0027_card_automatic_debit.down.sql` drops `card_automatic_debits` and the four `credit_cards`
+The migration is additive; the reverse script `0029_card_automatic_debit.down.sql` drops `card_automatic_debits` and the four `credit_cards`
 columns and forgets the journal entry, so every debit link and claim row is lost (take a backup, stop the API and the worker, run it as a
 whole, then revert the commits). Transfers already recorded by the job are ordinary movements and stay valid. Reverting the code without the
 script is safe: the new columns are nullable and unread by the previous version.
@@ -616,6 +616,6 @@ script is safe: the new columns are nullable and unread by the previous version.
 - `pnpm lint`, `pnpm typecheck`, `pnpm test`, the build commands and `pnpm audit --prod --audit-level high` pass; no runtime dependency was added.
 - Every acceptance criterion AC-01 to AC-11 has a passing test named in a block above; NFR-01 is covered by the `bigint` end-to-end path and the float guard, NFR-02 by the fake-clock pass tests, NFR-03 by the claim, the deterministic id and the concurrent-run tests.
 - Coverage stays at or above 80% lines, branches and functions over the whole workspace (the web section and the job count too).
-- The `when` of 0027 is above the maximum on `main` at the time of the merge (re-check and bump if another migration landed).
+- The `when` of 0029 is above the maximum on `main` at the time of the merge (re-check and bump if another migration landed).
 - The job and the cross-owner source are reachable only from `worker.ts`; the API process does not import them.
 - Logs of the job contain identifiers only: no amount, account name or card name.
