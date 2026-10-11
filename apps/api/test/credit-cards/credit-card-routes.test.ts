@@ -144,6 +144,7 @@ describe('POST /credit-cards and GET /credit-cards', () => {
     const list = await call(s.app, 'get', '/credit-cards', s.ana);
     expect(list.status).toBe(200);
     expect(list.body).toEqual({ items: [card] });
+    expect(card).toMatchObject({ debitArsAccountId: null, debitUsdAccountId: null });
     const accounts = await call(s.app, 'get', '/accounts', s.ana);
     const linked = (
       accounts.body as { items: { id: string; name: string; type: string; currency: string }[] }

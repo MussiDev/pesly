@@ -1,6 +1,7 @@
 'use client';
 
 import type {
+  AccountResponse,
   CreditCardResponse,
   InstallmentPurchaseResponse,
   StatementResponse,
@@ -10,6 +11,7 @@ import { useEffect, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
+import { loadAll } from '@/features/movements/use-movement-form-data';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ApiFailure } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
@@ -23,10 +25,15 @@ import {
   type CreditCardsLoadState,
 } from '../components/credit-cards-load-state';
 import { CardSummary } from '../components/card-summary';
+import { DebitAccountsForm } from '../components/debit-accounts-form';
 import { InstallmentPurchaseList } from '../components/installment-purchase-list';
 import type { StatementDatesValues } from '../components/statement-dates-form';
 import { StatementList } from '../components/statement-list';
 import { parseDay } from '../credit-card-form-errors';
+import { buildDebitAccountsRequest, debitCandidates } from '../debit-accounts-request';
+
+/** The API's largest page; the loader keeps asking until `total` is reached. */
+const PAGE_SIZE = 100;
 
 type PageState =
   | CreditCardsLoadState
@@ -36,6 +43,7 @@ type PageState =
       card: CreditCardResponse;
       statements: StatementResponse[];
       purchases: InstallmentPurchaseResponse[];
+      accounts: AccountResponse[];
       pendingDebt: { ARS: string; USD: string };
     };
 
@@ -57,6 +65,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [confirmingPurchaseId, setConfirmingPurchaseId] = useState<string | undefined>();
   const [notice, setNotice] = useState<Notice | undefined>();
+  const [debitError, setDebitError] = useState<string | undefined>();
 
   useEffect(() => {
     let active = true;
@@ -64,19 +73,23 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
       api.getCreditCard(cardId),
       api.listStatements(cardId),
       api.listInstallmentPurchases(cardId),
-    ]).then(([card, statements, purchases]) => {
+      loadAll((offset) =>
+        api.listAccounts({ archived: false, limit: PAGE_SIZE, ...(offset > 0 ? { offset } : {}) }),
+      ),
+    ]).then(([card, statements, purchases, accounts]) => {
       if (!active) return;
-      if (card.ok && statements.ok && purchases.ok) {
+      if (card.ok && statements.ok && purchases.ok && accounts.ok) {
         setState({
           kind: 'ready',
           card: card.data,
           statements: statements.data.items,
           purchases: purchases.data.items,
+          accounts: accounts.data,
           pendingDebt: purchases.data.pendingDebt,
         });
         return;
       }
-      const failure = [card, statements, purchases].find(
+      const failure = [card, statements, purchases, accounts].find(
         (result): result is ApiFailure => !result.ok,
       );
       if (failure === undefined) return;
@@ -202,6 +215,24 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
     }
   }
 
+  async function saveDebitAccounts(values: { ars: string; usd: string }) {
+    setPending(true);
+    setDebitError(undefined);
+    const result = await api.setCardDebitAccounts(cardId, buildDebitAccountsRequest(values));
+    setPending(false);
+    if (result.ok) {
+      const card = result.data;
+      setState((current) => (current.kind === 'ready' ? { ...current, card } : current));
+    } else if (!handleShared(result)) {
+      // The form stays mounted, so the selection is still the one the user made.
+      setDebitError(
+        result.code === 'NETWORK'
+          ? 'creditCards.detail.debitConnectionNeeded'
+          : `errors.${result.messageKey}`,
+      );
+    }
+  }
+
   async function remove() {
     setPending(true);
     setNotice(undefined);
@@ -281,6 +312,17 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
           void saveDays(values);
         }}
       />
+      <DebitAccountsForm
+        key={`${state.card.debitArsAccountId ?? ''}-${state.card.debitUsdAccountId ?? ''}`}
+        saved={state.card}
+        arsOptions={debitOptions(state.accounts, 'ARS', state.card)}
+        usdOptions={debitOptions(state.accounts, 'USD', state.card)}
+        pending={pending}
+        error={debitError}
+        onSave={(values) => {
+          void saveDebitAccounts(values);
+        }}
+      />
       <section className="grid gap-3">
         <h2 className="text-heading">{t('creditCards.detail.statements')}</h2>
         <StatementList
@@ -358,4 +400,15 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
       </section>
     </div>
   );
+}
+
+function debitOptions(
+  accounts: AccountResponse[],
+  currency: 'ARS' | 'USD',
+  card: CreditCardResponse,
+) {
+  return debitCandidates(accounts, currency, card).map((account) => ({
+    id: account.id,
+    label: account.name,
+  }));
 }

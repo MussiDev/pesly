@@ -51,6 +51,14 @@ export interface CreditCardRepository {
     days: CardDays,
     statements: readonly Statement[],
   ): Promise<CreditCard | null>;
+  /** Saves both debit links in one statement; `null` when the card is missing or not the caller's. */
+  updateDebitAccounts(
+    scope: AccessScope<'write'>,
+    cardId: string,
+    links: CreditCard['debitAccounts'],
+  ): Promise<CreditCard | null>;
+  /** Whether the account is the ARS or USD linked account of any of the caller's cards. */
+  isCardAccount(scope: AccessScope, accountId: string): Promise<boolean>;
   /**
    * Deletes the card, its statements and both linked accounts atomically. A movement on a linked
    * account rejects with `CardHasMovements` and deletes nothing.

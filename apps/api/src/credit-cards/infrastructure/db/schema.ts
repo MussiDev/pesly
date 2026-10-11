@@ -29,6 +29,12 @@ export const creditCards = pgTable(
     dueDay: smallint('due_day').notNull(),
     arsAccountId: uuid('ars_account_id').notNull(),
     usdAccountId: uuid('usd_account_id').notNull(),
+    /** Optional automatic debit account per currency (DISC-001-10e). */
+    debitArsAccountId: uuid('debit_ars_account_id'),
+    debitUsdAccountId: uuid('debit_usd_account_id'),
+    /** The owner's local date at link time: a debit is never due for an earlier statement. */
+    debitArsLinkedOn: date('debit_ars_linked_on', { mode: 'string' }),
+    debitUsdLinkedOn: date('debit_usd_linked_on', { mode: 'string' }),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     updatedAt: timestamptz('updated_at').notNull().defaultNow(),
   },
@@ -53,6 +59,36 @@ export const creditCards = pgTable(
       columns: [table.usdAccountId, table.ownerId],
       foreignColumns: [accounts.id, accounts.ownerId],
     }).onDelete('restrict'),
+    foreignKey({
+      name: 'credit_cards_debit_ars_account_owner_fk',
+      columns: [table.debitArsAccountId, table.ownerId],
+      foreignColumns: [accounts.id, accounts.ownerId],
+    }).onDelete('restrict'),
+    foreignKey({
+      name: 'credit_cards_debit_usd_account_owner_fk',
+      columns: [table.debitUsdAccountId, table.ownerId],
+      foreignColumns: [accounts.id, accounts.ownerId],
+    }).onDelete('restrict'),
+    check(
+      'credit_cards_debit_ars_linked_check',
+      sql`(${table.debitArsAccountId} is null) = (${table.debitArsLinkedOn} is null)`,
+    ),
+    check(
+      'credit_cards_debit_usd_linked_check',
+      sql`(${table.debitUsdAccountId} is null) = (${table.debitUsdLinkedOn} is null)`,
+    ),
+    check(
+      'credit_cards_debit_ars_not_card_account_check',
+      sql`${table.debitArsAccountId} is null or (${table.debitArsAccountId} <> ${table.arsAccountId} and ${table.debitArsAccountId} <> ${table.usdAccountId})`,
+    ),
+    check(
+      'credit_cards_debit_usd_not_card_account_check',
+      sql`${table.debitUsdAccountId} is null or (${table.debitUsdAccountId} <> ${table.arsAccountId} and ${table.debitUsdAccountId} <> ${table.usdAccountId})`,
+    ),
+    // Serves the automatic debit job's keyset page over cards that have a debit account.
+    index('credit_cards_automatic_debit_idx')
+      .on(table.id)
+      .where(sql`${table.debitArsAccountId} is not null or ${table.debitUsdAccountId} is not null`),
     unique('credit_cards_ars_account_unique').on(table.arsAccountId),
     unique('credit_cards_usd_account_unique').on(table.usdAccountId),
     // The target of the statements' composite key.
@@ -211,5 +247,55 @@ export const cardStatementImportLines = pgTable(
       columns: [table.cardId, table.ownerId],
       foreignColumns: [creditCards.id, creditCards.ownerId],
     }).onDelete('cascade'),
+  ],
+);
+
+/**
+ * The claim of one automatic debit per statement and currency (DISC-001-10e). It stores no amount
+ * and has no key to movements on purpose: the user may delete or edit the transfer, and the claim
+ * must outlive it so the debit is never re-created.
+ */
+export const cardAutomaticDebits = pgTable(
+  'card_automatic_debits',
+  {
+    cardId: uuid('card_id').notNull(),
+    ownerId: uuid('owner_id').notNull(),
+    /** The statement's month, `YYYY-MM`. */
+    period: text('period').notNull(),
+    currency: text('currency').$type<'ARS' | 'USD'>().notNull(),
+    status: text('status').$type<'pending' | 'recorded' | 'skipped'>().notNull(),
+    reason: text('reason').$type<'covered' | 'account_unavailable' | 'refused'>(),
+    movementId: uuid('movement_id'),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({
+      name: 'card_automatic_debits_pk',
+      columns: [table.cardId, table.period, table.currency],
+    }),
+    check(
+      'card_automatic_debits_period_check',
+      sql`${table.period} ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'`,
+    ),
+    check('card_automatic_debits_currency_check', sql`${table.currency} in ('ARS', 'USD')`),
+    check(
+      'card_automatic_debits_status_check',
+      sql`${table.status} in ('pending', 'recorded', 'skipped')`,
+    ),
+    check(
+      'card_automatic_debits_reason_check',
+      sql`${table.reason} is null or ${table.reason} in ('covered', 'account_unavailable', 'refused')`,
+    ),
+    check(
+      'card_automatic_debits_state_check',
+      sql`(${table.status} = 'recorded' and ${table.movementId} is not null and ${table.reason} is null) or (${table.status} = 'skipped' and ${table.movementId} is null and ${table.reason} is not null) or (${table.status} = 'pending' and ${table.movementId} is null and ${table.reason} is null)`,
+    ),
+    foreignKey({
+      name: 'card_automatic_debits_card_owner_fk',
+      columns: [table.cardId, table.ownerId],
+      foreignColumns: [creditCards.id, creditCards.ownerId],
+    }).onDelete('cascade'),
+    index('card_automatic_debits_owner_idx').on(table.ownerId),
   ],
 );

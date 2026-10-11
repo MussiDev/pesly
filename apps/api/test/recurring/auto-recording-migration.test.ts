@@ -40,8 +40,9 @@ afterAll(async () => {
 
 const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`, 'utf8');
 
-/** 0028, 0027, 0026 and 0025 have the greatest journal `when`s, so they are rolled back before 0024. */
+/** 0029, 0028, 0027, 0026 and 0025 have the greatest journal `when`s, so they are rolled back before 0024. */
 async function rollBackTo0023(): Promise<void> {
+  await client.query(await fileOf('rollback/0029_card_automatic_debit.down.sql'));
   await client.query(await fileOf('rollback/0028_group_settlements.down.sql'));
   await client.query(await fileOf('rollback/0027_group_expenses.down.sql'));
   await client.query(await fileOf('rollback/0026_groups.down.sql'));
@@ -124,7 +125,7 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
     await runMigrations(throwawayUrl);
 
     expect(await paymentColumns()).toContain('auto_recording_from');
-    expect(await appliedMigrations()).toBe(28);
+    expect(await appliedMigrations()).toBe(29);
     expect(await autoFrom(tokyo)).toBe('2026-10-05');
     expect(await autoFrom(buenosAires)).toBe('2026-10-04');
     expect(await autoFrom(unknown)).toBe('2026-10-05');
@@ -163,7 +164,7 @@ describe('0024_recurring_auto_recording_from migration (FR-05)', () => {
     expect(await tableCount()).toBe(2);
     expect(await appliedMigrations()).toBe(23);
     await runMigrations(throwawayUrl);
-    expect(await appliedMigrations()).toBe(28);
+    expect(await appliedMigrations()).toBe(29);
     expect(await paymentColumns()).toEqual(before);
   });
 

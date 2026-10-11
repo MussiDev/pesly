@@ -6,7 +6,7 @@ import { eraseUserMovements } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { DrizzleInstallmentRepository } from '../../src/credit-cards/infrastructure/db/drizzle-installment-repository';
-import { newCategory, newUserId, writeScope } from '../movements/db-fixtures';
+import { newAccount, newCategory, newUserId, writeScope } from '../movements/db-fixtures';
 
 let connection: DatabaseConnection;
 
@@ -81,6 +81,43 @@ describe('eraseUserCreditCards', () => {
     await connection.db.transaction((tx) => eraseUserCreditCards(tx, ana));
     await connection.pool.query('delete from accounts where owner_id = $1', [ana]);
     expect(await count('select count(*) as n from accounts where owner_id = $1', [ana])).toBe(0);
+  });
+
+  it('deletes cards with debit links and claim rows, then the accounts, leaving other users (NFR-03)', async () => {
+    const repository = new DrizzleCreditCardRepository(connection.db);
+    const withDebit = async (): Promise<string> => {
+      const ownerId = await userWithCard();
+      const scope = await writeScope(ownerId);
+      const card = (await repository.list(scope))[0];
+      if (!card) throw new Error('The card was not created');
+      const bank = await newAccount(connection.pool, ownerId, false, 'ARS');
+      await repository.updateDebitAccounts(scope, card.id, {
+        ARS: { accountId: bank, linkedOn: '2026-10-01' },
+        USD: null,
+      });
+      await connection.pool.query(
+        `insert into card_automatic_debits (card_id, owner_id, period, currency, status)
+         values ($1, $2, '2026-10', 'ARS', 'pending')`,
+        [card.id, ownerId],
+      );
+      return ownerId;
+    };
+    const claimsOf = (ownerId: string) =>
+      count('select count(*) as n from card_automatic_debits where owner_id = $1', [ownerId]);
+    const accountsOf = (ownerId: string) =>
+      count('select count(*) as n from accounts where owner_id = $1', [ownerId]);
+    const ana = await withDebit();
+    const bea = await withDebit();
+
+    await erase(ana, [eraseUserMovements, eraseUserCreditCards]);
+
+    expect(await usersWith(ana)).toBe(0);
+    expect(await cardsOf(ana)).toBe(0);
+    expect(await claimsOf(ana)).toBe(0);
+    expect(await accountsOf(ana)).toBe(0);
+    expect(await cardsOf(bea)).toBe(1);
+    expect(await claimsOf(bea)).toBe(1);
+    expect(await accountsOf(bea)).toBe(3);
   });
 
   it('deletes the installment purchases before the cards so no restricting key refuses (sad path of ordering)', async () => {

@@ -21,6 +21,8 @@ export function presentCreditCard(card: CreditCard): CreditCardResponse {
     dueDay: card.dueDay,
     arsAccountId: card.arsAccountId,
     usdAccountId: card.usdAccountId,
+    debitArsAccountId: card.debitAccounts.ARS?.accountId ?? null,
+    debitUsdAccountId: card.debitAccounts.USD?.accountId ?? null,
     createdAt: card.createdAt.toISOString(),
   };
 }

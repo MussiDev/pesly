@@ -9,4 +9,5 @@ export { eraseUserMovements } from './infrastructure/db/erase-user-movements';
 export * from './infrastructure/http/tag-routes';
 export { createCardPayments } from './infrastructure/credit-cards/drizzle-card-payments';
 export { createStatementPaymentRecorder } from './infrastructure/credit-cards/drizzle-statement-payment-recorder';
+export { createAutomaticDebitRecorder } from './infrastructure/credit-cards/drizzle-automatic-debit-recorder';
 export { createRecurringExpenseRecorder } from './infrastructure/recurring/drizzle-recurring-expense-recorder';
