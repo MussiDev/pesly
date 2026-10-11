@@ -33,6 +33,7 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   role: 'admin',
   memberCount: 3,
   createdAt: '2026-10-01T00:00:00.000Z',
+  selfMemberId: ANA,
   members: [
     member(ANA, 'Ana', { role: 'admin' }),
     member(BRUNO, 'Bruno'),

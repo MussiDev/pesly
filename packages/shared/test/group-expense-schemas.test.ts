@@ -233,6 +233,7 @@ describe('response schemas', () => {
     );
     expect(
       expenseOptionsResponseSchema.safeParse({
+        selfMemberId: A,
         members: [{ id: A, displayName: 'Ana', isGhost: false, joinedAt: NOW }],
         categories: [],
         defaultSplit: { mode: 'equal' },

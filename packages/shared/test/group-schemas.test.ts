@@ -181,6 +181,7 @@ describe('response schemas', () => {
     expect(
       groupDetailResponseSchema.safeParse({
         ...group,
+        selfMemberId: UUID,
         members: [
           { id: UUID, displayName: null, isGhost: false, role: 'admin', joinedAt: NOW },
           { id: UUID, displayName: 'Pedro', isGhost: true, role: 'member', joinedAt: NOW },
