@@ -93,7 +93,9 @@ export default defineConfig({
       wait: { stdout: /email worker started/ },
       reuseExistingServer: false,
       timeout: 60_000,
-      env: WORKER_ENV,
+      // The recurring, notices and automatic debit passes run every 5 s instead of every minute,
+      // so a flow waits seconds for the worker, not minutes.
+      env: { ...WORKER_ENV, RECURRING_JOB_INTERVAL_SECONDS: '5' },
     },
     {
       command: productionBuild

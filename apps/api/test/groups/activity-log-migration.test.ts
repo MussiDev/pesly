@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const TAG = '0029_group_activity_log_changes';
-const PREVIOUS_WHEN = 1791670861757;
+const TAG = '0030_group_activity_log_changes';
+const PREVIOUS_WHEN = 1791747000000;
 const TRIGGER_MESSAGE = /group_activity_log is immutable/;
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -136,7 +136,7 @@ const insertLog = (
     ],
   );
 
-describe('0029_group_activity_log_changes migration', () => {
+describe('0030_group_activity_log_changes migration', () => {
   it('applies on an empty database and adds the columns and the trigger (NFR-01)', async () => {
     expect(await logColumns()).toEqual(['after', 'before']);
     expect(await triggerCount()).toBe(1);
@@ -246,17 +246,17 @@ describe('0029_group_activity_log_changes migration', () => {
     expect(await insertLog(f, 'settlement_deleted', SNAPSHOT, null)).toBeUndefined();
   });
 
-  it('has the journal entry at idx 29 with a when above 0028, and chains its snapshot onto 0028', async () => {
+  it('has the journal entry at idx 30 with a when above 0029, and chains its snapshot onto 0029', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
     );
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
-    expect(own?.idx).toBe(29);
+    expect(own?.idx).toBe(30);
     expect(own?.when).toBeGreaterThan(PREVIOUS_WHEN);
-    expect((await read<{ prevId: string }>('0029_snapshot.json')).prevId).toBe(
-      (await read<{ id: string }>('0028_snapshot.json')).id,
+    expect((await read<{ prevId: string }>('0030_snapshot.json')).prevId).toBe(
+      (await read<{ id: string }>('0029_snapshot.json')).id,
     );
   });
 });

@@ -1,5 +1,5 @@
 {
-  "id": "d3111af9-8067-4dbe-b86a-a7004714eb04",
+  "id": "3a6a80d1-e15a-498e-a2ee-442a3d7c177f",
   "prevId": "25db298d-d59c-44ce-ba69-e87c63d35bd8",
   "version": "7",
   "dialect": "postgresql",
@@ -472,6 +472,137 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.card_automatic_debits": {
+      "name": "card_automatic_debits",
+      "schema": "",
+      "columns": {
+        "card_id": {
+          "name": "card_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period": {
+          "name": "period",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "movement_id": {
+          "name": "movement_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "card_automatic_debits_owner_idx": {
+          "name": "card_automatic_debits_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "card_automatic_debits_card_owner_fk": {
+          "name": "card_automatic_debits_card_owner_fk",
+          "tableFrom": "card_automatic_debits",
+          "tableTo": "credit_cards",
+          "columnsFrom": [
+            "card_id",
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id",
+            "owner_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "card_automatic_debits_pk": {
+          "name": "card_automatic_debits_pk",
+          "columns": [
+            "card_id",
+            "period",
+            "currency"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "card_automatic_debits_period_check": {
+          "name": "card_automatic_debits_period_check",
+          "value": "\"card_automatic_debits\".\"period\" ~ '^[0-9]{4}-(0[1-9]|1[0-2])$'"
+        },
+        "card_automatic_debits_currency_check": {
+          "name": "card_automatic_debits_currency_check",
+          "value": "\"card_automatic_debits\".\"currency\" in ('ARS', 'USD')"
+        },
+        "card_automatic_debits_status_check": {
+          "name": "card_automatic_debits_status_check",
+          "value": "\"card_automatic_debits\".\"status\" in ('pending', 'recorded', 'skipped')"
+        },
+        "card_automatic_debits_reason_check": {
+          "name": "card_automatic_debits_reason_check",
+          "value": "\"card_automatic_debits\".\"reason\" is null or \"card_automatic_debits\".\"reason\" in ('covered', 'account_unavailable', 'refused')"
+        },
+        "card_automatic_debits_state_check": {
+          "name": "card_automatic_debits_state_check",
+          "value": "(\"card_automatic_debits\".\"status\" = 'recorded' and \"card_automatic_debits\".\"movement_id\" is not null and \"card_automatic_debits\".\"reason\" is null) or (\"card_automatic_debits\".\"status\" = 'skipped' and \"card_automatic_debits\".\"movement_id\" is null and \"card_automatic_debits\".\"reason\" is not null) or (\"card_automatic_debits\".\"status\" = 'pending' and \"card_automatic_debits\".\"movement_id\" is null and \"card_automatic_debits\".\"reason\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.card_statement_import_lines": {
       "name": "card_statement_import_lines",
       "schema": "",
@@ -722,6 +853,30 @@
           "primaryKey": false,
           "notNull": true
         },
+        "debit_ars_account_id": {
+          "name": "debit_ars_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "debit_usd_account_id": {
+          "name": "debit_usd_account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "debit_ars_linked_on": {
+          "name": "debit_ars_linked_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "debit_usd_linked_on": {
+          "name": "debit_usd_linked_on",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -738,6 +893,22 @@
         }
       },
       "indexes": {
+        "credit_cards_automatic_debit_idx": {
+          "name": "credit_cards_automatic_debit_idx",
+          "columns": [
+            {
+              "expression": "id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "where": "\"credit_cards\".\"debit_ars_account_id\" is not null or \"credit_cards\".\"debit_usd_account_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "credit_cards_owner_created_idx": {
           "name": "credit_cards_owner_created_idx",
           "columns": [
@@ -809,6 +980,36 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "credit_cards_debit_ars_account_owner_fk": {
+          "name": "credit_cards_debit_ars_account_owner_fk",
+          "tableFrom": "credit_cards",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "debit_ars_account_id",
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id",
+            "owner_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "credit_cards_debit_usd_account_owner_fk": {
+          "name": "credit_cards_debit_usd_account_owner_fk",
+          "tableFrom": "credit_cards",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "debit_usd_account_id",
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id",
+            "owner_id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -853,6 +1054,22 @@
         "credit_cards_distinct_accounts_check": {
           "name": "credit_cards_distinct_accounts_check",
           "value": "\"credit_cards\".\"ars_account_id\" <> \"credit_cards\".\"usd_account_id\""
+        },
+        "credit_cards_debit_ars_linked_check": {
+          "name": "credit_cards_debit_ars_linked_check",
+          "value": "(\"credit_cards\".\"debit_ars_account_id\" is null) = (\"credit_cards\".\"debit_ars_linked_on\" is null)"
+        },
+        "credit_cards_debit_usd_linked_check": {
+          "name": "credit_cards_debit_usd_linked_check",
+          "value": "(\"credit_cards\".\"debit_usd_account_id\" is null) = (\"credit_cards\".\"debit_usd_linked_on\" is null)"
+        },
+        "credit_cards_debit_ars_not_card_account_check": {
+          "name": "credit_cards_debit_ars_not_card_account_check",
+          "value": "\"credit_cards\".\"debit_ars_account_id\" is null or (\"credit_cards\".\"debit_ars_account_id\" <> \"credit_cards\".\"ars_account_id\" and \"credit_cards\".\"debit_ars_account_id\" <> \"credit_cards\".\"usd_account_id\")"
+        },
+        "credit_cards_debit_usd_not_card_account_check": {
+          "name": "credit_cards_debit_usd_not_card_account_check",
+          "value": "\"credit_cards\".\"debit_usd_account_id\" is null or (\"credit_cards\".\"debit_usd_account_id\" <> \"credit_cards\".\"ars_account_id\" and \"credit_cards\".\"debit_usd_account_id\" <> \"credit_cards\".\"usd_account_id\")"
         }
       },
       "isRLSEnabled": false
@@ -1388,18 +1605,6 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
-        },
-        "before": {
-          "name": "before",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "after": {
-          "name": "after",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {
@@ -1467,11 +1672,7 @@
       "checkConstraints": {
         "group_activity_log_action_check": {
           "name": "group_activity_log_action_check",
-          "value": "\"group_activity_log\".\"action\" in ('expense_created', 'expense_updated', 'expense_deleted', 'settlement_created', 'settlement_updated', 'settlement_deleted')"
-        },
-        "group_activity_log_snapshots_check": {
-          "name": "group_activity_log_snapshots_check",
-          "value": "(\"group_activity_log\".\"action\" in ('expense_updated', 'settlement_updated') and \"group_activity_log\".\"before\" is not null and \"group_activity_log\".\"after\" is not null) or (\"group_activity_log\".\"action\" in ('expense_deleted', 'settlement_deleted') and \"group_activity_log\".\"before\" is not null and \"group_activity_log\".\"after\" is null) or (\"group_activity_log\".\"action\" in ('expense_created', 'settlement_created') and \"group_activity_log\".\"before\" is null and \"group_activity_log\".\"after\" is null)"
+          "value": "\"group_activity_log\".\"action\" in ('expense_created', 'settlement_created')"
         }
       },
       "isRLSEnabled": false

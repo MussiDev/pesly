@@ -64,6 +64,17 @@ export const updateStatementRequestSchema = z
 
 export type UpdateStatementRequest = z.infer<typeof updateStatementRequestSchema>;
 
+/**
+ * `PUT /credit-cards/:id/debit-accounts`: replaces the whole setting. Both keys are required and
+ * `null` means "no automatic debit in that currency", so a forgotten key is an error, not an unlink.
+ */
+export const setDebitAccountsRequestSchema = z.strictObject({
+  debitArsAccountId: z.uuid().nullable(),
+  debitUsdAccountId: z.uuid().nullable(),
+});
+
+export type SetDebitAccountsRequest = z.infer<typeof setDebitAccountsRequestSchema>;
+
 export const creditCardIdParamsSchema = z.object({ id: z.uuid() });
 
 export type CreditCardIdParams = z.infer<typeof creditCardIdParamsSchema>;
@@ -79,6 +90,9 @@ export const creditCardResponseSchema = z.object({
   dueDay: dayOfMonthSchema,
   arsAccountId: z.string(),
   usdAccountId: z.string(),
+  /** Account debited automatically on the due date, per currency; `null` means no automatic debit. */
+  debitArsAccountId: z.string().nullable(),
+  debitUsdAccountId: z.string().nullable(),
   createdAt: z.iso.datetime(),
 });
 

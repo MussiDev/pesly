@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { AccountLinkedToCard, DeleteAccount } from '../../src/accounts';
+import { DrizzleAccountRepository } from '../../src/accounts/infrastructure/db/drizzle-account-repository';
+import { ResourceNotFound } from '../../src/shared/access';
 import { CardAccountNameTaken, CardHasMovements } from '../../src/credit-cards/domain/errors';
+import { DrizzleDebitAccounts } from '../../src/credit-cards/infrastructure/db/drizzle-debit-accounts';
 import { DrizzleCardAccountLinks } from '../../src/credit-cards/infrastructure/db/drizzle-card-account-links';
 import { DrizzleCreditCardRepository } from '../../src/credit-cards/infrastructure/db/drizzle-credit-card-repository';
 import { DrizzleUserTimeZone } from '../../src/credit-cards/infrastructure/db/drizzle-user-time-zone';
@@ -227,6 +231,185 @@ describe('DrizzleCardAccountLinks', () => {
     expect(await links.isLinked(card.arsAccountId)).toBe(true);
     expect(await links.isLinked(card.usdAccountId)).toBe(true);
     expect(await links.isLinked(other)).toBe(false);
+  });
+});
+
+const NO_LINKS = { ARS: null, USD: null };
+
+describe('DrizzleCreditCardRepository.updateDebitAccounts', () => {
+  it('saves a debit account per currency and reads both back through findById and list (AC-01)', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+    const ars = await newAccount(connection.pool, ownerId, false, 'ARS');
+    const usd = await newAccount(connection.pool, ownerId, false, 'USD');
+    const links = {
+      ARS: { accountId: ars, linkedOn: '2026-10-01' },
+      USD: { accountId: usd, linkedOn: '2026-10-02' },
+    };
+
+    const saved = await repository.updateDebitAccounts(await writeScope(ownerId), card.id, links);
+
+    expect(saved?.debitAccounts).toEqual(links);
+    expect((await repository.findById(await readScope(ownerId), card.id))?.debitAccounts).toEqual(
+      links,
+    );
+    expect((await repository.list(await readScope(ownerId)))[0]?.debitAccounts).toEqual(links);
+  });
+
+  it('starts with no debit accounts on a new card', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+
+    expect(card.debitAccounts).toEqual(NO_LINKS);
+  });
+
+  it('clears an account and its date together in one statement (AC-04)', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+    const scope = await writeScope(ownerId);
+    const ars = await newAccount(connection.pool, ownerId, false, 'ARS');
+    const usd = await newAccount(connection.pool, ownerId, false, 'USD');
+    await repository.updateDebitAccounts(scope, card.id, {
+      ARS: { accountId: ars, linkedOn: '2026-10-01' },
+      USD: { accountId: usd, linkedOn: '2026-10-01' },
+    });
+
+    const cleared = await repository.updateDebitAccounts(scope, card.id, {
+      ARS: null,
+      USD: { accountId: usd, linkedOn: '2026-10-01' },
+    });
+
+    expect(cleared?.debitAccounts).toEqual({
+      ARS: null,
+      USD: { accountId: usd, linkedOn: '2026-10-01' },
+    });
+    const row = await connection.pool.query(
+      'select debit_ars_account_id, debit_ars_linked_on from credit_cards where id = $1',
+      [card.id],
+    );
+    expect(row.rows[0]).toEqual({ debit_ars_account_id: null, debit_ars_linked_on: null });
+  });
+
+  it("updates nothing and answers null under another owner's scope (sad path, AC-05)", async () => {
+    const ana = await newUserId(connection.db);
+    const bob = await newUserId(connection.db);
+    const { card } = await createVisa(ana);
+    const bobAccount = await newAccount(connection.pool, bob, false, 'ARS');
+
+    const result = await repository.updateDebitAccounts(await writeScope(bob), card.id, {
+      ARS: { accountId: bobAccount, linkedOn: '2026-10-01' },
+      USD: null,
+    });
+
+    expect(result).toBeNull();
+    expect((await repository.findById(await readScope(ana), card.id))?.debitAccounts).toEqual(
+      NO_LINKS,
+    );
+  });
+
+  it('turns the key violation of a missing or foreign account into ResourceNotFound (sad path, AC-05)', async () => {
+    const ana = await newUserId(connection.db);
+    const bob = await newUserId(connection.db);
+    const { card } = await createVisa(ana);
+    const scope = await writeScope(ana);
+    const deleted = await newAccount(connection.pool, ana, false, 'ARS');
+    await connection.pool.query('delete from accounts where id = $1', [deleted]);
+    const foreign = await newAccount(connection.pool, bob, false, 'USD');
+
+    await expect(
+      repository.updateDebitAccounts(scope, card.id, {
+        ARS: { accountId: deleted, linkedOn: '2026-10-01' },
+        USD: null,
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    await expect(
+      repository.updateDebitAccounts(scope, card.id, {
+        ARS: null,
+        USD: { accountId: foreign, linkedOn: '2026-10-01' },
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+    expect((await repository.findById(await readScope(ana), card.id))?.debitAccounts).toEqual(
+      NO_LINKS,
+    );
+  });
+});
+
+describe('DrizzleCreditCardRepository.isCardAccount', () => {
+  it("is true for a linked account of any of the owner's cards, false otherwise (AC-05)", async () => {
+    const ana = await newUserId(connection.db);
+    const bob = await newUserId(connection.db);
+    const first = (await createVisa(ana, 'Visa')).card;
+    const second = (await createVisa(ana, 'Amex')).card;
+    const bank = await newAccount(connection.pool, ana);
+    const scope = await readScope(ana);
+
+    expect(await repository.isCardAccount(scope, first.arsAccountId)).toBe(true);
+    expect(await repository.isCardAccount(scope, second.usdAccountId)).toBe(true);
+    expect(await repository.isCardAccount(scope, bank)).toBe(false);
+    expect(await repository.isCardAccount(await readScope(bob), first.arsAccountId)).toBe(false);
+  });
+});
+
+describe('DrizzleDebitAccounts', () => {
+  it('reads currency and archive state of an own account and null for a foreign or missing one', async () => {
+    const ana = await newUserId(connection.db);
+    const bob = await newUserId(connection.db);
+    const open = await newAccount(connection.pool, ana, false, 'USD');
+    const archived = await newAccount(connection.pool, ana, true, 'ARS');
+    const debitAccounts = new DrizzleDebitAccounts(connection.db);
+    const scope = await readScope(ana);
+
+    expect(await debitAccounts.find(scope, open)).toEqual({ currency: 'USD', archived: false });
+    expect(await debitAccounts.find(scope, archived)).toEqual({ currency: 'ARS', archived: true });
+    expect(await debitAccounts.find(await readScope(bob), open)).toBeNull();
+    expect(await debitAccounts.find(scope, '00000000-0000-4000-8000-000000000000')).toBeNull();
+  });
+});
+
+describe('DrizzleCardAccountLinks with a debit account', () => {
+  it('is linked while used as debit account and free once the link is cleared (FR-01)', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+    const scope = await writeScope(ownerId);
+    const bank = await newAccount(connection.pool, ownerId, false, 'USD');
+    const links = new DrizzleCardAccountLinks(connection.db);
+
+    expect(await links.isLinked(bank)).toBe(false);
+    await repository.updateDebitAccounts(scope, card.id, {
+      ARS: null,
+      USD: { accountId: bank, linkedOn: '2026-10-01' },
+    });
+    expect(await links.isLinked(bank)).toBe(true);
+    await repository.updateDebitAccounts(scope, card.id, NO_LINKS);
+    expect(await links.isLinked(bank)).toBe(false);
+  });
+
+  it('refuses to delete a debit account but allows archiving it (sad path, FR-04)', async () => {
+    const ownerId = await newUserId(connection.db);
+    const { card } = await createVisa(ownerId);
+    const scope = await writeScope(ownerId);
+    const bank = await newAccount(connection.pool, ownerId, false, 'ARS');
+    await repository.updateDebitAccounts(scope, card.id, {
+      ARS: { accountId: bank, linkedOn: '2026-10-01' },
+      USD: null,
+    });
+    const accounts = new DrizzleAccountRepository(connection.db);
+    const deleteAccount = new DeleteAccount({
+      accounts,
+      movements: {
+        hasMovements: () => Promise.resolve(false),
+        sumsByAccount: () => Promise.resolve(new Map<string, bigint>()),
+      },
+      links: new DrizzleCardAccountLinks(connection.db),
+    });
+
+    await expect(deleteAccount.execute(scope, bank)).rejects.toBeInstanceOf(AccountLinkedToCard);
+    // The restricting key also answers when the use case's check is bypassed.
+    await expect(accounts.delete(scope, bank)).rejects.toBeInstanceOf(AccountLinkedToCard);
+    expect(await accounts.findById(scope, bank)).not.toBeNull();
+
+    const archived = await accounts.setArchived(scope, bank, true);
+    expect(archived?.archivedAt).not.toBeNull();
   });
 });
 

@@ -43,7 +43,8 @@ const LATER_MIGRATIONS = [
   '0026_groups',
   '0027_group_expenses',
   '0028_group_settlements',
-  '0029_group_activity_log_changes',
+  '0029_card_automatic_debit',
+  '0030_group_activity_log_changes',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -54,6 +55,7 @@ const PRICE_TABLES = [
 ];
 const TAG_TABLES = ['movement_tags', 'tags'];
 const CREDIT_CARD_TABLES = [
+  'card_automatic_debits',
   'card_statement_import_lines',
   'credit_card_statements',
   'credit_cards',

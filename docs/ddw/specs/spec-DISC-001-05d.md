@@ -85,12 +85,12 @@ transaction. No web screen is part of this ticket; completing it unblocks DISC-0
   settlement), `DELETE /groups/:id/settlements/:settlementId` (204), `GET /groups/:id/activity`, and
   the three 405 routes of D8. The `consolidation` preview route of 05c stays registered before the
   `:settlementId` routes.
-- D12: Migration `0029_group_activity_log_changes`: adds the two `jsonb` columns, replaces the
+- D12: Migration `0030_group_activity_log_changes`: adds the two `jsonb` columns, replaces the
   `action` check and creates the trigger and its function. Additive; rollback script
-  `0029_group_activity_log_changes.down.sql` drops the trigger, the function and the columns,
+  `0030_group_activity_log_changes.down.sql` drops the trigger, the function and the columns,
   deletes the rows of the four new actions and restores the old check (destructive for change
-  history only). Its journal `when` must exceed 1791670861757 (0028) and the maximum on `main` at
-  merge.
+  history only). Its journal `when` must exceed 1791747000000 (0029, card automatic debit) and the maximum on
+  `main` at merge.
 - D13: No new runtime dependency; `domain` and `application` import nothing from infrastructure.
 
 ## Open questions for the owner
@@ -171,9 +171,9 @@ The shared tests pass and `pnpm typecheck` accepts the new message keys on the w
 **Files**
 - `apps/api/src/groups/infrastructure/db/schema.ts` (modified) — `before`, `after`, the action
   check and enum of `groupActivityLog`.
-- `apps/api/drizzle/0029_group_activity_log_changes.sql` (generated and hand-edited for the trigger),
+- `apps/api/drizzle/0030_group_activity_log_changes.sql` (generated and hand-edited for the trigger),
   `apps/api/drizzle/meta/*` (generated),
-  `apps/api/drizzle/rollback/0029_group_activity_log_changes.down.sql` (new).
+  `apps/api/drizzle/rollback/0030_group_activity_log_changes.down.sql` (new).
 - `apps/api/test/groups/activity-log-migration.test.ts`,
   `apps/api/test/groups/activity-log-introspection.test.ts` (new); older migration tests and the
   erasure registries updated if the suite needs them.
@@ -205,7 +205,7 @@ and to the rollback. The journal `when` is checked against `main`.
 - [ ] Deleting a group that has log rows and nothing else removes the rows without error — validates NFR-01
 - [ ] An `updated` row without `before` or `after`, and a `deleted` row with `after`, are rejected as
       a check violation — validates AC-08, AC-09
-- [ ] The journal `when` is greater than 1791670861757
+- [ ] The journal `when` is greater than 1791747000000
 
 **Completion criterion**
 The migration and introspection tests pass and `pnpm --filter ./apps/api typecheck` is clean.

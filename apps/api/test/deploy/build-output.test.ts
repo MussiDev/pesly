@@ -18,6 +18,7 @@ const BUILD_CANARY = 'build-canary-4f1c9e27d8';
 const ALL_TABLES = [
   'accounts',
   'auth_attempts',
+  'card_automatic_debits',
   'card_statement_import_lines',
   'categories',
   'category_defaults_seeded',

@@ -27,8 +27,24 @@ const card: CreditCardResponse = {
   dueDay: 5,
   arsAccountId: '11111111-1111-4111-8111-111111111111',
   usdAccountId: '22222222-2222-4222-8222-222222222222',
+  debitArsAccountId: null,
+  debitUsdAccountId: null,
   createdAt: '2026-10-06T12:00:00.000Z',
 };
+const ACCOUNTS_PATH = 'GET /accounts?archived=false&limit=100';
+const NO_ACCOUNTS = {
+  status: 200,
+  body: {
+    items: [],
+    availableTotals: { ARS: '0', USD: '0' },
+    netWorthTotals: { ARS: '0', USD: '0' },
+    debtTotals: { ARS: '0', USD: '0' },
+    creditCardCount: 0,
+    total: 0,
+    limit: 100,
+    offset: 0,
+  },
+} as const;
 
 function statement(overrides: Partial<StatementResponse>): StatementResponse {
   return {
@@ -67,6 +83,7 @@ const loaded = (statements: StatementResponse[] = [OCTOBER, SEPTEMBER]) => ({
   [`GET ${CARD_PATH}`]: { status: 200, body: card },
   [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: statements } },
   [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
+  [ACCOUNTS_PATH]: NO_ACCOUNTS,
 });
 
 describe('CreditCardDetailContainer', () => {
@@ -150,6 +167,7 @@ describe('CreditCardDetailContainer', () => {
       [`GET ${CARD_PATH}`]: { status: 200, body: card },
       [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: [withoutTotals] } },
       [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
+      [ACCOUNTS_PATH]: NO_ACCOUNTS,
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
 
@@ -230,6 +248,7 @@ describe('CreditCardDetailContainer', () => {
         { status: 200, body: { items: [statement({ closingDate: '2026-10-20' })] } },
       ],
       [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
+      [ACCOUNTS_PATH]: NO_ACCOUNTS,
       [`PATCH ${CARD_PATH}`]: { status: 200, body: { ...card, closingDay: 20 } },
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
@@ -312,6 +331,7 @@ describe('CreditCardDetailContainer', () => {
       ],
       [`GET ${STATEMENTS_PATH}`]: { status: 200, body: { items: [OCTOBER] } },
       [`GET ${PURCHASES_PATH}`]: NO_PURCHASES,
+      [ACCOUNTS_PATH]: NO_ACCOUNTS,
     });
     renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
 

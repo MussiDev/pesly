@@ -88,7 +88,7 @@ const workerFields = {
   COINGECKO_BASE_URL: z.url().default(COINGECKO_BASE_URL_DEFAULT),
   /** Optional Demo plan key: a missing key never blocks startup; only a malformed one does. */
   COINGECKO_API_KEY: coingeckoKeySchema,
-  /** Seconds between passes of the recurring payments job; an integer from 1 to 300. */
+  /** Seconds between passes of the recurring payments and automatic debit jobs; an integer from 1 to 300. */
   RECURRING_JOB_INTERVAL_SECONDS: z
     .string()
     .regex(/^\d+$/, 'must be an integer')

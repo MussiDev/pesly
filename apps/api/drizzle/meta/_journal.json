@@ -201,8 +201,15 @@
     {
       "idx": 29,
       "version": "7",
-      "when": 1791678105362,
-      "tag": "0029_group_activity_log_changes",
+      "when": 1791747000000,
+      "tag": "0029_card_automatic_debit",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791750000000,
+      "tag": "0030_group_activity_log_changes",
       "breakpoints": true
     }
   ]
