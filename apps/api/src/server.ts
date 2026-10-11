@@ -9,6 +9,7 @@ import {
 } from './credit-cards';
 // Deep import on purpose: the exchange-rates barrel would load the providers and the sync job into the API process (NFR-03, R-08).
 import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/exchange-rate-routes';
+import { createGoalRoutes, eraseUserGoals } from './goals';
 import { createGroupRoutes, eraseUserGroups } from './groups';
 import { createInvestmentsRoutes } from './investments';
 import {
@@ -48,13 +49,14 @@ const app = createApp({
   logger,
   // The composition root is the only place that knows these modules: new accounts get their default
   // categories in the transaction that creates them, and erasing a user deletes their movements
-  // then their cards, and first their recurring payments, because their keys to accounts and categories restrict.
+  // then their cards, and first their recurring payments and goals, because their keys to accounts and categories restrict.
   // Group memberships become "Former member" ghosts: the key from members to users restricts.
   identity: {
     db,
     onUserCreated: [seedDefaultCategories],
     beforeUserErased: [
       eraseUserRecurring,
+      eraseUserGoals,
       eraseUserGroups,
       eraseUserMovements,
       eraseUserCreditCards,
@@ -80,6 +82,7 @@ const app = createApp({
       writeLimit: createInstallmentWriteLimit(db, logger),
     }),
     createExchangeRateRoutes({ db }),
+    createGoalRoutes({ db, logger, movements: createAccountMovements(db) }),
     createGroupRoutes({ db, logger }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger }),

@@ -166,6 +166,7 @@ describe('0028_group_settlements migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031, 0030 and 0029 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
     await client.query(await fileOf('rollback/0031_group_record_version.down.sql'));
     await client.query(await fileOf('rollback/0030_group_activity_log_changes.down.sql'));
@@ -177,8 +178,8 @@ describe('0028_group_settlements migration', () => {
     expect(await hasLeftAtColumn()).toBe(false);
     expect(await indexDefinition('group_members_group_user_unique')).not.toMatch(/left_at/);
     expect(await indexDefinition('group_members_group_user_unique')).toMatch(/user_id IS NOT NULL/);
-    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 1);
-    expect(await appliedMigrations()).toBe(countBefore - 5);
+    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 3);
+    expect(await appliedMigrations()).toBe(countBefore - 6);
     const group = await createGroup();
     const member = await createGhost(group);
     expect(

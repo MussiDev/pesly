@@ -725,3 +725,30 @@ describe('Balanz import catalog (DISC-001-07c)', () => {
     },
   );
 });
+
+describe('goal error messages (DISC-001-06a)', () => {
+  const GOAL_ERRORS: Record<string, string> = {
+    GOAL_ACCOUNT_CURRENCY_MISMATCH: 'goalAccountCurrencyMismatch',
+    GOAL_LINKED_TO_ACCOUNT: 'goalLinkedToAccount',
+    GOAL_WITHDRAWAL_EXCEEDS_PROGRESS: 'goalWithdrawalExceedsProgress',
+    GOAL_PROGRESS_TOO_LARGE: 'goalProgressTooLarge',
+    GOAL_LIMIT_REACHED: 'goalLimitReached',
+    ACCOUNT_LINKED_TO_GOAL: 'accountLinkedToGoal',
+  };
+
+  it('maps each goal code to its message key, present in both catalogs', async () => {
+    const { createApiClient } = await import('../src/lib/api-client');
+    for (const [code, key] of Object.entries(GOAL_ERRORS)) {
+      const client = createApiClient({
+        baseUrl: 'http://api.argent.test',
+        fetch: () => Promise.resolve(new Response(JSON.stringify({ code }), { status: 409 })),
+      });
+      const result = await client.listMovements({});
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.messageKey).toBe(key);
+      for (const locale of LOCALES) {
+        expect(readString(loadCatalog(locale), `errors.${key}`)?.length).toBeGreaterThan(0);
+      }
+    }
+  });
+});
