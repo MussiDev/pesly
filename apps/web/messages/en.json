@@ -1285,6 +1285,51 @@
       "markRead": "We could not mark the notice as read. Try again."
     }
   },
+  "groups": {
+    "list": {
+      "title": "Groups",
+      "description": "Shared expenses and who owes whom.",
+      "label": "Your groups",
+      "members": "{count, plural, one {# member} other {# members}}",
+      "roles": { "admin": "Admin", "member": "Member" },
+      "create": "Create group",
+      "createTitle": "New group",
+      "empty": {
+        "title": "You are not in any group yet",
+        "joinHint": "Create one, or open the invitation link a friend sent you to join theirs."
+      },
+      "fields": {
+        "name": "Group name",
+        "rateType": "Default exchange rate",
+        "rateTypeHint": "Used to value group expenses in foreign currency."
+      },
+      "submit": "Create group",
+      "pending": "Creating…",
+      "cancel": "Cancel",
+      "errors": {
+        "nameRequired": "Enter a name for the group.",
+        "nameTooLong": "The name is too long.",
+        "nameInvalid": "That name is not valid.",
+        "rateTypeRequired": "Choose an exchange rate."
+      }
+    },
+    "join": {
+      "backToGroups": "Back to groups",
+      "alreadyMember": "You are already a member of this group.",
+      "full": "This group has reached its member limit.",
+      "signIn": "Your session has ended. Sign in and open the link again.",
+      "join": {
+        "title": "Join a group",
+        "working": "Joining the group",
+        "invalid": "This invitation link is invalid or has expired. Ask for a new one."
+      },
+      "claim": {
+        "title": "Claim your place",
+        "working": "Claiming your place in the group",
+        "invalid": "This claim link is invalid, has expired or has already been used. Ask for a new one."
+      }
+    }
+  },
   "recurring": {
     "title": "Recurring payments",
     "description": "Rent, subscriptions and services that repeat. Confirm each one when it is due.",

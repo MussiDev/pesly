@@ -1285,6 +1285,51 @@
       "markRead": "No pudimos marcar el aviso como leído. Inténtalo de nuevo."
     }
   },
+  "groups": {
+    "list": {
+      "title": "Grupos",
+      "description": "Gastos compartidos y quién debe a quién.",
+      "label": "Tus grupos",
+      "members": "{count, plural, one {# miembro} other {# miembros}}",
+      "roles": { "admin": "Admin", "member": "Miembro" },
+      "create": "Crear grupo",
+      "createTitle": "Nuevo grupo",
+      "empty": {
+        "title": "Todavía no estás en ningún grupo",
+        "joinHint": "Crea uno, o abre el enlace de invitación que te mandó un amigo para sumarte al suyo."
+      },
+      "fields": {
+        "name": "Nombre del grupo",
+        "rateType": "Cotización por defecto",
+        "rateTypeHint": "Se usa para valuar los gastos del grupo en moneda extranjera."
+      },
+      "submit": "Crear grupo",
+      "pending": "Creando…",
+      "cancel": "Cancelar",
+      "errors": {
+        "nameRequired": "Ingresa un nombre para el grupo.",
+        "nameTooLong": "El nombre es demasiado largo.",
+        "nameInvalid": "Ese nombre no es válido.",
+        "rateTypeRequired": "Elige una cotización."
+      }
+    },
+    "join": {
+      "backToGroups": "Volver a grupos",
+      "alreadyMember": "Ya sos parte de este grupo.",
+      "full": "Este grupo alcanzó su límite de miembros.",
+      "signIn": "Tu sesión terminó. Iniciá sesión y abrí el enlace de nuevo.",
+      "join": {
+        "title": "Unirte a un grupo",
+        "working": "Uniéndote al grupo",
+        "invalid": "Este enlace de invitación no es válido o venció. Pedí uno nuevo."
+      },
+      "claim": {
+        "title": "Reclamar tu lugar",
+        "working": "Reclamando tu lugar en el grupo",
+        "invalid": "Este enlace no es válido, venció o ya se usó. Pedí uno nuevo."
+      }
+    }
+  },
   "recurring": {
     "title": "Pagos recurrentes",
     "description": "Alquiler, suscripciones y servicios que se repiten. Confirmá cada uno cuando venza.",

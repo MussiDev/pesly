@@ -10,7 +10,7 @@ const SHORTCUTS: readonly {
   inCreation: boolean;
 }[] = [
   { key: 'budgets', href: '/budgets', icon: ChartPie, inCreation: true },
-  { key: 'groups', href: '/groups', icon: Users, inCreation: true },
+  { key: 'groups', href: '/groups', icon: Users, inCreation: false },
   { key: 'cards', href: '/cards', icon: CreditCard, inCreation: false },
 ];
 
