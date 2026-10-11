@@ -4,6 +4,23 @@ import {
   errorResponseSchema,
   groupExpenseResponseSchema,
   groupRecordConflictSchema,
+  groupResponseSchema,
+  groupDetailResponseSchema,
+  groupMemberResponseSchema,
+  groupCategoryResponseSchema,
+  invitationResponseSchema,
+  claimLinkResponseSchema,
+  type GroupResponse,
+  type GroupDetailResponse,
+  type GroupMemberResponse,
+  type GroupCategoryResponse,
+  type InvitationResponse,
+  type ClaimLinkResponse,
+  type CreateGroupRequest,
+  type UpdateGroupRequest,
+  type AddGhostMemberRequest,
+  type CreateGroupCategoryRequest,
+  type UpdateGroupCategoryRequest,
   settlementResponseSchema,
   listAccountsResponseSchema,
   listCategoriesResponseSchema,
@@ -133,7 +150,7 @@ import {
   type VerifyEmailRequest,
   type VerifyEmailResponse,
 } from '@pesly/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -214,6 +231,14 @@ export interface ApiFailure {
   retryAfterSeconds?: number;
   /** Only on a `GROUP_RECORD_CONFLICT`: the record as the server holds it now. */
   current?: GroupRecordConflict['current'];
+  /** Only on a `GROUP_MEMBER_HAS_BALANCE`: what the member owes (negative) or is owed, per currency. */
+  balances?: GroupBalances;
+}
+
+/** Signed integer strings in minor units, both always present. */
+export interface GroupBalances {
+  ARS: string;
+  USD: string;
 }
 
 /** The outcome of a group change the server refused because the record changed meanwhile (D3). */
@@ -337,6 +362,20 @@ function readGroupConflict(payload: unknown): ApiGroupConflict | undefined {
     current: parsed.data.current,
   };
 }
+
+/** Signed minor-unit amounts as the API sends them; read only when both are integer strings. */
+function readBalances(details: Record<string, string> | undefined): GroupBalances | undefined {
+  const ars = details?.ARS;
+  const usd = details?.USD;
+  if (ars === undefined || usd === undefined) return undefined;
+  const integer = /^-?\d+$/;
+  return integer.test(ars) && integer.test(usd) ? { ARS: ars, USD: usd } : undefined;
+}
+
+const GROUP_TOKEN_CLIENT_MAX = 200;
+
+const groupListResponseSchema = z.array(groupResponseSchema);
+const groupCategoryListResponseSchema = z.array(groupCategoryResponseSchema);
 
 /** Required by the API's origin guard on state-changing requests (CSRF defence in depth). */
 const REQUESTED_WITH = 'argent';
@@ -589,6 +628,34 @@ export interface ApiClient {
     settlementId: string,
     baseVersion: number,
   ): Promise<ApiResult<undefined>>;
+  listGroups(): Promise<ApiResult<GroupResponse[]>>;
+  createGroup(body: CreateGroupRequest): Promise<ApiResult<GroupResponse>>;
+  getGroup(groupId: string): Promise<ApiResult<GroupDetailResponse>>;
+  updateGroupRateType(groupId: string, body: UpdateGroupRequest): Promise<ApiResult<GroupResponse>>;
+  /** An empty token is refused before any request. */
+  joinGroup(token: string): Promise<ApiResult<GroupResponse>>;
+  claimGroupSeat(token: string): Promise<ApiResult<GroupResponse>>;
+  createInvitation(groupId: string): Promise<ApiResult<InvitationResponse>>;
+  addGhostMember(
+    groupId: string,
+    body: AddGhostMemberRequest,
+  ): Promise<ApiResult<GroupMemberResponse>>;
+  createClaimLink(groupId: string, memberId: string): Promise<ApiResult<ClaimLinkResponse>>;
+  promoteMember(groupId: string, memberId: string): Promise<ApiResult<GroupMemberResponse>>;
+  /** A `GROUP_MEMBER_HAS_BALANCE` failure carries `balances`. */
+  removeMember(groupId: string, memberId: string): Promise<ApiResult<undefined>>;
+  /** A `GROUP_MEMBER_HAS_BALANCE` failure carries `balances`. */
+  leaveGroup(groupId: string): Promise<ApiResult<undefined>>;
+  listGroupCategories(groupId: string): Promise<ApiResult<GroupCategoryResponse[]>>;
+  createGroupCategory(
+    groupId: string,
+    body: CreateGroupCategoryRequest,
+  ): Promise<ApiResult<GroupCategoryResponse>>;
+  updateGroupCategory(
+    groupId: string,
+    categoryId: string,
+    body: UpdateGroupCategoryRequest,
+  ): Promise<ApiResult<GroupCategoryResponse>>;
 }
 
 /**
@@ -638,9 +705,14 @@ export function createApiClient({
       const parsed = errorResponseSchema.safeParse(payload);
       if (!parsed.success) return failure('INTERNAL');
       const retryAfterSeconds = readRetryAfterSeconds(response);
+      const balances =
+        parsed.data.code === 'GROUP_MEMBER_HAS_BALANCE'
+          ? readBalances(parsed.data.details)
+          : undefined;
       const failed: ApiFailure = {
         ...failure(parsed.data.code),
         ...(parsed.data.fields ? { fields: parsed.data.fields } : {}),
+        ...(balances ? { balances } : {}),
         ...(retryAfterSeconds === undefined ? {} : { retryAfterSeconds }),
       };
       return failed;
@@ -770,6 +842,24 @@ export function createApiClient({
     return group === null || record === null
       ? Promise.resolve(failure('VALIDATION_FAILED'))
       : build(`${group}${record}`);
+  }
+
+  function onGroup<T>(
+    groupId: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('groups', groupId);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  /** The server judges a token's content; the client only refuses what cannot be one. */
+  function withToken<T>(
+    token: string,
+    build: (token: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    return token.trim() === '' || token.length > GROUP_TOKEN_CLIENT_MAX
+      ? Promise.resolve(failure('VALIDATION_FAILED'))
+      : build(token);
   }
 
   return {
@@ -1480,6 +1570,148 @@ export function createApiClient({
           method: 'DELETE',
           path: `${path}?baseVersion=${String(baseVersion)}`,
           response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listGroups: () =>
+      request({
+        method: 'GET',
+        path: '/groups',
+        response: groupListResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    createGroup: (body) =>
+      request({
+        method: 'POST',
+        path: '/groups',
+        body,
+        response: groupResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getGroup: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: groupDetailResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateGroupRateType: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: groupResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    joinGroup: (token) =>
+      withToken(token, (valid) =>
+        request({
+          method: 'POST',
+          path: '/groups/join',
+          body: { token: valid },
+          response: groupResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    claimGroupSeat: (token) =>
+      withToken(token, (valid) =>
+        request({
+          method: 'POST',
+          path: '/groups/claim',
+          body: { token: valid },
+          response: groupResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createInvitation: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/invitations`,
+          body: {},
+          response: invitationResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    addGhostMember: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/ghost-members`,
+          body,
+          response: groupMemberResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createClaimLink: (groupId, memberId) =>
+      onGroupRecord(groupId, 'members', memberId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/claim-links`,
+          body: {},
+          response: claimLinkResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    promoteMember: (groupId, memberId) =>
+      onGroupRecord(groupId, 'members', memberId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/admin`,
+          body: {},
+          response: groupMemberResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    removeMember: (groupId, memberId) =>
+      onGroupRecord(groupId, 'members', memberId, (path) =>
+        request({
+          method: 'DELETE',
+          path,
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    leaveGroup: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/leave`,
+          body: {},
+          response: null,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    listGroupCategories: (groupId) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/categories`,
+          response: groupCategoryListResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createGroupCategory: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        request({
+          method: 'POST',
+          path: `${path}/categories`,
+          body,
+          response: groupCategoryResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    updateGroupCategory: (groupId, categoryId, body) =>
+      onGroupRecord(groupId, 'categories', categoryId, (path) =>
+        request({
+          method: 'PATCH',
+          path,
+          body,
+          response: groupCategoryResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),
