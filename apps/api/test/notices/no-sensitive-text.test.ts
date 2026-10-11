@@ -48,19 +48,25 @@ describe('renderNoticeText', () => {
       renderNoticeText({
         kind: 'reminder',
         language,
-        paymentName: 'Luz',
+        subjectName: 'Luz',
         dueDate: '2026-10-10',
         daysUntilDue: 3,
       }),
-      renderNoticeText({ kind: 'recorded', language, paymentName: 'Luz', dueDate: '2026-10-05' }),
+      renderNoticeText({ kind: 'recorded', language, subjectName: 'Luz', dueDate: '2026-10-05' }),
       renderNoticeText({
         kind: 'not_recorded',
         language,
-        paymentName: 'Luz',
+        subjectName: 'Luz',
         dueDate: '2026-10-05',
       }),
+      renderNoticeText({
+        kind: 'card_statement_due',
+        language,
+        subjectName: 'Visa',
+        dueDate: '2026-11-05',
+      }),
     ];
-    expect(texts).toHaveLength(3);
+    expect(texts).toHaveLength(4);
     for (const text of texts) expect(forbiddenIn(text)).toEqual([]);
   });
 });

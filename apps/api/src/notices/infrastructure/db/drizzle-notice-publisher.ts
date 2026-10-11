@@ -18,7 +18,7 @@ function toNewNotice(input: PublishNoticeInput): NewNotice {
     text: renderNoticeText({
       kind: input.kind,
       language: input.language,
-      paymentName: input.paymentName,
+      subjectName: input.paymentName,
       dueDate: input.dueDate,
       ...(input.daysUntilDue === undefined ? {} : { daysUntilDue: input.daysUntilDue }),
     }),

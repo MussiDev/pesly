@@ -16,6 +16,7 @@ export interface Notice {
 export interface NewNotice {
   ownerId: string;
   kind: NoticeKind;
+  /** The subject id: a recurring payment id, or a credit card statement id for `card_statement_due`. */
   paymentId: string;
   dueDate: string;
   text: string;
