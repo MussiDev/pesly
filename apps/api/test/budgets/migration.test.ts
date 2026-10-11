@@ -126,7 +126,7 @@ describe('0034_budgets migration', () => {
     const snapshots = JSON.parse(
       await fileOf(`meta/${String(own?.idx).padStart(4, '0')}_snapshot.json`),
     ) as { prevId: string };
-    // Numbers may have gaps (0008, and 0033 is reserved for goals), so take the closest lower one.
+    // Numbers may have gaps (0008), so take the closest lower one.
     const previous = journal.entries
       .filter((entry) => entry.idx < (own?.idx ?? 0))
       .sort((a, b) => b.idx - a.idx)[0];
