@@ -261,4 +261,11 @@ describe('DefaultSplitContainer', () => {
     await screen.findByLabelText(en.groups.defaultSplit.modeLabel);
     expect(calls).toHaveLength(2);
   });
+
+  it('shows the not-found state for a malformed group id and sends no request', () => {
+    const { calls } = stubApi({});
+    renderApp(<DefaultSplitContainer groupId="not-a-uuid" />, { locale: 'en' });
+    expect(screen.getByText(en.groups.detail.notFound.title)).toBeTruthy();
+    expect(calls).toHaveLength(0);
+  });
 });

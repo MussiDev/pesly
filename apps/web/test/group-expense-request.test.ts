@@ -19,7 +19,7 @@ const PERSONAL_CATEGORY = '77777777-7777-4777-8777-777777777777';
 
 const context: ExpenseRequestContext = {
   members: [{ id: ANA }, { id: BRUNO }, { id: CARLA }],
-  groupCategoryIds: [GROUP_CATEGORY],
+  groupCategories: [{ id: GROUP_CATEGORY, archivedAt: null }],
   accounts: [
     { id: ACCOUNT_ARS, currency: 'ARS', archived: false },
     { id: ACCOUNT_USD, currency: 'USD', archived: true },
@@ -60,6 +60,15 @@ describe('buildExpenseRequest', () => {
       split: { mode: 'equal', memberIds: [ANA, BRUNO, CARLA] },
     });
     expect(createGroupExpenseRequestSchema.safeParse(result.request).success).toBe(true);
+  });
+
+  it('refuses an archived group category', () => {
+    const result = buildExpenseRequest(values(), {
+      ...context,
+      groupCategories: [{ id: GROUP_CATEGORY, archivedAt: '2026-10-01T00:00:00.000Z' }],
+    });
+    expect(result.request).toBeUndefined();
+    expect(result.fields?.category).toBe('groups.expenses.form.errors.categoryRequired');
   });
 
   it('ignores account fields typed for a payer who is another member', () => {

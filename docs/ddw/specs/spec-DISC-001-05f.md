@@ -52,7 +52,7 @@ end-to-end test. Money stays in `bigint` minor units and basis points everywhere
 | FR-12 | Block 6 |
 | FR-13 | Every block adds its catalog keys; Block 7 checks parity |
 | NFR-01 | Block 7 (end-to-end at 360 px) |
-| NFR-02 | Strategy: one container per screen stays inside its budget (D5), asserted by call-count tests in Blocks 3, 4 and 5 |
+| NFR-02 | Strategy: one container per screen stays inside its budget (D5), asserted by call-count tests in Blocks 3, 4 and 5; the default split screen makes 2 requests (options and group, since the role lives only in the group detail), within the list-page bound of 2 |
 | NFR-03 | Strategy: every block adds Spanish and English keys together; the existing catalog parity test runs in each block and in Block 7 |
 | NFR-04 | Block 2 |
 | NFR-05 | Block 7 (scan), with Block 2 written to pass it |
@@ -302,7 +302,7 @@ Tests pass and a member can record an expense with each split mode.
 - `apps/web/messages/es.json`, `en.json` (modified) — `groups.defaultSplit`.
 
 **Logic**
-The container loads the expense options (1 request) and the group role. An admin edits the default as
+The container makes 2 requests: the expense options, whose `selfMemberId` names the caller's member, and the group, because the caller's role lives only in the group detail. An admin edits the default as
 equal or by percentages per member (FR-11), reusing the percentage parsing and total of Block 2, and
 saves it; the next expense form then prefills from it (AC-13). A member who is not an admin sees the
 current default read only (AC-14).
@@ -321,7 +321,7 @@ current default read only (AC-14).
 - [ ] Percentages that do not total 100% are invalid, show the difference and send no request — invalid input.
 - [ ] A 403 on save shows its message and changes nothing.
 - [ ] A 400 refusal keeps the typed values.
-- [ ] The page loads with at most 1 request — validates NFR-02.
+- [ ] The page loads with 2 requests (options and group), inside the list-page bound of 2 — validates NFR-02.
 
 **Completion criterion**
 Tests pass and the admin and member views work.

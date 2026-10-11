@@ -1,17 +1,17 @@
 'use client';
 
 import type { DefaultSplitResponse, ExpenseOptionsResponse } from '@pesly/shared';
-import { Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ApiFailure } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { GroupIssue } from '../components/group-issue';
+import { GroupNotFoundView } from '../components/group-not-found';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
+import { isGroupId } from '../group-id';
 import { DefaultSplitForm } from './default-split-form';
 import { DefaultSplitReadonly } from './default-split-readonly';
 import {
@@ -42,10 +42,14 @@ export interface DefaultSplitContainerProps {
  * requests: the expense options and the group, whose members carry the caller's role.
  */
 export function DefaultSplitContainer({ groupId }: DefaultSplitContainerProps) {
+  if (!isGroupId(groupId)) return <GroupNotFoundView />;
+  return <DefaultSplitScreen groupId={groupId} />;
+}
+
+function DefaultSplitScreen({ groupId }: DefaultSplitContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const t = useTranslations('groups.defaultSplit');
-  const tNotFound = useTranslations('groups.detail.notFound');
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [mode, setMode] = useState<DefaultSplitMode>('equal');
@@ -85,20 +89,7 @@ export function DefaultSplitContainer({ groupId }: DefaultSplitContainerProps) {
     };
   }, [api, groupId, router, attempt]);
 
-  if (state.kind === 'not-found') {
-    return (
-      <EmptyState
-        icon={<Users aria-hidden="true" />}
-        title={tNotFound('title')}
-        description={tNotFound('description')}
-        action={
-          <Link href="/groups" className={buttonVariants()}>
-            {tNotFound('back')}
-          </Link>
-        }
-      />
-    );
-  }
+  if (state.kind === 'not-found') return <GroupNotFoundView />;
 
   if (state.kind !== 'ready') {
     return (

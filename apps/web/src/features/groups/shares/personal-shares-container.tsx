@@ -3,7 +3,7 @@
 import type { PersonalShareResponse } from '@pesly/shared';
 import { Receipt } from 'lucide-react';
 import { useTimeZone, useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
@@ -50,6 +50,8 @@ export function PersonalSharesContainer() {
   const [fields, setFields] = useState<SharesFieldErrors>();
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreIssue, setMoreIssue] = useState<ApiFailure>();
+  // Bumped whenever the first page is requested again, so a late "load more" answer is dropped.
+  const generation = useRef(0);
 
   // The first range is the current month; it is applied once the time zone is known.
   const initial = useMemo(
@@ -61,8 +63,10 @@ export function PersonalSharesContainer() {
   useEffect(() => {
     if (range === undefined) return;
     let active = true;
+    generation.current += 1;
     void api.listPersonalShares(range).then((result) => {
       if (!active) return;
+      setLoadingMore(false);
       if (result.ok) {
         setState({ kind: 'ready', items: result.data.items, nextCursor: result.data.nextCursor });
       } else if (result.code === 'UNAUTHENTICATED') {
@@ -92,7 +96,9 @@ export function PersonalSharesContainer() {
     if (range === undefined) return;
     setLoadingMore(true);
     setMoreIssue(undefined);
+    const started = generation.current;
     const result = await api.listPersonalShares({ ...range, cursor });
+    if (started !== generation.current) return;
     setLoadingMore(false);
     if (result.ok) {
       setState((current) =>
@@ -135,7 +141,7 @@ export function PersonalSharesContainer() {
         />
       ) : (
         <>
-          <SharesTotals totals={totals} />
+          <SharesTotals totals={totals} partial={state.nextCursor !== null} />
           {moreIssue ? <GroupIssue failure={moreIssue} /> : null}
           <PersonalSharesList
             items={state.items}

@@ -487,4 +487,26 @@ describe('ExpenseFormContainer', () => {
     open();
     expect(await screen.findByRole('button', { name: en.app.retry })).toBeTruthy();
   });
+
+  it('shows the not-found state for a malformed group id and sends no request', () => {
+    const { calls } = stubApi({});
+    renderApp(<ExpenseFormContainer groupId="not-a-uuid" timeZone={ZONE} now={NOW} />, {
+      locale: 'en',
+    });
+    expect(screen.getByText(en.groups.detail.notFound.title)).toBeTruthy();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('explains why submit is blocked when no member takes part in the split', async () => {
+    const { calls } = stubApi(routes());
+    open();
+    await ready();
+    await userEvent.type(field(form.fields.amount), '100');
+    for (const name of ['Ana', 'Bruno', 'Carla']) {
+      await userEvent.click(screen.getByRole('checkbox', { name }));
+    }
+    expect(screen.getByText(split.errors.noMembers)).toBeTruthy();
+    expect(submit().disabled).toBe(true);
+    expect(posts(calls)).toHaveLength(0);
+  });
 });

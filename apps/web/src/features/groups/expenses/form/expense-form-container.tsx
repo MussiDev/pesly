@@ -16,7 +16,9 @@ import type { ApiFailure, ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { readDeviceContext } from '@/lib/device-context';
 import { groupCategoryLabel } from '../../components/group-categories-list';
+import { GroupNotFoundView } from '../../components/group-not-found';
 import { GroupsLoadStateView, type GroupsLoadState } from '../../components/groups-load-state';
+import { isGroupId } from '../../group-id';
 import { createSplitState } from '../../split/split-state';
 import { ExpenseForm } from './expense-form';
 import {
@@ -48,11 +50,12 @@ interface ExpenseFormContainerProps {
 }
 
 /** The new group expense screen: 3 requests to load, one to save. Online only. */
-export function ExpenseFormContainer({
-  groupId,
-  timeZone: timeZoneProp,
-  now,
-}: ExpenseFormContainerProps) {
+export function ExpenseFormContainer(props: ExpenseFormContainerProps) {
+  if (!isGroupId(props.groupId)) return <GroupNotFoundView />;
+  return <ExpenseFormScreen {...props} />;
+}
+
+function ExpenseFormScreen({ groupId, timeZone: timeZoneProp, now }: ExpenseFormContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const locale = useLocale();
@@ -155,7 +158,7 @@ export function ExpenseFormContainer({
     if (pending) return;
     const result = buildExpenseRequest(values, {
       members,
-      groupCategoryIds: options.categories.map((category) => category.id),
+      groupCategories: options.categories,
       accounts,
       personalCategoryIds: personalCategories.map((category) => category.id),
       currentMemberId: options.selfMemberId,

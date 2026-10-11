@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { GroupExpensesContainer } from '../src/features/groups/expenses/list/group-expenses-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
@@ -172,5 +172,50 @@ describe('GroupExpensesContainer', () => {
     expect(await screen.findByRole('button', { name: es.groups.expenses.loadMore })).toBeTruthy();
     expect(screen.getByText(/15\.000,50/)).toBeTruthy();
     expect(screen.getByRole('heading', { name: es.groups.expenses.title })).toBeTruthy();
+  });
+
+  it('shows the not-found state for a malformed group id and sends no request', () => {
+    const { calls } = stubApi({});
+    renderApp(<GroupExpensesContainer groupId="not-a-uuid" />, { locale: 'en' });
+    expect(screen.getByText(en.groups.detail.notFound.title)).toBeTruthy();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('ignores a load-more answer that arrives after the group changed', async () => {
+    const OTHER = '55555555-5555-4555-8555-555555555556';
+    const stub = stubApi({
+      [LIST]: { status: 200, body: { items: [expense(1)], nextCursor: 'CUR1' } },
+      [MORE('CUR1')]: {
+        status: 200,
+        body: { items: [expense(2)], nextCursor: null },
+      },
+      [OPTIONS]: { status: 200, body: options },
+      [`GET /groups/${OTHER}/expenses?limit=50`]: {
+        status: 200,
+        body: { items: [expense(9, { groupId: OTHER })], nextCursor: null },
+      },
+      [`GET /groups/${OTHER}/expense-options`]: { status: 200, body: options },
+    });
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      url.includes('cursor=CUR1') ? held.then(() => stub.fetch(url, init)) : stub.fetch(url, init),
+    );
+    const view = open();
+    await userEvent.click(await screen.findByRole('button', { name: en.groups.expenses.loadMore }));
+
+    view.rerender(<GroupExpensesContainer groupId={OTHER} />);
+    expect(await screen.findByText('Expense 9')).toBeTruthy();
+    release();
+    await waitFor(() => {
+      expect(stub.calls.some((call) => call.path.includes('cursor=CUR1'))).toBe(true);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(screen.queryByText('Expense 2')).toBeNull();
+    expect(screen.queryByText('Expense 1')).toBeNull();
+    expect(screen.getByText('Expense 9')).toBeTruthy();
   });
 });

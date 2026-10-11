@@ -1,11 +1,9 @@
 'use client';
 
 import type { CategoryLanguage, ExpenseOptionsResponse, GroupExpenseResponse } from '@pesly/shared';
-import { Users } from 'lucide-react';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link, useRouter } from '@/i18n/navigation';
@@ -13,7 +11,9 @@ import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { formatDateTime, formatMoney } from '@/lib/format-amount';
 import { groupCategoryLabel } from '../../components/group-categories-list';
+import { GroupNotFoundView } from '../../components/group-not-found';
 import { GroupsLoadStateView } from '../../components/groups-load-state';
+import { isGroupId } from '../../group-id';
 import { GroupExpensesList, type ExpenseListItem } from './group-expenses-list';
 
 const PAGE_SIZE = 50;
@@ -39,10 +39,14 @@ export interface GroupExpensesContainerProps {
  * from the previous response.
  */
 export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps) {
+  if (!isGroupId(groupId)) return <GroupNotFoundView />;
+  return <GroupExpensesScreen groupId={groupId} />;
+}
+
+function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const t = useTranslations('groups.expenses');
-  const tNotFound = useTranslations('groups.detail.notFound');
   const tErrors = useTranslations('errors');
   const locale = useLocale();
   const timeZone = useTimeZone() ?? 'UTC';
@@ -51,9 +55,12 @@ export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps)
   const [attempt, setAttempt] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<ErrorMessageKey>();
+  // Bumped whenever the first page is requested again, so a late "load more" answer is dropped.
+  const generation = useRef(0);
 
   useEffect(() => {
     let active = true;
+    generation.current += 1;
     void Promise.all([
       api.listGroupExpenses(groupId, { limit: PAGE_SIZE }),
       api.getExpenseOptions(groupId),
@@ -61,6 +68,8 @@ export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps)
       if (!active) return;
       const failed = !page.ok ? page : !options.ok ? options : undefined;
       if (failed === undefined && page.ok && options.ok) {
+        setLoadingMore(false);
+        setLoadMoreError(undefined);
         setState({
           kind: 'ready',
           options: options.data,
@@ -78,20 +87,7 @@ export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps)
     };
   }, [api, groupId, router, attempt]);
 
-  if (state.kind === 'not-found') {
-    return (
-      <EmptyState
-        icon={<Users aria-hidden="true" />}
-        title={tNotFound('title')}
-        description={tNotFound('description')}
-        action={
-          <Link href="/groups" className={buttonVariants()}>
-            {tNotFound('back')}
-          </Link>
-        }
-      />
-    );
-  }
+  if (state.kind === 'not-found') return <GroupNotFoundView />;
 
   if (state.kind !== 'ready') {
     return (
@@ -131,9 +127,11 @@ export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps)
     if (nextCursor === null || loadingMore) return;
     setLoadingMore(true);
     setLoadMoreError(undefined);
+    const started = generation.current;
     void api
       .listGroupExpenses(groupId, { limit: PAGE_SIZE, cursor: nextCursor })
       .then((page: ApiResult<{ items: GroupExpenseResponse[]; nextCursor: string | null }>) => {
+        if (started !== generation.current) return;
         setLoadingMore(false);
         if (page.ok) {
           setState((current) =>

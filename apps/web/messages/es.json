@@ -1298,7 +1298,10 @@
       "receivable": "Todavía te deben:",
       "loadMore": "Cargar más",
       "loadingMore": "Cargando…",
-      "totals": { "title": "Totales por moneda" },
+      "totals": {
+        "title": "Totales por moneda",
+        "partial": "Totales hasta ahora: solo se cuentan las filas cargadas."
+      },
       "empty": {
         "title": "No hay partes en este rango",
         "description": "Acá van a aparecer los gastos de grupo en los que participás."
@@ -1314,8 +1317,14 @@
     "split": {
       "title": "División",
       "modeLabel": "Cómo dividir",
-      "modes": { "equal": "Partes iguales", "percentage": "Porcentajes", "exact": "Montos exactos" },
-      "equal": { "hint": "Elige quiénes comparten este gasto. Cada parte se muestra a la derecha." },
+      "modes": {
+        "equal": "Partes iguales",
+        "percentage": "Porcentajes",
+        "exact": "Montos exactos"
+      },
+      "equal": {
+        "hint": "Elige quiénes comparten este gasto. Cada parte se muestra a la derecha."
+      },
       "percentage": {
         "hint": "Ingresa un porcentaje por cada miembro. Déjalo vacío para dejar a alguien afuera.",
         "field": "Porcentaje de {name}"

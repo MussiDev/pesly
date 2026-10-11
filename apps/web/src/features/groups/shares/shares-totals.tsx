@@ -6,7 +6,14 @@ import type { Locale } from '@/i18n/routing';
 import type { CurrencyTotal } from './shares-request';
 
 /** One total per currency of what is listed; currencies are never converted into each other. */
-export function SharesTotals({ totals }: { totals: readonly CurrencyTotal[] }) {
+export function SharesTotals({
+  totals,
+  partial,
+}: {
+  totals: readonly CurrencyTotal[];
+  /** More pages remain, so the totals cover only what is loaded so far. */
+  partial: boolean;
+}) {
   const t = useTranslations('groups.shares.totals');
   const locale = useLocale() as Locale;
 
@@ -22,6 +29,7 @@ export function SharesTotals({ totals }: { totals: readonly CurrencyTotal[] }) {
           </li>
         ))}
       </ul>
+      {partial ? <p className="text-small text-muted-foreground">{t('partial')}</p> : null}
     </section>
   );
 }

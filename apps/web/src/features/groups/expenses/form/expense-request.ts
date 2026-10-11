@@ -34,7 +34,8 @@ export interface ExpenseFormValues {
 export interface ExpenseRequestContext {
   /** Every member of the group, in joining order. */
   members: readonly { id: string }[];
-  groupCategoryIds: readonly string[];
+  /** The group's categories; an archived one can no longer be used. */
+  groupCategories: readonly { id: string; archivedAt: string | null }[];
   accounts: readonly { id: string; currency: string; archived: boolean }[];
   personalCategoryIds: readonly string[];
   /** The caller's member id; without it no payer is "the current user". */
@@ -161,7 +162,11 @@ export function buildExpenseRequest(
   }
 
   if (!memberIds.includes(values.payerMemberId)) fields.payer = `${ERR}.payerRequired`;
-  if (!context.groupCategoryIds.includes(values.categoryId)) {
+  if (
+    !context.groupCategories.some(
+      (category) => category.id === values.categoryId && category.archivedAt === null,
+    )
+  ) {
     fields.category = `${ERR}.categoryRequired`;
   }
 

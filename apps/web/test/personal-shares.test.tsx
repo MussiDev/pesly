@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { PersonalSharesContainer } from '../src/features/groups/shares/personal-shares-container';
 import {
   buildSharesRequest,
@@ -256,6 +256,62 @@ describe('PersonalSharesContainer', () => {
     expect(within(totals).getByText(`1,000.00${NBSP}ARS`)).toBeTruthy();
     expect(within(totals).getByText(`12.34${NBSP}USD`)).toBeTruthy();
     expect(screen.queryByRole('button', { name: en.groups.shares.loadMore })).toBeNull();
+  });
+
+  it('says the totals cover only the loaded rows while more pages remain', async () => {
+    stubApi({
+      [DEFAULT_PATH]: page([ITEMS[0]], 'CURSOR-1'),
+      [sharesPath(BOUNDS, 'CURSOR-1')]: page([ITEMS[2]]),
+    });
+    open();
+    await ready();
+    const totals = screen.getByRole('region', { name: en.groups.shares.totals.title });
+    expect(within(totals).getByText(en.groups.shares.totals.partial)).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', { name: en.groups.shares.loadMore }));
+    await waitFor(() => {
+      expect(listed(`12.34${NBSP}USD`)).toBeTruthy();
+    });
+    expect(screen.queryByText(en.groups.shares.totals.partial)).toBeNull();
+  });
+
+  it('ignores a load-more answer that arrives after the range changed', async () => {
+    const next = { from: '2026-01-01', to: '2026-01-31' };
+    const nextBounds = buildSharesRequest(next, 'UTC').request;
+    if (!nextBounds) throw new Error('valid range expected');
+    const stub = stubApi({
+      [DEFAULT_PATH]: page([ITEMS[0]], 'CURSOR-1'),
+      [sharesPath(BOUNDS, 'CURSOR-1')]: page([ITEMS[2]]),
+      [sharesPath(nextBounds)]: page([share(4, { shareAmount: '777' })]),
+    });
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      url.includes('cursor=CURSOR-1')
+        ? held.then(() => stub.fetch(url, init))
+        : stub.fetch(url, init),
+    );
+    open();
+    await ready();
+    await userEvent.click(screen.getByRole('button', { name: en.groups.shares.loadMore }));
+
+    fireEvent.change(screen.getByLabelText(en.groups.shares.from), {
+      target: { value: next.from },
+    });
+    fireEvent.change(screen.getByLabelText(en.groups.shares.to), { target: { value: next.to } });
+    await userEvent.click(screen.getByRole('button', { name: en.groups.shares.apply }));
+    await waitFor(() => {
+      expect(listed(`7.77${NBSP}ARS`)).toBeTruthy();
+    });
+
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(within(list()).queryByText(`12.34${NBSP}USD`)).toBeNull();
+    expect(within(list()).queryByText(`1,000.00${NBSP}ARS`)).toBeNull();
+    expect(listed(`7.77${NBSP}ARS`)).toBeTruthy();
   });
 
   it('renders Spanish and English strings (AC-17)', async () => {

@@ -226,6 +226,17 @@ describe('response schemas', () => {
     version: 1,
   };
 
+  it('rejects the options without the caller member id', () => {
+    expect(
+      expenseOptionsResponseSchema.safeParse({
+        members: [{ id: A, displayName: 'Ana', isGhost: false, joinedAt: NOW }],
+        categories: [],
+        defaultSplit: { mode: 'equal' },
+        defaultRateType: 'blue',
+      }).success,
+    ).toBe(false);
+  });
+
   it('parses an expense, a page and the options', () => {
     expect(groupExpenseResponseSchema.safeParse(expense).success).toBe(true);
     expect(groupExpensePageSchema.safeParse({ items: [expense], nextCursor: null }).success).toBe(

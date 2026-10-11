@@ -1298,7 +1298,10 @@
       "receivable": "Still owed to you:",
       "loadMore": "Load more",
       "loadingMore": "Loading…",
-      "totals": { "title": "Totals by currency" },
+      "totals": {
+        "title": "Totals by currency",
+        "partial": "Totals so far: only the rows loaded are counted."
+      },
       "empty": {
         "title": "No shares in this range",
         "description": "Group expenses you take part in will show up here."

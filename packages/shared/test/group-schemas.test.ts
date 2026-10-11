@@ -176,6 +176,16 @@ describe('response schemas', () => {
     createdAt: NOW,
   };
 
+  it('rejects a group detail without the caller member id', () => {
+    expect(
+      groupDetailResponseSchema.safeParse({
+        ...group,
+        members: [{ id: UUID, displayName: null, isGhost: false, role: 'admin', joinedAt: NOW }],
+        formerMembers: [],
+      }).success,
+    ).toBe(false);
+  });
+
   it('accepts a group and a detail with a registered and a ghost member', () => {
     expect(groupResponseSchema.safeParse(group).success).toBe(true);
     expect(
