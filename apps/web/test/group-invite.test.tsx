@@ -97,7 +97,7 @@ describe('group invitation panel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
 
-    const field = await screen.findByLabelText(en.groups.invite.linkLabel);
+    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
     expect(field.readOnly).toBe(true);
     expect(field.value).toBe(`${window.location.origin}/en/groups/join#token=${TOKEN}`);
     expect(field.value).not.toContain('?');
@@ -123,7 +123,7 @@ describe('group invitation panel', () => {
     open();
     await screen.findByText('Ana');
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.create }));
-    const field = await screen.findByLabelText(en.groups.invite.linkLabel);
+    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
 
     await userEvent.click(screen.getByRole('button', { name: en.groups.invite.copy }));
 
@@ -266,7 +266,7 @@ describe('claim link', () => {
       }),
     );
 
-    const field = await screen.findByLabelText(en.groups.invite.linkLabel);
+    const field = (await screen.findByLabelText(en.groups.invite.linkLabel)) as HTMLInputElement;
     expect(field.value).toBe(`${window.location.origin}/en/groups/claim#token=${TOKEN}`);
   });
 
