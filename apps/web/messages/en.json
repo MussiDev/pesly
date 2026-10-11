@@ -383,6 +383,7 @@
     "recurringLimitReached": "You reached the limit of 200 recurring payments. Delete one to create another.",
     "budgetLimitReached": "You reached the limit of 50 budgets. Delete one to create another.",
     "budgetCategoryKindInvalid": "Budgets can only cover expense categories. Remove the income category and try again.",
+    "budgetMonthInFuture": "You cannot look at the spending of a month that has not started yet.",
     "groupAdminRequired": "Only a group admin can do this.",
     "groupAlreadyMember": "You are already a member of this group.",
     "groupMemberLimitReached": "This group reached the limit of 50 members.",
