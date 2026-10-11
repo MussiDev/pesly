@@ -6,6 +6,8 @@ import type { AutomaticDebitRecorder } from './application/ports/automatic-debit
 import type { CardPayments } from './application/ports/card-payments';
 import type { CardPurchases } from './application/ports/card-purchases';
 import type { Clock } from './application/ports/clock';
+import { CreateStatementReminders } from './application/create-statement-reminders';
+import type { StatementReminderPublisher } from './application/ports/statement-reminder-publisher';
 import { RecordAutomaticDebits } from './application/record-automatic-debits';
 import { DrizzleAutomaticDebitLog } from './infrastructure/db/drizzle-automatic-debit-log';
 import { DrizzleAutomaticDebitSource } from './infrastructure/db/drizzle-automatic-debit-source';
@@ -15,6 +17,11 @@ import {
   AutomaticDebitJob,
   AutomaticDebitLog as AutomaticDebitLogSink,
 } from './infrastructure/jobs/automatic-debit-job';
+import { DrizzleStatementReminderSource } from './infrastructure/db/drizzle-statement-reminder-source';
+import {
+  StatementReminderJob,
+  StatementReminderLog,
+} from './infrastructure/jobs/statement-reminder-job';
 import { SystemClock } from './infrastructure/system-clock';
 
 /*
@@ -23,9 +30,11 @@ import { SystemClock } from './infrastructure/system-clock';
  * user request. The movements adapters are injected so this module never imports `movements`.
  */
 export type { AutomaticDebitJob } from './infrastructure/jobs/automatic-debit-job';
+export type { StatementReminderJob } from './infrastructure/jobs/statement-reminder-job';
 
 /** Identifies the system job in the synthetic auth context; no audit line or limiter key keeps it. */
 const JOB_SESSION_ID = 'automatic-debit-job';
+const REMINDER_JOB_SESSION_ID = 'statement-reminder-job';
 
 export interface AutomaticDebitJobFactoryDependencies {
   db: Database;
@@ -69,6 +78,54 @@ export function createAutomaticDebitJob({
   });
   return new AutomaticDebitJob({
     execute: () => recordDebits.execute(),
+    logger,
+    intervalMs: intervalSeconds * 1000,
+  });
+}
+
+export interface StatementReminderJobFactoryDependencies {
+  db: Database;
+  logger: Logger;
+  /** Stores the notices; the notices module provides it and the worker injects it. */
+  publisher: StatementReminderPublisher;
+  /** What each card received, to work out what a statement still owes; the movements module provides it. */
+  cardPayments: CardPayments;
+  /** Daily purchase sums behind the statement totals; the movements module provides it. */
+  purchases: CardPurchases;
+  clock?: Clock;
+  intervalSeconds: number;
+}
+
+/** The statement due-date reminder job over the PostgreSQL repositories. */
+export function createStatementReminderJob({
+  db,
+  logger,
+  publisher,
+  cardPayments,
+  purchases,
+  clock = new SystemClock(),
+  intervalSeconds,
+}: StatementReminderJobFactoryDependencies): StatementReminderJob {
+  const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
+  const sink = new StatementReminderLog(logger);
+  const createReminders = new CreateStatementReminders({
+    cards: new DrizzleCreditCardRepository(db),
+    installments: new DrizzleInstallmentRepository(db),
+    purchases,
+    cardPayments,
+    clock,
+    source: new DrizzleStatementReminderSource(db),
+    publisher,
+    // The only constructor of a write scope: `ownerId` comes from the source's `users` join.
+    scopeFor: (ownerId) =>
+      policy.scopeFor(
+        { userId: ownerId, sessionId: REMINDER_JOB_SESSION_ID, emailVerified: true },
+        'write',
+      ),
+    report: sink.report,
+  });
+  return new StatementReminderJob({
+    execute: () => createReminders.execute(),
     logger,
     intervalMs: intervalSeconds * 1000,
   });
