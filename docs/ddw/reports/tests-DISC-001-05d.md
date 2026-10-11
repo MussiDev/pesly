@@ -4,19 +4,19 @@
 |---|---|
 | Runner | vitest 5.0.1 (V8 coverage via @vitest/coverage-v8) |
 | Command | `TEST_DATABASE_URL=postgres://argent:argent@127.0.0.1:5435/<test database> npx vitest run --coverage --maxWorkers=2 --retry=2 --coverage.reportOnFailure=true` |
-| Total | 7390 |
-| Passed | 7390 |
+| Total | 7564 |
+| Passed | 7564 |
 | Failed | 0 |
 | Skipped | 0 |
-| Line coverage | 96.80% |
-| Branch coverage | 90.76% |
-| Function coverage | 94.58% |
+| Line coverage | 96.86% |
+| Branch coverage | 90.77% |
+| Function coverage | 94.69% |
 | Coverage floor | 80% lines, branches and functions (AGENTS.md, "Testing") |
 | Lint | `pnpm exec eslint` over `apps/api/src/groups`, `apps/api/test/groups`, `packages/shared/src` and `packages/shared/test` — clean, 0 findings (exit 0, run again for this report); `pnpm typecheck` — clean (shared, web, api; run again for this report); `pnpm lint` as a whole stops only at `prettier --check` because of the repository's CRLF checkout on Windows, a known condition that is not related to this ticket |
 
 ## Scope
 
-Closeout run of the ticket on branch `feat/DISC-001-05d-edit-activity-log` at commit `f0b122b` (all five blocks, the review fixes and the SAST fixes committed), on the final code. Measured over `apps/api/src`, `apps/web/src` and `packages/shared/src` together, as AGENTS.md requires: 415 test files, 7390 tests, 1010.72 s, in a fresh `_test` database. Suite coverage: statements 94.93% (13276 of 13984), branches 90.76% (7418 of 8173), functions 94.58% (3546 of 3749), lines 96.80% (12101 of 12501). I did not re-run the suite for this report; the figures come from the log of that run (`full05d.log`) and from `coverage/coverage-summary.json`, written after the last commit. The ticket adds one migration (0030, additive for data: two nullable columns, one check added, one check replaced, one trigger function and one trigger) and no dependency.
+Closeout run of the ticket on branch `feat/DISC-001-05d-edit-activity-log` at commit `23c12d0` (all five blocks, the review fixes, the SAST fixes and the merge of `origin/main` with the renumbering of the migration committed), on the final code. Measured over `apps/api/src`, `apps/web/src` and `packages/shared/src` together, as AGENTS.md requires: 425 test files, 7564 tests, 1105.21 s, in a fresh `_test` database. Suite coverage: statements 95.03% (13585 of 14295), branches 90.77% (7589 of 8360), functions 94.69% (3626 of 3829), lines 96.86% (12375 of 12775). I did not re-run the suite for this report; the figures come from the log of that run (`full05d.log`) and from `coverage/coverage-summary.json`, written after the last commit. The ticket adds one migration (0030, additive for data: two nullable columns, one check added, one check replaced, one trigger function and one trigger) and no dependency.
 
 Ticket code on its own (10 source files with executable code: `groups/domain/group-change.ts`, the five application files `allocate-expense-shares.ts`, `update-group-expense.ts`, `delete-group-expense.ts`, `update-settlement.ts` and `delete-settlement.ts`, `list-activity.ts`, `drizzle-activity-log-reader.ts`, `group-activity-presenter.ts` and `packages/shared/src/groups/activity.ts`; the new port `activity-log-reader.ts` is an interface and has no executable code): 146 of 150 lines (97.33%), 89 of 106 branches (83.96%), 61 of 63 functions (96.83%). The changed parts of `drizzle-group-expense-repository.ts`, `drizzle-group-settlement-repository.ts`, `drizzle-payer-movement-recorder.ts` and the shared `group-routes.ts` are exercised by their tests and counted in the suite figures only.
 

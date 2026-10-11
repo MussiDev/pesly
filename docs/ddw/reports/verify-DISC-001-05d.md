@@ -3,13 +3,13 @@
 | Field | Value |
 |---|---|
 | Module | `apps/api/src/groups/**` new files (domain `group-change.ts`; application: update and delete of expenses and settlements, list activity, `allocate-expense-shares.ts` and the port `activity-log-reader.ts`; infrastructure: `drizzle-activity-log-reader.ts`, `group-activity-presenter.ts`) and changed parts of `drizzle-group-expense-repository.ts`, `drizzle-group-settlement-repository.ts`, `drizzle-payer-movement-recorder.ts`, `group-routes.ts` and `record-group-expense.ts`; `packages/shared/src/groups/activity.ts` and the update contracts in `expense.ts` and `settlement.ts`; migration `0030_group_activity_log_changes` |
-| Line coverage | 97.33% (ticket code, 10 files with executable code, 146 of 150 lines); suite 96.80% |
-| Branch coverage | 83.96% (ticket code, 89 of 106 branches); suite 90.76% |
-| Function coverage | 96.83% (ticket code, 61 of 63 functions); suite 94.58% |
+| Line coverage | 97.33% (ticket code, 10 files with executable code, 146 of 150 lines); suite 96.86% |
+| Branch coverage | 83.96% (ticket code, 89 of 106 branches); suite 90.77% |
+| Function coverage | 96.83% (ticket code, 61 of 63 functions); suite 94.69% |
 | Coverage floor | 80% lines, branches and functions (AGENTS.md, "Testing") |
 | Lint | `pnpm exec eslint` over `apps/api/src/groups`, `apps/api/test/groups`, `packages/shared/src` and `packages/shared/test` — clean, 0 findings; `pnpm typecheck` — clean (shared, web, api); `pnpm lint` as a whole stops only at `prettier --check` because of the repository's CRLF checkout, a known condition |
 
-Verified against HEAD f0b122b (all five blocks, the review fixes and the SAST fixes committed). Suite figures come from the full run recorded in `docs/ddw/reports/tests-DISC-001-05d.md` (415 files, 7390 of 7390 tests passed) and from `coverage/coverage-summary.json`; the ticket-code figures are my sum of the per-file rows of that summary for the 10 source files of the module (the changed parts of the repositories, the payer recorder and the shared `group-routes.ts` are not in the sum because they also hold earlier code). I did not re-run the suite for this report. The numbers are my report of what was run, not something this document proves.
+Verified against HEAD 23c12d0 (all five blocks, the review fixes and the SAST fixes committed). Suite figures come from the full run recorded in `docs/ddw/reports/tests-DISC-001-05d.md` (415 files, 7390 of 7390 tests passed) and from `coverage/coverage-summary.json`; the ticket-code figures are my sum of the per-file rows of that summary for the 10 source files of the module (the changed parts of the repositories, the payer recorder and the shared `group-routes.ts` are not in the sum because they also hold earlier code). I did not re-run the suite for this report. The numbers are my report of what was run, not something this document proves.
 
 Per-area ticket coverage (covered of total, from `coverage-summary.json`):
 
@@ -77,6 +77,6 @@ All three figures clear the floor, and the application area, the lowest, is at 8
   14. The `before` snapshot of a deleted expense or settlement is the only copy of its values, by design (there is no restore, out of scope); a deleted record is not recoverable except by reading the log.
   15. Migration number: `main` has `0029_card_automatic_debit` (journal `when` 1791747000000), so this ticket's migration was renumbered to `0030_group_activity_log_changes` with journal `when` 1791750000000 at the merge, and the tests and the rollback script that name it were updated.
   16. An admin who is the only one who can change a record whose author left or is a ghost is a consequence of D1, not a defect; SAST I-1 (the admin role is read before the transaction) remains, today with no path that demotes an admin.
-  17. Coverage: ticket-code branch coverage is 83.96%, with the percentage and fixed-amount comparisons of `splitUnchanged` unreached (see the coverage section); the suite is at 90.76%. The verification did not re-run the suite or the random-operation test, and the retry option (`--retry=2`) used in the recorded run could hide a flaky test.
+  17. Coverage: ticket-code branch coverage is 83.96%, with the percentage and fixed-amount comparisons of `splitUnchanged` unreached (see the coverage section); the suite is at 90.77%. The verification did not re-run the suite or the random-operation test, and the retry option (`--retry=2`) used in the recorded run could hide a flaky test.
 
 Result: PASSED
