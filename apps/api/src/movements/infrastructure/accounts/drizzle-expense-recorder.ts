@@ -7,6 +7,7 @@ import type { Database } from '../../../shared/db/client';
 import type { Logger } from '../../../shared/logging/logger';
 import { CreateMovement, type CreateMovementInput } from '../../application/create-movement';
 import type { Clock } from '../../application/ports/clock';
+import type { ExpenseSavedHook } from '../../application/ports/expense-saved-listener';
 import type { MovementRepository } from '../../application/ports/movement-repository';
 import { DuplicateMovementId } from '../../domain/errors';
 import { RecordManualMovement } from '../../application/record-manual-movement';
@@ -23,6 +24,8 @@ export interface ExpenseRecorderOptions {
   writeLimit?: number;
   /** Defaults to the system clock; tests inject one to control the limiter window. */
   clock?: Clock;
+  /** Called after each expense is stored; the credit card and recurring recorders pass it. */
+  expenseSaved?: ExpenseSavedHook;
 }
 
 function toInput(expense: ExpenseToRecord): CreateMovementInput {
@@ -84,7 +87,7 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
 function buildRecorder(
   db: Database,
   logger: Logger,
-  { writeLimit, clock = new SystemClock() }: ExpenseRecorderOptions,
+  { writeLimit, clock = new SystemClock(), expenseSaved }: ExpenseRecorderOptions,
 ): MovementsExpenseRecorder {
   const movements = new DrizzleMovementRepository(db);
   const createMovement = new CreateMovement({
@@ -94,6 +97,7 @@ function buildRecorder(
     rates: new DrizzleRateLookup(db),
     preferences: new DrizzleUserPreferences(db),
     clock,
+    ...(expenseSaved === undefined ? {} : { expenseSaved }),
   });
   return new MovementsExpenseRecorder(
     new RecordManualMovement(

@@ -15,7 +15,13 @@ import {
 import { createAutomaticDebitRecorder } from './movements/infrastructure/credit-cards/drizzle-automatic-debit-recorder';
 import { createCardPayments } from './movements/infrastructure/credit-cards/drizzle-card-payments';
 import { createCardPurchases } from './movements/infrastructure/credit-cards/drizzle-card-purchases';
-import { createNoticePublisher, createStatementReminderPublisher } from './notices';
+import {
+  createNoticePublisher,
+  createStatementReminderPublisher,
+  renderBudgetAlertText,
+} from './notices';
+import { createBudgetAlertListener } from './budgets';
+import { BestEffortExpenseSavedHook } from './movements/application/best-effort-expense-saved';
 import { createRecurringExpenseRecorder } from './movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
 import { createRecurringJobs } from './recurring/jobs';
 import { parseWorkerEnv } from './shared/config/env';
@@ -59,10 +65,18 @@ if (env.PRICE_PROVIDER === 'coingecko' && !env.COINGECKO_API_KEY) {
   logger.info('crypto prices run without COINGECKO_API_KEY, on the public rate limit');
 }
 
+// Automatic recurring recordings also evaluate budget alerts (DISC-001-06d), best effort.
+const expenseSaved = new BestEffortExpenseSavedHook(
+  createBudgetAlertListener(db, { renderText: renderBudgetAlertText }),
+  (failure) => {
+    logger.error(failure, 'budget alert evaluation failed');
+  },
+);
+
 const recurringJobs = createRecurringJobs({
   db,
   logger,
-  recorder: createRecurringExpenseRecorder(db, logger),
+  recorder: createRecurringExpenseRecorder(db, logger, { expenseSaved }),
   notices: createNoticePublisher(db),
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
 });
