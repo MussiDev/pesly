@@ -469,3 +469,46 @@ describe('GroupDetailContainer session and failure paths', () => {
     expect(screen.queryByRole('button', { name: en.app.retry })).toBeNull();
   });
 });
+
+describe('GroupDetailContainer activity link', () => {
+  it('links to the activity page with the encoded group id and adds no request', async () => {
+    const { calls } = stubApi({ [GET_GROUP]: { status: 200, body: detail() } });
+    open();
+    const link = await screen.findByRole('link', { name: en.groups.detail.activityLink });
+    expect(link.getAttribute('href')).toBe(`/en/groups/${encodeURIComponent(GROUP_ID)}/activity`);
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(
+      [GET_BALANCES, GET_GROUP].sort(),
+    );
+  });
+
+  it('shows the link to a plain member too', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail({ role: 'member', selfMemberId: BRUNO }) },
+    });
+    open();
+    expect(await screen.findByRole('link', { name: en.groups.detail.activityLink })).toBeTruthy();
+  });
+
+  it('does not render the link in the not-found and load error states', async () => {
+    stubApi({ [GET_GROUP]: { status: 404, body: { code: 'NOT_FOUND' } } });
+    const first = open();
+    await screen.findByText(en.groups.detail.notFound.title);
+    expect(screen.queryByRole('link', { name: en.groups.detail.activityLink })).toBeNull();
+    first.unmount();
+
+    stubApi({ [GET_GROUP]: { status: 500 } });
+    open();
+    await screen.findByRole('button', { name: en.app.retry });
+    expect(screen.queryByRole('link', { name: en.groups.detail.activityLink })).toBeNull();
+  });
+
+  it('has the link text in Spanish and English', async () => {
+    expect(typeof en.groups.detail.activityLink).toBe('string');
+    expect(en.groups.detail.activityLink.length).toBeGreaterThan(0);
+    expect(typeof es.groups.detail.activityLink).toBe('string');
+    expect(es.groups.detail.activityLink).not.toBe(en.groups.detail.activityLink);
+    stubApi({ [GET_GROUP]: { status: 200, body: detail() } });
+    open('es');
+    expect(await screen.findByRole('link', { name: es.groups.detail.activityLink })).toBeTruthy();
+  });
+});

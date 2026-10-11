@@ -787,3 +787,90 @@ describe('access (AC-23)', () => {
     }
   });
 });
+
+describe('GET /groups/:id/settlements/:settlementId', () => {
+  it('shows a member the settlement with the exact shape and the record version', async () => {
+    const w = await world();
+    const created = await settle(w, w.ana, singleBody(w.anaMember, w.bobMember));
+
+    const response = await call(
+      w.api.app,
+      'get',
+      `/groups/${w.groupId}/settlements/${created.id}`,
+      w.bob.cookies,
+    );
+
+    expect(response.status).toBe(200);
+    const shown = settlementResponseSchema.parse(response.body);
+    expect(shown).toEqual(created);
+    expect(shown).toMatchObject({
+      id: created.id,
+      fromMemberId: w.anaMember,
+      toMemberId: w.bobMember,
+      currency: 'ARS',
+      amount: '100000',
+    });
+    expect(typeof shown.version).toBe('number');
+  });
+
+  it('includes the rate fields of a consolidated settlement', async () => {
+    const w = await world();
+    await crossedDebts(w);
+    const shown = await preview(w);
+    const created = await settle(w, w.ana, consolidatedBody(w, shown.legs));
+
+    const response = await call(
+      w.api.app,
+      'get',
+      `/groups/${w.groupId}/settlements/${created.id}`,
+      w.ana.cookies,
+    );
+
+    expect(response.status).toBe(200);
+    expect(settlementResponseSchema.parse(response.body)).toMatchObject({
+      rate: '10000000',
+      rateSource: 'automatic',
+      rateType: 'mep',
+    });
+    expect(settlementResponseSchema.parse(response.body).legs).toHaveLength(2);
+  });
+
+  it('answers 404 to a non-member and for an unknown id', async () => {
+    const w = await world();
+    const created = await settle(w, w.ana, singleBody(w.anaMember, w.bobMember));
+    const outsider = await w.api.makeUser('eve');
+    const path = `/groups/${w.groupId}/settlements`;
+
+    expect((await call(w.api.app, 'get', `${path}/${created.id}`, outsider.cookies)).status).toBe(
+      404,
+    );
+    expect((await call(w.api.app, 'get', `${path}/${randomUUID()}`, w.ana.cookies)).status).toBe(
+      404,
+    );
+  });
+
+  it('answers 404 for a settlement of another group', async () => {
+    const w = await world();
+    const other = await createGroup(w.api.app, w.ana);
+    const created = await settle(w, w.ana, singleBody(w.anaMember, w.bobMember));
+
+    const response = await call(
+      w.api.app,
+      'get',
+      `/groups/${other.id}/settlements/${created.id}`,
+      w.ana.cookies,
+    );
+    expect(response.status).toBe(404);
+  });
+
+  it('answers 400 for a malformed id and 401 without a session', async () => {
+    const w = await world();
+    const created = await settle(w, w.ana, singleBody(w.anaMember, w.bobMember));
+    const path = `/groups/${w.groupId}/settlements`;
+
+    const malformed = await call(w.api.app, 'get', `${path}/not-a-uuid`, w.ana.cookies);
+    expect(malformed.status).toBe(400);
+    expect((malformed.body as { code: string }).code).toBe('VALIDATION_FAILED');
+    expect((await call(w.api.app, 'get', `${path}/${created.id}`)).status).toBe(401);
+  });
+});

@@ -243,6 +243,12 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
             >
               {t('categoriesLink')}
             </Link>
+            <Link
+              href={`/groups/${encodeURIComponent(group.id)}/activity`}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {t('activityLink')}
+            </Link>
           </div>
         }
       />
