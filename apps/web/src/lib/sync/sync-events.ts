@@ -27,6 +27,14 @@ export function notifySyncFinished(): void {
   announce(SYNC_FINISHED_EVENT);
 }
 
+/**
+ * A group record change was queued or a conflict resolved with `keepMine`: a pass should start now.
+ * It is the same trigger a queued movement uses, so the shell's one listener covers both.
+ */
+export function notifyGroupChangeQueued(): void {
+  announce(MOVEMENT_QUEUED_EVENT);
+}
+
 export function notifyQueueChanged(): void {
   announce(QUEUE_CHANGED_EVENT);
 }

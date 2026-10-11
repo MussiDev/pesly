@@ -366,6 +366,25 @@ export function readCachedGroupRecord(
 }
 
 /**
+ * Stores (or, with `null`, removes) the device copy of a group record. A synced change writes the
+ * server's reply here so the copy follows what the server kept; the sync pass has no other way in,
+ * because the cache key is private to this module.
+ */
+export function cacheGroupRecord(
+  database: IDBDatabase,
+  kind: GroupRecordKind,
+  id: string,
+  record: GroupExpenseResponse | SettlementResponse | null,
+): Promise<void> {
+  return transact<undefined>(database, [REFERENCE_STORE], (transaction, _fail, done) => {
+    const store = transaction.objectStore(REFERENCE_STORE);
+    if (record === null) store.delete(cacheKey(kind, id));
+    else store.put(record, cacheKey(kind, id));
+    done(undefined);
+  });
+}
+
+/**
  * The body to send for a queued edit: the request with the base version of the record as
  * `baseVersion`. A deletion has no body (its `baseVersion` goes in the query), so it answers
  * `undefined`.
