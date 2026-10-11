@@ -275,7 +275,12 @@ describe('api client: group screens (DISC-001-05e Block 1)', () => {
   });
 
   it('listGroups, getGroup and updateGroupRateType use their routes', async () => {
-    const detail = { ...GROUP_RECORD, selfMemberId: MEMBER_RECORD.id, members: [MEMBER_RECORD], formerMembers: [] };
+    const detail = {
+      ...GROUP_RECORD,
+      selfMemberId: MEMBER_RECORD.id,
+      members: [MEMBER_RECORD],
+      formerMembers: [],
+    };
     const { client, fetch } = clientWith(
       jsonResponse(200, [GROUP_RECORD]),
       jsonResponse(200, detail),
