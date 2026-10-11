@@ -1328,6 +1328,45 @@
         "working": "Reclamando tu lugar en el grupo",
         "invalid": "Este enlace no es válido, venció o ya se usó. Pedí uno nuevo."
       }
+    },
+    "detail": {
+      "defaultRate": "Cotización por defecto: {rateType}",
+      "membersTitle": "Miembros",
+      "formerTitle": "Ex miembros",
+      "roles": { "admin": "Admin", "member": "Miembro" },
+      "ghost": "Aún sin cuenta",
+      "unnamed": "Miembro sin nombre",
+      "categoriesLink": "Categorías del grupo",
+      "notFound": {
+        "title": "No encontramos el grupo",
+        "description": "Este grupo no existe o no sos miembro.",
+        "back": "Volver a grupos"
+      },
+      "actions": {
+        "promote": "Hacer admin",
+        "promoteLabel": "Hacer admin a {name}",
+        "remove": "Quitar",
+        "removeLabel": "Quitar a {name} del grupo"
+      },
+      "rateType": {
+        "title": "Ajustes del grupo",
+        "label": "Cotización por defecto",
+        "hint": "Se usa para valorar los gastos del grupo en moneda extranjera.",
+        "save": "Guardar",
+        "saving": "Guardando…",
+        "saved": "Cotización actualizada."
+      },
+      "leave": {
+        "title": "Salir de este grupo",
+        "description": "Dejarás de ver el grupo. Solo podés salir cuando tu saldo es cero.",
+        "action": "Salir del grupo",
+        "working": "Saliendo…"
+      },
+      "balance": {
+        "intro": "Todavía hay un saldo, así que no se puede hacer aún. Primero saldá las cuentas en el grupo.",
+        "owes": "Debe {amount}",
+        "owed": "Le deben {amount}"
+      }
     }
   },
   "recurring": {

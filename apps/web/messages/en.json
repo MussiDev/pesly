@@ -1328,6 +1328,45 @@
         "working": "Claiming your place in the group",
         "invalid": "This claim link is invalid, has expired or has already been used. Ask for a new one."
       }
+    },
+    "detail": {
+      "defaultRate": "Default exchange rate: {rateType}",
+      "membersTitle": "Members",
+      "formerTitle": "Former members",
+      "roles": { "admin": "Admin", "member": "Member" },
+      "ghost": "No account yet",
+      "unnamed": "Unnamed member",
+      "categoriesLink": "Group categories",
+      "notFound": {
+        "title": "Group not found",
+        "description": "This group does not exist or you are not a member of it.",
+        "back": "Back to groups"
+      },
+      "actions": {
+        "promote": "Make admin",
+        "promoteLabel": "Make {name} an admin",
+        "remove": "Remove",
+        "removeLabel": "Remove {name} from the group"
+      },
+      "rateType": {
+        "title": "Group settings",
+        "label": "Default exchange rate",
+        "hint": "Used to value group expenses in foreign currency.",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Exchange rate updated."
+      },
+      "leave": {
+        "title": "Leave this group",
+        "description": "You will stop seeing the group. You can only leave when your balance is zero.",
+        "action": "Leave group",
+        "working": "Leaving…"
+      },
+      "balance": {
+        "intro": "There is still a balance, so this cannot be done yet. Settle up in the group first.",
+        "owes": "Owes {amount}",
+        "owed": "Is owed {amount}"
+      }
     }
   },
   "recurring": {
