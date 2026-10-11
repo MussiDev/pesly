@@ -15,6 +15,7 @@ import {
   withGroupQueue,
   type QueuedGroupChange,
 } from '@/lib/local-store/group-queue';
+import { isRequestApplied } from './group-request-applied';
 import { runGroupSyncPass, type SyncPassOutcome } from './sync-pass';
 
 /** The group endpoints a pass needs; an api without them leaves the group queue alone. */
@@ -79,6 +80,7 @@ export async function runGroupLocked(
       let changed = false;
       // A function, not the variable: TypeScript would narrow `changed` to `false` across the awaits.
       const hasChanged = () => changed;
+      let absorbed = 0;
       const outcome = await runGroupSyncPass({
         items,
         send: (item) => send(api, item),
@@ -97,6 +99,25 @@ export async function runGroupLocked(
           changed = true;
         },
         onConflict: async (item, failure) => {
+          // An earlier attempt the server applied but whose answer was lost: the server copy is
+          // already what this edit would make, so it is a repeat, not a conflict (SAST L-1).
+          const applied = parseReply(item, failure.current);
+          if (
+            applied !== undefined &&
+            item.operation === 'update' &&
+            item.request !== undefined &&
+            isRequestApplied(item.kind, item.request, applied)
+          ) {
+            await settleGroupSent(database, item.kind, item.id, item.revision, applied);
+            changed = true;
+            absorbed += 1;
+            try {
+              await cacheGroupRecord(database, item.kind, item.id, applied);
+            } catch {
+              // The queue is already settled; the next online load replaces the copy anyway.
+            }
+            return;
+          }
           const stored = await markGroupConflict(
             database,
             item.kind,
@@ -107,6 +128,9 @@ export async function runGroupLocked(
           if (stored) changed = true;
         },
       });
+      // The pass counted the repeats it absorbed as conflicts; they are sent edits.
+      outcome.conflicts -= absorbed;
+      outcome.sent += absorbed;
       return { outcome, changed: hasChanged() };
     });
   } catch {
