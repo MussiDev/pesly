@@ -4,7 +4,13 @@ import { scaledRateStringSchema } from '../exchange-rates/exchange-rate';
 import { exactIntegerStringSchema, minorUnitsStringSchema } from '../money';
 import { movementAmountSchema, occurredAtSchema } from '../movements/movement';
 import { rateTypeSchema } from '../rate-types';
-import { GROUP_EXPENSES_PAGE_SIZE_DEFAULT, GROUP_EXPENSES_PAGE_SIZE_MAX } from './expense';
+import {
+  GROUP_EXPENSES_PAGE_SIZE_DEFAULT,
+  GROUP_EXPENSES_PAGE_SIZE_MAX,
+  baseVersionQuerySchema,
+  baseVersionSchema,
+  groupRecordVersionSchema,
+} from './expense';
 
 export const GROUP_SETTLEMENTS_PAGE_SIZE_DEFAULT = GROUP_EXPENSES_PAGE_SIZE_DEFAULT;
 export const GROUP_SETTLEMENTS_PAGE_SIZE_MAX = GROUP_EXPENSES_PAGE_SIZE_MAX;
@@ -72,12 +78,20 @@ export const updateSettlementRequestSchema = z
   .strictObject({
     amount: movementAmountSchema.optional(),
     occurredAt: occurredAtSchema.optional(),
+    baseVersion: baseVersionSchema,
   })
   .refine((request) => request.amount !== undefined || request.occurredAt !== undefined, {
     message: 'Send at least one of amount or occurredAt',
   });
 
 export type UpdateSettlementRequest = z.infer<typeof updateSettlementRequestSchema>;
+
+/** `DELETE /groups/:id/settlements/:settlementId?baseVersion=N` (spec D2). */
+export const deleteSettlementQuerySchema = z.strictObject({
+  baseVersion: baseVersionQuerySchema,
+});
+
+export type DeleteSettlementQuery = z.infer<typeof deleteSettlementQuerySchema>;
 
 /** `GET /groups/:id/settlements/consolidation`. */
 export const consolidationQuerySchema = z
@@ -164,6 +178,7 @@ export const settlementResponseSchema = z.object({
   rateSource: settlementRateSourceSchema.nullable(),
   rateType: rateTypeSchema.nullable(),
   createdAt: z.iso.datetime(),
+  version: groupRecordVersionSchema,
 });
 
 export type SettlementResponse = z.infer<typeof settlementResponseSchema>;

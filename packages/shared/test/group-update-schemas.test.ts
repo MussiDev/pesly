@@ -14,6 +14,7 @@ const expense = {
   categoryId: CAT,
   description: 'Dinner',
   split: { mode: 'equal', memberIds: [A, B] },
+  baseVersion: 1,
 };
 
 const okExpense = (input: unknown) => updateGroupExpenseRequestSchema.safeParse(input).success;
@@ -76,26 +77,26 @@ describe('updateGroupExpenseRequestSchema (AC-07)', () => {
 
 describe('updateSettlementRequestSchema (AC-04)', () => {
   it('parses an amount, a date or both', () => {
-    expect(okSettlement({ amount: '5000' })).toBe(true);
-    expect(okSettlement({ occurredAt: NOW })).toBe(true);
-    expect(okSettlement({ amount: '5000', occurredAt: NOW })).toBe(true);
+    expect(okSettlement({ amount: '5000', baseVersion: 1 })).toBe(true);
+    expect(okSettlement({ occurredAt: NOW, baseVersion: 1 })).toBe(true);
+    expect(okSettlement({ amount: '5000', occurredAt: NOW, baseVersion: 1 })).toBe(true);
   });
 
   it('is invalid with no key at all', () => {
-    expect(okSettlement({})).toBe(false);
+    expect(okSettlement({ baseVersion: 1 })).toBe(false);
   });
 
   it('is invalid with an amount of 0, a decimal amount or an extra key', () => {
     for (const amount of ['0', '-1', '1.5', '', 10]) {
-      expect(okSettlement({ amount })).toBe(false);
+      expect(okSettlement({ amount, baseVersion: 1 })).toBe(false);
     }
-    expect(okSettlement({ amount: '5000', currency: 'USD' })).toBe(false);
-    expect(okSettlement({ amount: '5000', fromMemberId: A })).toBe(false);
-    expect(okSettlement({ amount: '5000', accountId: A })).toBe(false);
+    expect(okSettlement({ amount: '5000', baseVersion: 1, currency: 'USD' })).toBe(false);
+    expect(okSettlement({ amount: '5000', baseVersion: 1, fromMemberId: A })).toBe(false);
+    expect(okSettlement({ amount: '5000', baseVersion: 1, accountId: A })).toBe(false);
   });
 
   it('is invalid with an undefined-only body and a bad date', () => {
-    expect(okSettlement({ amount: undefined })).toBe(false);
-    expect(okSettlement({ occurredAt: 'nope' })).toBe(false);
+    expect(okSettlement({ amount: undefined, baseVersion: 1 })).toBe(false);
+    expect(okSettlement({ occurredAt: 'nope', baseVersion: 1 })).toBe(false);
   });
 });
