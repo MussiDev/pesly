@@ -4,7 +4,7 @@ import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-s
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
-  CardDays,
+  CardSettings,
   CreateCreditCardData,
   CreditCardRepository,
   StatementDates,
@@ -31,6 +31,7 @@ const cardColumns = {
   debitUsdAccountId: creditCards.debitUsdAccountId,
   debitArsLinkedOn: creditCards.debitArsLinkedOn,
   debitUsdLinkedOn: creditCards.debitUsdLinkedOn,
+  reminderDays: creditCards.reminderDays,
   createdAt: creditCards.createdAt,
 };
 
@@ -45,6 +46,7 @@ type CardRow = {
   debitUsdAccountId: string | null;
   debitArsLinkedOn: string | null;
   debitUsdLinkedOn: string | null;
+  reminderDays: number;
   createdAt: Date;
 };
 
@@ -114,6 +116,7 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
             name: data.name,
             closingDay: data.closingDay,
             dueDay: data.dueDay,
+            reminderDays: data.reminderDays,
             arsAccountId: ars.id,
             usdAccountId: usd.id,
           })
@@ -189,13 +192,13 @@ export class DrizzleCreditCardRepository implements CreditCardRepository {
   updateDays(
     scope: AccessScope<'write'>,
     cardId: string,
-    days: CardDays,
+    settings: CardSettings,
     statements: readonly Statement[],
   ): Promise<CreditCard | null> {
     return this.db.transaction(async (tx) => {
       const [card] = await tx
         .update(creditCards)
-        .set({ ...days, updatedAt: new Date() })
+        .set({ ...settings, updatedAt: new Date() })
         .where(ownCard(scope, cardId))
         .returning(cardColumns);
       if (!card) return null;

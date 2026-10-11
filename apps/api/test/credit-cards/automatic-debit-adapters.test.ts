@@ -39,6 +39,7 @@ async function newCard(ownerId: string, debit: { ARS?: string; USD?: string } = 
     name: `Visa ${randomUUID().slice(0, 8)}`,
     closingDay: 24,
     dueDay: 5,
+    reminderDays: 3,
     firstStatement: { period: '2026-10', closingDate: '2026-10-24', dueDate: '2026-11-05' },
   });
   if (!debit.ARS && !debit.USD) return card;

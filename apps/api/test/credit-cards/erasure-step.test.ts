@@ -35,6 +35,7 @@ async function userWithCard(): Promise<string> {
     name: 'Visa',
     closingDay: 24,
     dueDay: 5,
+    reminderDays: 3,
     firstStatement: { period: '2026-10', closingDate: '2026-10-24', dueDate: '2026-11-05' },
   });
   return ownerId;
