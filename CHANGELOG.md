@@ -374,6 +374,22 @@ All notable changes to this project are documented in this file. The format foll
   a creation entry to the group activity log. Non-members get 404 on every route. Migration
   `0027_group_expenses` adds four tables and `groups.default_split_mode`. Balances and settlements arrive in
   DISC-001-05c, editing and the log view in 05d, and the group screens in a later ticket. No new dependency.
+- DISC-001-05c Group balances and settlements: `GET /groups/:id/balances` shows each member's balance in ARS
+  and USD separately, derived from the expenses, shares and settlements (never stored), with a short list of
+  simplified payments per currency (greedy, at most one payment fewer than the members with a balance, not
+  provably minimal). Any member records a settlement between two active members in one currency; paying more
+  than is owed reverses the debt. A party who is the caller may attach one of their accounts in that currency:
+  its balance rises or drops by the amount, and the settlement is neither an expense nor an income (it creates
+  no movement row). Two members can consolidate both currencies into one: the preview returns the debts and
+  the stored rate of the group's default rate type, a manual rate replaces it, the cash is converted with
+  half-up rounding, and a request whose debts moved since the preview answers 409. A member leaves
+  (`POST /groups/:id/leave`) or an admin removes one (`DELETE /groups/:id/members/:memberId`) only at balance 0
+  in both currencies, otherwise 409 with the balance; the last admin cannot leave while others remain. Leaving
+  is soft: history stays, `GET /groups/:id` lists `formerMembers`, a person who left gets 404 like a
+  non-member and can rejoin with a new member row. A claimed ghost keeps its settlements, a deleted account
+  keeps them under "Former member", and each settlement adds a creation entry to the group activity log.
+  Migration `0028_group_settlements` adds two tables and `group_members.left_at`. Editing and deleting
+  settlements and the log view arrive in DISC-001-05d, the group screens in a later ticket. No new dependency.
 
 ### Changed
 
