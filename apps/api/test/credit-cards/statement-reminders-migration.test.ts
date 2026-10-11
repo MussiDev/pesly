@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const TAG = '0030_card_statement_reminders';
-const PREVIOUS_WHEN = 1791747000000;
+const TAG = '0031_card_statement_reminders';
+const PREVIOUS_WHEN = 1791750000000;
 const KIND = 'card_statement_due';
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -124,7 +124,7 @@ const noticeKinds = async (owner: string): Promise<string[]> =>
     )
   ).rows.map((row) => row.kind);
 
-describe('0030_card_statement_reminders migration', () => {
+describe('0031_card_statement_reminders migration', () => {
   it('gives existing cards 3 after a rollback re-apply, and a new card without the field 3 (AC-01)', async () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const existing = await createCard();
@@ -191,18 +191,18 @@ describe('0030_card_statement_reminders migration', () => {
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBeUndefined();
   });
 
-  it('has the journal entry at idx 30 with the greatest when, and chains its snapshot onto 0029', async () => {
+  it('has the journal entry at idx 31 with the greatest when, and chains its snapshot onto 0030', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
     );
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
-    expect(own?.idx).toBe(30);
+    expect(own?.idx).toBe(31);
     expect(own?.when).toBeGreaterThan(PREVIOUS_WHEN);
     expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
-    expect((await read<{ prevId: string }>('0030_snapshot.json')).prevId).toBe(
-      (await read<{ id: string }>('0029_snapshot.json')).id,
+    expect((await read<{ prevId: string }>('0031_snapshot.json')).prevId).toBe(
+      (await read<{ id: string }>('0030_snapshot.json')).id,
     );
   });
 });

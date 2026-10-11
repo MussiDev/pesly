@@ -1,9 +1,4 @@
-import {
-  splitByBasisPoints,
-  splitEqual,
-  validateExactSplit,
-  type CreateGroupExpenseRequest,
-} from '@pesly/shared';
+import type { CreateGroupExpenseRequest } from '@pesly/shared';
 import {
   ExpenseAmountNotPositive,
   ExpenseDateTooFarAhead,
@@ -11,16 +6,12 @@ import {
   GroupPayerAccountInvalid,
   GroupSplitMemberInvalid,
   isTooFarAhead,
-  orderSplitMembers,
   type GroupExpense,
 } from '../domain/group-expense';
-import type { Member } from '../domain/member';
+import { allocateShares, splitMemberIds } from './allocate-expense-shares';
 import { GroupAccess } from './group-access';
 import type { Clock } from './ports/clock';
-import type {
-  GroupExpenseRepository,
-  NewGroupExpenseShare,
-} from './ports/group-expense-repository';
+import type { GroupExpenseRepository } from './ports/group-expense-repository';
 import type { GroupRepository } from './ports/group-repository';
 import type { PayerMovementRecorder, PayerMovementToRecord } from './ports/payer-movement-recorder';
 
@@ -29,12 +20,6 @@ export interface RecordGroupExpenseDependencies {
   expenses: GroupExpenseRepository;
   payerMovements: PayerMovementRecorder;
   clock: Clock;
-}
-
-type Split = CreateGroupExpenseRequest['split'];
-
-function splitMemberIds(split: Split): string[] {
-  return split.mode === 'equal' ? split.memberIds : split.shares.map((share) => share.memberId);
 }
 
 export class RecordGroupExpense {
@@ -77,9 +62,7 @@ export class RecordGroupExpense {
       throw new GroupExpenseCategoryInvalid();
     }
 
-    const shares = allocate(amount, data.payerMemberId, data.split, detail.members);
-    const total = shares.reduce((sum, share) => sum + share.amount, 0n);
-    if (total !== amount) throw new Error('Allocation does not add up to the expense amount');
+    const shares = allocateShares(amount, data.payerMemberId, data.split, detail.members);
 
     const payerMovement = await this.payerMovement(
       userId,
@@ -130,42 +113,4 @@ export class RecordGroupExpense {
     if (!usable) throw new GroupPayerAccountInvalid();
     return { userId, accountId, categoryId, amount, occurredAt, note: data.description, rateType };
   }
-}
-
-function allocate(
-  amount: bigint,
-  payerMemberId: string,
-  split: Split,
-  members: readonly Member[],
-): NewGroupExpenseShare[] {
-  const order = orderSplitMembers(payerMemberId, splitMemberIds(split), members);
-  if (split.mode === 'equal') {
-    const amounts = splitEqual(amount, order);
-    return order.map((memberId) => ({
-      memberId,
-      amount: amounts.get(memberId) ?? 0n,
-      basisPoints: null,
-    }));
-  }
-  if (split.mode === 'percentage') {
-    const basisPoints = new Map(split.shares.map((share) => [share.memberId, share.basisPoints]));
-    const amounts = splitByBasisPoints(
-      amount,
-      order.map((memberId) => ({ memberId, basisPoints: basisPoints.get(memberId) ?? 0 })),
-    );
-    return order.map((memberId) => ({
-      memberId,
-      amount: amounts.get(memberId) ?? 0n,
-      basisPoints: basisPoints.get(memberId) ?? 0,
-    }));
-  }
-  const amounts = validateExactSplit(
-    amount,
-    split.shares.map((share) => ({ memberId: share.memberId, amount: BigInt(share.amount) })),
-  );
-  return order.map((memberId) => ({
-    memberId,
-    amount: amounts.get(memberId) ?? 0n,
-    basisPoints: null,
-  }));
 }

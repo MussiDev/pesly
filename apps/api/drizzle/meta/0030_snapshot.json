@@ -1,5 +1,5 @@
 {
-  "id": "82327323-c675-492a-869f-78368647c9c7",
+  "id": "42087736-a106-420c-a529-29b0325d06f0",
   "prevId": "3a6a80d1-e15a-498e-a2ee-442a3d7c177f",
   "version": "7",
   "dialect": "postgresql",
@@ -877,13 +877,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "reminder_days": {
-          "name": "reminder_days",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 3
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1046,10 +1039,6 @@
       },
       "policies": {},
       "checkConstraints": {
-        "credit_cards_reminder_days_check": {
-          "name": "credit_cards_reminder_days_check",
-          "value": "\"credit_cards\".\"reminder_days\" between 0 and 30"
-        },
         "credit_cards_name_length_check": {
           "name": "credit_cards_name_length_check",
           "value": "char_length(\"credit_cards\".\"name\") between 1 and 46"
@@ -1616,6 +1605,18 @@
           "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true
+        },
+        "before": {
+          "name": "before",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "after": {
+          "name": "after",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -1683,7 +1684,11 @@
       "checkConstraints": {
         "group_activity_log_action_check": {
           "name": "group_activity_log_action_check",
-          "value": "\"group_activity_log\".\"action\" in ('expense_created', 'settlement_created')"
+          "value": "\"group_activity_log\".\"action\" in ('expense_created', 'expense_updated', 'expense_deleted', 'settlement_created', 'settlement_updated', 'settlement_deleted')"
+        },
+        "group_activity_log_snapshots_check": {
+          "name": "group_activity_log_snapshots_check",
+          "value": "(\"group_activity_log\".\"action\" in ('expense_updated', 'settlement_updated') and \"group_activity_log\".\"before\" is not null and \"group_activity_log\".\"after\" is not null) or (\"group_activity_log\".\"action\" in ('expense_deleted', 'settlement_deleted') and \"group_activity_log\".\"before\" is not null and \"group_activity_log\".\"after\" is null) or (\"group_activity_log\".\"action\" in ('expense_created', 'settlement_created') and \"group_activity_log\".\"before\" is null and \"group_activity_log\".\"after\" is null)"
         }
       },
       "isRLSEnabled": false
@@ -5595,7 +5600,7 @@
       "checkConstraints": {
         "notices_kind_check": {
           "name": "notices_kind_check",
-          "value": "\"notices\".\"kind\" in ('reminder', 'recorded', 'not_recorded', 'card_statement_due')"
+          "value": "\"notices\".\"kind\" in ('reminder', 'recorded', 'not_recorded')"
         },
         "notices_text_length_check": {
           "name": "notices_text_length_check",

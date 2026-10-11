@@ -15,6 +15,7 @@ export interface PortfolioCardProps {
   timeZone: string;
   pending?: boolean;
   onAddHolding?: (portfolioId: string) => void;
+  onImportHoldings?: (portfolioId: string) => void;
   onDeletePortfolio?: (portfolioId: string) => void;
   onEditHolding?: (holdingId: string) => void;
   onSetPrice?: (holdingId: string) => void;
@@ -28,6 +29,7 @@ export function PortfolioCard({
   timeZone,
   pending,
   onAddHolding,
+  onImportHoldings,
   onDeletePortfolio,
   onEditHolding,
   onSetPrice,
@@ -103,7 +105,9 @@ export function PortfolioCard({
           ))}
         </ul>
       )}
-      {(onAddHolding !== undefined || onDeletePortfolio !== undefined) && (
+      {(onAddHolding !== undefined ||
+        onImportHoldings !== undefined ||
+        onDeletePortfolio !== undefined) && (
         <div className="flex flex-wrap gap-2">
           {onAddHolding !== undefined && (
             <Button
@@ -116,6 +120,20 @@ export function PortfolioCard({
               }}
             >
               {t('portfolio.addHolding')}
+            </Button>
+          )}
+          {onImportHoldings !== undefined && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-label={t('import.actionFor', { name: portfolio.name })}
+              data-opener={`import-holdings:${portfolio.id}`}
+              onClick={() => {
+                onImportHoldings(portfolio.id);
+              }}
+            >
+              {t('import.action')}
             </Button>
           )}
           {onDeletePortfolio !== undefined && (

@@ -1,4 +1,5 @@
 import { and, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
+import { ResourceNotFound } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import type {
@@ -8,6 +9,8 @@ import type {
   ListPersonalSharesQuery,
   NewGroupExpense,
   PersonalSharesPageResult,
+  UpdateGroupExpenseData,
+  DeleteGroupExpenseData,
 } from '../../application/ports/group-expense-repository';
 import type { PayerMovementRecorder } from '../../application/ports/payer-movement-recorder';
 import {
@@ -19,6 +22,11 @@ import {
   type GroupExpenseShare,
   type PersonalShare,
 } from '../../domain/group-expense';
+import {
+  assertChangedMembersActive,
+  expenseChangedMembers,
+  expenseSnapshot,
+} from '../../domain/group-change';
 import { allActiveMembers, lockGroup } from './group-locks';
 import { decodeCursor, pageOf, type Cursor } from './keyset-cursor';
 import {
@@ -80,6 +88,12 @@ function mapWriteError(error: unknown): unknown {
   if (foreignKey === CATEGORY_KEY) return new GroupExpenseCategoryInvalid();
   if (checkViolation(error) === AMOUNT_CHECK) return new ExpenseAmountNotPositive();
   return error;
+}
+
+/** A payer movement exists only for a registered payer, so a missing user is corrupt data. */
+function requirePayerUser(userId: string | null): string {
+  if (userId === null) throw new Error('The payer of an expense with a movement has no user');
+  return userId;
 }
 
 function byMember(a: GroupExpenseShare, b: GroupExpenseShare): number {
@@ -190,6 +204,190 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     } catch (error) {
       throw mapWriteError(error);
     }
+  }
+
+  async updateExpense(data: UpdateGroupExpenseData): Promise<GroupExpense> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        const locked = await this.lockExpenseForChange(
+          tx,
+          data.groupId,
+          data.expenseId,
+          data.activity.memberId,
+          data.shares.map((share) => share.memberId),
+        );
+        const { stored, payerUserId } = locked;
+        const newShares = data.shares.map((share) => ({
+          memberId: share.memberId,
+          amount: share.amount,
+        }));
+        assertChangedMembersActive(
+          expenseChangedMembers(
+            { payerMemberId: stored.payerMemberId, amount: stored.amount, shares: stored.shares },
+            { payerMemberId: stored.payerMemberId, amount: data.amount, shares: newShares },
+          ),
+          locked.active,
+        );
+        const [row] = await tx
+          .update(groupExpenses)
+          .set({
+            amount: data.amount,
+            occurredAt: data.occurredAt,
+            categoryId: data.categoryId,
+            description: data.description,
+            splitMode: data.splitMode,
+          })
+          .where(eq(groupExpenses.id, stored.id))
+          .returning(expenseColumns);
+        if (!row) throw new Error('Updating a group expense returned no row');
+        await tx.delete(groupExpenseShares).where(eq(groupExpenseShares.expenseId, stored.id));
+        if (data.shares.length > 0) {
+          await tx.insert(groupExpenseShares).values(
+            data.shares.map((share) => ({
+              expenseId: stored.id,
+              groupId: data.groupId,
+              memberId: share.memberId,
+              amount: share.amount,
+              basisPoints: share.basisPoints,
+            })),
+          );
+        }
+        // `before` is what the lock just read, never what the caller read earlier (spec D10).
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: stored.id,
+          createdAt: data.activity.createdAt,
+          before: expenseSnapshot(stored),
+          after: data.activity.after,
+        });
+        if (stored.payerMovementId !== null) {
+          await this.recorder.update(tx, {
+            userId: requirePayerUser(payerUserId),
+            movementId: stored.payerMovementId,
+            amount: data.amount,
+            occurredAt: data.occurredAt,
+            note: data.description,
+            rateType: data.rateType,
+          });
+        }
+        return toExpense(
+          row,
+          data.shares
+            .map((share) => ({
+              memberId: share.memberId,
+              amount: share.amount,
+              basisPoints: share.basisPoints,
+            }))
+            .sort(byMember),
+        );
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
+  }
+
+  async deleteExpense(data: DeleteGroupExpenseData): Promise<void> {
+    try {
+      await this.db.transaction(async (tx) => {
+        const { stored, payerUserId, active } = await this.lockExpenseForChange(
+          tx,
+          data.groupId,
+          data.expenseId,
+          data.activity.memberId,
+          [],
+        );
+        assertChangedMembersActive(
+          expenseChangedMembers(
+            { payerMemberId: stored.payerMemberId, amount: stored.amount, shares: stored.shares },
+            null,
+          ),
+          active,
+        );
+        await tx.delete(groupExpenses).where(eq(groupExpenses.id, stored.id));
+        await tx.insert(groupActivityLog).values({
+          groupId: data.groupId,
+          memberId: data.activity.memberId,
+          action: data.activity.action,
+          subjectId: stored.id,
+          createdAt: data.activity.createdAt,
+          before: expenseSnapshot(stored),
+          after: null,
+        });
+        if (stored.payerMovementId !== null) {
+          await this.recorder.remove(tx, {
+            userId: requirePayerUser(payerUserId),
+            movementId: stored.payerMovementId,
+          });
+        }
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
+  }
+
+  /**
+   * The locks of spec D4 in the order creation uses: the group `for share`, then the payer's
+   * movement `for update` when there is one, then the expense row `for update` (so two edits of
+   * one expense queue and the second reads what the first left), then the member rows by id.
+   * The movement goes before the expense row because the payer deleting it (or erasing the
+   * account) locks the movement first and then reaches the expense row through `on delete set
+   * null`; the opposite order here would deadlock. The id is read unlocked first; once the expense
+   * row is locked it can only have changed to null (the movement went), which needs no lock.
+   * Returns the stored expense, the payer's user and the ids of the members that are still
+   * active. The acting member must be one of them, or the answer is 404 like a non-member.
+   */
+  private async lockExpenseForChange(
+    tx: Tx,
+    groupId: string,
+    expenseId: string,
+    actorMemberId: string,
+    extraMemberIds: readonly string[],
+  ): Promise<{
+    stored: GroupExpense;
+    payerUserId: string | null;
+    active: ReadonlySet<string>;
+  }> {
+    await lockGroup(tx, groupId, 'share');
+    const [peek] = await tx
+      .select({ payerMovementId: groupExpenses.payerMovementId })
+      .from(groupExpenses)
+      .where(and(eq(groupExpenses.groupId, groupId), eq(groupExpenses.id, expenseId)));
+    if (peek?.payerMovementId) {
+      await tx.execute(sql`select id from movements where id = ${peek.payerMovementId} for update`);
+    }
+    const [row] = await tx
+      .select(expenseColumns)
+      .from(groupExpenses)
+      .where(and(eq(groupExpenses.groupId, groupId), eq(groupExpenses.id, expenseId)))
+      .for('update');
+    if (!row) throw new ResourceNotFound();
+    const stored = toExpense(row, (await loadShares(tx, [row.id])).get(row.id) ?? []);
+    const wanted = [
+      ...new Set([
+        stored.payerMemberId,
+        ...stored.shares.map((share) => share.memberId),
+        actorMemberId,
+        ...extraMemberIds,
+      ]),
+    ];
+    const members = await tx
+      .select({ id: groupMembers.id, userId: groupMembers.userId, leftAt: groupMembers.leftAt })
+      .from(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), inArray(groupMembers.id, wanted)))
+      .orderBy(groupMembers.id)
+      .for('share');
+    // A member of another group (or a missing one) is not a split member of this group.
+    if (members.length !== wanted.length) throw new GroupSplitMemberInvalid();
+    if (!members.some((member) => member.id === actorMemberId && member.leftAt === null)) {
+      throw new ResourceNotFound();
+    }
+    return {
+      stored,
+      payerUserId: members.find((member) => member.id === stored.payerMemberId)?.userId ?? null,
+      active: new Set(members.filter((member) => member.leftAt === null).map((m) => m.id)),
+    };
   }
 
   async listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult> {

@@ -208,8 +208,15 @@
     {
       "idx": 30,
       "version": "7",
+      "when": 1791750000000,
+      "tag": "0030_group_activity_log_changes",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
       "when": 1791750600000,
-      "tag": "0030_card_statement_reminders",
+      "tag": "0031_card_statement_reminders",
       "breakpoints": true
     }
   ]

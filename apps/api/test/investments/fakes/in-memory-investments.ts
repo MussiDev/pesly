@@ -165,8 +165,21 @@ export class InMemoryInvestments implements InvestmentsUnitOfWork {
     },
   };
 
-  run<T>(work: (repositories: InvestmentsRepositories) => Promise<T>): Promise<T> {
-    return work({ portfolios: this.portfolios, holdings: this.holdings });
+  /** Like a transaction: when `work` rejects, every row goes back to what it was. */
+  async run<T>(work: (repositories: InvestmentsRepositories) => Promise<T>): Promise<T> {
+    const portfolioSnapshot = new Map(this.portfolioRows);
+    const holdingSnapshot = new Map(
+      [...this.holdingRows].map(([id, row]) => [id, { ...row }] as const),
+    );
+    try {
+      return await work({ portfolios: this.portfolios, holdings: this.holdings });
+    } catch (error) {
+      this.portfolioRows.clear();
+      for (const [id, row] of portfolioSnapshot) this.portfolioRows.set(id, row);
+      this.holdingRows.clear();
+      for (const [id, row] of holdingSnapshot) this.holdingRows.set(id, row);
+      throw error;
+    }
   }
 
   private visiblePortfolio(userId: string, id: string): Portfolio | null {

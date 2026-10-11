@@ -1,20 +1,28 @@
 'use client';
 
-import type {
-  AddHoldingRequest,
-  CreatePortfolioRequest,
-  PortfolioResponse,
-  SetPriceRequest,
-  UpdateHoldingRequest,
+import {
+  ImportPlanError,
+  planHoldingsImport,
+  type AddHoldingRequest,
+  type CreatePortfolioRequest,
+  type ImportHolding,
+  type PortfolioResponse,
+  type SetPriceRequest,
+  type UpdateHoldingRequest,
+  type ValuationCurrency,
 } from '@pesly/shared';
 import { useLocale } from 'next-intl';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
+import { BalanzParseError } from '../balanz-import/balanz-types';
+import { parseBalanzXlsx } from '../balanz-import/parse-balanz-xlsx';
+import type { HoldingsImportPlan, ImportDialogError } from '../components/import-holdings-dialog';
 import {
   InvestmentsScreen,
+  type ImportDraft,
   type InvestmentsNotice,
   type OpenForm,
   type PortfolioMessage,
@@ -30,6 +38,15 @@ type ListState =
   | { kind: 'loading' }
   | { kind: 'failed'; error: InvestmentErrorKey }
   | { kind: 'loaded'; portfolios: PortfolioResponse[]; error?: InvestmentErrorKey };
+
+/** The rows read from the file, kept only in memory while the import is open; never the file. */
+interface ImportState {
+  reading: boolean;
+  holdings: ImportHolding[] | null;
+  error: ImportDialogError | null;
+}
+
+const NO_IMPORT: ImportState = { reading: false, holdings: null, error: null };
 
 function browserTimeZone(): string {
   return new Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -53,6 +70,7 @@ export function InvestmentsContainer() {
   const [messages, setMessages] = useState<Record<string, PortfolioMessage | undefined>>({});
   const [notice, setNotice] = useState<InvestmentsNotice | null>(null);
   const [createRevision, setCreateRevision] = useState(0);
+  const [importState, setImportState] = useState<ImportState>(NO_IMPORT);
   const mounted = useRef(true);
   const requestId = useRef(0);
   // The form on screen right now, readable from a change that finishes later.
@@ -110,6 +128,23 @@ export function InvestmentsContainer() {
   }, [timeZone, load, attempt]);
 
   const portfolios = list.kind === 'loaded' ? list.portfolios : [];
+
+  const importPortfolioId = openForm?.kind === 'import' ? openForm.portfolioId : undefined;
+  const importPlan = useMemo<HoldingsImportPlan | null>(() => {
+    const portfolio = portfolios.find((candidate) => candidate.id === importPortfolioId);
+    if (portfolio === undefined || importState.holdings === null) return null;
+    try {
+      return planHoldingsImport(portfolio.holdings, importState.holdings);
+    } catch (error) {
+      if (error instanceof ImportPlanError) return null;
+      throw error;
+    }
+  }, [portfolios, importPortfolioId, importState.holdings]);
+  const importDraft: ImportDraft = {
+    reading: importState.reading,
+    plan: importPlan,
+    error: importState.error,
+  };
 
   /** The portfolio a holding belongs to, to show its failure above it. */
   function portfolioOfHolding(holdingId: string): string | undefined {
@@ -264,14 +299,92 @@ export function InvestmentsContainer() {
     if (done?.reloaded) setNotice({ kind: 'deleted' });
   }
 
+  /** Reads the chosen file in the browser; only the parsed rows are kept, and only until closed. */
+  async function readImportFile(portfolioId: string, file: File) {
+    setNotice(null);
+    setImportState({ reading: true, holdings: null, error: null });
+    let next: ImportState;
+    try {
+      const holdings = await parseBalanzXlsx(file);
+      const portfolio = portfolios.find((candidate) => candidate.id === portfolioId);
+      // Planning here tells a file the portfolio cannot take (a repeated ticker, a crypto ticker)
+      // before the preview, so the user is never offered a confirm that is bound to fail.
+      if (portfolio !== undefined) planHoldingsImport(portfolio.holdings, holdings);
+      next = { reading: false, holdings, error: null };
+    } catch (error) {
+      const failure: ImportDialogError =
+        error instanceof BalanzParseError
+          ? {
+              scope: 'import',
+              key: error.reason,
+              ...(error.detail === undefined ? {} : { detail: error.detail }),
+            }
+          : error instanceof ImportPlanError
+            ? {
+                scope: 'import',
+                key: error.code === 'duplicateTicker' ? 'duplicateTicker' : 'rejected',
+              }
+            : { scope: 'import', key: 'unreadable' };
+      next = { reading: false, holdings: null, error: failure };
+    }
+    const current = openFormRef.current;
+    // The user may have closed the import while the file was being read: then nothing is kept.
+    if (!mounted.current || current?.kind !== 'import' || current.portfolioId !== portfolioId)
+      return;
+    setImportState(next);
+  }
+
+  function changeImportCurrency(ticker: string, currency: ValuationCurrency) {
+    setImportState((previous) =>
+      previous.holdings === null
+        ? previous
+        : {
+            ...previous,
+            holdings: previous.holdings.map((holding) =>
+              holding.ticker === ticker ? { ...holding, valuationCurrency: currency } : holding,
+            ),
+          },
+    );
+  }
+
+  async function confirmImport(portfolioId: string) {
+    const holdings = importState.holdings;
+    if (holdings === null) return;
+    setNotice(null);
+    const done = await mutate(
+      () => api.importHoldings(portfolioId, { holdings }),
+      (current) => current?.kind === 'import' && current.portfolioId === portfolioId,
+      (failure, stillOpen) => {
+        if (!stillOpen) return;
+        setImportState((previous) => ({
+          ...previous,
+          error:
+            failure.code === 'VALIDATION_FAILED'
+              ? { scope: 'import', key: 'rejected' }
+              : { scope: 'api', key: toHoldingFailure(failure, 'portfolio').form ?? 'unexpected' },
+        }));
+      },
+    );
+    if (done === undefined) return;
+    setImportState(NO_IMPORT);
+    setNotice({
+      kind: 'imported',
+      created: done.data.created,
+      updated: done.data.updated,
+      removed: done.data.removed,
+    });
+  }
+
   function open(form: OpenForm) {
     setFormErrors(undefined);
     setMessages({});
+    setImportState(NO_IMPORT);
     showForm(form);
   }
 
   function close() {
     setFormErrors(undefined);
+    setImportState(NO_IMPORT);
     showForm(null);
   }
 
@@ -288,6 +401,10 @@ export function InvestmentsContainer() {
       notice={notice}
       messages={messages}
       formErrors={formErrors}
+      importDraft={importDraft}
+      onImportFile={(portfolioId, file) => void readImportFile(portfolioId, file)}
+      onImportCurrency={changeImportCurrency}
+      onImportConfirm={(portfolioId) => void confirmImport(portfolioId)}
       onRetry={() => {
         setList((previous) =>
           previous.kind === 'loaded'

@@ -23,10 +23,10 @@ test('a verified user edits the name and preferences, signs out and in, and sees
   await signIn(page, email);
   await expect(page).toHaveURL(/\/es$/);
 
-  await page.getByRole('link', { name: es.app.nav.profile }).click();
+  await page.getByRole('link', { name: es.app.nav.settings }).click();
   await expect(page).toHaveURL(/\/es\/settings\/profile$/);
   await expect(page.getByRole('heading', { level: 1, name: es.profile.title })).toBeVisible();
-  await expect(page.getByRole('link', { name: es.app.nav.profile })).toHaveAttribute(
+  await expect(page.getByRole('link', { name: es.app.nav.settings })).toHaveAttribute(
     'aria-current',
     'page',
   );
@@ -66,7 +66,7 @@ test('a visitor registers with a display name, verifies, signs in and sees the n
   await signIn(page, email);
   await expect(page).toHaveURL(/\/es$/);
 
-  await page.getByRole('link', { name: es.app.nav.profile }).click();
+  await page.getByRole('link', { name: es.app.nav.settings }).click();
 
   await expect(page).toHaveURL(/\/es\/settings\/profile$/);
   await expect(page.getByLabel(es.profile.account.displayName, { exact: true })).toHaveValue(
@@ -104,7 +104,7 @@ test('switching the language to English shows the profile in English and back sh
   await expect(page).toHaveURL(/\/en\/settings\/profile$/);
   await expect(page.getByRole('heading', { level: 1, name: en.profile.title })).toBeVisible();
   await expect(page.getByLabel(en.profile.account.displayName, { exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: en.app.nav.profile })).toBeVisible();
+  await expect(page.getByRole('link', { name: en.app.nav.settings })).toBeVisible();
   await expect(page.getByText(es.profile.account.title)).toHaveCount(0);
 
   await page.getByLabel(en.profile.preferences.language).selectOption('es');

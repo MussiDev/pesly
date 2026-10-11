@@ -7,6 +7,7 @@ import type {
   PortfolioResponse,
   SetPriceRequest,
   UpdateHoldingRequest,
+  ValuationCurrency,
 } from '@pesly/shared';
 import { Briefcase, CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
@@ -23,6 +24,11 @@ import type { HoldingFormErrors, InvestmentErrorKey } from '../holding-form-erro
 import { AddHoldingForm } from './add-holding-form';
 import { CreatePortfolioForm } from './create-portfolio-form';
 import { EditHoldingForm } from './edit-holding-form';
+import {
+  ImportHoldingsDialog,
+  type HoldingsImportPlan,
+  type ImportDialogError,
+} from './import-holdings-dialog';
 import { PortfolioCard } from './portfolio-card';
 import { PriceForm } from './price-form';
 
@@ -32,12 +38,21 @@ export type OpenForm =
   | { kind: 'add'; portfolioId: string }
   | { kind: 'edit'; holdingId: string }
   | { kind: 'price'; holdingId: string }
+  | { kind: 'import'; portfolioId: string }
   | { kind: 'delete-portfolio'; portfolioId: string };
 
 export type InvestmentsNotice =
   | { kind: 'merged'; ticker: string; quantity: string }
   | { kind: 'deleted' }
-  | { kind: 'automaticPrice'; ticker: string; holdingId: string };
+  | { kind: 'automaticPrice'; ticker: string; holdingId: string }
+  | { kind: 'imported'; created: number; updated: number; removed: number };
+
+/** What the open import shows: the plan once a file was read, or why it could not be. */
+export interface ImportDraft {
+  reading: boolean;
+  plan: HoldingsImportPlan | null;
+  error: ImportDialogError | null;
+}
 
 /** A message above one portfolio. The object is created once per failure, so focus moves once. */
 export interface PortfolioMessage {
@@ -58,6 +73,11 @@ export interface InvestmentsScreenProps {
   notice: InvestmentsNotice | null;
   messages: Record<string, PortfolioMessage | undefined>;
   formErrors: HoldingFormErrors | undefined;
+  /** The import is offered only when the container handles it. */
+  importDraft?: ImportDraft;
+  onImportFile?: (portfolioId: string, file: File) => void;
+  onImportCurrency?: (ticker: string, currency: ValuationCurrency) => void;
+  onImportConfirm?: (portfolioId: string) => void;
   onRetry: () => void;
   onOpenForm: (form: OpenForm) => void;
   onCloseForm: () => void;
@@ -284,7 +304,13 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
             ? t('notices.deleted')
             : notice?.kind === 'automaticPrice'
               ? t('notices.automaticPrice', { ticker: notice.ticker })
-              : null}
+              : notice?.kind === 'imported'
+                ? t('import.done', {
+                    created: notice.created,
+                    updated: notice.updated,
+                    removed: notice.removed,
+                  })
+                : null}
       </p>
       {portfolios.length === 0 ? (
         <EmptyState
@@ -315,6 +341,10 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
             const message = messages[portfolio.id];
             // The form's own submit button has the same name, so the opener steps aside.
             const adding = openForm?.kind === 'add' && openForm.portfolioId === portfolio.id;
+            const importing =
+              props.onImportFile !== undefined &&
+              openForm?.kind === 'import' &&
+              openForm.portfolioId === portfolio.id;
             const editing =
               openForm?.kind === 'edit' ? findHolding(portfolio, openForm.holdingId) : undefined;
             const pricing =
@@ -332,6 +362,13 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
                       ? undefined
                       : (portfolioId) => {
                           openPanel({ kind: 'add', portfolioId });
+                        }
+                  }
+                  onImportHoldings={
+                    props.onImportFile === undefined || importing
+                      ? undefined
+                      : (portfolioId) => {
+                          openPanel({ kind: 'import', portfolioId });
                         }
                   }
                   onDeletePortfolio={(portfolioId) => {
@@ -354,6 +391,27 @@ export function InvestmentsScreen(props: InvestmentsScreenProps) {
                       errors={formErrors}
                       onSubmit={(values) => {
                         props.onAddHolding(portfolio.id, values);
+                      }}
+                      onCancel={props.onCloseForm}
+                    />
+                  </Panel>
+                )}
+                {importing && (
+                  <Panel title={t('import.title')} level="h3">
+                    <ImportHoldingsDialog
+                      language={language}
+                      pending={pending}
+                      reading={props.importDraft?.reading ?? false}
+                      plan={props.importDraft?.plan ?? null}
+                      error={props.importDraft?.error ?? null}
+                      onFile={(file) => {
+                        props.onImportFile?.(portfolio.id, file);
+                      }}
+                      onCurrencyChange={(ticker, currency) => {
+                        props.onImportCurrency?.(ticker, currency);
+                      }}
+                      onConfirm={() => {
+                        props.onImportConfirm?.(portfolio.id);
                       }}
                       onCancel={props.onCloseForm}
                     />

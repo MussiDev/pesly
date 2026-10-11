@@ -126,7 +126,7 @@ test('a Google sign-up shows the name from the Google profile on the profile scr
   await signInWithGoogle(page, identity);
 
   await expectSignedIn(page);
-  await page.getByRole('link', { name: es.app.nav.profile }).click();
+  await page.getByRole('link', { name: es.app.nav.settings }).click();
   await expect(page).toHaveURL(/\/es\/settings\/profile$/);
   await expect(page.getByLabel(es.profile.account.displayName, { exact: true })).toHaveValue(
     'Lucía Gómez',

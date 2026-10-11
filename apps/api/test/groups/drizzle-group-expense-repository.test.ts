@@ -201,6 +201,8 @@ describe('saveExpense', () => {
         await recorder.record(tx, movement);
         throw new Error('forced failure');
       },
+      update: () => Promise.resolve(),
+      remove: () => Promise.resolve(),
     });
 
     await expect(

@@ -351,6 +351,16 @@ All notable changes to this project are documented in this file. The format foll
   parallel runs create no duplicates. Migration `0025_notices` adds `recurring_payments.reminder_days`
   and the `notices` table. Push delivery of the same notices arrives in DISC-001-08d. No new
   dependency.
+- DISC-001-07c Import of Balanz holdings from the Excel export (`.xlsx`, sheet "Mis Instrumentos"):
+  the file is read in the browser and never uploaded, stored or logged, with a limit of 1 MB and
+  10 MB declared uncompressed. A preview lists the holdings it will add, update and remove before
+  anything changes, each holding starts in ARS and can be switched to USD, every instrument type is
+  accepted (unknown ones as "other"), and the total cost is the file's "Valor inicial". Confirming
+  replaces the portfolio's holdings in one transaction through
+  `POST /investments/portfolios/:portfolioId/holdings/import` (at most 1,000 holdings, 384 kb body
+  limit on that path only), with prices of source `import` dated by the file. A file that is not a valid
+  Balanz workbook (CSV, PDF, another sheet, a bad row, a repeated ticker) is refused whole. No
+  migration and no new dependency: it reuses `read-excel-file` from the statement import.
 - DISC-001-10e Automatic debit of credit card statements: a card can link one debit account per
   currency (`PUT /credit-cards/:id/debit-accounts`), chosen among the owner's open accounts of that
   currency and never a card account. From 06:00 in the owner's time zone on a statement's due date,
@@ -369,7 +379,7 @@ All notable changes to this project are documented in this file. The format foll
   reminder is created for a statement already paid or with no total, and a due date that is moved
   creates its own reminder. The text names the card and the due date and carries no amount. Reminders
   are unique per kind, statement and due date, so repeated or parallel runs create no duplicates. New
-  notice kind `card_statement_due`. Migration `0030_card_statement_reminders` adds
+  notice kind `card_statement_due`. Migration `0031_card_statement_reminders` adds
   `credit_cards.reminder_days` and extends the notice kinds. Push delivery of the same notices arrives
   with DISC-001-08d. No new dependency.
 - DISC-001-05a Groups, members and roles: `POST /groups` creates a group with a name and a default rate
@@ -411,6 +421,18 @@ All notable changes to this project are documented in this file. The format foll
   keeps them under "Former member", and each settlement adds a creation entry to the group activity log.
   Migration `0028_group_settlements` adds two tables and `group_members.left_at`. Editing and deleting
   settlements and the log view arrive in DISC-001-05d, the group screens in a later ticket. No new dependency.
+- DISC-001-05d Group record editing and activity log: the member who recorded a group expense or settlement, or
+  an admin, can edit or delete it (`PUT` and `DELETE /groups/:id/expenses/:expenseId`, `PATCH` and `DELETE
+  /groups/:id/settlements/:settlementId`); anyone else gets 403. An expense edit replaces amount, date, category,
+  description and split with the creation rules (currency and payer are not editable), a settlement edit changes
+  its amount and date (a consolidated one can only be deleted), balances are recomputed from the stored rows and
+  the payer's account movement follows the expense in the same transaction. An edit or deletion that would change
+  the balance of a member who left answers 409. Every edit and deletion writes a log entry with the values before
+  and after (amounts as integer strings), and `GET /groups/:id/activity` shows the log, newest first and paginated,
+  to every member; a database trigger forbids updating or deleting log rows while the group exists and the log
+  entry routes answer 405. Non-members get 404 everywhere. Migration `0030_group_activity_log_changes` adds two
+  `jsonb` columns, a check and the trigger. Completing it unblocks DISC-001-04e (conflicts on group movements);
+  the group screens arrive in a later ticket. No new dependency.
 
 ### Changed
 

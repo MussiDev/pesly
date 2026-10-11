@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { CATEGORY_COLORS, CATEGORY_ICONS, DEFAULT_CATEGORIES } from '@pesly/shared';
 import { describe, expect, it } from 'vitest';
+import { BALANZ_PARSE_REASONS } from '../src/features/investments/balanz-import/balanz-types';
 import manifest from '../src/app/manifest';
 
 type Catalog = { [key: string]: string | Catalog };
@@ -701,4 +702,26 @@ describe('movement tags catalog (DISC-001-03d)', () => {
     expect(readString(catalog, 'movements.tags.errors.tooLong')).toContain('{max}');
     expect(readString(catalog, 'movements.tags.errors.limit')).toContain('{limit}');
   });
+});
+
+describe('Balanz import catalog (DISC-001-07c)', () => {
+  it.each(LOCALES)(
+    'has a message for every parse reason and the dialog strings in %s',
+    (locale) => {
+      const catalog = loadCatalog(locale);
+
+      for (const reason of BALANZ_PARSE_REASONS) {
+        expect(
+          readString(catalog, `investments.import.errors.${reason}`)?.length,
+          reason,
+        ).toBeGreaterThan(0);
+      }
+      for (const key of ['title', 'confirm', 'cancel', 'done', 'preview.removeWarning']) {
+        expect(readString(catalog, `investments.import.${key}`)?.length, key).toBeGreaterThan(0);
+      }
+      expect(readString(catalog, 'investments.import.errors.badRow')).toContain('{detail}');
+      expect(readString(catalog, 'investments.import.errors.missingColumns')).toContain('{detail}');
+      expect(readString(catalog, 'investments.import.preview.currencyFor')).toContain('{ticker}');
+    },
+  );
 });

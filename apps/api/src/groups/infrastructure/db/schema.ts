@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -313,6 +314,15 @@ export const groupDefaultSplitShares = pgTable(
   ],
 );
 
+const GROUP_ACTIVITY_ACTIONS = [
+  'expense_created',
+  'expense_updated',
+  'expense_deleted',
+  'settlement_created',
+  'settlement_updated',
+  'settlement_deleted',
+] as const;
+
 /** Written in the expense's transaction, so no expense exists without its entry (spec D10). */
 export const groupActivityLog = pgTable(
   'group_activity_log',
@@ -322,14 +332,21 @@ export const groupActivityLog = pgTable(
       .notNull()
       .references(() => groups.id, { onDelete: 'cascade' }),
     memberId: uuid('member_id').notNull(),
-    action: text('action', { enum: ['expense_created', 'settlement_created'] }).notNull(),
+    action: text('action', { enum: GROUP_ACTIVITY_ACTIONS }).notNull(),
     subjectId: uuid('subject_id').notNull(),
     createdAt: timestamptz('created_at').notNull(),
+    /** Snapshots of an edit or a deletion; amounts are JSON strings of minor units (spec D7). */
+    before: jsonb('before').$type<Record<string, unknown>>(),
+    after: jsonb('after').$type<Record<string, unknown>>(),
   },
   (table) => [
     check(
       'group_activity_log_action_check',
-      sql`${table.action} in ('expense_created', 'settlement_created')`,
+      sql`${table.action} in ('expense_created', 'expense_updated', 'expense_deleted', 'settlement_created', 'settlement_updated', 'settlement_deleted')`,
+    ),
+    check(
+      'group_activity_log_snapshots_check',
+      sql`(${table.action} in ('expense_updated', 'settlement_updated') and ${table.before} is not null and ${table.after} is not null) or (${table.action} in ('expense_deleted', 'settlement_deleted') and ${table.before} is not null and ${table.after} is null) or (${table.action} in ('expense_created', 'settlement_created') and ${table.before} is null and ${table.after} is null)`,
     ),
     foreignKey({
       name: 'group_activity_log_member_group_fk',

@@ -99,3 +99,24 @@ export class SettlementRateRequired extends AppError {
     super('RATE_REQUIRED');
   }
 }
+
+/** The caller is neither the author of the record nor an admin (403, spec D1). */
+export class GroupRecordEditForbidden extends AppError {
+  constructor() {
+    super('GROUP_RECORD_EDIT_FORBIDDEN');
+  }
+}
+
+/** The change would alter the balance of a member who left the group (409, spec D5). */
+export class GroupRecordFormerMember extends AppError {
+  constructor() {
+    super('GROUP_RECORD_FORMER_MEMBER');
+  }
+}
+
+/** A consolidated settlement describes two debts at once and cannot be edited (409, spec D2). */
+export class GroupSettlementConsolidated extends AppError {
+  constructor() {
+    super('GROUP_SETTLEMENT_CONSOLIDATED');
+  }
+}
