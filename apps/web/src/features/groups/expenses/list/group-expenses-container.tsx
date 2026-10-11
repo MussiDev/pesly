@@ -31,8 +31,6 @@ type ScreenState =
 
 export interface GroupExpensesContainerProps {
   groupId: string;
-  /** The caller's member id in this group, to pick their share out of each expense. */
-  viewerMemberId?: string;
 }
 
 /**
@@ -40,7 +38,7 @@ export interface GroupExpensesContainerProps {
  * page and the expense options, which name members and categories. The cursor only ever comes
  * from the previous response.
  */
-export function GroupExpensesContainer({ groupId, viewerMemberId }: GroupExpensesContainerProps) {
+export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const t = useTranslations('groups.expenses');
@@ -116,10 +114,7 @@ export function GroupExpensesContainer({ groupId, viewerMemberId }: GroupExpense
   };
 
   const items: ExpenseListItem[] = expenses.map((expense) => {
-    const own =
-      viewerMemberId === undefined
-        ? undefined
-        : expense.shares.find((share) => share.memberId === viewerMemberId);
+    const own = expense.shares.find((share) => share.memberId === options.selfMemberId);
     return {
       id: expense.id,
       description: expense.description,

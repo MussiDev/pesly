@@ -22,7 +22,9 @@ import {
 } from './default-split-request';
 
 type ScreenState =
-  GroupsLoadState | { kind: 'not-found' } | { kind: 'ready'; options: ExpenseOptionsResponse };
+  | GroupsLoadState
+  | { kind: 'not-found' }
+  | { kind: 'ready'; options: ExpenseOptionsResponse; isAdmin: boolean };
 
 function valuesOf(defaultSplit: DefaultSplitResponse): Record<string, string> {
   if (defaultSplit.mode === 'equal') return {};
@@ -33,15 +35,13 @@ function valuesOf(defaultSplit: DefaultSplitResponse): Record<string, string> {
 
 export interface DefaultSplitContainerProps {
   groupId: string;
-  /**
-   * The caller's role in the group, known by the screen that links here. It is a prop so this page
-   * stays at one request (spec D5); the API enforces the role on save anyway.
-   */
-  isAdmin: boolean;
 }
 
-/** The default split of one group: editable by admins, read only for members (FR-11). */
-export function DefaultSplitContainer({ groupId, isAdmin }: DefaultSplitContainerProps) {
+/**
+ * The default split of one group: editable by admins, read only for members (FR-11). It makes two
+ * requests: the expense options and the group, whose members carry the caller's role.
+ */
+export function DefaultSplitContainer({ groupId }: DefaultSplitContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const t = useTranslations('groups.defaultSplit');
@@ -58,22 +58,28 @@ export function DefaultSplitContainer({ groupId, isAdmin }: DefaultSplitContaine
 
   useEffect(() => {
     let active = true;
-    void api.getExpenseOptions(groupId).then((result) => {
-      if (!active) return;
-      if (result.ok) {
-        setMode(result.data.defaultSplit.mode);
-        setValues(valuesOf(result.data.defaultSplit));
-        setState({ kind: 'ready', options: result.data });
-      } else if (result.code === 'UNAUTHENTICATED') {
-        router.replace('/sign-in');
-      } else {
-        setState(
-          result.code === 'NOT_FOUND'
-            ? { kind: 'not-found' }
-            : { kind: 'failed', error: result.messageKey },
-        );
-      }
-    });
+    void Promise.all([api.getExpenseOptions(groupId), api.getGroup(groupId)]).then(
+      ([result, group]) => {
+        if (!active) return;
+        if (result.ok && group.ok) {
+          const self = group.data.members.find((member) => member.id === result.data.selfMemberId);
+          setMode(result.data.defaultSplit.mode);
+          setValues(valuesOf(result.data.defaultSplit));
+          setState({ kind: 'ready', options: result.data, isAdmin: self?.role === 'admin' });
+          return;
+        }
+        const failure = !result.ok ? result : group.ok ? undefined : group;
+        if (failure === undefined) return;
+        if (failure.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+        else {
+          setState(
+            failure.code === 'NOT_FOUND'
+              ? { kind: 'not-found' }
+              : { kind: 'failed', error: failure.messageKey },
+          );
+        }
+      },
+    );
     return () => {
       active = false;
     };
@@ -106,7 +112,7 @@ export function DefaultSplitContainer({ groupId, isAdmin }: DefaultSplitContaine
     );
   }
 
-  const { options } = state;
+  const { options, isAdmin } = state;
   const memberIds = options.members.map((member) => member.id);
 
   function edit(change: () => void) {
@@ -129,7 +135,7 @@ export function DefaultSplitContainer({ groupId, isAdmin }: DefaultSplitContaine
     void api.setDefaultSplit(groupId, request).then((result) => {
       setPending(false);
       if (result.ok) {
-        setState({ kind: 'ready', options: { ...options, defaultSplit: result.data } });
+        setState({ kind: 'ready', isAdmin, options: { ...options, defaultSplit: result.data } });
         setSaved(true);
       } else if (result.code === 'UNAUTHENTICATED') {
         router.replace('/sign-in');

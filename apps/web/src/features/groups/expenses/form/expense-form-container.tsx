@@ -40,12 +40,6 @@ type ScreenState = GroupsLoadState | { kind: 'ready'; data: FormData };
 
 interface ExpenseFormContainerProps {
   groupId: string;
-  /**
-   * The caller's member id in this group. The API's responses do not say which member is the
-   * caller, so the page that mounts the form supplies it; without it nobody counts as the current
-   * user and the payer account fields are never asked for.
-   */
-  currentMemberId?: string;
   /** The user's IANA time zone; the device's when absent. */
   timeZone?: string;
   /** The current instant, injectable for tests. */
@@ -55,7 +49,6 @@ interface ExpenseFormContainerProps {
 /** The new group expense screen: 3 requests to load, one to save. Online only. */
 export function ExpenseFormContainer({
   groupId,
-  currentMemberId,
   timeZone: timeZoneProp,
   now,
 }: ExpenseFormContainerProps) {
@@ -107,10 +100,9 @@ export function ExpenseFormContainer({
       else if (!categories.ok) setState({ kind: 'failed', error: categories.messageKey });
       else {
         const memberIds = options.data.members.map((member) => member.id);
-        const payer =
-          currentMemberId !== undefined && memberIds.includes(currentMemberId)
-            ? currentMemberId
-            : (memberIds[0] ?? '');
+        const payer = memberIds.includes(options.data.selfMemberId)
+          ? options.data.selfMemberId
+          : (memberIds[0] ?? '');
         const split = memberIds.length
           ? initialSplitState(options.data.defaultSplit, memberIds, payer)
           : createSplitState(0n, payer, []);
@@ -138,7 +130,7 @@ export function ExpenseFormContainer({
     return () => {
       active = false;
     };
-  }, [api, router, groupId, currentMemberId, timeZone, now, attempt]);
+  }, [api, router, groupId, timeZone, now, attempt]);
 
   if (state.kind !== 'ready') {
     return (
@@ -165,7 +157,7 @@ export function ExpenseFormContainer({
       groupCategoryIds: options.categories.map((category) => category.id),
       accounts,
       personalCategoryIds: personalCategories.map((category) => category.id),
-      currentMemberId,
+      currentMemberId: options.selfMemberId,
       timeZone,
       locale,
       now: now ?? new Date(),
@@ -196,7 +188,7 @@ export function ExpenseFormContainer({
         id: category.id,
         label: categoryLabel(category, language),
       }))}
-      currentMemberId={currentMemberId}
+      currentMemberId={options.selfMemberId}
       initialValues={initialValues}
       fieldErrors={fieldErrors}
       issue={issue}

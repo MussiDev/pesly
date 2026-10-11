@@ -21,7 +21,14 @@ const options = {
     { id: ANA, displayName: 'Ana', isGhost: false, joinedAt: '2026-10-01T00:00:00.000Z' },
   ],
   categories: [
-    { id: FOOD, defaultKey: null, name: 'Groceries', icon: 'utensils', color: 'orange', archivedAt: null },
+    {
+      id: FOOD,
+      defaultKey: null,
+      name: 'Groceries',
+      icon: 'utensils',
+      color: 'orange',
+      archivedAt: null,
+    },
   ],
   defaultSplit: { mode: 'equal' },
   defaultRateType: 'blue',
@@ -49,14 +56,17 @@ const expense = (n: number, overrides: Record<string, unknown> = {}) => ({
 });
 
 const open = (locale: 'en' | 'es' = 'en') =>
-  renderApp(<GroupExpensesContainer groupId={GROUP_ID} viewerMemberId={ME} />, { locale });
+  renderApp(<GroupExpensesContainer groupId={GROUP_ID} />, { locale });
 
 describe('GroupExpensesContainer', () => {
   it('shows description, category, payer, amount, date and the viewer share, newest first', async () => {
     stubApi({
       [LIST]: {
         status: 200,
-        body: { items: [expense(2, { occurredAt: '2026-10-06T10:00:00.000Z' }), expense(1)], nextCursor: null },
+        body: {
+          items: [expense(2, { occurredAt: '2026-10-06T10:00:00.000Z' }), expense(1)],
+          nextCursor: null,
+        },
       },
       [OPTIONS]: { status: 200, body: options },
     });
@@ -102,10 +112,7 @@ describe('GroupExpensesContainer', () => {
 
   it('shows a retry on a load error and loads again', async () => {
     const { calls } = stubApi({
-      [LIST]: [
-        { status: 500 },
-        { status: 200, body: { items: [expense(1)], nextCursor: null } },
-      ],
+      [LIST]: [{ status: 500 }, { status: 200, body: { items: [expense(1)], nextCursor: null } }],
       [OPTIONS]: { status: 200, body: options },
     });
     open();

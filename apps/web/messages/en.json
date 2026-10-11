@@ -1402,6 +1402,7 @@
     "list": {
       "title": "Groups",
       "description": "Shared expenses and who owes whom.",
+      "sharesLink": "My shares",
       "label": "Your groups",
       "members": "{count, plural, one {# member} other {# members}}",
       "roles": { "admin": "Admin", "member": "Member" },
@@ -1515,6 +1516,9 @@
       "ghost": "No account yet",
       "unnamed": "Unnamed member",
       "categoriesLink": "Group categories",
+      "expensesLink": "Expenses",
+      "addExpenseLink": "Add expense",
+      "defaultSplitLink": "Default split",
       "cannotRemoveSelf": "You cannot remove yourself: use Leave group.",
       "notFound": {
         "title": "Group not found",

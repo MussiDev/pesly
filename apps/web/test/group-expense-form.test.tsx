@@ -126,10 +126,7 @@ function routes(overrides: Routes = {}, defaultSplit?: unknown, accounts?: unkno
 }
 
 function open(locale: 'en' | 'es' = 'en') {
-  return renderApp(
-    <ExpenseFormContainer groupId={G} currentMemberId={ANA} timeZone={ZONE} now={NOW} />,
-    { locale },
-  );
+  return renderApp(<ExpenseFormContainer groupId={G} timeZone={ZONE} now={NOW} />, { locale });
 }
 
 async function ready() {

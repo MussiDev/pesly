@@ -11,6 +11,7 @@ const GROUP_ID = '55555555-5555-4555-8555-555555555555';
 const ANA = '77777777-7777-4777-8777-777777777771';
 const BEN = '77777777-7777-4777-8777-777777777772';
 const OPTIONS = `GET /groups/${GROUP_ID}/expense-options`;
+const GROUP = `GET /groups/${GROUP_ID}`;
 const PUT = `PUT /groups/${GROUP_ID}/default-split`;
 
 const options = (defaultSplit: object = { mode: 'equal' }) => ({
@@ -24,6 +25,27 @@ const options = (defaultSplit: object = { mode: 'equal' }) => ({
   defaultRateType: 'blue',
 });
 
+const detail = (role: 'admin' | 'member') => ({
+  id: GROUP_ID,
+  name: 'Flatmates',
+  defaultRateType: 'blue',
+  role,
+  memberCount: 2,
+  createdAt: '2026-10-01T00:00:00.000Z',
+  selfMemberId: ANA,
+  members: [
+    { id: ANA, displayName: 'Ana', isGhost: false, role, joinedAt: '2026-10-01T00:00:00.000Z' },
+    {
+      id: BEN,
+      displayName: 'Ben',
+      isGhost: false,
+      role: 'member',
+      joinedAt: '2026-10-02T00:00:00.000Z',
+    },
+  ],
+  formerMembers: [],
+});
+
 const PERCENTAGE_6040 = {
   mode: 'percentage',
   shares: [
@@ -32,8 +54,7 @@ const PERCENTAGE_6040 = {
   ],
 };
 
-const open = (isAdmin: boolean) =>
-  renderApp(<DefaultSplitContainer groupId={GROUP_ID} isAdmin={isAdmin} />, { locale: 'en' });
+const open = () => renderApp(<DefaultSplitContainer groupId={GROUP_ID} />, { locale: 'en' });
 
 const percentField = (name: string) =>
   screen.getByLabelText(en.groups.defaultSplit.percentLabel.replace('{name}', name));
@@ -78,9 +99,10 @@ describe('DefaultSplitContainer', () => {
   it('lets an admin save a percentage default (AC-13)', async () => {
     const { calls } = stubApi({
       [OPTIONS]: { status: 200, body: options() },
+      [GROUP]: { status: 200, body: detail('admin') },
       [PUT]: { status: 200, body: PERCENTAGE_6040 },
     });
-    open(true);
+    open();
     const user = userEvent.setup();
 
     await user.selectOptions(
@@ -99,12 +121,14 @@ describe('DefaultSplitContainer', () => {
   });
 
   it('prefills the form from the stored percentage default', async () => {
-    stubApi({ [OPTIONS]: { status: 200, body: options(PERCENTAGE_6040) } });
-    open(true);
+    stubApi({
+      [OPTIONS]: { status: 200, body: options(PERCENTAGE_6040) },
+      [GROUP]: { status: 200, body: detail('admin') },
+    });
+    open();
 
-    expect(
-      ((await screen.findByLabelText(en.groups.defaultSplit.modeLabel))).value,
-    ).toBe('percentage');
+    const mode = await screen.findByLabelText<HTMLSelectElement>(en.groups.defaultSplit.modeLabel);
+    expect(mode.value).toBe('percentage');
     expect((percentField('Ana') as HTMLInputElement).value).toBe('60');
     expect((percentField('Ben') as HTMLInputElement).value).toBe('40');
   });
@@ -112,9 +136,10 @@ describe('DefaultSplitContainer', () => {
   it('lets an admin save an equal default (AC-13)', async () => {
     const { calls } = stubApi({
       [OPTIONS]: { status: 200, body: options(PERCENTAGE_6040) },
+      [GROUP]: { status: 200, body: detail('admin') },
       [PUT]: { status: 200, body: { mode: 'equal' } },
     });
-    open(true);
+    open();
     const user = userEvent.setup();
 
     await user.selectOptions(
@@ -130,8 +155,11 @@ describe('DefaultSplitContainer', () => {
   });
 
   it('shows a member the default read only, with no save control (AC-14)', async () => {
-    stubApi({ [OPTIONS]: { status: 200, body: options(PERCENTAGE_6040) } });
-    open(false);
+    stubApi({
+      [OPTIONS]: { status: 200, body: options(PERCENTAGE_6040) },
+      [GROUP]: { status: 200, body: detail('member') },
+    });
+    open();
 
     expect(await screen.findByText(en.groups.defaultSplit.readOnly)).toBeTruthy();
     expect(screen.getByText('Ana')).toBeTruthy();
@@ -142,8 +170,11 @@ describe('DefaultSplitContainer', () => {
   });
 
   it('rejects percentages that do not total 100%, shows the difference and sends nothing', async () => {
-    const { calls } = stubApi({ [OPTIONS]: { status: 200, body: options() } });
-    open(true);
+    const { calls } = stubApi({
+      [OPTIONS]: { status: 200, body: options() },
+      [GROUP]: { status: 200, body: detail('admin') },
+    });
+    open();
     const user = userEvent.setup();
 
     await user.selectOptions(
@@ -163,29 +194,31 @@ describe('DefaultSplitContainer', () => {
   it('shows the message of a 403 and leaves the saved default unchanged', async () => {
     stubApi({
       [OPTIONS]: { status: 200, body: options() },
+      [GROUP]: { status: 200, body: detail('admin') },
       [PUT]: { status: 403, body: { error: { code: 'GROUP_ADMIN_REQUIRED', message: 'no' } } },
     });
-    open(true);
+    open();
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole('button', { name: en.groups.defaultSplit.save }));
 
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByText(en.groups.defaultSplit.saved)).toBeNull();
-    expect(
-      (screen.getByLabelText(en.groups.defaultSplit.modeLabel)).value,
-    ).toBe('equal');
+    expect(screen.getByLabelText<HTMLSelectElement>(en.groups.defaultSplit.modeLabel).value).toBe(
+      'equal',
+    );
   });
 
   it('keeps the typed values after a 400 refusal', async () => {
     stubApi({
       [OPTIONS]: { status: 200, body: options() },
+      [GROUP]: { status: 200, body: detail('admin') },
       [PUT]: {
         status: 400,
         body: { error: { code: 'GROUP_SPLIT_PERCENTAGE_INVALID', message: 'bad' } },
       },
     });
-    open(true);
+    open();
     const user = userEvent.setup();
 
     await user.selectOptions(
@@ -204,8 +237,12 @@ describe('DefaultSplitContainer', () => {
   it('shows the shared error state with a retry when the load fails', async () => {
     const { calls } = stubApi({
       [OPTIONS]: [{ status: 500 }, { status: 200, body: options() }],
+      [GROUP]: [
+        { status: 200, body: detail('admin') },
+        { status: 200, body: detail('admin') },
+      ],
     });
-    open(true);
+    open();
     const user = userEvent.setup();
 
     await user.click(await screen.findByRole('button', { name: en.app.retry }));
@@ -214,11 +251,14 @@ describe('DefaultSplitContainer', () => {
     expect(calls.filter((c) => c.path.endsWith('/expense-options'))).toHaveLength(2);
   });
 
-  it('loads with at most 1 request (NFR-02)', async () => {
-    const { calls } = stubApi({ [OPTIONS]: { status: 200, body: options() } });
-    open(true);
+  it('loads with at most 2 requests: the options and the group (NFR-02)', async () => {
+    const { calls } = stubApi({
+      [OPTIONS]: { status: 200, body: options() },
+      [GROUP]: { status: 200, body: detail('admin') },
+    });
+    open();
 
     await screen.findByLabelText(en.groups.defaultSplit.modeLabel);
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2);
   });
 });
