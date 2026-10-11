@@ -11,6 +11,7 @@ import {
 import { DrizzleGroupRepository } from '../../src/groups/infrastructure/db/drizzle-group-repository';
 import { DrizzleGroupSettlementRepository } from '../../src/groups/infrastructure/db/drizzle-group-settlement-repository';
 import { createAccountMovements } from '../../src/movements';
+import { GroupRecordConflictError } from '../../src/groups/domain/errors';
 import { ResourceNotFound } from '../../src/shared/access';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
@@ -69,11 +70,13 @@ function updateData(
   saved: GroupSettlement,
   amount: bigint,
   occurredAt = saved.occurredAt,
+  baseVersion = saved.version,
 ): Parameters<DrizzleGroupSettlementRepository['updateSettlement']>[0] {
   const legs = [{ currency: saved.currency, amount }];
   return {
     groupId: w.groupId,
     settlementId: saved.id,
+    baseVersion,
     amount,
     occurredAt,
     activity: {
@@ -90,10 +93,12 @@ function updateData(
 function deleteData(
   w: DbWorld,
   saved: GroupSettlement,
+  baseVersion = saved.version,
 ): Parameters<DrizzleGroupSettlementRepository['deleteSettlement']>[0] {
   return {
     groupId: w.groupId,
     settlementId: saved.id,
+    baseVersion,
     activity: {
       action: 'settlement_deleted',
       memberId: w.anaMember,
@@ -317,10 +322,24 @@ describe('updateSettlement', () => {
         plainSettlement(w, { amount: 1_000n, legs: [{ currency: 'ARS', amount: 1_000n }] }),
       );
 
-      await Promise.all([
-        patch.execute(w.userId, w.groupId, saved.id, { amount: '2000' }),
-        patch.execute(w.userId, w.groupId, saved.id, { occurredAt: newDate }),
+      // Both name version 1: the lock serialises them, the second sees the conflict and retries
+      // from the server version (spec 04e D4), so neither edit reverts the other.
+      const outcomes = await Promise.allSettled([
+        patch.execute(w.userId, w.groupId, saved.id, { baseVersion: 1, amount: '2000' }),
+        patch.execute(w.userId, w.groupId, saved.id, { baseVersion: 1, occurredAt: newDate }),
       ]);
+      expect(outcomes.filter((o) => o.status === 'fulfilled')).toHaveLength(1);
+      const lost = outcomes.find((o) => o.status === 'rejected');
+      expect(lost?.reason).toBeInstanceOf(GroupRecordConflictError);
+      const winnerIsAmount = outcomes[0].status === 'fulfilled';
+      await patch.execute(
+        w.userId,
+        w.groupId,
+        saved.id,
+        winnerIsAmount
+          ? { baseVersion: 2, occurredAt: newDate }
+          : { baseVersion: 2, amount: '2000' },
+      );
 
       const after = await repository.getSettlement(w.groupId, saved.id);
       expect(after?.amount).toBe(2_000n);
@@ -348,6 +367,7 @@ describe('updateSettlement', () => {
     const updated = await repository.updateSettlement({
       groupId: w.groupId,
       settlementId: saved.id,
+      baseVersion: saved.version,
       occurredAt: newDate,
       activity: {
         action: 'settlement_updated',

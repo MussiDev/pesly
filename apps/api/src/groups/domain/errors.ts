@@ -1,4 +1,6 @@
 import { AppError } from '@pesly/shared';
+import type { GroupExpense } from './group-expense';
+import type { GroupSettlement } from './settlement';
 
 /** A non-admin member tried an admin-only action (403, spec D1). */
 export class GroupAdminRequired extends AppError {
@@ -118,5 +120,27 @@ export class GroupRecordFormerMember extends AppError {
 export class GroupSettlementConsolidated extends AppError {
   constructor() {
     super('GROUP_SETTLEMENT_CONSOLIDATED');
+  }
+}
+
+/** The record the server holds, with the kind that tells the HTTP layer how to present it. */
+export type ConflictingRecord =
+  { kind: 'expense'; current: GroupExpense } | { kind: 'settlement'; current: GroupSettlement };
+
+/**
+ * The client changed or deleted a record from a version that is not the stored one, older or newer
+ * (409, spec 04e D3). Nothing was written. It carries the record as the server holds it now; the
+ * HTTP layer presents it as `details.current`.
+ */
+export class GroupRecordConflictError extends AppError {
+  constructor(
+    readonly record: ConflictingRecord,
+    readonly baseVersion: number,
+  ) {
+    super('GROUP_RECORD_CONFLICT');
+  }
+
+  get storedVersion(): number {
+    return this.record.current.version;
   }
 }

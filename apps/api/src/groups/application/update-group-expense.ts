@@ -116,6 +116,7 @@ export class UpdateGroupExpense {
     return this.deps.expenses.updateExpense({
       groupId,
       expenseId,
+      baseVersion: data.baseVersion,
       amount,
       occurredAt,
       categoryId: data.categoryId,

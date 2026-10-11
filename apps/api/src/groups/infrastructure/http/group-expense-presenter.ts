@@ -29,6 +29,7 @@ export function presentGroupExpense(expense: GroupExpense): GroupExpenseResponse
     splitMode: expense.splitMode,
     payerMovementId: expense.payerMovementId,
     createdAt: expense.createdAt.toISOString(),
+    version: expense.version,
     shares: expense.shares.map((share) => ({
       memberId: share.memberId,
       amount: share.amount.toString(),

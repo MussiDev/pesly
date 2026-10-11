@@ -29,6 +29,7 @@ export function presentSettlement(settlement: GroupSettlement): SettlementRespon
     rateSource: settlement.rateSource,
     rateType: settlement.rateType,
     createdAt: settlement.createdAt.toISOString(),
+    version: settlement.version,
   };
 }
 

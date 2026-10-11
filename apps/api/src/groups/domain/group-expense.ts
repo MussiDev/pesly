@@ -31,6 +31,8 @@ export interface GroupExpense {
   /** Null when the payer is a ghost or another member, or after the movement was erased. */
   payerMovementId: string | null;
   createdAt: Date;
+  /** Starts at 1 and grows by 1 with every change (spec 04e D1). */
+  version: number;
   shares: GroupExpenseShare[];
 }
 

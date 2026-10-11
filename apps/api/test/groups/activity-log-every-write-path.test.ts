@@ -134,6 +134,7 @@ async function editExpense(f: Fixture, saved: GroupExpense, createdAt: Date): Pr
   await expenses.updateExpense({
     groupId: w.groupId,
     expenseId: saved.id,
+    baseVersion: saved.version,
     amount,
     occurredAt,
     categoryId: saved.categoryId,
@@ -162,6 +163,7 @@ async function deleteExpense(w: DbWorld, saved: GroupExpense, createdAt: Date): 
   await expenses.deleteExpense({
     groupId: w.groupId,
     expenseId: saved.id,
+    baseVersion: saved.version,
     rateType: 'mep',
     activity: {
       action: 'expense_deleted',
@@ -179,6 +181,7 @@ async function editSettlement(w: DbWorld, saved: GroupSettlement, createdAt: Dat
   await settlements.updateSettlement({
     groupId: w.groupId,
     settlementId: saved.id,
+    baseVersion: saved.version,
     amount,
     occurredAt: saved.occurredAt,
     activity: {
@@ -199,6 +202,7 @@ async function deleteSettlement(
   await settlements.deleteSettlement({
     groupId: w.groupId,
     settlementId: saved.id,
+    baseVersion: saved.version,
     activity: {
       action: 'settlement_deleted',
       memberId: w.anaMember,

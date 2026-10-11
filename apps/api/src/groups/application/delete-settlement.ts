@@ -27,7 +27,12 @@ export class DeleteSettlement {
    * The author or an admin (spec D1); a consolidated settlement may be deleted (D2). Refuses with
    * 409 when a party left, since the deletion would give them a balance (D5).
    */
-  async execute(userId: string, groupId: string, settlementId: string): Promise<void> {
+  async execute(
+    userId: string,
+    groupId: string,
+    settlementId: string,
+    baseVersion: number,
+  ): Promise<void> {
     const caller = await this.access.member(userId, groupId);
     const settlement = await this.deps.settlements.getSettlement(groupId, settlementId);
     if (settlement === null) throw new ResourceNotFound();
@@ -43,6 +48,7 @@ export class DeleteSettlement {
     await this.deps.settlements.deleteSettlement({
       groupId,
       settlementId,
+      baseVersion,
       activity: {
         action: 'settlement_deleted',
         memberId: caller.id,
