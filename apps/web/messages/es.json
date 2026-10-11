@@ -1286,6 +1286,63 @@
     }
   },
   "groups": {
+    "consolidate": {
+      "title": "Saldar en conjunto",
+      "description": "Unifica en un solo pago lo que dos personas se deben en ambas monedas.",
+      "back": "Volver a saldos",
+      "choose": "Elegí una persona",
+      "fields": {
+        "memberA": "Primera persona",
+        "memberB": "Segunda persona",
+        "currency": "Saldar en",
+        "rate": "Cotización (ARS por USD)"
+      },
+      "legs": {
+        "title": "Lo que se deben",
+        "pays": "{payer} le paga a {payee} {amount}",
+        "none": "Sin saldo en {currency}"
+      },
+      "rate": {
+        "type": "Tipo de cotización por defecto: {type}",
+        "missing": "No hay una cotización guardada: ingresá una para continuar."
+      },
+      "cash": {
+        "label": "Efectivo que cambia de manos",
+        "unknown": "Ingresá una cotización válida para ver el monto en efectivo."
+      },
+      "nothing": "No hay nada para unificar: ambas monedas necesitan un saldo entre estas dos personas.",
+      "record": "Registrar pago",
+      "recording": "Registrando…",
+      "stale": "Los saldos cambiaron mientras revisabas. Revisá los nuevos montos y confirmá de nuevo.",
+      "done": {
+        "title": "Pago registrado",
+        "summary": "{payer} le pagó a {payee} {amount}."
+      },
+      "errors": {
+        "memberRequired": "Elegí un miembro actual del grupo.",
+        "sameMember": "Elegí dos personas distintas.",
+        "currencyInvalid": "Elegí ARS o USD.",
+        "dateInvalid": "La fecha no es válida.",
+        "dateSkipped": "Esa hora no existe en tu zona horaria.",
+        "dateInFuture": "La fecha no puede ser futura.",
+        "rateRequired": "Ingresá la cotización: no hay una guardada para usar.",
+        "rateInvalid": "Ingresá una cotización mayor a 0, con hasta 4 decimales.",
+        "nothingToConsolidate": "No hay nada para unificar: ambas monedas necesitan un saldo entre estas dos personas.",
+        "legsInvalid": "Estos saldos no se pueden registrar como un solo pago. Recargá e intentá de nuevo.",
+        "cashOutOfRange": "Con esta cotización el monto es demasiado grande. Revisá la cotización."
+      }
+    },
+    "settlements": {
+      "title": "Pagos entre miembros",
+      "back": "Volver al grupo",
+      "parties": "{payer} le pagó a {payee}",
+      "consolidated": "Consolidado",
+      "loadMore": "Cargar más",
+      "loadMoreFailed": "No se pudieron cargar más pagos.",
+      "emptyTitle": "Todavía no hay pagos",
+      "emptyDescription": "Los pagos entre miembros aparecerán acá cuando se registren.",
+      "emptyAction": "Ir a los saldos"
+    },
     "list": {
       "title": "Grupos",
       "description": "Gastos compartidos y quién debe a quién.",
@@ -1375,6 +1432,41 @@
       "pending": "Creando…",
       "actions": { "restore": "Restaurar" }
     },
+    "settlement": {
+      "title": "Registrar un pago",
+      "fields": {
+        "from": "Quién paga",
+        "to": "Quién recibe",
+        "currency": "Moneda",
+        "amount": "Monto",
+        "occurredAt": "Fecha",
+        "account": "Tu cuenta"
+      },
+      "memberPlaceholder": "Elegí un miembro",
+      "summary": "{payer} paga a {payee} {amount}",
+      "summaryIncomplete": "Elegí quién paga, quién recibe y el monto.",
+      "accountNone": "Ninguna",
+      "accountHint": "Opcional. El pago también se registra en esta cuenta.",
+      "accountsLoading": "Cargando tus cuentas…",
+      "accountsFailed": "No pudimos cargar tus cuentas. Igual podés registrar el pago sin una.",
+      "accountsRetry": "Reintentar",
+      "submit": "Registrar pago",
+      "pending": "Registrando…",
+      "cancel": "Cancelar",
+      "notFound": "Este grupo no existe o no sos miembro.",
+      "errors": {
+        "memberRequired": "Elegí un miembro.",
+        "sameMember": "Las dos personas deben ser distintas.",
+        "currencyInvalid": "Elegí una moneda.",
+        "amountInvalid": "Ingresá un monto válido, con hasta dos decimales.",
+        "amountNotPositive": "El monto debe ser mayor que cero.",
+        "amountOutOfRange": "El monto es demasiado grande.",
+        "dateInvalid": "Ingresá una fecha y hora válidas.",
+        "dateSkipped": "Esa hora no existe en tu zona horaria. Elegí otra.",
+        "dateInFuture": "La fecha no puede ser futura.",
+        "accountInvalid": "Elegí una de tus cuentas en esta moneda, o ninguna."
+      }
+    },
     "detail": {
       "defaultRate": "Cotización por defecto: {rateType}",
       "membersTitle": "Miembros",
@@ -1383,6 +1475,14 @@
       "ghost": "Aún sin cuenta",
       "unnamed": "Miembro sin nombre",
       "categoriesLink": "Categorías del grupo",
+      "balancesLink": "Saldos",
+      "ownBalance": {
+        "title": "Tu saldo",
+        "owes": "Debes {amount}",
+        "owed": "Te deben {amount}",
+        "even": "Estás al día en {currency}",
+        "unavailable": "Tu saldo no está disponible en este momento."
+      },
       "cannotRemoveSelf": "No podés quitarte a vos mismo: usá Salir del grupo.",
       "notFound": {
         "title": "No encontramos el grupo",

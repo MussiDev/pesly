@@ -12,6 +12,7 @@ const BRUNO = '22222222-2222-4222-8222-222222222222';
 const CARLA = '33333333-3333-4333-8333-333333333333';
 const DIEGO = '44444444-4444-4444-8444-444444444444';
 const GET_GROUP = `GET /groups/${GROUP_ID}`;
+const GET_BALANCES = `GET /groups/${GROUP_ID}/balances`;
 const PATCH_GROUP = `PATCH /groups/${GROUP_ID}`;
 const LEAVE = `POST /groups/${GROUP_ID}/leave`;
 const PROMOTE = `POST /groups/${GROUP_ID}/members/${BRUNO}/admin`;
@@ -43,6 +44,11 @@ const detail = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
+const balances = (ars: string, usd: string) => ({
+  ARS: { members: [{ memberId: ANA, balance: ars }], payments: [] },
+  USD: { members: [{ memberId: ANA, balance: usd }], payments: [] },
+});
+
 const rowOf = (name: string) => {
   const row = screen.getByText(name).closest('li');
   if (!row) throw new Error(`No row for ${name}`);
@@ -63,7 +69,9 @@ describe('GroupDetailContainer', () => {
     expect(within(rowOf('Bruno')).queryByText(en.groups.detail.ghost)).toBeNull();
     expect(within(rowOf('Carla')).getByText(en.groups.detail.ghost)).toBeTruthy();
     expect(calls.length).toBeLessThanOrEqual(2);
-    expect(calls).toHaveLength(1);
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(
+      [GET_BALANCES, GET_GROUP].sort(),
+    );
   });
 
   it('lists former members apart from the current ones', async () => {
@@ -148,7 +156,7 @@ describe('GroupDetailContainer', () => {
     expect(alert.textContent).toMatch(/Owes 120\.00\s?ARS/);
     expect(alert.textContent).toMatch(/Is owed 5\.00\s?USD/);
     expect(rowOf('Bruno')).toBeTruthy();
-    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+    expect(calls.filter((call) => call.path === `/groups/${GROUP_ID}`)).toHaveLength(1);
   });
 
   it('removing yourself shows a specific message instead of the generic validation one (D1)', async () => {
@@ -172,7 +180,7 @@ describe('GroupDetailContainer', () => {
     const alert = await within(rowOf('Ana')).findByRole('alert');
     expect(alert.textContent).toContain(en.groups.detail.cannotRemoveSelf);
     expect(alert.textContent).not.toContain(en.errors.validationFailed);
-    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+    expect(calls.filter((call) => call.path === `/groups/${GROUP_ID}`)).toHaveLength(1);
   });
 
   it('removing a member without a balance reloads the group', async () => {
@@ -205,7 +213,7 @@ describe('GroupDetailContainer', () => {
       const former = screen.getByRole('list', { name: en.groups.detail.formerTitle });
       expect(within(former).getByText('Bruno')).toBeTruthy();
     });
-    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+    expect(calls.filter((call) => call.path === `/groups/${GROUP_ID}`)).toHaveLength(2);
   });
 
   it('shows no promote, remove or rate type controls to a regular member', async () => {
@@ -270,7 +278,7 @@ describe('GroupDetailContainer', () => {
     expect(alert.textContent).not.toMatch(/USD/);
     expect(router.push).not.toHaveBeenCalled();
     expect(screen.getByText('Ana')).toBeTruthy();
-    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+    expect(calls.filter((call) => call.path === `/groups/${GROUP_ID}`)).toHaveLength(1);
   });
 
   it('the last admin leaving is asked to promote someone first', async () => {
@@ -317,6 +325,74 @@ describe('GroupDetailContainer', () => {
     open();
     await userEvent.click(await screen.findByRole('button', { name: en.app.retry }));
     expect(await screen.findByText('Ana')).toBeTruthy();
+  });
+});
+
+describe('GroupDetailContainer balances', () => {
+  it('links to the balances page of the group', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 200, body: balances('0', '0') },
+    });
+    open();
+    const link = await screen.findByRole('link', { name: en.groups.detail.balancesLink });
+    expect(link.getAttribute('href')).toBe(`/en/groups/${GROUP_ID}/balances`);
+  });
+
+  it('shows the own balance in ARS and USD, marked owing or owed', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 200, body: balances('-12000', '500') },
+    });
+    open();
+    const summary = await screen.findByRole('region', { name: en.groups.detail.ownBalance.title });
+    expect(summary.textContent).toMatch(/You owe 120\.00\s?ARS/);
+    expect(summary.textContent).toMatch(/You are owed 5\.00\s?USD/);
+  });
+
+  it('shows a settled currency as even', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 200, body: balances('0', '500') },
+    });
+    open();
+    const summary = await screen.findByRole('region', { name: en.groups.detail.ownBalance.title });
+    expect(summary.textContent).toContain(
+      en.groups.detail.ownBalance.even.replace('{currency}', 'ARS'),
+    );
+  });
+
+  it('keeps members, actions and the link visible when the balances request fails', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 500 },
+    });
+    open();
+    expect(await screen.findByText(en.groups.detail.ownBalance.unavailable)).toBeTruthy();
+    expect(screen.getByText('Bruno')).toBeTruthy();
+    expect(screen.getByRole('button', { name: en.groups.detail.leave.action })).toBeTruthy();
+    expect(screen.getByRole('link', { name: en.groups.detail.balancesLink })).toBeTruthy();
+  });
+
+  it('loads with at most 2 requests', async () => {
+    const { calls } = stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 200, body: balances('0', '0') },
+    });
+    open();
+    await screen.findByRole('region', { name: en.groups.detail.ownBalance.title });
+    expect(calls).toHaveLength(2);
+  });
+
+  it('renders Spanish strings for the link and the summary', async () => {
+    stubApi({
+      [GET_GROUP]: { status: 200, body: detail() },
+      [GET_BALANCES]: { status: 200, body: balances('-12000', '500') },
+    });
+    open('es');
+    const summary = await screen.findByRole('region', { name: es.groups.detail.ownBalance.title });
+    expect(summary.textContent).toMatch(/Debes 120/);
+    expect(screen.getByRole('link', { name: es.groups.detail.balancesLink })).toBeTruthy();
   });
 });
 
@@ -374,7 +450,7 @@ describe('GroupDetailContainer session and failure paths', () => {
       }),
     );
     await waitFor(() => {
-      expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+      expect(calls.filter((call) => call.path === `/groups/${GROUP_ID}`)).toHaveLength(2);
     });
     expect(screen.getByText('Bruno')).toBeTruthy();
     expect(screen.queryByRole('button', { name: en.app.retry })).toBeNull();
