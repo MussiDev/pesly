@@ -47,7 +47,7 @@ import type {
   StatementTotals,
 } from '../../src/credit-cards/domain/statement-assignment';
 import type {
-  CardDays,
+  CardSettings,
   CreateCreditCardData,
   CreditCardRepository,
   StatementDates,
@@ -113,6 +113,7 @@ export class InMemoryCreditCards implements CreditCardRepository {
       name: data.name,
       closingDay: data.closingDay,
       dueDay: data.dueDay,
+      reminderDays: data.reminderDays,
       arsAccountId: randomUUID(),
       usdAccountId: randomUUID(),
       debitAccounts: { ARS: null, USD: null },
@@ -179,12 +180,12 @@ export class InMemoryCreditCards implements CreditCardRepository {
   updateDays(
     scope: AccessScope<'write'>,
     cardId: string,
-    days: CardDays,
+    settings: CardSettings,
     statements: readonly Statement[],
   ): Promise<CreditCard | null> {
     const row = this.cards.get(cardId);
     if (!row || row.ownerId !== scope.userId) return Promise.resolve(null);
-    row.card = { ...row.card, ...days };
+    row.card = { ...row.card, ...settings };
     for (const statement of statements) this.statements.set(statement.id, statement);
     return Promise.resolve(row.card);
   }
