@@ -225,6 +225,13 @@
       "when": 1791760600000,
       "tag": "0032_card_statement_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791770000000,
+      "tag": "0033_savings_goals",
+      "breakpoints": true
     }
   ]
 }
