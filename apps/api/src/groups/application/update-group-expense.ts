@@ -1,4 +1,4 @@
-import type { UpdateGroupExpenseRequest } from '@pesly/shared';
+import type { GroupSplit, UpdateGroupExpenseRequest } from '@pesly/shared';
 import { ResourceNotFound } from '../../shared/access';
 import {
   assertCanChangeRecord,
@@ -24,6 +24,21 @@ export interface UpdateGroupExpenseDependencies {
   groups: GroupRepository;
   expenses: GroupExpenseRepository;
   clock: Clock;
+}
+
+/** True when the amount and every input of the split (members, mode, percentages or amounts) match. */
+function splitUnchanged(expense: GroupExpense, amount: bigint, split: GroupSplit): boolean {
+  if (amount !== expense.amount || split.mode !== expense.splitMode) return false;
+  const stored = new Map(expense.shares.map((share) => [share.memberId, share]));
+  const ids = splitMemberIds(split);
+  if (new Set(ids).size !== ids.length || ids.length !== stored.size) return false;
+  if (split.mode === 'equal') return ids.every((id) => stored.has(id));
+  if (split.mode === 'percentage') {
+    return split.shares.every(
+      (input) => stored.get(input.memberId)?.basisPoints === input.basisPoints,
+    );
+  }
+  return split.shares.every((input) => stored.get(input.memberId)?.amount === BigInt(input.amount));
 }
 
 export class UpdateGroupExpense {
@@ -77,10 +92,12 @@ export class UpdateGroupExpense {
       throw new GroupExpenseCategoryInvalid();
     }
 
-    const shares = allocateShares(amount, expense.payerMemberId, data.split, [
-      ...detail.members,
-      ...former,
-    ]);
+    // Same amount and same split inputs: the stored shares stay as they are. Re-allocating could
+    // move a leftover unit to another member (a former member is ordered by leaving date), which
+    // would change a balance nobody asked to change.
+    const shares = splitUnchanged(expense, amount, data.split)
+      ? expense.shares.map((share) => ({ ...share }))
+      : allocateShares(amount, expense.payerMemberId, data.split, [...detail.members, ...former]);
     assertChangedMembersActive(
       expenseChangedMembers(expense, { payerMemberId: expense.payerMemberId, amount, shares }),
       active,

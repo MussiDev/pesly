@@ -238,7 +238,6 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
           settlementId: stored.id,
           amount,
           occurredAt,
-          legs,
           activity: {
             action: 'settlement_updated',
             memberId: w.anaMember,

@@ -209,10 +209,13 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
   async updateExpense(data: UpdateGroupExpenseData): Promise<GroupExpense> {
     try {
       return await this.db.transaction(async (tx) => {
-        const locked = await this.lockExpenseForChange(tx, data.groupId, data.expenseId, [
+        const locked = await this.lockExpenseForChange(
+          tx,
+          data.groupId,
+          data.expenseId,
           data.activity.memberId,
-          ...data.shares.map((share) => share.memberId),
-        ]);
+          data.shares.map((share) => share.memberId),
+        );
         const { stored, payerUserId } = locked;
         const newShares = data.shares.map((share) => ({
           memberId: share.memberId,
@@ -292,7 +295,8 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           tx,
           data.groupId,
           data.expenseId,
-          [data.activity.memberId],
+          data.activity.memberId,
+          [],
         );
         assertChangedMembersActive(
           expenseChangedMembers(
@@ -324,15 +328,21 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
   }
 
   /**
-   * The locks of spec D4 in the order creation uses: the group `for share`, then the expense row
-   * `for update` (so two edits of one expense queue and the second reads what the first left),
-   * then the member rows by id. Returns the stored expense, the payer's user and the ids of the
-   * members that are still active.
+   * The locks of spec D4 in the order creation uses: the group `for share`, then the payer's
+   * movement `for update` when there is one, then the expense row `for update` (so two edits of
+   * one expense queue and the second reads what the first left), then the member rows by id.
+   * The movement goes before the expense row because the payer deleting it (or erasing the
+   * account) locks the movement first and then reaches the expense row through `on delete set
+   * null`; the opposite order here would deadlock. The id is read unlocked first; once the expense
+   * row is locked it can only have changed to null (the movement went), which needs no lock.
+   * Returns the stored expense, the payer's user and the ids of the members that are still
+   * active. The acting member must be one of them, or the answer is 404 like a non-member.
    */
   private async lockExpenseForChange(
     tx: Tx,
     groupId: string,
     expenseId: string,
+    actorMemberId: string,
     extraMemberIds: readonly string[],
   ): Promise<{
     stored: GroupExpense;
@@ -340,6 +350,13 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     active: ReadonlySet<string>;
   }> {
     await lockGroup(tx, groupId, 'share');
+    const [peek] = await tx
+      .select({ payerMovementId: groupExpenses.payerMovementId })
+      .from(groupExpenses)
+      .where(and(eq(groupExpenses.groupId, groupId), eq(groupExpenses.id, expenseId)));
+    if (peek?.payerMovementId) {
+      await tx.execute(sql`select id from movements where id = ${peek.payerMovementId} for update`);
+    }
     const [row] = await tx
       .select(expenseColumns)
       .from(groupExpenses)
@@ -351,6 +368,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
       ...new Set([
         stored.payerMemberId,
         ...stored.shares.map((share) => share.memberId),
+        actorMemberId,
         ...extraMemberIds,
       ]),
     ];
@@ -362,6 +380,9 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
       .for('share');
     // A member of another group (or a missing one) is not a split member of this group.
     if (members.length !== wanted.length) throw new GroupSplitMemberInvalid();
+    if (!members.some((member) => member.id === actorMemberId && member.leftAt === null)) {
+      throw new ResourceNotFound();
+    }
     return {
       stored,
       payerUserId: members.find((member) => member.id === stored.payerMemberId)?.userId ?? null,

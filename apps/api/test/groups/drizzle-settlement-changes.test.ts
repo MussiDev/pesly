@@ -1,11 +1,14 @@
+import { isDeepStrictEqual } from 'node:util';
 import { AppError, type SettlementSnapshot } from '@pesly/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   GroupRecordFormerMember,
   GroupSettlementConsolidated,
   settlementSnapshot,
+  UpdateSettlement,
   type GroupSettlement,
 } from '../../src/groups';
+import { DrizzleGroupRepository } from '../../src/groups/infrastructure/db/drizzle-group-repository';
 import { DrizzleGroupSettlementRepository } from '../../src/groups/infrastructure/db/drizzle-group-settlement-repository';
 import { createAccountMovements } from '../../src/movements';
 import { ResourceNotFound } from '../../src/shared/access';
@@ -73,7 +76,6 @@ function updateData(
     settlementId: saved.id,
     amount,
     occurredAt,
-    legs,
     activity: {
       action: 'settlement_updated',
       memberId: w.anaMember,
@@ -263,6 +265,107 @@ describe('updateSettlement', () => {
     expect(await logRows(w.groupId, 'settlement_updated')).toHaveLength(0);
   });
 
+  it('logs the stored before and after even when a forged one is sent (update)', async () => {
+    const w = await world();
+    const saved = await repository.saveSettlement(plainSettlement(w));
+    const data = updateData(w, saved, 4_000n);
+
+    await repository.updateSettlement({
+      ...data,
+      activity: {
+        ...data.activity,
+        before: { ...settlementSnapshot(saved), amount: '1' },
+        after: { ...settlementSnapshot(saved), amount: '2' },
+      },
+    });
+
+    const [row] = await logRows(w.groupId, 'settlement_updated');
+    expect(row?.before).toEqual(settlementSnapshot(saved));
+    expect(row?.after?.amount).toBe('4000');
+    expect(row?.after?.legs).toEqual([{ currency: 'ARS', amount: '4000' }]);
+  });
+
+  it('answers a 404 when the acting member left and changes nothing (actor not active)', async () => {
+    const w = await world(3);
+    const saved = await repository.saveSettlement(plainSettlement(w));
+    const bystander = w.memberIds[3] ?? '';
+    await connection.pool.query('update group_members set left_at = $1 where id = $2', [
+      NOW,
+      bystander,
+    ]);
+    const data = updateData(w, saved, 4_000n);
+
+    const failure: unknown = await repository
+      .updateSettlement({ ...data, activity: { ...data.activity, memberId: bystander } })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ResourceNotFound);
+    expect(await repository.getSettlement(w.groupId, saved.id)).toEqual(saved);
+    expect(await logRows(w.groupId, 'settlement_updated')).toHaveLength(0);
+  });
+
+  it('never reverts an amount edit when a date-only edit races it (conflict of two PATCHes)', async () => {
+    const w = await world();
+    const patch = new UpdateSettlement({
+      groups: new DrizzleGroupRepository(connection.db),
+      settlements: repository,
+      clock: { now: () => NOW },
+    });
+    const newDate = new Date(NOW.getTime() - 5 * HOUR).toISOString();
+    for (let round = 0; round < 40; round += 1) {
+      const saved = await repository.saveSettlement(
+        plainSettlement(w, { amount: 1_000n, legs: [{ currency: 'ARS', amount: 1_000n }] }),
+      );
+
+      await Promise.all([
+        patch.execute(w.userId, w.groupId, saved.id, { amount: '2000' }),
+        patch.execute(w.userId, w.groupId, saved.id, { occurredAt: newDate }),
+      ]);
+
+      const after = await repository.getSettlement(w.groupId, saved.id);
+      expect(after?.amount).toBe(2_000n);
+      expect(after?.legs).toEqual([{ currency: 'ARS', amount: 2_000n }]);
+      expect(after?.occurredAt.toISOString()).toBe(newDate);
+      const logged = await logRows(w.groupId, 'settlement_updated');
+      const mine = logged.filter((row) => row.subject_id === saved.id);
+      expect(mine).toHaveLength(2);
+      // The two entries chain: the second `before` is the first `after`.
+      const first = mine.find((row) => isDeepStrictEqual(row.before, settlementSnapshot(saved)));
+      const second = mine.find((row) => row !== first);
+      expect(first).toBeDefined();
+      expect(second?.before).toEqual(first?.after);
+      expect(second?.after?.amount).toBe('2000');
+    }
+  });
+
+  it('keeps the stored amount and leg when the data carries only a date (unspecified field)', async () => {
+    const w = await world();
+    const saved = await repository.saveSettlement(
+      plainSettlement(w, { amount: 700n, legs: [{ currency: 'ARS', amount: 700n }] }),
+    );
+    const newDate = new Date(NOW.getTime() - 3 * HOUR);
+
+    const updated = await repository.updateSettlement({
+      groupId: w.groupId,
+      settlementId: saved.id,
+      occurredAt: newDate,
+      activity: {
+        action: 'settlement_updated',
+        memberId: w.anaMember,
+        createdAt: LATER,
+        before: { ...settlementSnapshot(saved), amount: '1' },
+        after: { ...settlementSnapshot(saved), amount: '1' },
+      },
+    });
+
+    expect(updated.amount).toBe(700n);
+    expect(updated.legs).toEqual([{ currency: 'ARS', amount: 700n }]);
+    expect(updated.occurredAt).toEqual(newDate);
+    const [row] = await logRows(w.groupId, 'settlement_updated');
+    expect(row?.before).toEqual(settlementSnapshot(saved));
+    expect(row?.after).toEqual(settlementSnapshot(updated));
+  });
+
   it('answers a 404 for a missing settlement and for one of another group', async () => {
     const w = await world();
     const other = await world();
@@ -343,12 +446,96 @@ describe('deleteSettlement', () => {
     expect(row?.before?.legs).toHaveLength(2);
   });
 
+  it('logs the stored before even when a forged one is sent (delete)', async () => {
+    const w = await world();
+    const saved = await repository.saveSettlement(plainSettlement(w));
+    const data = deleteData(w, saved);
+
+    await repository.deleteSettlement({
+      ...data,
+      activity: { ...data.activity, before: { ...settlementSnapshot(saved), amount: '1' } },
+    });
+
+    const [row] = await logRows(w.groupId, 'settlement_deleted');
+    expect(row?.before).toEqual(settlementSnapshot(saved));
+    expect(row?.after).toBeNull();
+  });
+
+  it('answers a 404 when the acting member left and keeps the settlement (actor not active)', async () => {
+    const w = await world(3);
+    const saved = await repository.saveSettlement(plainSettlement(w));
+    const bystander = w.memberIds[3] ?? '';
+    await connection.pool.query('update group_members set left_at = $1 where id = $2', [
+      NOW,
+      bystander,
+    ]);
+    const data = deleteData(w, saved);
+
+    const failure: unknown = await repository
+      .deleteSettlement({ ...data, activity: { ...data.activity, memberId: bystander } })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(ResourceNotFound);
+    expect(await repository.getSettlement(w.groupId, saved.id)).toEqual(saved);
+    expect(await logRows(w.groupId, 'settlement_deleted')).toHaveLength(0);
+  });
+
+  it('answers a 409 former member error for a consolidated settlement with equal opposite legs when a party left', async () => {
+    const w = await world();
+    const [ana, ghost] = [w.anaMember, w.memberIds[1] ?? ''];
+    await insertExpensesSql(connection.pool, w, [
+      {
+        payer: ana,
+        amount: 600n,
+        currency: 'ARS',
+        shares: [
+          { memberId: ana, amount: 300n },
+          { memberId: ghost, amount: 300n },
+        ],
+      },
+      {
+        payer: ghost,
+        amount: 600n,
+        currency: 'USD',
+        shares: [
+          { memberId: ana, amount: 300n },
+          { memberId: ghost, amount: 300n },
+        ],
+      },
+    ]);
+    const saved = await repository.saveSettlement(
+      plainSettlement(w, {
+        fromMemberId: ghost,
+        toMemberId: ana,
+        currency: 'ARS',
+        amount: 300n,
+        legs: [
+          { currency: 'ARS', amount: 300n },
+          { currency: 'USD', amount: -300n },
+        ],
+        rate: { value: 10_000n, source: 'automatic', type: 'mep' },
+      }),
+    );
+    await connection.pool.query('update group_members set left_at = $1 where id = $2', [
+      NOW,
+      ghost,
+    ]);
+
+    const failure: unknown = await repository
+      .deleteSettlement(deleteData(w, saved))
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(GroupRecordFormerMember);
+    expect(await repository.getSettlement(w.groupId, saved.id)).toEqual(saved);
+    expect(await logRows(w.groupId, 'settlement_deleted')).toHaveLength(0);
+  });
+
   it('answers a 409 former member error when a party left and nothing changes', async () => {
     const w = await world();
     const saved = await repository.saveSettlement(plainSettlement(w));
     await connection.pool.query('update group_members set left_at = $1 where id = $2', [
       NOW,
-      saved.toMemberId,
+      saved.fromMemberId,
     ]);
 
     const failure: unknown = await repository

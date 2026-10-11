@@ -196,20 +196,23 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
     const stored = this.settlements[index];
     if (stored === undefined) throw new ResourceNotFound();
     if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
+    // What the request did not name comes from the row read under lock, like the adapter.
+    const amount = data.amount ?? stored.amount;
+    const legs = [{ currency: stored.currency, amount }];
     // The lock-time recheck of D5, from the row read under lock.
     assertChangedMembersActive(
       settlementChangedMembers(stored, {
         fromMemberId: stored.fromMemberId,
         toMemberId: stored.toMemberId,
-        legs: data.legs,
+        legs,
       }),
       this.activeIds(data.groupId),
     );
     const updated: GroupSettlement = {
       ...stored,
-      amount: data.amount,
-      occurredAt: data.occurredAt,
-      legs: data.legs.map((leg) => ({ ...leg })),
+      amount,
+      occurredAt: data.occurredAt ?? stored.occurredAt,
+      legs,
     };
     if (this.failAfterLegs) throw new Error('forced failure');
     this.expenses.ledger.applySettlement(stored, -1n);
@@ -218,6 +221,7 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
     this.expenses.logChange(data.groupId, stored.id, {
       ...data.activity,
       before: settlementSnapshot(stored),
+      after: settlementSnapshot(updated),
     });
     return updated;
   }

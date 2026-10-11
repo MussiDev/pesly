@@ -181,7 +181,6 @@ async function editSettlement(w: DbWorld, saved: GroupSettlement, createdAt: Dat
     settlementId: saved.id,
     amount,
     occurredAt: saved.occurredAt,
-    legs,
     activity: {
       action: 'settlement_updated',
       memberId: w.anaMember,

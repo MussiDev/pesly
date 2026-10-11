@@ -61,6 +61,7 @@ function expenseDelta(
   for (const share of effect.shares) addTo(map, share.memberId, -share.amount * sign);
 }
 
+/** Settlement deltas are kept per currency: opposite-signed legs must not cancel each other. */
 function settlementDelta(
   map: Map<string, bigint>,
   effect: SettlementEffect | null,
@@ -68,13 +69,13 @@ function settlementDelta(
 ): void {
   if (effect === null) return;
   for (const leg of effect.legs) {
-    addTo(map, effect.fromMemberId, leg.amount * sign);
-    addTo(map, effect.toMemberId, -leg.amount * sign);
+    addTo(map, `${leg.currency}:${effect.fromMemberId}`, leg.amount * sign);
+    addTo(map, `${leg.currency}:${effect.toMemberId}`, -leg.amount * sign);
   }
 }
 
 function nonZero(map: Map<string, bigint>): string[] {
-  return [...map.entries()].filter(([, value]) => value !== 0n).map(([memberId]) => memberId);
+  return [...map.entries()].filter(([, value]) => value !== 0n).map(([key]) => key);
 }
 
 /**
@@ -99,7 +100,8 @@ export function settlementChangedMembers(
   const delta = new Map<string, bigint>();
   settlementDelta(delta, before, -1n);
   settlementDelta(delta, after, 1n);
-  return nonZero(delta);
+  // A member is changed when any currency delta is non-zero; the key is `currency:memberId`.
+  return [...new Set(nonZero(delta).map((key) => key.slice(key.indexOf(':') + 1)))];
 }
 
 /** D5: every member whose balance changes must still be active. */

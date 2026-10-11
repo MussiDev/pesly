@@ -30,14 +30,17 @@ export interface SettlementChangeActivity {
   after: SettlementSnapshot | null;
 }
 
-/** A plain settlement's new amount and date (spec D2); its single leg follows the amount. */
+/**
+ * A plain settlement's new amount and/or date (spec D2); its single leg follows the amount. A
+ * field left out keeps the value stored when the row is read under lock, so two concurrent edits
+ * of different fields never revert each other. `activity.before` and `activity.after` are
+ * informational: the adapter rebuilds both from the locked row.
+ */
 export interface UpdateGroupSettlementData {
   groupId: string;
   settlementId: string;
-  amount: bigint;
-  occurredAt: Date;
-  /** The single leg of the new amount: `[{ currency, amount }]`. */
-  legs: SettlementLeg[];
+  amount?: bigint;
+  occurredAt?: Date;
   activity: SettlementChangeActivity & {
     action: 'settlement_updated';
     after: SettlementSnapshot;
@@ -98,9 +101,11 @@ export interface GroupSettlementRepository {
   /**
    * One transaction under the group row `for update` (spec D4): load the settlement in the group
    * (`ResourceNotFound` when gone), throw `GroupSettlementConsolidated` when it is consolidated,
-   * recompute under lock which members' balances change (`settlementChangedMembers`) and throw
-   * `GroupRecordFormerMember` when one is no longer active, rewrite `amount`, `occurred_at` and the
-   * single leg, and insert the log row with `before` taken from the row read under lock.
+   * resolve the unspecified `amount` and `occurredAt` from that row, recompute under lock which
+   * members' balances change (`settlementChangedMembers`) and throw `GroupRecordFormerMember` when
+   * one is no longer active (or `ResourceNotFound` when the acting member is), rewrite `amount`,
+   * `occurred_at` and the single leg, and insert the log row with `before` and `after` built from
+   * the row read under lock.
    */
   updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement>;
   /**

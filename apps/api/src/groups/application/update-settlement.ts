@@ -71,12 +71,12 @@ export class UpdateSettlement {
       throw new SettlementDateTooFarAhead();
     }
 
+    // Only what the request names goes down: the repository fills the rest under lock.
     return this.deps.settlements.updateSettlement({
       groupId,
       settlementId,
-      amount,
-      occurredAt,
-      legs,
+      ...(data.amount !== undefined ? { amount } : {}),
+      ...(data.occurredAt !== undefined ? { occurredAt } : {}),
       activity: {
         action: 'settlement_updated',
         memberId: caller.id,

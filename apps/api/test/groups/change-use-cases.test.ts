@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AppError,
   expenseSnapshotSchema,
@@ -438,6 +438,30 @@ describe('UpdateGroupExpense', () => {
     expect(expenses.activity).toHaveLength(logBefore);
   });
 
+  it('does not revert an amount edit that lands between its read and its write when only the date changes', async () => {
+    const s = await setup();
+    await newExpense(s, '4000000');
+    const saved = await newSettlement(s, s.alice, s.bob, '1000000', ALICE);
+    const newDate = new Date(clock.now().getTime() - DAY_MS);
+    const original = settlements.getSettlement.bind(settlements);
+    // The use case reads the stale row, then another request edits the amount before the write.
+    vi.spyOn(settlements, 'getSettlement').mockImplementationOnce(async (groupId, id) => {
+      const stale = await original(groupId, id);
+      await updateSettlement.execute(ALICE, s.groupId, saved.id, { amount: '2500000' });
+      return stale;
+    });
+
+    const dateOnly = await updateSettlement.execute(ALICE, s.groupId, saved.id, {
+      occurredAt: newDate.toISOString(),
+    });
+
+    expect(dateOnly).toMatchObject({ amount: 2500000n, occurredAt: newDate });
+    expect(dateOnly.legs).toEqual([{ currency: 'ARS', amount: 2500000n }]);
+    const log = expenses.activity.filter((r) => r.action === 'settlement_updated');
+    expect(settlementSnapshotSchema.parse(log[1]?.before).amount).toBe('2500000');
+    expect(settlementSnapshotSchema.parse(log[1]?.after).amount).toBe('2500000');
+  });
+
   it('is an invalid request with an amount of 0 or a date more than 1 day ahead (400)', async () => {
     const s = await setup();
     const saved = await newExpense(s, '4000000');
@@ -778,6 +802,66 @@ describe('members who left (D5)', () => {
 
     expect(updated.description).toBe('Solo la nota');
     expect(settlements.hasOpenBalance(s.groupId, s.carol.id)).toBe(false);
+  });
+
+  it('keeps the stored shares of a description-only edit even when the leftover unit would move to another member', async () => {
+    const s = await setup();
+    // 100.01 split in three, payer first then joining order: Alice 33.34, Bob 33.34, Pedro 33.33.
+    const saved = await newExpense(s, '10001', {
+      userId: ALICE,
+      payer: s.alice,
+      splitWith: [s.alice, s.bob, s.ghost],
+    });
+    await newSettlement(s, s.bob, s.alice, '3334', BOB);
+    clock.advance(1000);
+    await leave.execute(BOB, s.groupId);
+    // With Bob ordered by his leaving date the leftover would go to Pedro and change Bob's share.
+    const stored = saved.shares.map((share) => ({
+      memberId: share.memberId,
+      amount: share.amount,
+    }));
+
+    const updated = await updateExpense.execute(
+      ALICE,
+      s.groupId,
+      saved.id,
+      edit(s, {
+        amount: '10001',
+        description: 'Solo la nota',
+        split: { mode: 'equal', memberIds: [s.alice.id, s.bob.id, s.ghost.id] },
+      }),
+    );
+
+    expect(updated.description).toBe('Solo la nota');
+    expect(
+      updated.shares.map((share) => ({ memberId: share.memberId, amount: share.amount })),
+    ).toEqual(stored);
+  });
+
+  it('answers 409 when the amount changes and the new shares alter the balance of a member who left', async () => {
+    const s = await setup();
+    const saved = await newExpense(s, '10001', {
+      userId: ALICE,
+      payer: s.alice,
+      splitWith: [s.alice, s.bob, s.ghost],
+    });
+    await newSettlement(s, s.bob, s.alice, '3334', BOB);
+    clock.advance(1000);
+    await leave.execute(BOB, s.groupId);
+
+    expect(
+      await codeOf(
+        updateExpense.execute(
+          ALICE,
+          s.groupId,
+          saved.id,
+          edit(s, {
+            amount: '9999',
+            split: { mode: 'equal', memberIds: [s.alice.id, s.bob.id, s.ghost.id] },
+          }),
+        ),
+      ),
+    ).toBe('GROUP_RECORD_FORMER_MEMBER');
   });
 
   it('is a conflict at the repository when a member leaves between the read and the write (lock-time recheck)', async () => {

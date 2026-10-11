@@ -270,6 +270,19 @@ async function stored(w: World, expense: NewGroupExpense) {
   return { saved, before };
 }
 
+/** Polls until some backend of this database waits for a lock. */
+async function waitForBlockedBackend(): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const result = await connection.pool.query<{ n: number }>(
+      `select count(*)::int as n from pg_stat_activity
+       where datname = current_database() and wait_event_type = 'Lock'`,
+    );
+    if ((result.rows[0]?.n ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  throw new Error('no backend is waiting for a lock');
+}
+
 async function withFailingLog(action: string, run: () => Promise<unknown>): Promise<unknown> {
   await connection.pool.query(`
     create function public.b4a_forced_failure() returns trigger language plpgsql
@@ -495,6 +508,106 @@ describe('updateExpense', () => {
     expect(await logRows(w.groupId, 'expense_updated')).toHaveLength(0);
   });
 
+  it('answers 404 when the acting member left and nothing is written (actor not active)', async () => {
+    const w = await newWorld();
+    const { saved, before } = await stored(w, expenseOf(w));
+    await connection.pool.query('update group_members set left_at = now() where id = $1', [
+      w.beaMember,
+    ]);
+    // Bea's balance does not move, so only the actor check can reject this edit.
+    const sameShares = updateOf(w, saved.id, before, {
+      amount: 3_000_000n,
+      shares: shares([
+        [w.anaMember, 1_000_000n],
+        [w.beaMember, 1_000_000n],
+        [w.ghost, 1_000_000n],
+      ]),
+    });
+
+    await expect(
+      repository.updateExpense({
+        ...sameShares,
+        activity: { ...sameShares.activity, memberId: w.beaMember },
+      }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+
+    expect(await repository.getExpense(w.groupId, saved.id)).toEqual(saved);
+    expect(await logRows(w.groupId, 'expense_updated')).toHaveLength(0);
+  });
+
+  it('fails loudly and writes nothing when a movement hangs from an expense paid by a ghost (error)', async () => {
+    const w = await newWorld();
+    const { saved, before } = await stored(w, expenseOf(w, { payerMemberId: w.ghost }));
+    const movement = await connection.pool.query<{ id: string }>(
+      `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source, rate_type)
+       values ($1, 'expense', $2, $3, 777, now(), 13000000, 'automatic', 'mep') returning id`,
+      [w.ana, w.accountId, w.personalCategoryId],
+    );
+    await connection.pool.query('update group_expenses set payer_movement_id = $1 where id = $2', [
+      movement.rows[0]?.id,
+      saved.id,
+    ]);
+    const corrupt = await repository.getExpense(w.groupId, saved.id);
+
+    const failure: unknown = await repository
+      .updateExpense(updateOf(w, saved.id, { ...before, payerMemberId: w.ghost }))
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(AppError);
+    expect(failure).not.toBeInstanceOf(ResourceNotFound);
+    expect((failure as Error).message).toContain('has no user');
+    expect(await repository.getExpense(w.groupId, saved.id)).toEqual(corrupt);
+    expect(await logRows(w.groupId, 'expense_updated')).toHaveLength(0);
+    expect(await count('movements')).toBe(1);
+  });
+
+  it.each(['update', 'delete'] as const)(
+    'does not deadlock with the payer deleting the movement meanwhile (%s, no 500)',
+    async (kind) => {
+      const w = await newWorld();
+      const { saved, before } = await stored(w, expenseOf(w, { payerMovement: movementOf(w) }));
+      const holder = await connection.pool.connect();
+      let settled: Promise<unknown> | undefined;
+      try {
+        // The payer's own deletion holds the movement row; the expense change meets it first.
+        await holder.query('begin');
+        await holder.query('select id from movements where id = $1 for update', [
+          saved.payerMovementId,
+        ]);
+        settled = (
+          kind === 'update'
+            ? repository.updateExpense(updateOf(w, saved.id, before))
+            : repository.deleteExpense(deleteOf(w, saved.id, before))
+        ).then(
+          () => null,
+          (error: unknown) => error,
+        );
+        await waitForBlockedBackend();
+        // `on delete set null` now needs the expense row, which the change must not hold yet.
+        await holder.query('delete from movements where id = $1', [saved.payerMovementId]);
+        await holder.query('commit');
+      } catch (error) {
+        await holder.query('rollback');
+        throw error;
+      } finally {
+        holder.release();
+      }
+
+      expect(await settled).toBeNull();
+      expect(await count('movements')).toBe(0);
+      const row = await repository.getExpense(w.groupId, saved.id);
+      if (kind === 'update') {
+        expect(row?.description).toBe('Verduleria');
+        expect(row?.payerMovementId).toBeNull();
+        expect(await logRows(w.groupId, 'expense_updated')).toHaveLength(1);
+      } else {
+        expect(row).toBeNull();
+        expect(await logRows(w.groupId, 'expense_deleted')).toHaveLength(1);
+      }
+    },
+  );
+
   it('serialises two concurrent edits of one expense and chains their before values', async () => {
     const w = await newWorld();
     const { saved, before } = await stored(w, expenseOf(w));
@@ -536,6 +649,63 @@ describe('deleteExpense', () => {
     expect(row).toMatchObject({ member_id: w.anaMember, subject_id: saved.id, after: null });
     expect(row?.before).toEqual(before);
     expect(row?.created_at.toISOString()).toBe(LATER.toISOString());
+  });
+
+  it('logs the stored before even when a forged before is sent (delete)', async () => {
+    const w = await newWorld();
+    const { saved, before } = await stored(w, expenseOf(w));
+
+    await repository.deleteExpense(
+      deleteOf(w, saved.id, { ...before, description: 'forged', amount: '1' }),
+    );
+
+    const [row] = await logRows(w.groupId, 'expense_deleted');
+    expect(row?.before).toEqual(before);
+  });
+
+  it('answers 404 when the acting member left and keeps the expense (actor not active)', async () => {
+    const w = await newWorld();
+    const { saved, before } = await stored(
+      w,
+      expenseOf(w, { shares: shares([[w.anaMember, 3_000_000n]]) }),
+    );
+    await connection.pool.query('update group_members set left_at = now() where id = $1', [
+      w.beaMember,
+    ]);
+    const data = deleteOf(w, saved.id, before);
+
+    await expect(
+      repository.deleteExpense({ ...data, activity: { ...data.activity, memberId: w.beaMember } }),
+    ).rejects.toBeInstanceOf(ResourceNotFound);
+
+    expect(await repository.getExpense(w.groupId, saved.id)).toEqual(saved);
+    expect(await logRows(w.groupId, 'expense_deleted')).toHaveLength(0);
+  });
+
+  it('fails loudly and keeps the expense when a movement hangs from an expense paid by a ghost (error)', async () => {
+    const w = await newWorld();
+    const { saved, before } = await stored(w, expenseOf(w, { payerMemberId: w.ghost }));
+    const movement = await connection.pool.query<{ id: string }>(
+      `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source, rate_type)
+       values ($1, 'expense', $2, $3, 777, now(), 13000000, 'automatic', 'mep') returning id`,
+      [w.ana, w.accountId, w.personalCategoryId],
+    );
+    await connection.pool.query('update group_expenses set payer_movement_id = $1 where id = $2', [
+      movement.rows[0]?.id,
+      saved.id,
+    ]);
+    const corrupt = await repository.getExpense(w.groupId, saved.id);
+
+    const failure: unknown = await repository
+      .deleteExpense(deleteOf(w, saved.id, { ...before, payerMemberId: w.ghost }))
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(failure).not.toBeInstanceOf(AppError);
+    expect((failure as Error).message).toContain('has no user');
+    expect(await repository.getExpense(w.groupId, saved.id)).toEqual(corrupt);
+    expect(await logRows(w.groupId, 'expense_deleted')).toHaveLength(0);
+    expect(await count('movements')).toBe(1);
   });
 
   it('touches no movement when payer_movement_id is null', async () => {

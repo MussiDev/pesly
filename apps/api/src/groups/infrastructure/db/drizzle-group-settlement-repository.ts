@@ -241,8 +241,11 @@ async function lockAndLoad(
   tx: GroupTx,
   groupId: string,
   settlementId: string,
+  actorMemberId: string,
 ): Promise<GroupSettlement> {
   await lockGroup(tx, groupId, 'update');
+  // The acting member must still be active, or the answer is 404 like a non-member.
+  if (!(await allActiveMembers(tx, groupId, [actorMemberId]))) throw new ResourceNotFound();
   const stored = await readSettlement(tx, groupId, settlementId);
   if (stored === null) throw new ResourceNotFound();
   return stored;
@@ -341,19 +344,28 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
   async updateSettlement(data: UpdateGroupSettlementData): Promise<GroupSettlement> {
     try {
       return await this.db.transaction(async (tx) => {
-        const stored = await lockAndLoad(tx, data.groupId, data.settlementId);
+        const stored = await lockAndLoad(
+          tx,
+          data.groupId,
+          data.settlementId,
+          data.activity.memberId,
+        );
         if (isConsolidated(stored)) throw new GroupSettlementConsolidated();
+        // What the request did not name is what the lock just read, never an earlier read.
+        const amount = data.amount ?? stored.amount;
+        const occurredAt = data.occurredAt ?? stored.occurredAt;
+        const newLegs = [{ currency: stored.currency, amount }];
         const changed = settlementChangedMembers(effectOf(stored), {
           fromMemberId: stored.fromMemberId,
           toMemberId: stored.toMemberId,
-          legs: data.legs,
+          legs: newLegs,
         });
         if (!(await allActiveMembers(tx, data.groupId, changed))) {
           throw new GroupRecordFormerMember();
         }
         const [row] = await tx
           .update(groupSettlements)
-          .set({ amount: data.amount, occurredAt: data.occurredAt })
+          .set({ amount, occurredAt })
           .where(
             and(
               eq(groupSettlements.id, data.settlementId),
@@ -363,7 +375,7 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
           .returning(settlementColumns);
         if (!row) throw new Error('Updating a group settlement returned no row');
         await tx.delete(groupSettlementLegs).where(eq(groupSettlementLegs.settlementId, row.id));
-        const legs = data.legs.map((leg) => ({ ...leg })).sort(byCurrency);
+        const legs = newLegs;
         await tx.insert(groupSettlementLegs).values(
           legs.map((leg) => ({
             settlementId: row.id,
@@ -372,7 +384,8 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
             amount: leg.amount,
           })),
         );
-        // `before` is rebuilt from the row read under lock, not trusted from the caller (spec D4).
+        // `before` and `after` are rebuilt from the row read under lock, not trusted from the
+        // caller (spec D4).
         await tx.insert(groupActivityLog).values({
           groupId: data.groupId,
           memberId: data.activity.memberId,
@@ -380,7 +393,7 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
           subjectId: row.id,
           createdAt: data.activity.createdAt,
           before: settlementSnapshot(stored),
-          after: data.activity.after,
+          after: settlementSnapshot({ ...stored, amount, occurredAt, legs }),
         });
         return toSettlement(row, legs);
       });
@@ -392,7 +405,12 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
   async deleteSettlement(data: DeleteGroupSettlementData): Promise<void> {
     try {
       await this.db.transaction(async (tx) => {
-        const stored = await lockAndLoad(tx, data.groupId, data.settlementId);
+        const stored = await lockAndLoad(
+          tx,
+          data.groupId,
+          data.settlementId,
+          data.activity.memberId,
+        );
         const changed = settlementChangedMembers(effectOf(stored), null);
         if (!(await allActiveMembers(tx, data.groupId, changed))) {
           throw new GroupRecordFormerMember();
