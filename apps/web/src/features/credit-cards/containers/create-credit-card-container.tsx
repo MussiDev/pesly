@@ -1,6 +1,11 @@
 'use client';
 
-import { CARD_NAME_MAX_LENGTH, cardNameSchema, type CreateCreditCardRequest } from '@pesly/shared';
+import {
+  CARD_NAME_MAX_LENGTH,
+  CARD_REMINDER_DAYS_DEFAULT,
+  cardNameSchema,
+  type CreateCreditCardRequest,
+} from '@pesly/shared';
 import { useState } from 'react';
 import { nameErrorMessage } from '@/features/accounts/account-form-errors';
 import { useRouter } from '@/i18n/navigation';
@@ -24,9 +29,11 @@ function validate(
   if (closingDay === null) fields.closingDay = 'creditCards.errors.dayInvalid';
   const dueDay = parseDay(values.dueDay);
   if (dueDay === null) fields.dueDay = 'creditCards.errors.dayInvalid';
-  // An empty field is the default, as the form starts at 3 and clearing it is not an error here.
+  // An empty field is the default: the form starts there and clearing it is not an error here.
   const reminderDays =
-    values.reminderDays.trim() === '' ? 3 : parseReminderDays(values.reminderDays);
+    values.reminderDays.trim() === ''
+      ? CARD_REMINDER_DAYS_DEFAULT
+      : parseReminderDays(values.reminderDays);
   if (reminderDays === null) fields.reminderDays = 'creditCards.errors.reminderDaysInvalid';
   if (!name.success || closingDay === null || dueDay === null || reminderDays === null) {
     return { fields };

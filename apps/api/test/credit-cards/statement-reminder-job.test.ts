@@ -93,6 +93,7 @@ async function scenario(
     language?: 'es' | 'en';
     amount?: bigint;
     reminderDays?: number;
+    purchases?: boolean;
   } = {},
 ) {
   const amount = options.amount ?? 4_000_000n;
@@ -116,11 +117,13 @@ async function scenario(
     firstStatement: { period: '2026-10', closingDate: '2026-10-24', dueDate: '2026-11-05' },
   });
   const categoryId = await newCategory(connection.pool, ownerId, 'expense');
-  await connection.pool.query(
-    `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source)
+  if (options.purchases !== false) {
+    await connection.pool.query(
+      `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source)
      values ($1, 'expense', $2, $3, $4, '2026-10-10T15:00:00Z', 14000000, 'manual')`,
-    [ownerId, card.arsAccountId, categoryId, amount.toString()],
-  );
+      [ownerId, card.arsAccountId, categoryId, amount.toString()],
+    );
+  }
   return { ownerId, card, cards, scope, amount };
 }
 
@@ -469,7 +472,7 @@ describe('createStatementReminderJob', () => {
     expect(await noticesOf(ownerId)).toHaveLength(0);
   });
 
-  it('a statement already paid creates nothing (AC-03)', async () => {
+  it('a statement already paid creates nothing (AC-04)', async () => {
     const { ownerId, card, amount } = await scenario();
     const bank = await newAccount(connection.pool, ownerId);
     await newTransfer(connection.pool, {
@@ -485,6 +488,19 @@ describe('createStatementReminderJob', () => {
 
     expect(summary.notOwed).toBeGreaterThanOrEqual(1);
     expect(await noticesOf(ownerId)).toHaveLength(0);
+  });
+
+  it('a statement with no total creates no notice while another card statement does (FR-01)', async () => {
+    const empty = await scenario({ purchases: false });
+    const owing = await scenario();
+
+    const summary = await createStatementReminderJob(
+      dependenciesFor(new MutableClock(new Date(CORDOBA_0910))).deps,
+    ).runOnce();
+
+    expect(summary.notOwed).toBeGreaterThanOrEqual(1);
+    expect(await noticesOf(empty.ownerId)).toHaveLength(0);
+    expect(await noticesOf(owing.ownerId)).toHaveLength(1);
   });
 
   it('each owner gets only the notice of their own card (cross-user)', async () => {

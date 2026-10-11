@@ -1,6 +1,11 @@
 'use client';
 
-import { CARD_NAME_MAX_LENGTH } from '@pesly/shared';
+import {
+  CARD_NAME_MAX_LENGTH,
+  CARD_REMINDER_DAYS_DEFAULT,
+  CARD_REMINDER_DAYS_MAX,
+  CARD_REMINDER_DAYS_MIN,
+} from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -23,7 +28,7 @@ export interface CreditCardFormValues {
 }
 
 /** Days before the due date the reminder is sent unless the user changes it. */
-const DEFAULT_REMINDER_DAYS = '3';
+const DEFAULT_REMINDER_DAYS = String(CARD_REMINDER_DAYS_DEFAULT);
 
 interface CreditCardFormProps {
   pending: boolean;
@@ -102,8 +107,8 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
         <FormControl
           type="number"
           inputMode="numeric"
-          min={0}
-          max={30}
+          min={CARD_REMINDER_DAYS_MIN}
+          max={CARD_REMINDER_DAYS_MAX}
           {...field('reminderDays')}
         />
         <FormDescription>{t('creditCards.form.reminderDaysHint')}</FormDescription>

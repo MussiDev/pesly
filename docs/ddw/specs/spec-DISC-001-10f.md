@@ -423,6 +423,7 @@ Not applicable: the factory takes values from the composition root; `intervalSec
 **Files**
 - `apps/api/src/worker.ts` (modified) — builds, starts and stops the statement reminder job beside the others.
 - `apps/api/src/shared/config/env.ts` (modified, comment only) — the interval variable also paces the statement reminder job.
+- `eslint.config.mjs` (modified) — `NOTICES_IMPORTS` restriction for the credit-cards domain and application.
 - `apps/api/test/credit-cards/statement-reminder-worker.test.ts` (new) — start and stop of the factory output and the source guards.
 - `apps/api/test/foundation/architecture-boundaries.test.ts` (modified) — a case for the notices adapter importing credit-cards types.
 
@@ -544,10 +545,10 @@ Not applicable: the flows type the card fields, the reminder days and the expens
 
 **Required tests**
 - [ ] the flow creates a card with 7 reminder days, makes its statement due soon, and after a worker pass the notices page shows one unread reminder with the card name and no amount — validates AC-01, AC-02, AC-08
-- [ ] the flow with a card that has no total records no notice while the other card's notice appears, and a later pass leaves exactly one notice — validates AC-06
+- [ ] the flow with a card that has no total records no notice while the other card's notice appears, and a later pass leaves exactly one notice — validates FR-03, AC-06
 - [ ] the flow with a statement fully paid before its reminder day creates no notice (sad path, no data) — validates AC-04
 - [ ] a reminder-days value of 31 on the card page shows the field error and keeps the saved value (sad path invalid input) — validates AC-03
-- [ ] deleting a card with a due statement before the next pass leaves no new notice for it — validates AC-09
+- [ ] deleting a card with a due statement before the next pass leaves no new notice for it (smoke check: a deletable card never owes a total, so AC-09 is proven by the job integration test `a deleted card creates nothing`, and this flow only shows that the notices of other cards are kept) — validates AC-09
 - [ ] the new files contain no `Number(`, `parseFloat`, `toFixed` or `Math.round`, and the guard reports an error for a planted forbidden token — validates NFR-02
 
 **Completion criterion**

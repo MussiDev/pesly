@@ -341,6 +341,48 @@ describe('PATCH /credit-cards/:id', () => {
     expect(s.lines.join('\n')).not.toContain('reminderDays');
   });
 
+  it('audits a reminder change with request id, user id and card id, never the card name (FR-02)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana, {
+      name: 'Secret Galicia',
+      closingDay: 24,
+      dueDay: 5,
+    });
+    s.lines.length = 0;
+
+    const response = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.ana, {
+      reminderDays: 7,
+    });
+
+    expect(response.status).toBe(200);
+    const audit = s.lines
+      .map((line) => JSON.parse(line) as Record<string, unknown>)
+      .filter((line) => line.msg === 'credit card days changed');
+    expect(audit).toHaveLength(1);
+    expect(audit[0]).toMatchObject({ userId: s.anaId, cardId: card.id });
+    expect(typeof audit[0]?.requestId).toBe('string');
+    expect(audit[0]?.requestId).not.toBe('');
+    expect(s.lines.join('\n')).not.toContain('Secret Galicia');
+  });
+
+  it('answers 401 without a session and 403 before the email is verified on a reminder change (sad path)', async () => {
+    const s = await setup();
+    const card = await createVisa(s.app, s.ana);
+
+    const anonymous = await call(s.app, 'patch', `/credit-cards/${card.id}`, undefined, {
+      reminderDays: 7,
+    });
+    const unverified = await call(s.app, 'patch', `/credit-cards/${card.id}`, s.eve, {
+      reminderDays: 7,
+    });
+
+    expect(anonymous.status).toBe(401);
+    expect(unverified.status).toBe(403);
+    expect((await call(s.app, 'get', `/credit-cards/${card.id}`, s.ana)).body).toMatchObject({
+      reminderDays: 3,
+    });
+  });
+
   it.each([-1, 31, 2.5, '3', null])(
     'answers 400 for reminderDays %j and stores nothing (invalid input, FR-02)',
     async (reminderDays) => {

@@ -157,7 +157,7 @@ test('creates a card with 7 reminder days and after a worker pass the notices pa
   for (const token of AMOUNT_TOKENS) await expect(notice).not.toContainText(token);
 });
 
-test('a card with no total records no notice while the other card notice appears, and later passes leave exactly one (AC-06)', async ({
+test('a card with no total records no notice while the other card notice appears, and later passes leave exactly one (FR-03, AC-06)', async ({
   page,
 }) => {
   const email = await signedInUser(page, 'card-reminder-empty');
@@ -214,10 +214,12 @@ test('31 reminder days on the card page show the field error and keep the saved 
   await expect(page.getByLabel(t.detail.reminderDays, { exact: true })).toHaveValue('7');
 });
 
-test('deleting a card with a due statement leaves no new notice for it (AC-09)', async ({
+test('smoke: deleting a card with a due statement keeps the notices of other cards; the real AC-09 proof is statement-reminder-job.test.ts', async ({
   page,
 }) => {
   const email = await signedInUser(page, 'card-reminder-deleted');
+  // Smoke check only: a deletable card never owes a total, so it could not have a notice anyway.
+  // The AC-09 proof (an owing card removed from the source creates nothing) is the job test.
   // A card with purchases or movements cannot be deleted (CARD_HAS_MOVEMENTS), so the deletable
   // card has a statement due soon and no total. The control card has a due statement with a total
   // and keeps its notice: it proves the worker ran passes after the deletion.

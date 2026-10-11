@@ -1,6 +1,10 @@
 'use client';
 
-import type { CreditCardResponse } from '@pesly/shared';
+import {
+  CARD_REMINDER_DAYS_MAX,
+  CARD_REMINDER_DAYS_MIN,
+  type CreditCardResponse,
+} from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useState, type SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -76,8 +80,8 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
         <FormControl
           type="number"
           inputMode="numeric"
-          min={0}
-          max={30}
+          min={CARD_REMINDER_DAYS_MIN}
+          max={CARD_REMINDER_DAYS_MAX}
           value={values.reminderDays}
           onChange={(event) => {
             setValues((current) => ({ ...current, reminderDays: event.target.value }));

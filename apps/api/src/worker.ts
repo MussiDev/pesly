@@ -27,9 +27,9 @@ import { createShutdown } from './shared/process/graceful-shutdown';
  * Worker process: delivers the PostgreSQL outbox through the transport named by EMAIL_PROVIDER and
  * refreshes the exchange rates through the provider named by RATE_PROVIDER, refreshes crypto prices
  * through the one named by PRICE_PROVIDER and takes the daily portfolio snapshots, records the
- * recurring payments that are due and the automatic debits of credit card statements and the statement due-date reminders. Run as many
- * as needed; row locks keep them from sending an email twice and the refresh claims keep each
- * provider to one call per hour.
+ * recurring payments that are due, the automatic debits of credit card statements and the
+ * statement due-date reminders. Run as many as needed; row locks keep them from sending an email
+ * twice and the refresh claims keep each provider to one call per hour.
  */
 const env = parseWorkerEnv(process.env);
 const logger = createLogger({ level: env.LOG_LEVEL });

@@ -315,7 +315,7 @@ describe('CreditCardDetailContainer', () => {
       ).toHaveLength(1);
     });
 
-    it('saving without a change sends no request (FR-02)', async () => {
+    it('saving without a change sends no request and keeps the form as it was (FR-02)', async () => {
       const { calls } = stubApi(loaded());
       renderApp(<CreditCardDetailContainer cardId={ID} />, { locale: 'en' });
       const user = userEvent.setup();
@@ -324,6 +324,9 @@ describe('CreditCardDetailContainer', () => {
       await save(user);
 
       expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+      const field = screen.getByLabelText(en.creditCards.detail.reminderDays);
+      expect(field).toHaveProperty('value', '3');
+      expect(field.getAttribute('aria-invalid')).not.toBe('true');
     });
 
     it.each(['-1', '31', '2.5', ''])(

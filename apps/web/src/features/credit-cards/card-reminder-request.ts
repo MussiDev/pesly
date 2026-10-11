@@ -8,7 +8,7 @@ export interface CardSettings {
 }
 
 /**
- * Whole days from 0 to 30 typed in a numeric field, or `null`. An empty text is `null` too: the
+ * Whole days within the shared reminder range typed in a numeric field, or `null`. An empty text is `null` too: the
  * create form turns it into the default before calling, the edit form shows a field error.
  */
 export function parseReminderDays(text: string): number | null {
