@@ -5,6 +5,7 @@ import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
 const TAG = '0034_budgets';
+const NEWER_TAG = '0035_group_expense_payer_movement_idx';
 const MAIN_MAX_WHEN = 1791760600000;
 const TABLES = [
   'budgets',
@@ -78,12 +79,14 @@ describe('0034_budgets migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
+    // 0035 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await existingTables()).toEqual([]);
     expect(await publicTableCount()).toBe(tablesBefore - 4);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
 
     await runMigrations(throwawayUrl);
 
@@ -92,6 +95,8 @@ describe('0034_budgets migration', () => {
   });
 
   it('applies on top of the previous schema when it already holds data', async () => {
+    // 0035 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(
       `insert into users (email, password_hash, time_zone, language) values ('keep@budgets.test', 'h', 'UTC', 'es')`,
@@ -115,14 +120,21 @@ describe('0034_budgets migration', () => {
     expect(script).toContain(`"created_at" = ${own?.when}`);
   });
 
-  it('has the journal entry with the greatest when, above main, chained to the previous one', async () => {
+  it('has the journal entry with the greatest when up to its idx, above main, chained to the previous one', async () => {
     const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
       entries: { idx: number; when: number; tag: string }[];
     };
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
     expect(own?.when).toBeGreaterThan(MAIN_MAX_WHEN);
-    expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
+    // Newer migrations (0035) come after it, so it is the greatest among its own and the older ones.
+    expect(own?.when).toBe(
+      Math.max(
+        ...journal.entries
+          .filter((entry) => entry.idx <= (own?.idx ?? 0))
+          .map((entry) => entry.when),
+      ),
+    );
     const snapshots = JSON.parse(
       await fileOf(`meta/${String(own?.idx).padStart(4, '0')}_snapshot.json`),
     ) as { prevId: string };

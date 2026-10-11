@@ -149,6 +149,7 @@ const insertClaim = (
 describe('0029_card_automatic_debit migration', () => {
   it('leaves existing cards with no automatic debit when applied after a rollback (AC-01)', async () => {
     // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
     await client.query(await fileOf('rollback/0034_budgets.down.sql'));
     await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
@@ -318,6 +319,7 @@ describe('0029_card_automatic_debit migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
     await client.query(await fileOf('rollback/0034_budgets.down.sql'));
     await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf('rollback/0032_card_statement_reminders.down.sql'));
@@ -330,7 +332,7 @@ describe('0029_card_automatic_debit migration', () => {
       before.filter((name) => !NEW_COLUMNS.includes(name) && name !== 'reminder_days'),
     );
     expect(await claimTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 6);
+    expect(await appliedMigrations()).toBe(countBefore - 7);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await cardColumns()).toEqual(before);

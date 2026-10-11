@@ -2,6 +2,9 @@ import {
   budgetIdParamsSchema,
   budgetListResponseSchema,
   budgetResponseSchema,
+  budgetSpendingListResponseSchema,
+  budgetSpendingQuerySchema,
+  budgetSpendingResponseSchema,
   createBudgetRequestSchema,
   updateBudgetRequestSchema,
 } from '@pesly/shared';
@@ -23,14 +26,21 @@ import type { Logger } from '../../../shared/logging/logger';
 import { CreateBudget } from '../../application/create-budget';
 import { DeleteBudget } from '../../application/delete-budget';
 import { GetBudget } from '../../application/get-budget';
+import { GetBudgetSpending } from '../../application/get-budget-spending';
+import { ListBudgetSpending } from '../../application/list-budget-spending';
 import { ListBudgets } from '../../application/list-budgets';
+import type { BudgetVersionReader } from '../../application/ports/budget-version-reader';
 import type { Clock } from '../../application/ports/clock';
+import type { SpendingReader } from '../../application/ports/spending-reader';
 import { UpdateBudget } from '../../application/update-budget';
 import { SystemClock } from '../clock/system-clock';
 import { DrizzleBudgetRepository } from '../db/drizzle-budget-repository';
+import { DrizzleBudgetVersionReader } from '../db/drizzle-budget-version-reader';
 import { DrizzleCategoryReader } from '../db/drizzle-category-reader';
+import { DrizzleSpendingReader } from '../db/drizzle-spending-reader';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
 import { presentBudget } from './budget-presenter';
+import { presentBudgetSpending } from './spending-presenter';
 
 export interface BudgetRoutesOptions {
   db: Database;
@@ -38,6 +48,9 @@ export interface BudgetRoutesOptions {
   logger: Logger;
   /** Defaults to the system clock; tests inject one to move "this month". */
   clock?: Clock;
+  /** Default to the SQL readers; tests inject fakes. */
+  versionReader?: BudgetVersionReader;
+  spendingReader?: SpendingReader;
 }
 
 function scopeOf<A extends AccessAction>(
@@ -55,6 +68,8 @@ export function createBudgetRoutes({
   db,
   logger,
   clock = new SystemClock(),
+  versionReader = new DrizzleBudgetVersionReader(db),
+  spendingReader = new DrizzleSpendingReader(db),
 }: BudgetRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
   const deps = {
@@ -68,6 +83,14 @@ export function createBudgetRoutes({
   const get = new GetBudget(deps);
   const update = new UpdateBudget(deps);
   const remove = new DeleteBudget(deps);
+  const spendingDeps = {
+    clock,
+    timeZones: deps.timeZones,
+    versions: versionReader,
+    spending: spendingReader,
+  };
+  const listSpending = new ListBudgetSpending(spendingDeps);
+  const getSpending = new GetBudgetSpending(spendingDeps);
 
   // Audit lines carry ids only: never the budget name or any amount.
   const audit = (
@@ -102,6 +125,37 @@ export function createBudgetRoutes({
         const scope = await scopeOf(policy, auth, 'read');
         res.json((await list.execute(scope)).map(presentBudget));
       }),
+    );
+
+    // Registered before `/budgets/:id` so "spending" is never read as an id.
+    router.get(
+      '/budgets/spending',
+      validate(
+        { query: budgetSpendingQuerySchema, response: budgetSpendingListResponseSchema },
+        async ({ query }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          const result = await listSpending.execute(scope, query.month);
+          logger.info({ requestId, userId: auth?.userId }, 'budget spending listed');
+          res.json({ month: result.month, budgets: result.budgets.map(presentBudgetSpending) });
+        },
+      ),
+    );
+
+    router.get(
+      '/budgets/:id/spending',
+      validate(
+        {
+          params: budgetIdParamsSchema,
+          query: budgetSpendingQuerySchema,
+          response: budgetSpendingResponseSchema,
+        },
+        async ({ params, query }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          const spending = await getSpending.execute(scope, params.id, query.month);
+          audit('budget spending read', requestId, auth, params.id);
+          res.json(presentBudgetSpending(spending));
+        },
+      ),
     );
 
     router.get(

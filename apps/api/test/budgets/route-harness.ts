@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import request from 'supertest';
-import { createBudgetRoutes } from '../../src/budgets';
+import { createBudgetRoutes, type BudgetRoutesOptions } from '../../src/budgets';
 import { createCategoryRoutes } from '../../src/categories';
 import type { DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -34,7 +34,10 @@ export interface Owner {
 export function buildApp(
   connection: DatabaseConnection,
   clock: MovableClock = new MovableClock(),
-  options: { withCategoryRoutes?: boolean } = {},
+  options: {
+    withCategoryRoutes?: boolean;
+    readers?: Pick<BudgetRoutesOptions, 'versionReader' | 'spendingReader'>;
+  } = {},
 ) {
   const lines: string[] = [];
   const logger = createLogger({
@@ -44,7 +47,7 @@ export function buildApp(
   const harness = createIdentityHarness(connection, {
     realSessions: true,
     routerFactories: [
-      createBudgetRoutes({ db: connection.db, logger, clock }),
+      createBudgetRoutes({ db: connection.db, logger, clock, ...options.readers }),
       ...(options.withCategoryRoutes ? [createCategoryRoutes({ db: connection.db, logger })] : []),
     ],
   });

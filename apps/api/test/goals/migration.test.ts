@@ -198,14 +198,15 @@ describe('0033_savings_goals migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
-    // 0034 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0035 and 0034 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
     await client.query(await fileOf('rollback/0034_budgets.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await goalTables()).toEqual([]);
     expect(await publicTableCount()).toBe(tablesBefore - GOAL_TABLES.length - 4);
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     expect(await countOf('select count(*) as n from users where id = $1', [owner])).toBe(1);
 
     await runMigrations(throwawayUrl);
