@@ -12,3 +12,4 @@ export * from './application/list-budgets';
 export * from './application/get-budget';
 export * from './application/update-budget';
 export * from './application/delete-budget';
+export * from './infrastructure/http/budget-routes';

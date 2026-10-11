@@ -1,5 +1,6 @@
 import { createAccountRoutes } from './accounts';
 import { createApp } from './app';
+import { createBudgetRoutes } from './budgets';
 import { createCategoryRoutes, seedDefaultCategories } from './categories';
 import {
   createCardAccountLinks,
@@ -67,6 +68,7 @@ const app = createApp({
       movements: createAccountMovements(db),
       links: createCardAccountLinks(db),
     }),
+    createBudgetRoutes({ db, logger }),
     createCategoryRoutes({ db, logger, usage: categoryUsage }),
     createCreditCardRoutes({
       db,
