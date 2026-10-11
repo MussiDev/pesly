@@ -96,7 +96,13 @@ describe('notices schema introspection (NFR-04)', () => {
 
     expect(result.rows).toHaveLength(1);
     const definition = result.rows[0]?.definition ?? '';
-    for (const kind of ['reminder', 'recorded', 'not_recorded', 'card_statement_due']) {
+    for (const kind of [
+      'reminder',
+      'recorded',
+      'not_recorded',
+      'card_statement_due',
+      'budget_alert',
+    ]) {
       expect(definition).toContain(`'${kind}'`);
     }
   });

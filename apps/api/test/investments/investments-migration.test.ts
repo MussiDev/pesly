@@ -50,6 +50,7 @@ const LATER_MIGRATIONS = [
   '0033_savings_goals',
   '0034_budgets',
   '0035_group_expense_payer_movement_idx',
+  '0036_budget_alert_marks',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -89,6 +90,7 @@ const LATER_TABLES = [
   'groups',
   'goal_entries',
   'goals',
+  'budget_alert_marks',
   'budget_version_categories',
   'budget_version_thresholds',
   'budget_versions',

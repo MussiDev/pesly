@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
+const NEWER_WHEN = 1791800000000;
 const TAG = '0035_group_expense_payer_movement_idx';
 const INDEX = 'group_expenses_payer_movement_idx';
 const PREVIOUS_MAX_WHEN = 1791780000000;
@@ -79,6 +80,8 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
   });
 
   it('is reverted by its idempotent rollback, which removes only the index and its journal row, and re-applies', async () => {
+    // 0036 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
     const indexesBefore = await publicIndexNames();
     const tablesBefore = await publicTableCount();
     const whensBefore = await appliedWhens();
@@ -94,10 +97,11 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
     await runMigrations(throwawayUrl);
 
     expect(await indexDefinition()).toBeDefined();
-    expect(await appliedWhens()).toEqual(whensBefore);
+    expect(await appliedWhens()).toEqual([...whensBefore, NEWER_WHEN]);
   });
 
   it('applies on top of the previous schema when it already holds group data', async () => {
+    await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const user = await client.query<{ id: string }>(
       `insert into users (email, password_hash, time_zone, language) values ('keep@spending.test', 'h', 'UTC', 'es') returning id`,
@@ -149,7 +153,13 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
     expect(own?.idx).toBe(35);
     expect(own?.when).toBe(1791790000000);
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
-    expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
+    expect(own?.when).toBe(
+      Math.max(
+        ...journal.entries
+          .filter((entry) => entry.idx <= (own?.idx ?? 0))
+          .map((entry) => entry.when),
+      ),
+    );
     const snapshot = JSON.parse(await fileOf('meta/0035_snapshot.json')) as { prevId: string };
     const previousSnapshot = JSON.parse(await fileOf('meta/0034_snapshot.json')) as { id: string };
     expect(snapshot.prevId).toBe(previousSnapshot.id);

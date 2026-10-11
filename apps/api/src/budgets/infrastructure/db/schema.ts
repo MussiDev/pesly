@@ -124,3 +124,34 @@ export const budgetVersionThresholds = pgTable(
     check('budget_version_thresholds_percent_check', sql`${table.percent} between 1 and 200`),
   ],
 );
+
+/**
+ * Which threshold of which budget alerted in which month (DISC-001-06d). The unique key makes the
+ * alert fire once; the composite key to `budgets` keeps a mark from pointing at another owner's budget.
+ */
+export const budgetAlertMarks = pgTable(
+  'budget_alert_marks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    budgetId: uuid('budget_id').notNull(),
+    ownerId: uuid('owner_id').notNull(),
+    /** The first day of the month. */
+    month: date('month', { mode: 'string' }).notNull(),
+    threshold: smallint('threshold').notNull(),
+    createdAt: timestamptz('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    foreignKey({
+      name: 'budget_alert_marks_budget_owner_fk',
+      columns: [table.budgetId, table.ownerId],
+      foreignColumns: [budgets.id, budgets.ownerId],
+    }).onDelete('cascade'),
+    unique('budget_alert_marks_budget_month_threshold_unique').on(
+      table.budgetId,
+      table.month,
+      table.threshold,
+    ),
+    check('budget_alert_marks_threshold_check', sql`${table.threshold} between 1 and 200`),
+    check('budget_alert_marks_month_check', sql`extract(day from ${table.month}) = 1`),
+  ],
+);

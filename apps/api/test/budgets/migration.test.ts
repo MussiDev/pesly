@@ -79,14 +79,15 @@ describe('0034_budgets migration', () => {
     const tablesBefore = await publicTableCount();
     const countBefore = await appliedMigrations();
 
-    // 0035 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0036 and 0035 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
     await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await existingTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - 4);
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await publicTableCount()).toBe(tablesBefore - 5);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
 
     await runMigrations(throwawayUrl);
 
@@ -95,7 +96,8 @@ describe('0034_budgets migration', () => {
   });
 
   it('applies on top of the previous schema when it already holds data', async () => {
-    // 0035 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0036 and 0035 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
     await client.query(await fileOf(`rollback/${NEWER_TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(
@@ -127,7 +129,7 @@ describe('0034_budgets migration', () => {
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
     expect(own?.when).toBeGreaterThan(MAIN_MAX_WHEN);
-    // Newer migrations (0035) come after it, so it is the greatest among its own and the older ones.
+    // Newer migrations (0035, 0036) come after it, so it is the greatest among its own and the older ones.
     expect(own?.when).toBe(
       Math.max(
         ...journal.entries

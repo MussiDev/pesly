@@ -246,6 +246,13 @@
       "when": 1791790000000,
       "tag": "0035_group_expense_payer_movement_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791800000000,
+      "tag": "0036_budget_alert_marks",
+      "breakpoints": true
     }
   ]
 }
