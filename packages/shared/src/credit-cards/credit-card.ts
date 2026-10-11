@@ -33,24 +33,37 @@ export const STATEMENT_STATUSES = ['open', 'closed'] as const;
 export const statementStatusSchema = z.enum(STATEMENT_STATUSES);
 export type StatementStatus = z.infer<typeof statementStatusSchema>;
 
+/** Days before a statement's due date to remind the user; 0 means on the due date itself. */
+export const CARD_REMINDER_DAYS_MIN = 0;
+export const CARD_REMINDER_DAYS_MAX = 30;
+export const CARD_REMINDER_DAYS_DEFAULT = 3;
+
+export const cardReminderDaysSchema = z
+  .number()
+  .int()
+  .min(CARD_REMINDER_DAYS_MIN)
+  .max(CARD_REMINDER_DAYS_MAX);
+
 const atLeastOne = (value: object): boolean => Object.keys(value).length > 0;
 
-/** `POST /credit-cards`. */
+/** `POST /credit-cards`. An absent `reminderDays` means the default, applied by the server. */
 export const createCreditCardRequestSchema = z.strictObject({
   name: cardNameSchema,
   closingDay: dayOfMonthSchema,
   dueDay: dayOfMonthSchema,
+  reminderDays: cardReminderDaysSchema.optional(),
 });
 
 export type CreateCreditCardRequest = z.infer<typeof createCreditCardRequestSchema>;
 
-/** `PATCH /credit-cards/:id`: only the default days (user decision D4). */
+/** `PATCH /credit-cards/:id`: the default days and the reminder days (user decision D4). */
 export const updateCreditCardRequestSchema = z
   .strictObject({
     closingDay: dayOfMonthSchema.optional(),
     dueDay: dayOfMonthSchema.optional(),
+    reminderDays: cardReminderDaysSchema.optional(),
   })
-  .refine(atLeastOne, { message: 'At least one day is required' });
+  .refine(atLeastOne, { message: 'At least one field is required' });
 
 export type UpdateCreditCardRequest = z.infer<typeof updateCreditCardRequestSchema>;
 
@@ -93,6 +106,7 @@ export const creditCardResponseSchema = z.object({
   /** Account debited automatically on the due date, per currency; `null` means no automatic debit. */
   debitArsAccountId: z.string().nullable(),
   debitUsdAccountId: z.string().nullable(),
+  reminderDays: cardReminderDaysSchema,
   createdAt: z.iso.datetime(),
 });
 

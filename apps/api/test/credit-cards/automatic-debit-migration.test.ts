@@ -148,6 +148,7 @@ const insertClaim = (
 
 describe('0029_card_automatic_debit migration', () => {
   it('leaves existing cards with no automatic debit when applied after a rollback (AC-01)', async () => {
+    await client.query(await fileOf('rollback/0030_card_statement_reminders.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const card = await createCard();
 
@@ -311,12 +312,15 @@ describe('0029_card_automatic_debit migration', () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
+    await client.query(await fileOf('rollback/0030_card_statement_reminders.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
-    expect(await cardColumns()).toEqual(before.filter((name) => !NEW_COLUMNS.includes(name)));
+    expect(await cardColumns()).toEqual(
+      before.filter((name) => !NEW_COLUMNS.includes(name) && name !== 'reminder_days'),
+    );
     expect(await claimTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await cardColumns()).toEqual(before);

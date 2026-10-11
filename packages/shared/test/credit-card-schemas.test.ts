@@ -4,6 +4,10 @@ import {
   CARD_NAME_MAX_LENGTH,
   cardExpenseResponseSchema,
   createCardExpenseRequestSchema,
+  CARD_REMINDER_DAYS_DEFAULT,
+  CARD_REMINDER_DAYS_MAX,
+  CARD_REMINDER_DAYS_MIN,
+  cardReminderDaysSchema,
   createCreditCardRequestSchema,
   creditCardResponseSchema,
   setDebitAccountsRequestSchema,
@@ -126,6 +130,7 @@ describe('params and responses', () => {
         usdAccountId: UUID,
         debitArsAccountId: null,
         debitUsdAccountId: null,
+        reminderDays: 3,
         createdAt: '2026-10-06T12:00:00.000Z',
       }).success,
     ).toBe(true);
@@ -246,6 +251,70 @@ describe('createCardExpenseRequestSchema', () => {
   });
 });
 
+describe('card statement reminder days', () => {
+  const create = { name: 'Visa', closingDay: 24, dueDay: 5 };
+  const response = {
+    id: UUID,
+    name: 'Visa',
+    closingDay: 24,
+    dueDay: 5,
+    arsAccountId: UUID,
+    usdAccountId: UUID,
+    debitArsAccountId: null,
+    debitUsdAccountId: null,
+    createdAt: '2026-10-06T12:00:00.000Z',
+  };
+
+  it('exposes the bounds and the default', () => {
+    expect(CARD_REMINDER_DAYS_MIN).toBe(0);
+    expect(CARD_REMINDER_DAYS_MAX).toBe(30);
+    expect(CARD_REMINDER_DAYS_DEFAULT).toBe(3);
+    expect(cardReminderDaysSchema.safeParse(7).success).toBe(true);
+  });
+
+  it('accepts a create request without reminderDays and with 0, 30 and 7 (AC-02)', () => {
+    expect(createCreditCardRequestSchema.parse(create)).toEqual(create);
+    for (const reminderDays of [0, 30, 7]) {
+      expect(createCreditCardRequestSchema.parse({ ...create, reminderDays })).toEqual({
+        ...create,
+        reminderDays,
+      });
+    }
+  });
+
+  it.each([-1, 31, 3.5, '3', null, Number.NaN, Infinity])(
+    'rejects reminderDays %s on create and update as invalid input (AC-03)',
+    (reminderDays) => {
+      expect(createCreditCardRequestSchema.safeParse({ ...create, reminderDays }).success).toBe(
+        false,
+      );
+      expect(updateCreditCardRequestSchema.safeParse({ reminderDays }).success).toBe(false);
+    },
+  );
+
+  it('accepts an update with only reminderDays and still rejects an empty one (FR-02)', () => {
+    expect(updateCreditCardRequestSchema.parse({ reminderDays: 7 })).toEqual({ reminderDays: 7 });
+    expect(updateCreditCardRequestSchema.parse({ reminderDays: 0 })).toEqual({ reminderDays: 0 });
+    expect(updateCreditCardRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('reports only the failing path, never the typed value (AC-03)', () => {
+    const result = createCreditCardRequestSchema.safeParse({ ...create, reminderDays: 98765 });
+    expect(result.success).toBe(false);
+    if (result.success) return;
+    expect(result.error.issues.map((issue) => issue.path)).toEqual([['reminderDays']]);
+    expect(JSON.stringify(result.error.issues)).not.toContain('98765');
+  });
+
+  it('requires reminderDays in the card response (AC-02)', () => {
+    expect(creditCardResponseSchema.safeParse({ ...response, reminderDays: 3 }).success).toBe(true);
+    expect(creditCardResponseSchema.safeParse(response).success).toBe(false);
+    expect(creditCardResponseSchema.safeParse({ ...response, reminderDays: null }).success).toBe(
+      false,
+    );
+  });
+});
+
 describe('accountNameSchema (regression)', () => {
   it('still accepts 50 characters and rejects 51', () => {
     expect(accountNameSchema.safeParse('a'.repeat(50)).success).toBe(true);
@@ -294,6 +363,7 @@ describe('creditCardResponseSchema debit fields', () => {
     dueDay: 5,
     arsAccountId: UUID,
     usdAccountId: UUID,
+    reminderDays: 3,
     createdAt: '2026-10-06T12:00:00.000Z',
   };
 
