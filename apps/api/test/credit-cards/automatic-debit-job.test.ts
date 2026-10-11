@@ -119,7 +119,7 @@ function dependenciesFor(clock: MutableClock, intervalSeconds = 60) {
     deps: {
       db: connection.db,
       logger,
-      recorder: createAutomaticDebitRecorder(connection.db, logger, { clock }),
+      recorder: createAutomaticDebitRecorder(connection.db, { clock }),
       cardPayments: createCardPayments(connection.db),
       purchases: createCardPurchases(connection.db),
       clock,
@@ -186,6 +186,23 @@ describe('AutomaticDebitJob scheduling', () => {
     await job.stop();
     await vi.advanceTimersByTimeAsync(180_000);
     expect(execute).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs only the error class of a failed pass, never its message (D11, sad path)', async () => {
+    vi.useFakeTimers();
+    const secret = 'insert into users (password_hash) values (s3cr3t-hash-4242)';
+    const execute = vi.fn<() => Promise<DebitSummary>>().mockRejectedValue(new TypeError(secret));
+    const { job, lines } = stubJob(execute);
+
+    job.start();
+    await flush();
+    await job.stop();
+
+    const errors = lines.filter((line) => line.level === ERROR);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.obj.errorName).toBe('TypeError');
+    expect(JSON.stringify(lines)).not.toContain('s3cr3t');
+    expect(JSON.stringify(lines)).not.toContain('insert into');
   });
 
   it('waits the interval after a pass and never overlaps passes', async () => {

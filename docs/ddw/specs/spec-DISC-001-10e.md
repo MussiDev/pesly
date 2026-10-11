@@ -241,7 +241,7 @@ Domain (pure, `bigint` only):
 3. For each candidate, oldest first, `log.withClaim(scope, key, settle)`. Inside `settle` (the row is locked, the state is fresh): reload the statements, `buildStatementViews(deps, scope, card, statements, timeZone, today)` and take the view of the period. A view whose `payments` is `null` (not closed, e.g. dates edited meanwhile) returns `null`, which leaves the key unclaimed. Otherwise `remainder = unpaidRemainder(totals[currency], payments[currency].paid)`:
    - `0n` returns `{ status: 'skipped', reason: 'covered' }` (FR-03, AC-06).
    - otherwise the transfer is recorded with `recorder.recordOnce(scope, automaticDebitMovementId(...), { sourceAccountId: debit account, destinationAccountId: the card's linked account of the currency, amount: remainder, occurredAt: noon of the due date in the owner's zone })` and returns `{ status: 'recorded', movementId }` (FR-02, AC-03, AC-11).
-   - an `AppError` from the recorder (archived or missing account, any movement rule) returns `{ status: 'skipped', reason: 'account_unavailable' }` for `MOVEMENT_ACCOUNT_ARCHIVED`/`ACCOUNT_ARCHIVED`/`NOT_FOUND` and `{ status: 'skipped', reason: 'refused' }` for any other `AppError` (FR-04, AC-07); the claim is then settled so it is not retried (D1).
+   - an `AppError` from the recorder (archived or missing account, any movement rule) returns `{ status: 'skipped', reason: 'account_unavailable' }` for `ACCOUNT_ARCHIVED`/`NOT_FOUND` and `{ status: 'skipped', reason: 'refused' }` for any other `AppError` (FR-04, AC-07); the claim is then settled so it is not retried (D1).
    - a plain `Error` (storage down, timeout) is rethrown: the claim rolls back, the pass reports it and the next pass retries.
 4. The use case keeps counters (`cards`, `recorded`, `skippedCovered`, `skippedUnavailable`, `skippedRefused`, `alreadySettled`, `failed`) and reports failures through `report` with ids and the error class name only; a failure of one candidate or card never stops the others.
 
@@ -366,7 +366,7 @@ Not applicable: ids, periods and amounts come from the use case and the database
 - [ ] a `settle` that throws rolls the claim back, leaves no row, and the next call settles (sad path) — validates NFR-03
 - [ ] `settle` returning `null` leaves no row and answers `'deferred'` — validates NFR-03
 - [ ] `settledKeys` omits another owner's rows and `pending` rows (sad path, cross-user) — validates NFR-03
-- [ ] the recorder records a transfer of an exact `bigint` amount above 2^53 with the given id, and the balances move by that amount — validates NFR-01
+- [ ] the recorder records a transfer of the largest valid `bigint` amount, 999999999999999 (amounts are capped at 10^15, below 2^53), with the given id, and the balances move by that amount — validates NFR-01
 - [ ] the recorder called twice with the same id returns the same movement and leaves 1 transfer (duplicate id) — validates AC-09
 - [ ] the recorder does not consume the manual write limit: 61 calls with different ids in a minute all succeed — validates NFR-03
 - [ ] the recorder rejects an archived source account and a source in another currency with the movement rule errors (sad path) — validates FR-04
@@ -409,7 +409,7 @@ Not applicable: the factory takes values from the composition root; `intervalSec
 - [ ] the pass interval is at most 300 s: with passes every 60 s the transfer exists between 06:00 and 06:15 local — validates NFR-02
 - [ ] three passes over the same statement leave 1 transfer, 1 claim row and an unchanged balance after the first — validates AC-09
 - [ ] two passes running at the same time against one database leave exactly 1 transfer — validates AC-09
-- [ ] a crash after recording and before the claim commits (the claim rolled back) and a rerun leave 1 transfer, found by its deterministic id — validates NFR-03
+- [ ] a crash after recording and before the claim commits (the claim rolled back) and a rerun leave 1 transfer: the rerun finds the orphan transfer counted as paid and settles `covered`, and the transfer id is the deterministic one — validates NFR-03
 - [ ] a statement paid by hand between two passes before 06:00 records nothing and settles `covered` — validates AC-06
 - [ ] an archived debit account at the pass leaves the statement unpaid, 0 transfers, a `skipped` row, and logs ids only — validates AC-07
 - [ ] a pass that throws is logged and the next pass still runs, `stop()` waits for the pass in progress and is idempotent (sad path error) — validates NFR-03

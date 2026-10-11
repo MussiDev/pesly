@@ -12,7 +12,7 @@ import {
   createInvestmentsJobs,
   type PriceProvider,
 } from './investments/jobs';
-import { createAutomaticDebitRecorder } from './movements';
+import { createAutomaticDebitRecorder } from './movements/infrastructure/credit-cards/drizzle-automatic-debit-recorder';
 import { createCardPayments } from './movements/infrastructure/credit-cards/drizzle-card-payments';
 import { createCardPurchases } from './movements/infrastructure/credit-cards/drizzle-card-purchases';
 import { createNoticePublisher } from './notices';
@@ -26,8 +26,9 @@ import { createShutdown } from './shared/process/graceful-shutdown';
 /**
  * Worker process: delivers the PostgreSQL outbox through the transport named by EMAIL_PROVIDER and
  * refreshes the exchange rates through the provider named by RATE_PROVIDER, refreshes crypto prices
- * through the one named by PRICE_PROVIDER and takes the daily portfolio snapshots, records the recurring payments that are due and the automatic debits of credit card statements. Run as many as
- * needed; row locks keep them from sending an email twice and the refresh claims keep each
+ * through the one named by PRICE_PROVIDER and takes the daily portfolio snapshots, records the
+ * recurring payments that are due and the automatic debits of credit card statements. Run as many
+ * as needed; row locks keep them from sending an email twice and the refresh claims keep each
  * provider to one call per hour.
  */
 const env = parseWorkerEnv(process.env);
@@ -69,7 +70,7 @@ const recurringJobs = createRecurringJobs({
 const automaticDebitJob = createAutomaticDebitJob({
   db,
   logger,
-  recorder: createAutomaticDebitRecorder(db, logger),
+  recorder: createAutomaticDebitRecorder(db),
   cardPayments: createCardPayments(db),
   purchases: createCardPurchases(db),
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,

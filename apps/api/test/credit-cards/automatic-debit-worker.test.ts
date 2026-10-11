@@ -61,7 +61,7 @@ describe('automatic debit job in the worker', () => {
     const job = createAutomaticDebitJob({
       db: connection.db,
       logger,
-      recorder: createAutomaticDebitRecorder(connection.db, logger),
+      recorder: createAutomaticDebitRecorder(connection.db),
       cardPayments: createCardPayments(connection.db),
       purchases: createCardPurchases(connection.db),
       intervalSeconds: 60,

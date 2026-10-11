@@ -9,8 +9,9 @@ import { DrizzleAutomaticDebitLog } from '../../src/credit-cards/infrastructure/
 import { DrizzleAutomaticDebitSource } from '../../src/credit-cards/infrastructure/db/drizzle-automatic-debit-source';
 import { DrizzleCreditCardRepository } from '../../src/credit-cards/infrastructure/db/drizzle-credit-card-repository';
 import { createAutomaticDebitRecorder } from '../../src/movements';
+import { MovementCurrencyMismatch } from '../../src/movements/domain/errors';
+import { ResourceNotFound } from '../../src/shared/access';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
-import { createLogger } from '../../src/shared/logging/logger';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { newAccount, newUserId, writeScope } from '../movements/db-fixtures';
 
@@ -30,7 +31,6 @@ afterAll(async () => {
   await connection.pool.end();
 });
 
-const silent = createLogger({ level: 'silent', destination: { write: () => undefined } });
 const linkedOn = '2026-10-01';
 
 async function newCard(ownerId: string, debit: { ARS?: string; USD?: string } = {}) {
@@ -292,7 +292,7 @@ describe('createAutomaticDebitRecorder', () => {
 
   it('records a transfer of the largest allowed amount under the given id and moves both balances (NFR-01)', async () => {
     const { ownerId, from, to } = await setup();
-    const recorder = createAutomaticDebitRecorder(connection.db, silent);
+    const recorder = createAutomaticDebitRecorder(connection.db);
     const amount = 999_999_999_999_999n;
     const id = randomUUID();
 
@@ -315,7 +315,7 @@ describe('createAutomaticDebitRecorder', () => {
 
   it('returns the stored movement on a repeat and writes nothing more', async () => {
     const { ownerId, from, to } = await setup();
-    const recorder = createAutomaticDebitRecorder(connection.db, silent);
+    const recorder = createAutomaticDebitRecorder(connection.db);
     const scope = await writeScope(ownerId);
     const id = randomUUID();
     const transfer = { sourceAccountId: from, destinationAccountId: to, amount: 500n, occurredAt };
@@ -327,22 +327,65 @@ describe('createAutomaticDebitRecorder', () => {
     expect(await net(to)).toBe(500n);
   });
 
-  it('does not spend the manual write budget', async () => {
+  it('is unmetered: 61 calls with different ids within a minute all succeed', async () => {
     const { ownerId, from, to } = await setup();
-    const recorder = createAutomaticDebitRecorder(connection.db, silent, { writeLimit: 1 });
+    const recorder = createAutomaticDebitRecorder(connection.db);
     const scope = await writeScope(ownerId);
     const transfer = { sourceAccountId: from, destinationAccountId: to, amount: 10n, occurredAt };
 
-    await recorder.recordOnce(scope, randomUUID(), transfer);
-    await recorder.recordOnce(scope, randomUUID(), transfer);
+    for (let i = 0; i < 61; i += 1) {
+      await recorder.recordOnce(scope, randomUUID(), transfer);
+    }
 
-    expect(await net(to)).toBe(20n);
+    expect(await net(to)).toBe(610n);
+  });
+
+  it.each(['source', 'destination'] as const)(
+    'raises ResourceNotFound and records nothing when the %s account belongs to another owner (sad path)',
+    async (side) => {
+      const { ownerId, from, to } = await setup();
+      const stranger = await newUserId(connection.db);
+      const foreign = await newAccount(connection.pool, stranger);
+      const recorder = createAutomaticDebitRecorder(connection.db);
+      const id = randomUUID();
+
+      await expect(
+        recorder.recordOnce(await writeScope(ownerId), id, {
+          sourceAccountId: side === 'source' ? foreign : from,
+          destinationAccountId: side === 'destination' ? foreign : to,
+          amount: 1n,
+          occurredAt,
+        }),
+      ).rejects.toBeInstanceOf(ResourceNotFound);
+      const stored = await connection.pool.query('select 1 from movements where id = $1', [id]);
+      expect(stored.rowCount).toBe(0);
+      expect(await net(foreign)).toBe(0n);
+    },
+  );
+
+  it('raises the movement rule error when the currencies differ (sad path)', async () => {
+    const ownerId = await newUserId(connection.db);
+    const from = await newAccount(connection.pool, ownerId);
+    const to = await newAccount(connection.pool, ownerId, false, 'USD');
+    const recorder = createAutomaticDebitRecorder(connection.db);
+    const id = randomUUID();
+
+    await expect(
+      recorder.recordOnce(await writeScope(ownerId), id, {
+        sourceAccountId: from,
+        destinationAccountId: to,
+        amount: 1n,
+        occurredAt,
+      }),
+    ).rejects.toBeInstanceOf(MovementCurrencyMismatch);
+    const stored = await connection.pool.query('select 1 from movements where id = $1', [id]);
+    expect(stored.rowCount).toBe(0);
   });
 
   it('raises ResourceNotFound when the id belongs to another user (sad path)', async () => {
     const owner = await setup();
     const other = await setup();
-    const recorder = createAutomaticDebitRecorder(connection.db, silent);
+    const recorder = createAutomaticDebitRecorder(connection.db);
     const id = randomUUID();
     await recorder.recordOnce(await writeScope(owner.ownerId), id, {
       sourceAccountId: owner.from,
@@ -365,7 +408,7 @@ describe('createAutomaticDebitRecorder', () => {
     const ownerId = await newUserId(connection.db);
     const from = await newAccount(connection.pool, ownerId, true);
     const to = await newAccount(connection.pool, ownerId);
-    const recorder = createAutomaticDebitRecorder(connection.db, silent);
+    const recorder = createAutomaticDebitRecorder(connection.db);
 
     await expect(
       recorder.recordOnce(await writeScope(ownerId), randomUUID(), {

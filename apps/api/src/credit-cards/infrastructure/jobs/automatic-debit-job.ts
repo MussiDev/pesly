@@ -95,7 +95,9 @@ export class AutomaticDebitJob {
       this.running = this.runOnce()
         .then(() => undefined)
         .catch((error: unknown) => {
-          this.deps.logger.error({ err: error }, 'automatic debits pass errored');
+          // Class name only: a storage error message can carry SQL text or values (spec D11).
+          const errorName = error instanceof Error ? error.name : typeof error;
+          this.deps.logger.error({ errorName }, 'automatic debits pass errored');
         })
         .finally(() => {
           if (!this.stopped) this.timer = setTimeout(tick, this.intervalMs);

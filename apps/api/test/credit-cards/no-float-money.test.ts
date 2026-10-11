@@ -21,6 +21,7 @@ const debitFiles = [
   'apps/api/src/credit-cards/infrastructure/db/drizzle-debit-accounts.ts',
   'apps/api/src/credit-cards/infrastructure/jobs/automatic-debit-job.ts',
   'apps/api/src/credit-cards/jobs.ts',
+  'apps/api/src/movements/infrastructure/credit-cards/drizzle-automatic-debit-recorder.ts',
   'apps/web/src/features/credit-cards/components/debit-accounts-form.tsx',
   'apps/web/src/features/credit-cards/debit-accounts-request.ts',
 ];
