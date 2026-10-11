@@ -10,15 +10,14 @@
 ## Components
 | Component | Source in the spec |
 |---|---|
-| `packages/shared/src/groups/expense.ts`, `settlement.ts`, `conflict.ts` | Block 1 |
-| `apps/api/src/groups/infrastructure/db/schema.ts` and migration 0031 | Block 2 |
-| `apps/api/src/groups/application/update-group-expense.ts`, `delete-group-expense.ts`, `update-settlement.ts`, `delete-settlement.ts` | Block 3 |
-| `apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts`, `drizzle-group-settlement-repository.ts` | Block 3 |
+| `packages/shared/src/groups/conflict.ts` | Block 1 |
+| `apps/api/src/groups/infrastructure/db/schema.ts` | Block 2 |
+| `apps/api/src/groups/application/update-group-expense.ts` | Block 3 |
+| `apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts` | Block 3 |
 | `apps/api/src/groups/infrastructure/http/group-routes.ts` | Block 4 |
-| `apps/web/src/lib/api-client.ts` (group calls) | Block 5 |
 | `apps/web/src/lib/local-store/group-queue.ts` | Block 6 |
-| `apps/web/src/lib/sync/sync-queue.ts` and `sync-pass.ts` | Block 7 |
-| `apps/web/src/features/groups/*` | Block 8 |
+| `apps/web/src/lib/sync/sync-pass.ts` | Block 7 |
+| `apps/web/src/features/groups/components/group-conflict-view.tsx` | Block 8 |
 
 ## Trust boundaries
 - Browser → API (`PUT`, `PATCH`, `DELETE` on group expenses and settlements): untrusted bodies,
@@ -32,7 +31,7 @@
   of a record in conflict; it is wiped on sign out by the 04d wipe.
 
 ## STRIDE analysis
-### Shared contract and routes (`expense.ts`, `settlement.ts`, `conflict.ts`, `group-routes.ts`)
+### `packages/shared/src/groups/conflict.ts` and `apps/api/src/groups/infrastructure/http/group-routes.ts`
 - **Spoofing:** the caller comes from the session; the base version never identifies anyone.
 - **Tampering:** strict schemas reject a missing, zero, negative, fractional or oversized
   `baseVersion`; a client cannot send a future version and win (refused as a conflict).
@@ -45,7 +44,7 @@
 - **Elevation of Privilege:** the permission rule runs before the comparison, so `baseVersion`
   cannot be used to probe records the caller may not change.
 
-### Use cases and repositories (Block 3)
+### `apps/api/src/groups/application/update-group-expense.ts` and `apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts`
 - **Spoofing:** not applicable below the guard.
 - **Tampering:** the comparison and the write happen inside one transaction under the group lock, so
   two writers cannot both pass the check; the counter grows by one per applied change.
@@ -56,7 +55,7 @@
 - **Elevation of Privilege:** group id and record id are checked together, so another group's record
   cannot be reached by id.
 
-### Migration 0031 (Block 2)
+### `apps/api/src/groups/infrastructure/db/schema.ts`
 - **Spoofing:** not applicable.
 - **Tampering:** a check keeps `version` at 1 or more; the default gives existing rows version 1.
 - **Repudiation:** not applicable.
@@ -65,7 +64,7 @@
   PostgreSQL, no table rewrite.
 - **Elevation of Privilege:** not applicable; the rollback drops only the two columns.
 
-### Web client, local queue and sync pass (Blocks 5 to 7)
+### `apps/web/src/lib/local-store/group-queue.ts` and `apps/web/src/lib/sync/sync-pass.ts`
 - **Spoofing:** queue records are keyed by user through the existing session pointer and wipe.
 - **Tampering:** a 409 counts as a conflict only when its body parses as the conflict schema; a
   forged or malformed body is a generic failure and never discards the local change.
@@ -77,7 +76,7 @@
 - **Elevation of Privilege:** the client never sends another user's identity; permission is decided by
   the server.
 
-### Resolution component (Block 8)
+### `apps/web/src/features/groups/components/group-conflict-view.tsx`
 - **Spoofing:** not applicable.
 - **Tampering:** both buttons call local operations that run as one IndexedDB transaction, so an
   interruption cannot leave neither version.
