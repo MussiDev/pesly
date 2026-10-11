@@ -39,6 +39,27 @@ export class CardDaysConflict extends AppError {
   }
 }
 
+/** The debit account's currency differs from the currency it is linked for (AC-02). */
+export class DebitAccountCurrencyMismatch extends AppError {
+  constructor() {
+    super('DEBIT_ACCOUNT_CURRENCY_MISMATCH');
+  }
+}
+
+/** The debit account is a card's linked account, which cannot pay a card (AC-05, spec D6). */
+export class DebitAccountIsCardAccount extends AppError {
+  constructor() {
+    super('DEBIT_ACCOUNT_IS_CARD_ACCOUNT');
+  }
+}
+
+/** A new debit link points at an archived account. */
+export class DebitAccountArchived extends AppError {
+  constructor() {
+    super('ACCOUNT_ARCHIVED');
+  }
+}
+
 /** The purchase date, in the user's time zone, is after today (the rule movements apply to expenses). */
 export class InstallmentPurchaseDateInFuture extends AppError {
   constructor() {
