@@ -10,8 +10,9 @@
 | Loops since last human decision | 0 |
 
 ## Summary
-Web only, stacked on 05e, 05f and 05g. The edit, delete and activity routes already exist in the API (05d),
-so this ticket adds no route, migration, endpoint or dependency. Block 1 adds the one missing api-client
+Web only, stacked on 05e, 05f and 05g. The edit, delete and activity routes already exist in the API (05d), but no route reads one
+settlement, so Block 13 adds `GET /groups/:id/settlements/:settlementId` (approved by the owner,
+2026-10-11); the ticket adds no migration or dependency. Block 1 adds the one missing api-client
 method, `listGroupActivity`. Blocks 2 and 3 are pure modules: permissions, edit values and edit requests,
 the values a queued change shows on a row, and the activity view data. Block 4 is the bridge to the 04e
 layer: a hook over `queueGroupUpdate`, `queueGroupDelete`, `retryGroupChange`, `discardGroupChange` and
@@ -104,6 +105,7 @@ to the group queue and sent by the existing sync pass (owner decision): no form 
 | NFR-03 | Strategy: every block adds Spanish and English keys together; the existing catalog parity test runs in each block and in Block 12 |
 | NFR-04 | Block 2 (property test), Block 4 (queued amount equals typed amount) |
 | NFR-05 | Block 4 (interruption seam test), Block 12 (end-to-end, one conflict resolved each way) |
+| Read one settlement (D13) | Block 13 (API), used by Block 6 |
 
 ## Dependencies between blocks
 Blocks 1, 2, 3, 4, 10 and 11 are independent of each other and run first, in parallel (group A). Blocks 5,
@@ -133,6 +135,7 @@ touch `api-client.ts`, the lists and the catalogs; merge order decides who rebas
 | 10 | `group-detail-container.tsx` (group A) |
 | 11 | `features/shell/**` sync status (group A) |
 | 12 | `app/**` pages, e2e, catalogs check (last) |
+| 13 | `apps/api` read-one settlement use case, route and tests (group A; Block 6 needs it at run time) |
 
 ## Block 1 — api-client activity method
 
@@ -702,13 +705,53 @@ covers `src/features/groups`, and the parity test `i18n-catalogs.test.ts` covers
 **Completion criterion**
 The spec and the scans pass, and the full web suite and the coverage thresholds pass.
 
+## Block 13 — API: read one settlement
+
+**Files**
+- `apps/api/src/groups/application/get-settlement.ts` (new) — `GetSettlement`, mirroring `GetGroupExpense`.
+- `apps/api/src/groups/infrastructure/http/group-routes.ts` (modified) — `GET /groups/:id/settlements/:settlementId`,
+  registered before the PATCH and DELETE of the same path, with `groupSettlementParamsSchema`, the shared
+  validation middleware and `presentSettlement`.
+- `apps/api/test/groups/group-settlement-routes.test.ts` (modified) — route tests.
+
+**Logic**
+The use case checks that the caller is a member of the group (`GroupAccess.member`), then reads the settlement
+with the existing `getSettlement(groupId, settlementId)` of the settlement repository port. A missing
+settlement and one of another group are the same `ResourceNotFound`, so the answer is 404, never 403. The
+route answers `presentSettlement(settlement)`, the shape of `settlementResponseSchema` that the list and the
+PATCH use, with amounts as strings and the record `version` used as `baseVersion`. A consolidated settlement
+includes its rate fields and legs. The existing repository read is reused; nothing is stored differently.
+
+**API contract**
+- `GET /groups/:id/settlements/:settlementId` — Request: params `groupSettlementParamsSchema`, no body.
+  Response: 200 `settlementResponseSchema` (including `version`).
+- Error codes: `VALIDATION_FAILED` 400, not found 404 (non-member, unknown id, other group's id), 401 with no session.
+- Auth: session cookie and verified email; membership checked per group.
+
+**Input validation**
+- `id` and `settlementId` are UUIDs through `groupSettlementParamsSchema`; a malformed one is 400
+  `VALIDATION_FAILED`.
+
+**Error handling**
+- A non-member, an unknown id and a settlement of another group are 404; no session is 401.
+
+**Required tests**
+- [ ] A member reads a settlement of the group: 200, exact shape, string amounts and `version`.
+- [ ] A consolidated settlement includes `rate`, `rateSource`, `rateType` and two legs.
+- [ ] A non-member and an unknown id get 404.
+- [ ] A settlement read through another group's id gets 404.
+- [ ] A malformed id is 400 and a request with no session is 401.
+
+**Completion criterion**
+The API route tests pass, and the web `getSettlement` call works against the real API.
+
 ## Final verification
 - Every AC (AC-01 to AC-37) and NFR (NFR-01 to NFR-05) has a test; every input has a sad-path test.
 - `pnpm typecheck`, eslint and Prettier on touched files pass; the full web suite and coverage pass.
 - The design-system scan and accessibility tests pass for the new screens (labels, focus on the first
   invalid field, tokens only, markers carried by text and icon, not colour).
 - No block calls `updateGroupExpense`, `deleteGroupExpense`, `updateSettlement` or `deleteSettlement`
-  outside the sync pass (scan), and no new endpoint, route, migration or dependency was added.
+  outside the sync pass (scan), and no new migration or dependency was added; the only new route is the read-one settlement of Block 13.
 - Owner ratification items: (1) the expense list adds `getGroup`, so its budget goes from 2 to 3 (D5);
   (2) category names on the activity page need one extra request after first render (D6); (3) the
   settlement edit screen shows the account as text without its name (D7); (4) the shell sync status links to

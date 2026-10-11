@@ -7,6 +7,7 @@ import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { useOnlineStatus } from '@/lib/connectivity';
 import { readQueueCounts } from '@/lib/local-store/device-copy';
+import type { GroupQueueCounts } from '@/lib/local-store/group-queue';
 import { requestPersistentStorage } from '@/lib/local-store/persistence';
 import type { QueueCounts } from '@/lib/local-store/queue';
 import {
@@ -17,6 +18,7 @@ import {
 import { resumePendingWipes } from '@/lib/local-store/wipe';
 import { removeFromWipeMarker } from '@/lib/local-store/wipe-marker';
 import { requestShellWarmup } from '@/lib/service-worker/warmup';
+import { readGroupQueueCounts } from '@/lib/sync/group-queue-counts';
 import { onMovementQueued, onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
 import { cancelSyncRetry, syncMovementQueue } from '@/lib/sync/sync-queue';
 import { AuthenticatedShell, type ShellState } from '../components/authenticated-shell';
@@ -46,6 +48,11 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   const { signingOut, signOutError, confirming, requestSignOut, confirmSignOut, cancelSignOut } =
     useSignOut();
   const [queueCounts, setQueueCounts] = useState<QueueCounts>({ pending: 0, failed: 0 });
+  const [groupCounts, setGroupCounts] = useState<GroupQueueCounts>({
+    pending: 0,
+    failed: 0,
+    conflict: 0,
+  });
 
   // A wipe an earlier visit left half way is finished first; it never throws and keeps the marker.
   useEffect(() => {
@@ -129,8 +136,12 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
     if (state.kind !== 'ready') return;
     let live = true;
     const read = () => {
-      void readQueueCounts(readSessionPointer()?.userId).then((counts) => {
+      const userId = readSessionPointer()?.userId;
+      void readQueueCounts(userId).then((counts) => {
         if (live) setQueueCounts(counts);
+      });
+      void readGroupQueueCounts(userId).then((counts) => {
+        if (live) setGroupCounts(counts);
       });
     };
     read();
@@ -183,7 +194,15 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
       }
       notices={state.kind === 'ready' ? <UnreadBadgeContainer /> : null}
       connection={{ online, pending: queueCounts.pending }}
-      syncStatus={<SyncStatus pending={queueCounts.pending} failed={queueCounts.failed} />}
+      syncStatus={
+        <SyncStatus
+          pending={queueCounts.pending}
+          failed={queueCounts.failed}
+          groupWaiting={groupCounts.pending}
+          groupFailed={groupCounts.failed}
+          groupConflict={groupCounts.conflict}
+        />
+      }
     >
       {children}
       {/* After the content: it arrives late and must not push the screen down (NFR-03). */}

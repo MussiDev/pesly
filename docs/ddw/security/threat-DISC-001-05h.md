@@ -20,6 +20,7 @@
 | `apps/web/src/features/groups/expenses/list/group-expenses-container.tsx` and `settlements-history/settlements-history-container.tsx` | Blocks 7, 8 |
 | `apps/web/src/features/groups/activity/group-activity-container.tsx` | Block 9 |
 | `apps/web/src/features/shell/components/sync-status.tsx` and `containers/authenticated-shell-container.tsx` | Block 11 |
+| `apps/api/src/groups/application/get-settlement.ts` and the `GET /groups/:id/settlements/:settlementId` route | Block 13 |
 
 ## Trust boundaries
 - Browser UI → permission decision: whether the caller may edit or delete (`canEditRecord`, D3) is computed
@@ -36,6 +37,8 @@
   other members and cross into this user's page; they are untrusted text.
 - User and group scope → shell status: the shell reads counts from the user's own database and shows them on
   every screen; they cross from group-specific data into a global component.
+- Browser → API read-one settlement: `GET /groups/:id/settlements/:settlementId` takes two UUIDs from the
+  path; the API validates them, checks membership and answers 404 for anything the caller may not see.
 - Route and URL → client state: group, expense and settlement ids in the path and the activity cursor are
   the only external values the screens read; no amount or prefill travels in the URL.
 
@@ -196,6 +199,15 @@
   counts as empty.
 - **Elevation of Privilege:** the link goes to the groups list, where the API's membership checks decide what
   is visible; the status grants no access.
+
+### `apps/api/src/groups/application/get-settlement.ts` and the `GET /groups/:id/settlements/:settlementId` route
+- **Spoofing:** the caller is the session user; the route sits behind the session and verified-email checks.
+- **Tampering:** read-only; it changes nothing.
+- **Repudiation:** reads are not logged in the activity log; the request log carries ids only.
+- **Information Disclosure:** the query is scoped by group and the caller must be a member; a non-member, an
+  unknown id and a settlement of another group all answer 404, never 403, so no id can be enumerated.
+- **Denial of Service:** one indexed lookup by primary key and group, inside the existing rate limiting.
+- **Elevation of Privilege:** any member may read; editing and deleting keep their author or admin check.
 
 ## Data classification
 | Data | Class | At rest | In transit |

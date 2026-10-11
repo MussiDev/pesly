@@ -3,6 +3,7 @@
 import type { CategoryLanguage, ExpenseOptionsResponse, GroupExpenseResponse } from '@pesly/shared';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
+import { onSyncFinished } from '@/lib/sync/sync-events';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
@@ -12,6 +13,10 @@ import { useApiClient } from '@/lib/api-client-provider';
 import { formatDateTime, formatMoney } from '@/lib/format-amount';
 import { groupCategoryLabel } from '../../components/group-categories-list';
 import { GroupNotFoundView } from '../../components/group-not-found';
+import { canEditRecord, selfRole } from '../../edit/permissions';
+import { applyQueuedValues } from '../../edit/queued-values';
+import { useGroupChanges } from '../../edit/use-group-changes';
+import { overlayGroupRecords } from '../../sync-overlay';
 import { GroupsLoadStateView } from '../../components/groups-load-state';
 import { isGroupId } from '../../group-id';
 import { GroupExpensesList, type ExpenseListItem } from './group-expenses-list';
@@ -25,6 +30,7 @@ type ScreenState =
   | {
       kind: 'ready';
       options: ExpenseOptionsResponse;
+      role: string | null;
       expenses: GroupExpenseResponse[];
       nextCursor: string | null;
     };
@@ -34,8 +40,9 @@ export interface GroupExpensesContainerProps {
 }
 
 /**
- * The expenses of one group, newest first. The first load makes two requests (NFR-02): the first
- * page and the expense options, which name members and categories. The cursor only ever comes
+ * The expenses of one group, newest first. The first load makes three requests (NFR-02, D5): the first
+ * page, the expense options, which name members and categories, and the group, which carries the
+ * caller's role. The cursor only ever comes
  * from the previous response.
  */
 export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps) {
@@ -53,30 +60,50 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
   const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  // Bumped when a sync pass finishes: the first page is read again without leaving the list.
+  const [refresh, setRefresh] = useState(0);
+  const changes = useGroupChanges(groupId);
+  const tEdit = useTranslations('groups.edit.common');
+  const [confirming, setConfirming] = useState<string>();
+  const loadedKey = useRef('');
   const [loadingMore, setLoadingMore] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<ErrorMessageKey>();
   // Bumped whenever the first page is requested again, so a late "load more" answer is dropped.
   const generation = useRef(0);
 
+  useEffect(
+    () =>
+      onSyncFinished(() => {
+        setRefresh((current) => current + 1);
+      }),
+    [],
+  );
+
   useEffect(() => {
     let active = true;
     generation.current += 1;
+    const key = `${groupId}:${attempt}`;
+    // A reload after a pass keeps what is on screen if it fails.
+    const silent = loadedKey.current === key;
     void Promise.all([
       api.listGroupExpenses(groupId, { limit: PAGE_SIZE }),
       api.getExpenseOptions(groupId),
-    ]).then(([page, options]) => {
+      api.getGroup(groupId),
+    ]).then(([page, options, group]) => {
       if (!active) return;
-      const failed = !page.ok ? page : !options.ok ? options : undefined;
-      if (failed === undefined && page.ok && options.ok) {
+      const failed = !page.ok ? page : !options.ok ? options : !group.ok ? group : undefined;
+      if (failed === undefined && page.ok && options.ok && group.ok) {
+        loadedKey.current = key;
         setLoadingMore(false);
         setLoadMoreError(undefined);
         setState({
           kind: 'ready',
           options: options.data,
+          role: selfRole(group.data.members, options.data.selfMemberId) ?? group.data.role,
           expenses: page.data.items,
           nextCursor: page.data.nextCursor,
         });
-      } else if (failed?.ok === false) {
+      } else if (failed?.ok === false && !silent) {
         if (failed.code === 'UNAUTHENTICATED') router.replace('/sign-in');
         else if (failed.code === 'NOT_FOUND') setState({ kind: 'not-found' });
         else setState({ kind: 'failed', error: failed.messageKey });
@@ -85,7 +112,7 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     return () => {
       active = false;
     };
-  }, [api, groupId, router, attempt]);
+  }, [api, groupId, router, attempt, refresh]);
 
   if (state.kind === 'not-found') return <GroupNotFoundView />;
 
@@ -101,7 +128,7 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     );
   }
 
-  const { options, expenses, nextCursor } = state;
+  const { options, role, expenses, nextCursor } = state;
   const memberName = (id: string): string =>
     options.members.find((member) => member.id === id)?.displayName ?? t('unnamedMember');
   const categoryName = (id: string): string => {
@@ -109,8 +136,11 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     return category ? groupCategoryLabel(category, language) : t('uncategorized');
   };
 
-  const items: ExpenseListItem[] = expenses.map((expense) => {
+  const rows = overlayGroupRecords('expense', expenses, changes.changes);
+  const items: ExpenseListItem[] = rows.map(({ record, syncState, failure, change }) => {
+    const expense = applyQueuedValues(record, change);
     const own = expense.shares.find((share) => share.memberId === options.selfMemberId);
+    const base = `/groups/${encodeURIComponent(groupId)}/expenses/${encodeURIComponent(expense.id)}`;
     return {
       id: expense.id,
       description: expense.description,
@@ -120,6 +150,27 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
       date: formatDateTime(expense.occurredAt, timeZone, language),
       share:
         own === undefined ? undefined : formatMoney(BigInt(own.amount), expense.currency, language),
+      edit: changes.available
+        ? {
+            state: syncState,
+            failureCode: failure?.code,
+            allowed: canEditRecord(expense.createdByMemberId, options.selfMemberId, role),
+            editHref: `${base}/edit`,
+            confirmingDelete: confirming === expense.id,
+            onDelete: () => {
+              setConfirming(expense.id);
+            },
+            onCancelDelete: () => {
+              setConfirming(undefined);
+            },
+            onConfirmDelete: () => {
+              setConfirming(undefined);
+              void changes.queueDelete({ kind: 'expense', base: record });
+            },
+            onRetry: () => void changes.retry('expense', expense.id),
+            onDiscard: () => void changes.discard('expense', expense.id),
+          }
+        : undefined,
     };
   });
 
@@ -161,6 +212,11 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
           </Link>
         }
       />
+      {changes.ready && !changes.available ? (
+        <p role="alert" className="text-small text-destructive">
+          {tEdit('unavailable')}
+        </p>
+      ) : null}
       <GroupExpensesList
         groupId={groupId}
         items={items}

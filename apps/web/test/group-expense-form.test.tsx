@@ -509,4 +509,13 @@ describe('ExpenseFormContainer', () => {
     expect(submit().disabled).toBe(true);
     expect(posts(calls)).toHaveLength(0);
   });
+
+  it('keeps the currency and payer controls and the payer account fields without `locked`', async () => {
+    stubApi(routes());
+    open();
+    await ready();
+    expect(screen.getByLabelText(form.fields.currency).tagName).toBe('SELECT');
+    expect(screen.getByLabelText(form.fields.payer).tagName).toBe('SELECT');
+    expect(screen.getByLabelText(form.fields.account)).toBeTruthy();
+  });
 });

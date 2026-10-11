@@ -3,7 +3,7 @@
 import type { GroupDetailResponse, SettlementResponse } from '@pesly/shared';
 import { Users } from 'lucide-react';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
@@ -11,7 +11,12 @@ import { Link, useRouter } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { useApiClient } from '@/lib/api-client-provider';
 import { formatDateTime, formatMoney } from '@/lib/format-amount';
+import { onSyncFinished } from '@/lib/sync/sync-events';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
+import { canEditRecord, isConsolidatedSettlement, selfRole } from '../edit/permissions';
+import { applyQueuedValues } from '../edit/queued-values';
+import { useGroupChanges } from '../edit/use-group-changes';
+import { overlayGroupRecords } from '../sync-overlay';
 import type { SettlementRowData } from './settlement-row';
 import { SettlementsEmptyState } from './settlements-empty-state';
 import { SettlementsList } from './settlements-list';
@@ -51,11 +56,17 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
   const router = useRouter();
   const t = useTranslations('groups.settlements');
   const tDetail = useTranslations('groups.detail');
+  const tEdit = useTranslations('groups.edit.common');
   const locale = useLocale();
   const language: Locale = locale === 'en' ? 'en' : 'es';
   const timeZone = useTimeZone() ?? 'UTC';
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
+  const changes = useGroupChanges(groupId);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [actionFailed, setActionFailed] = useState(false);
+  const reloadGeneration = useRef(0);
 
   useEffect(() => {
     let active = true;
@@ -97,6 +108,28 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
     };
   }, [api, groupId, router, attempt]);
 
+  useEffect(
+    () =>
+      // An applied change shows the server's values: the first page is read again (D13).
+      onSyncFinished(() => {
+        const generation = ++reloadGeneration.current;
+        void api.listSettlements(groupId, { limit: PAGE_SIZE }).then((page) => {
+          if (generation !== reloadGeneration.current || !page.ok) return;
+          setState((current) =>
+            current.kind === 'ready'
+              ? {
+                  ...current,
+                  items: appendPage([], page.data.items),
+                  nextCursor: page.data.nextCursor,
+                  moreFailed: false,
+                }
+              : current,
+          );
+        });
+      }),
+    [api, groupId],
+  );
+
   if (state.kind === 'not-found') {
     return (
       <EmptyState
@@ -132,14 +165,47 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
     ]),
   );
   const nameOf = (id: string): string => names.get(id) ?? tDetail('unnamed');
-  const rows: SettlementRowData[] = items.map((item) => ({
-    id: item.id,
-    payer: nameOf(item.fromMemberId),
-    payee: nameOf(item.toMemberId),
-    amount: formatMoney(BigInt(item.amount), item.currency, language),
-    date: formatDateTime(item.occurredAt, timeZone, language),
-    consolidated: item.rate !== null,
-  }));
+  const role = selfRole(group.members, group.selfMemberId);
+  const queueUsable = changes.ready && changes.available;
+  const rows: SettlementRowData[] = overlayGroupRecords(
+    'settlement',
+    items,
+    queueUsable ? changes.changes : [],
+  ).map(({ record, syncState, failure, change }) => {
+    const shown = applyQueuedValues(record, change);
+    return {
+      id: record.id,
+      payer: nameOf(shown.fromMemberId),
+      payee: nameOf(shown.toMemberId),
+      amount: formatMoney(BigInt(shown.amount), shown.currency, language),
+      date: formatDateTime(shown.occurredAt, timeZone, language),
+      consolidated: isConsolidatedSettlement(record),
+      syncState,
+      ...(failure === undefined ? {} : { failureCode: failure.code }),
+      allowed: queueUsable && canEditRecord(record.createdByMemberId, group.selfMemberId, role),
+      editHref: `/groups/${encodeURIComponent(groupId)}/settlements/${encodeURIComponent(record.id)}/edit`,
+      confirmingDelete: confirmingId === record.id,
+      deleting: confirmingId === record.id && deleting,
+    };
+  });
+  const showUnavailable = (changes.ready && !changes.available) || actionFailed;
+
+  function confirmDelete(id: string) {
+    const record = items.find((item) => item.id === id);
+    if (record === undefined || deleting) return;
+    setDeleting(true);
+    void changes.queueDelete({ kind: 'settlement', base: record }).then((stored) => {
+      setDeleting(false);
+      setConfirmingId(null);
+      setActionFailed(!stored);
+    });
+  }
+
+  function settle(work: Promise<boolean>) {
+    void work.then((done) => {
+      setActionFailed(!done);
+    });
+  }
 
   function loadMore() {
     // The cursor is the one the previous answer carried; it is never typed by the user.
@@ -180,6 +246,11 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
           </Link>
         }
       />
+      {showUnavailable ? (
+        <p role="alert" className="text-small text-destructive">
+          {tEdit('unavailable')}
+        </p>
+      ) : null}
       {rows.length === 0 ? (
         <SettlementsEmptyState groupId={groupId} />
       ) : (
@@ -189,6 +260,20 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
           loadingMore={loadingMore}
           moreFailed={moreFailed}
           onLoadMore={loadMore}
+          onDelete={(id) => {
+            setActionFailed(false);
+            setConfirmingId(id);
+          }}
+          onConfirmDelete={confirmDelete}
+          onCancelDelete={() => {
+            setConfirmingId(null);
+          }}
+          onRetry={(id) => {
+            settle(changes.retry('settlement', id));
+          }}
+          onDiscard={(id) => {
+            settle(changes.discard('settlement', id));
+          }}
         />
       )}
     </div>

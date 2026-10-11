@@ -20,7 +20,8 @@ conflict container with its `groupConflict` catalog). But no screen edits or del
 has no page and no api-client method, and the 04e layer is not mounted anywhere: nothing writes to the group
 queue, no row shows a sync state and nobody can resolve a conflict. This ticket builds the three missing
 screens, adds the one missing api-client method (`listGroupActivity`) and mounts the 04e layer on them. It
-adds no endpoint.
+adds one endpoint, `GET /groups/:id/settlements/:settlementId`, so the settlement edit screen can read one
+settlement (Decision Log, 2026-10-11).
 
 The creation screens stay online only (PRD 05 decision, 05e and 05f). What 05h mounts is the change layer:
 an edit or a delete of a record that was loaded is written to the group queue and sent by the existing sync
@@ -191,6 +192,7 @@ the person resolves, not an error. What stays out is in Out of Scope.
 - FEAT-004 (design system) — components and tokens.
 
 ## Decision Log
+- 2026-10-11: Owner approved adding GET /groups/:id/settlements/:settlementId; the 05h PRD's 'no new endpoint' premise was wrong because no read-one route existed; proposed by the model, approved by the owner.
 - 2026-10-11: Group web UI split into 05e to 05h; 05h covers editing, the log and the conflict layer.
   Proposed by the model, awaiting the owner's acceptance.
 - 2026-10-11: Edits and deletes are written to the 04e group queue and sent by its sync pass, instead of

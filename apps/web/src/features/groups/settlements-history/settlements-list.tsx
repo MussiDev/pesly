@@ -10,6 +10,11 @@ interface SettlementsListProps {
   loadingMore: boolean;
   moreFailed: boolean;
   onLoadMore: () => void;
+  onDelete: (id: string) => void;
+  onConfirmDelete: (id: string) => void;
+  onCancelDelete: () => void;
+  onRetry: (id: string) => void;
+  onDiscard: (id: string) => void;
 }
 
 /** The loaded settlements, newest first, with the control that follows the cursor. */
@@ -19,6 +24,11 @@ export function SettlementsList({
   loadingMore,
   moreFailed,
   onLoadMore,
+  onDelete,
+  onConfirmDelete,
+  onCancelDelete,
+  onRetry,
+  onDiscard,
 }: SettlementsListProps) {
   const t = useTranslations('groups.settlements');
   const tApp = useTranslations('app');
@@ -27,7 +37,23 @@ export function SettlementsList({
     <div className="grid gap-3">
       <ul className="divide-y divide-border">
         {rows.map((row) => (
-          <SettlementRow key={row.id} row={row} />
+          <SettlementRow
+            key={row.id}
+            row={row}
+            onDelete={() => {
+              onDelete(row.id);
+            }}
+            onConfirmDelete={() => {
+              onConfirmDelete(row.id);
+            }}
+            onCancelDelete={onCancelDelete}
+            onRetry={() => {
+              onRetry(row.id);
+            }}
+            onDiscard={() => {
+              onDiscard(row.id);
+            }}
+          />
         ))}
       </ul>
       {moreFailed ? (

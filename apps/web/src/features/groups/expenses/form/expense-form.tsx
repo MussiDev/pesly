@@ -47,6 +47,21 @@ export interface ExpenseFormProps {
   issue: ApiFailure | undefined;
   pending: boolean;
   onSubmit: (values: ExpenseFormValues) => void;
+  /**
+   * Edit mode: the currency and the payer cannot change, so they show as text and the payer
+   * account fields are left out. Absent, the form is the creation form.
+   */
+  locked?: { payerName: string };
+}
+
+/** A value the person can see but not change (edit mode). */
+function LockedValue({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="grid gap-1">
+      <span className="text-small font-medium">{label}</span>
+      <span>{value}</span>
+    </div>
+  );
 }
 
 function toCurrency(value: string): 'ARS' | 'USD' {
@@ -65,8 +80,10 @@ export function ExpenseForm({
   issue,
   pending,
   onSubmit,
+  locked,
 }: ExpenseFormProps) {
   const t = useTranslations('groups.expenses.form');
+  const tEdit = useTranslations('groups.edit.expense');
   const tSplit = useTranslations('groups.split');
   const tAll = useTranslations();
   const locale = useLocale();
@@ -95,7 +112,10 @@ export function ExpenseForm({
     }
   }
 
-  const payerIsCaller = currentMemberId !== undefined && values.payerMemberId === currentMemberId;
+  const payerIsCaller =
+    locked === undefined &&
+    currentMemberId !== undefined &&
+    values.payerMemberId === currentMemberId;
   const usableAccounts = eligibleAccounts(accounts, values.currency);
 
   function update(patch: Partial<ExpenseFormValues>) {
@@ -132,6 +152,9 @@ export function ExpenseForm({
     onSubmit(values);
   }
 
+  const submitKey = pending ? 'pending' : 'submit';
+  const submitLabel = locked ? tEdit(submitKey) : t(submitKey);
+
   const shares =
     values.split.mode === 'equal' && amount > 0n
       ? previewShares(effective, amount, values.payerMemberId, locale)
@@ -155,23 +178,27 @@ export function ExpenseForm({
             />
           )}
         </MovementField>
-        <MovementField label={t('fields.currency')} error={fieldErrors.currency}>
-          {(control) => (
-            <Select
-              value={values.currency}
-              onChange={(event) => {
-                changeCurrency(event.currentTarget.value);
-              }}
-              {...control}
-            >
-              {CURRENCIES.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </Select>
-          )}
-        </MovementField>
+        {locked ? (
+          <LockedValue label={t('fields.currency')} value={values.currency} />
+        ) : (
+          <MovementField label={t('fields.currency')} error={fieldErrors.currency}>
+            {(control) => (
+              <Select
+                value={values.currency}
+                onChange={(event) => {
+                  changeCurrency(event.currentTarget.value);
+                }}
+                {...control}
+              >
+                {CURRENCIES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </MovementField>
+        )}
       </fieldset>
 
       <fieldset className="grid gap-4">
@@ -188,24 +215,28 @@ export function ExpenseForm({
             />
           )}
         </MovementField>
-        <MovementField label={t('fields.payer')} error={fieldErrors.payer}>
-          {(control) => (
-            <Select
-              value={values.payerMemberId}
-              onChange={(event) => {
-                update({ payerMemberId: event.currentTarget.value });
-              }}
-              {...control}
-            >
-              <option value="">{t('placeholders.payer')}</option>
-              {members.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.name}
-                </option>
-              ))}
-            </Select>
-          )}
-        </MovementField>
+        {locked ? (
+          <LockedValue label={t('fields.payer')} value={locked.payerName} />
+        ) : (
+          <MovementField label={t('fields.payer')} error={fieldErrors.payer}>
+            {(control) => (
+              <Select
+                value={values.payerMemberId}
+                onChange={(event) => {
+                  update({ payerMemberId: event.currentTarget.value });
+                }}
+                {...control}
+              >
+                <option value="">{t('placeholders.payer')}</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </MovementField>
+        )}
         {payerIsCaller ? (
           <PayerAccountFields
             accounts={usableAccounts}
@@ -312,7 +343,7 @@ export function ExpenseForm({
 
       <div>
         <Button type="submit" disabled={pending || blocked}>
-          {pending ? t('pending') : t('submit')}
+          {submitLabel}
         </Button>
       </div>
     </form>
