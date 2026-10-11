@@ -1285,6 +1285,137 @@
       "markRead": "We could not mark the notice as read. Try again."
     }
   },
+  "groups": {
+    "list": {
+      "title": "Groups",
+      "description": "Shared expenses and who owes whom.",
+      "label": "Your groups",
+      "members": "{count, plural, one {# member} other {# members}}",
+      "roles": { "admin": "Admin", "member": "Member" },
+      "create": "Create group",
+      "createTitle": "New group",
+      "empty": {
+        "title": "You are not in any group yet",
+        "joinHint": "Create one, or open the invitation link a friend sent you to join theirs."
+      },
+      "fields": {
+        "name": "Group name",
+        "rateType": "Default exchange rate",
+        "rateTypeHint": "Used to value group expenses in foreign currency."
+      },
+      "submit": "Create group",
+      "pending": "Creating…",
+      "cancel": "Cancel",
+      "errors": {
+        "nameRequired": "Enter a name for the group.",
+        "nameTooLong": "The name is too long.",
+        "nameInvalid": "That name is not valid.",
+        "rateTypeRequired": "Choose an exchange rate."
+      }
+    },
+    "join": {
+      "backToGroups": "Back to groups",
+      "alreadyMember": "You are already a member of this group.",
+      "full": "This group has reached its member limit.",
+      "signIn": "Your session has ended. Sign in and open the link again.",
+      "join": {
+        "title": "Join a group",
+        "working": "Joining the group",
+        "invalid": "This invitation link is invalid or has expired. Ask for a new one."
+      },
+      "claim": {
+        "title": "Claim your place",
+        "working": "Claiming your place in the group",
+        "invalid": "This claim link is invalid, has expired or has already been used. Ask for a new one."
+      }
+    },
+    "invite": {
+      "title": "Invite people",
+      "description": "Create a link that lets someone join this group. It expires and can be used by anyone who has it.",
+      "create": "Create invitation link",
+      "creating": "Creating…",
+      "expires": "Expires {date}",
+      "linkLabel": "Link",
+      "copy": "Copy link",
+      "copied": "Link copied.",
+      "copyFailed": "Could not copy automatically. Select the link above and copy it by hand.",
+      "share": "Share",
+      "shareTitle": "Join my group on Pesly",
+      "ghost": {
+        "title": "Add a member without an account",
+        "description": "For someone who is not on Pesly yet. They can claim their place later with a link.",
+        "nameLabel": "Name",
+        "submit": "Add member",
+        "adding": "Adding…",
+        "errors": {
+          "nameRequired": "Enter a name.",
+          "nameTooLong": "The name is too long.",
+          "nameInvalid": "That name is not valid."
+        }
+      },
+      "claim": {
+        "title": "Claim links",
+        "description": "Give a member without an account a link so they can take their place when they sign up.",
+        "create": "Claim link for {name}",
+        "creating": "Creating…"
+      }
+    },
+    "categories": {
+      "title": "Group categories",
+      "back": "Back to group",
+      "listLabel": "Categories of the group",
+      "archivedBadge": "Archived",
+      "readOnly": "Only group admins can change the categories.",
+      "empty": "This group has no categories yet.",
+      "new": {
+        "title": "New category",
+        "description": "Add a category for the expenses of this group."
+      },
+      "submit": "Create category",
+      "pending": "Creating…",
+      "actions": { "restore": "Restore" }
+    },
+    "detail": {
+      "defaultRate": "Default exchange rate: {rateType}",
+      "membersTitle": "Members",
+      "formerTitle": "Former members",
+      "roles": { "admin": "Admin", "member": "Member" },
+      "ghost": "No account yet",
+      "unnamed": "Unnamed member",
+      "categoriesLink": "Group categories",
+      "cannotRemoveSelf": "You cannot remove yourself: use Leave group.",
+      "notFound": {
+        "title": "Group not found",
+        "description": "This group does not exist or you are not a member of it.",
+        "back": "Back to groups"
+      },
+      "actions": {
+        "promote": "Make admin",
+        "promoteLabel": "Make {name} an admin",
+        "remove": "Remove",
+        "removeLabel": "Remove {name} from the group"
+      },
+      "rateType": {
+        "title": "Group settings",
+        "label": "Default exchange rate",
+        "hint": "Used to value group expenses in foreign currency.",
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Exchange rate updated."
+      },
+      "leave": {
+        "title": "Leave this group",
+        "description": "You will stop seeing the group. You can only leave when your balance is zero.",
+        "action": "Leave group",
+        "working": "Leaving…"
+      },
+      "balance": {
+        "intro": "There is still a balance, so this cannot be done yet. Settle up in the group first.",
+        "owes": "Owes {amount}",
+        "owed": "Is owed {amount}"
+      }
+    }
+  },
   "recurring": {
     "title": "Recurring payments",
     "description": "Rent, subscriptions and services that repeat. Confirm each one when it is due.",

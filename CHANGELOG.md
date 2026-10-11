@@ -433,6 +433,16 @@ All notable changes to this project are documented in this file. The format foll
   settled without a conflict, except for percentage splits. Migration `0031_group_record_version` adds a
   `version` column with a check to two tables. Offline creation of group expenses stays online-only and the
   group screens arrive in a later ticket. No new dependency.
+- DISC-001-05e Groups screens, members and invitations: `/groups` lists the user's groups (name, role, member
+  count) with an empty state and a create form (name and default rate type); a group opens to its members
+  (members without an account are marked, members who left are listed apart), where any member can generate
+  an invitation link with its expiry date, add a member without an account and generate a claim link, and an
+  admin can promote, remove and change the default rate type; leaving shows the outstanding amounts per
+  currency when the balance is not 0 and asks the only admin to promote someone first. `/groups/join` and
+  `/groups/claim` read the token from the link fragment and clear it before the request, and the categories
+  page lets an admin create, edit and archive group categories. Spanish and English, 360 px layouts, web
+  only, no new dependency. Expenses, balances, settlements and the activity log screens arrive in DISC-001-05f
+  to 05h.
 
 ### Changed
 
