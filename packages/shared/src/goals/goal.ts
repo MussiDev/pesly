@@ -39,7 +39,7 @@ export const updateGoalRequestSchema = z
     targetAmount: movementAmountSchema.optional(),
     targetDate: calendarDateSchema.nullable().optional(),
   })
-  .refine((request) => Object.values(request).some((value) => value !== undefined), {
+  .refine((request) => Object.keys(request).length > 0, {
     message: 'At least one field must be provided',
   });
 
