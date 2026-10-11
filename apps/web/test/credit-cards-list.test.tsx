@@ -118,6 +118,7 @@ describe('CreateCreditCardContainer', () => {
       name: 'Visa',
       closingDay: 24,
       dueDay: 5,
+      reminderDays: 3,
     });
   });
 

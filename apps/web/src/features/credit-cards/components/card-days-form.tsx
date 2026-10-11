@@ -15,9 +15,13 @@ import {
 export interface CardDaysValues {
   closingDay: string;
   dueDay: string;
+  reminderDays: string;
 }
 
-export type CardDaysMessage = 'creditCards.errors.dayInvalid' | 'creditCards.detail.daysConflict';
+export type CardDaysMessage =
+  | 'creditCards.errors.dayInvalid'
+  | 'creditCards.errors.reminderDaysInvalid'
+  | 'creditCards.detail.daysConflict';
 
 interface CardDaysFormProps {
   card: CreditCardResponse;
@@ -32,6 +36,7 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
   const [values, setValues] = useState<CardDaysValues>({
     closingDay: String(card.closingDay),
     dueDay: String(card.dueDay),
+    reminderDays: String(card.reminderDays),
   });
 
   function submit(event: SubmitEvent<HTMLFormElement>) {
@@ -39,7 +44,7 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
     onSave(values);
   }
 
-  const day = (name: keyof CardDaysValues, label: string) => (
+  const day = (name: 'closingDay' | 'dueDay', label: string) => (
     <FormItem invalid={Boolean(errors[name])}>
       <FormLabel>{label}</FormLabel>
       <FormControl
@@ -65,6 +70,21 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
       </div>
       <FormItem hasDescription>
         <FormDescription>{t('creditCards.detail.daysHint')}</FormDescription>
+      </FormItem>
+      <FormItem invalid={Boolean(errors.reminderDays)} hasDescription>
+        <FormLabel>{t('creditCards.detail.reminderDays')}</FormLabel>
+        <FormControl
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={30}
+          value={values.reminderDays}
+          onChange={(event) => {
+            setValues((current) => ({ ...current, reminderDays: event.target.value }));
+          }}
+        />
+        <FormDescription>{t('creditCards.detail.reminderDaysHint')}</FormDescription>
+        <FormMessage>{errors.reminderDays ? t(errors.reminderDays) : undefined}</FormMessage>
       </FormItem>
       <div>
         <Button type="submit" size="sm" disabled={pending}>

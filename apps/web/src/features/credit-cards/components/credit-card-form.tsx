@@ -19,7 +19,11 @@ export interface CreditCardFormValues {
   name: string;
   closingDay: string;
   dueDay: string;
+  reminderDays: string;
 }
+
+/** Days before the due date the reminder is sent unless the user changes it. */
+const DEFAULT_REMINDER_DAYS = '3';
 
 interface CreditCardFormProps {
   pending: boolean;
@@ -34,6 +38,7 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
     name: '',
     closingDay: '',
     dueDay: '',
+    reminderDays: DEFAULT_REMINDER_DAYS,
   });
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -92,6 +97,18 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
           <FormMessage>{message(errors.fields?.dueDay)}</FormMessage>
         </FormItem>
       </div>
+      <FormItem invalid={Boolean(errors.fields?.reminderDays)} hasDescription>
+        <FormLabel>{t('creditCards.form.reminderDays')}</FormLabel>
+        <FormControl
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={30}
+          {...field('reminderDays')}
+        />
+        <FormDescription>{t('creditCards.form.reminderDaysHint')}</FormDescription>
+        <FormMessage>{message(errors.fields?.reminderDays)}</FormMessage>
+      </FormItem>
       <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={pending}>
           {pending ? t('creditCards.form.pending') : t('creditCards.form.submit')}
