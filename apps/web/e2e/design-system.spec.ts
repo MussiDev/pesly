@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { resetAttemptLimits } from './support/database';
+import { expectReady, stubDashboard } from './support/dashboard';
 
 const es = catalogs.es;
 
@@ -9,6 +10,7 @@ const PHONE = { width: 360, height: 780 };
 const DESKTOP = { width: 1280, height: 800 };
 const MIN_TARGET = 44;
 const MAX_LAYOUT_SHIFT = 0.1;
+const API_ORIGIN = 'http://localhost:4000';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 
@@ -26,7 +28,9 @@ test.beforeEach(async () => {
   await resetAttemptLimits();
 });
 
+// TODO(09b): `GET /dashboard` is not on every branch yet, so the home is fed by the stub.
 async function signedIn(page: Page): Promise<void> {
+  await stubDashboard(page);
   await signIn(page, email);
   await expect(page).toHaveURL(/\/es$/);
 }
@@ -70,7 +74,7 @@ test.describe('navigation by viewport (AC-07, AC-10, AC-11, AC-12)', () => {
   }) => {
     await page.setViewportSize(PHONE);
     await signedIn(page);
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    await expectReady(page);
 
     await page.evaluate(() => {
       window.scrollTo(0, document.documentElement.scrollHeight);
@@ -289,16 +293,6 @@ test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
   }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await signedIn(page);
-    // Without an account the home shows its empty state, so the quick actions need one.
-    const accounts = es.accounts;
-    await page.goto('/es/accounts/new');
-    await page.getByLabel(accounts.fields.name).fill('Caja e2e');
-    await page.getByLabel(accounts.fields.type).selectOption({ label: accounts.types.cash });
-    await page
-      .getByLabel(accounts.fields.currency)
-      .selectOption({ label: accounts.currencies.ARS });
-    await page.getByRole('button', { name: accounts.form.submit }).click();
-    await expect(page).toHaveURL(/\/es\/accounts$/);
     await page.goto('/es');
     await expect(
       page.getByRole('link', { name: es.home.quickActions.expense, exact: true }),
@@ -308,6 +302,10 @@ test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
     const unindicated: string[] = [];
     for (let press = 0; press < 40; press += 1) {
       await page.keyboard.press('Tab');
+      // The chart slider keeps the default `transition: all`; let its 0.01 ms ring transition end.
+      await page.evaluate(
+        () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+      );
       const stop = await page.evaluate(inspectFocusedStop);
       if (stop === 'overlay') continue;
       if (stop === null || stop.wrapped) break;
@@ -350,17 +348,21 @@ test.describe('the signed-in home at 360 px (AC-40, AC-41, NFR-07)', () => {
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
-    await page.route(/\/accounts\?/, async (route) => {
-      await gate;
-      await route.continue();
-    });
+    // Registered after the stub, so it runs first and hands the request on once released.
+    await page.route(
+      (url) => url.origin === API_ORIGIN && url.pathname === '/dashboard',
+      async (route) => {
+        await gate;
+        await route.fallback();
+      },
+    );
 
     await page.goto('/es');
 
-    await expect(page.getByRole('status', { name: es.ui.loading })).toBeVisible();
+    await expect(page.getByRole('status', { name: es.dashboard.states.loading })).toBeVisible();
     release();
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    await expect(page.getByRole('status', { name: es.ui.loading })).toHaveCount(0);
+    await expect(page.getByRole('status', { name: es.dashboard.states.loading })).toHaveCount(0);
   });
 });
 

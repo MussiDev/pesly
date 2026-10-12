@@ -50,6 +50,7 @@ test.beforeAll(async ({ browser }) => {
   await resetAttemptLimits();
   const page = await browser.newPage({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
   email = await seedDashboardUser(page, 'dashboard');
+  await resetAttemptLimits();
   newcomer = await registerNewUser(page, 'dashboard-new');
   await page.close();
 });
@@ -155,7 +156,9 @@ test.describe('navigation by width (NFR-02, AC-38, AC-39, AC-40)', () => {
 });
 
 test.describe('the theme control (AC-41, AC-43, AC-44, AC-46)', () => {
-  test.use({ viewport: PHONE });
+  // Without the service worker the page's own routes see (and can block) the script requests; in a
+  // production build the worker would answer them from its cache first.
+  test.use({ viewport: PHONE, serviceWorkers: 'block' });
 
   test('offers light, dark and system, and marks the chosen one with a check and its state', async ({
     page,
@@ -277,7 +280,8 @@ test.describe('states (AC-03, AC-05, AC-29, AC-30, AC-34, AC-35)', () => {
       await expectReady(page);
 
       const card = page.getByRole('region', { name: t.netWorth.label });
-      await expect(card.getByText(t.netWorth.conversionUnavailable)).toBeVisible();
+      // The screen-reader points table repeats the message per row; the first match is the card's.
+      await expect(card.getByText(t.netWorth.conversionUnavailable).first()).toBeVisible();
       await expect(card.getByText(t.netWorth.ars, { exact: true })).toBeVisible();
       await expect(card.getByText(t.netWorth.usd, { exact: true })).toBeVisible();
     });
@@ -400,7 +404,7 @@ test.describe('the contrast probe (NFR-03)', () => {
 
       stub.show(NO_RATE_DASHBOARD);
       await page.goto('/es');
-      await expect(page.getByText(t.netWorth.conversionUnavailable)).toBeVisible();
+      await expect(page.getByText(t.netWorth.conversionUnavailable).first()).toBeVisible();
       await probeContrast(page, name('no-rate'));
 
       stub.show();

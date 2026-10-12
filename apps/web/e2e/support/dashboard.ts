@@ -214,6 +214,13 @@ function navigation(page: Page): Locator {
 
 /** Leaves the home and comes back through the navigation, so the container mounts again. */
 export async function leaveAndReturnHome(page: Page): Promise<void> {
+  // `next dev` pins its tools badge over the first bottom-navigation item at phone width and it
+  // swallows the click; a production build has none (and its CSP refuses an injected style tag).
+  await page.evaluate(() => {
+    for (const portal of document.querySelectorAll<HTMLElement>('nextjs-portal')) {
+      portal.style.display = 'none';
+    }
+  });
   await navigation(page).getByRole('link', { name: es.app.nav.movements, exact: true }).click();
   await expect(page).toHaveURL(/\/es\/movements$/);
   await navigation(page).getByRole('link', { name: es.app.nav.home, exact: true }).click();

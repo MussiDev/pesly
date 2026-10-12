@@ -16,32 +16,36 @@ export function NetWorthPointsList({
 }) {
   const t = useTranslations('dashboard');
   return (
-    <table className="sr-only">
-      <caption>{t('chart.pointsCaption')}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{t('chart.dateHeading')}</th>
-          <th scope="col">{t('chart.valueHeading')}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {points.map((point) => (
-          <tr key={point.date}>
-            <th scope="row">{formatCalendarDate(point.date, locale)}</th>
-            <td>
-              {point.total === null ? (
-                <>
-                  <span>{formatMoney(point.ars, 'ARS', locale)}</span>{' '}
-                  <span>{formatMoney(point.usd, 'USD', locale)}</span>{' '}
-                  <span>{t('netWorth.conversionUnavailable')}</span>
-                </>
-              ) : (
-                formatMoney(point.total, currency, locale)
-              )}
-            </td>
+    // The wrapper is what is clipped: a table ignores width and overflow, so a bare `sr-only`
+    // table stays as wide as its text and scrolls the page sideways.
+    <div className="sr-only">
+      <table>
+        <caption>{t('chart.pointsCaption')}</caption>
+        <thead>
+          <tr>
+            <th scope="col">{t('chart.dateHeading')}</th>
+            <th scope="col">{t('chart.valueHeading')}</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {points.map((point) => (
+            <tr key={point.date}>
+              <th scope="row">{formatCalendarDate(point.date, locale)}</th>
+              <td>
+                {point.total === null ? (
+                  <>
+                    <span>{formatMoney(point.ars, 'ARS', locale)}</span>{' '}
+                    <span>{formatMoney(point.usd, 'USD', locale)}</span>{' '}
+                    <span>{t('netWorth.conversionUnavailable')}</span>
+                  </>
+                ) : (
+                  formatMoney(point.total, currency, locale)
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
