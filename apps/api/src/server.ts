@@ -8,6 +8,7 @@ import {
   createInstallmentCategoryUsage,
   eraseUserCreditCards,
 } from './credit-cards';
+import { createDashboardRoutes } from './dashboard';
 // Deep import on purpose: the exchange-rates barrel would load the providers and the sync job into the API process (NFR-03, R-08).
 import { createExchangeRateRoutes } from './exchange-rates/infrastructure/http/exchange-rate-routes';
 import { createGoalRoutes, eraseUserGoals } from './goals';
@@ -92,6 +93,7 @@ const app = createApp({
       categories: createExpenseCategoryGuard(db),
       writeLimit: createInstallmentWriteLimit(db, logger),
     }),
+    createDashboardRoutes({ db, logger }),
     createExchangeRateRoutes({ db }),
     createGoalRoutes({ db, logger, movements: createAccountMovements(db) }),
     createGroupRoutes({ db, logger }),

@@ -68,3 +68,25 @@ export function createReportRoutes(options: ReportRoutesOptions): RouterFactory 
     useCases: options.useCases ?? composeUseCases(options),
   });
 }
+
+// Reused by the dashboard module (09b): readers, pure rules and the ports they implement.
+export { SystemClock } from './infrastructure/clock/system-clock';
+export { DrizzleAccountFlowReader } from './infrastructure/db/drizzle-account-flow-reader';
+export { DrizzleFlowReader } from './infrastructure/db/drizzle-flow-reader';
+export { DrizzleInstallmentDebtReader } from './infrastructure/db/drizzle-installment-debt-reader';
+export { DrizzleNetWorthRateReader } from './infrastructure/db/drizzle-net-worth-rate-reader';
+export { DrizzleReportPreferences } from './infrastructure/db/drizzle-report-preferences';
+export { addToCategory, orderCategoryTotals } from './domain/category-totals';
+export { convertRows, installmentMonthOf, matchShareCategory } from './domain/flows';
+export type { TopCategory } from './domain/flows';
+export { installmentDebt } from './domain/installment-debt';
+export type { CurrencyAmounts } from './domain/installment-debt';
+export { accumulate, assemblePoints } from './domain/net-worth';
+export type { FlowReader, FlowWindow } from './application/ports/flow-reader';
+export type { NetWorthRateReader } from './application/ports/net-worth-rate-reader';
+export type {
+  AccountFlows,
+  InstallmentDebtRow,
+  NetWorthSources,
+  NetWorthWindow,
+} from './application/ports/net-worth-sources';

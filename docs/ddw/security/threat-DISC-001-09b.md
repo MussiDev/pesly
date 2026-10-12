@@ -166,8 +166,8 @@
   response; the request is logged by the route with ids only.
 - **Information Disclosure:** `Promise.all` rejects on the first failure and no `catch` returns a partial result,
   so a failed source never yields a section filled with a guessed or stale value (FR-16).
-- **Denial of Service:** the sections run in parallel and each reads once per source; the sum is 36 statements for
-  the benchmark user against a ceiling of 40, and the response is capped at 32 KB by the list caps (R-04, R-08).
+- **Denial of Service:** the sections run in parallel and each reads once per source; the sum is 39 statements for
+  the benchmark user (2 cards) against a ceiling of 40, and the response is capped at 32 KB by the list caps (R-04, R-08).
 - **Elevation of Privilege:** it cannot widen the scope: it takes the scope as a parameter and the modules it calls
   refuse a scope that was not issued by the policy.
 
@@ -200,13 +200,19 @@
 | R-02 | A group member's balance or the payer movement of a group expense leaks another member's amount or counts the full amount paid | I | Low | High | The group read starts from the caller's member rows and returns only the caller's sources; the flow rules of 09a count only the caller's share; tests assert the caller's own figure and no other member's amount (Blocks 3, 5 and 8) |
 | R-03 | A GET request with a write (materialization of pending occurrences) is abused to create rows for another user or in a flood | T | Low | Medium | `ListUpcoming` inserts only the scope's own payments' due dates with insert-or-ignore on the unique key, bounded by the 200-payment cap and the 366-day lookback; a test repeats the request and asserts one row per due date (Block 7) |
 | R-04 | Repeated dashboard requests exhaust the database because one request runs many statements over 100,000 movements | D | Medium | Medium | Session and verified email are required, the route has no parameter, each source is one aggregated read, lists are capped, a benchmark holds p95 under 1 s and 40 statements, and the platform's edge limits apply (Block 8) |
-| R-05 | A user with many cards multiplies the card statement reads beyond the statement ceiling and slows the home screen | D | Medium | Low | The installment rows are read once for all cards and the cost is 3 statements per card, documented in D13; the benchmark measures 2 cards and a future batch reader is the lever if real users need more (Blocks 7 and 8) |
+| R-05 | A user with many cards multiplies the card statement reads beyond the statement ceiling and slows the home screen | D | Medium | Low | The installment rows are read once for all cards and the cost is 3 statements per card, documented in D13; the benchmark measures 39 of 40 statements for 2 cards at 3 statements per card; a third card exceeds 40, which is an accepted risk reviewed when a card cap or batching is added (Blocks 7 and 8) |
 | R-06 | A float or rounding drift changes an amount or a percentage | T | Low | Medium | `bigint` sums read as text, integer percent functions with truncation and a clamp, integer strings in the response, and a scan test that bans float functions in the module, its schema and its tests (Blocks 0, 5 and 8) |
 | R-07 | A dashboard request calls dolarapi.com, CoinGecko or another external service, or uses a rate that is not stored | D | Low | Medium | The module reads stored rates and prices only and imports no provider or job; a test spies on `fetch` and sockets and a scan checks the imports; a missing rate gives `no_rate` and a null total (Blocks 4 and 8) |
 | R-08 | An error response or a log line leaks SQL, a stack, an amount or a name | I | Low | Medium | The error middleware returns only the standard code; the route logs the request id and user id only; the flow test inspects the 5xx body for stack and SQL (Blocks 2 and 8) |
 | R-09 | A failed source leaves a section with a guessed, stale or partial value that the user trusts | R | Low | Medium | `Promise.all` with no `catch`, so the whole request fails with the standard error and returns no section; a test makes one source throw and asserts no body (Blocks 2 and 8) |
 | R-10 | The dashboard disagrees with the reports or the budgets screens, so the user cannot tell which number is right | R | Medium | Low | The module calls the 09a readers and rules, `computeSpending` and the groups formula instead of copying them, and parity tests compare each figure with its own endpoint, with the stated installment difference recorded as an open owner question (Blocks 4, 5, 6 and 8) |
 | R-11 | A query parameter or an id from the client changes the periods, the zone or the scope of a read | E | Low | High | The query is a strict empty object that answers 400 for any key; the scope, zone and today come from the session, the stored zone and the server clock only (Blocks 0, 2 and 8) |
+
+## Accepted risks
+### R-05
+- **Accepted by:** the product owner, on 2026-10-12, with the measured result of Block 8 (39 of 40 statements for 2 cards).
+- **Justification:** each card costs 3 statements, so the benchmark user of 2 cards uses 39 of the 40 allowed; a third card exceeds 40, and the p95 and body-size ceilings still hold for the cases the product serves today.
+- **Review conditions:** revisited when a card cap or a batched statement reader is added, and if real users hold 3 or more cards.
 
 ## Supply chain
 No new runtime dependency: the feature reuses Drizzle, Express and Zod and the existing module code, and a test
@@ -215,7 +221,7 @@ pins the dependency lists of `apps/api` and `packages/shared` and asserts that `
 (Block 1), checked by a circular import test and a snapshot of the previous exports.
 
 ## Availability
-The route has no parameter and every list is capped, so the DoS surface is the fixed cost of one request: 36
+The route has no parameter and every list is capped, so the DoS surface is the fixed cost of one request: 39
 statements for the benchmark user against a ceiling of 40, a p95 under 1 s and a body under 32 KB, all measured in
 Block 8. The idempotent materialization of pending occurrences is bounded by the recurring module's own caps. The
 platform's edge limits cover volumetric attacks before they reach this code, and a user with many cards is the one

@@ -99,8 +99,10 @@ screen and no external call.
   Section builders return `bigint` results; one presenter writes strings and is validated by the response schema.
 - D13: Statement budget (NFR-05). For the benchmark user with 2 cards the handler runs: preferences 1, first steps
   1, net worth 7 (accounts, debt, groups, 3 for investments, rate), flows 6, budgets 8, agenda 13 (payments read
-  twice, insert, pending, account currencies, cards, installment rows, 3 per card), total 36. A test counts every
-  statement of the whole request, session lookup included, through `pg.Client.prototype.query`.
+  twice, insert, pending, account currencies, cards, installment rows, 3 per card), total measured 39 of the 40
+  allowed for 2 cards with 3 statements per card (a third card exceeds 40: accepted risk R-05, reviewed when a card
+  cap or batching is added). A test counts every statement of the whole request, session lookup included, through
+  `pg.Client.prototype.query`.
 - D14: Money, dependencies and the network (NFR-02, NFR-03, NFR-04). `bigint` only; a scan test bans `parseFloat`,
   `toFixed`, `Math.round`, `Math.floor` and `Number(` in the module, its shared schema and its tests
   (`Number.parseInt` and `Number.isInteger` stay allowed). No `package.json` and no file under `apps/api/drizzle`

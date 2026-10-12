@@ -287,49 +287,49 @@ Requirement IDs were renumbered for this sub-ticket; the parent IDs are in the D
   AC-33, AC-16 to AC-34, AC-17 to AC-36, AC-18 and AC-19 to AC-39 and AC-40, AC-27 to AC-42. The net worth
   chart (parent FR-08, AC-10, AC-11) is `GET /reports/net-worth` of 09a, drawn by 09c. New in this ticket:
   FR-01, FR-04, FR-08 status fields, FR-15, FR-16, NFR-02 to NFR-06 and the criteria not listed.
-- 2026-10-12: Proposed by the model, for owner ratification (1): one endpoint, `GET /dashboard`, in a new
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (1): one endpoint, `GET /dashboard`, in a new
   `dashboard` module of `apps/api` (hexagonal: ports, a use case that composes the other modules' use cases
   and Drizzle readers, a presenter and a route; the only file importing other modules' tables follows the
   `foreign-relations.ts` pattern of `reports`), with no query parameter and `requireSession` plus
   `requireVerifiedEmail` like the reports. The response is validated with a Zod schema added to
   `packages/shared`. Alternative: one endpoint per widget, which costs the phone seven round trips and lets
   the widgets disagree.
-- 2026-10-12: Proposed by the model, for owner ratification (2): amounts are integer strings in minor
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (2): amounts are integer strings in minor
   units (the `exactIntegerStringSchema` of 09a); percentages are whole numbers (not money, so JSON numbers);
   dates are `YYYY-MM-DD` local dates. Category and group fields carry ids and `defaultKey` for the i18n
   catalogs, never prose.
-- 2026-10-12: Proposed by the model, for owner ratification (3): per-currency rule. `netWorth` returns the
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (3): per-currency rule. `netWorth` returns the
   ARS part and the USD part unconverted plus a `total` in the display currency; `month`, `categories` and
   `insight` are in the display currency through the frozen rates of 09a; `budgets`, `upcoming` and `groups`
   stay in their own currency. Owed and owing are computed per group and per currency and then summed by
   sign, so a debt in one group does not cancel a receivable in another (the 09a series nets them because it
   feeds one number; the home card shows both, parent FR-13).
-- 2026-10-12: Proposed by the model, for owner ratification (4): the investments of the net worth now are
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (4): the investments of the net worth now are
   valued from the holdings and the prices stored at request time (PRD 07, no external call), while the 09a
   series reads the daily snapshot, so the dashboard and the chart's last point can differ by the price
   movement since the last snapshot. Alternative: take the latest snapshot, which makes the two equal and
   shows a value up to a day old. This is open question 1 of the report.
-- 2026-10-12: Proposed by the model, for owner ratification (5): "month to date" and "same period of the
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (5): "month to date" and "same period of the
   previous month" are two calls of the 09a flow rules with a range each; installments are dated by the
   due-date month of their statement, not by the day, so both periods carry the whole month's installments
   of their month. The percent change is `(current - previous) * 100 / previous`, truncated toward zero,
-  computed with bigint.
-- 2026-10-12: Proposed by the model, for owner ratification (6): the insight's change compares the current
+  computed with bigint. With a negative previous value the divisor is its absolute value, and the result is clamped to ±1,000,000.
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (6): the insight's change compares the current
   month-to-date amount of the top category with the average of the same category over the previous 3
   complete months, as `(current * 3 - sum3) * 100 / sum3` truncated toward zero; with fewer than 3 of those
   months holding any expense the change is null (parent AC-19). Shares that match no personal category form
   one candidate with a null category id.
-- 2026-10-12: Proposed by the model, for owner ratification (7): `upcoming` holds the `scheduled` dates of
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (7): `upcoming` holds the `scheduled` dates of
   active recurring payments and the due dates of unpaid statements from tomorrow to today plus 7 days;
   occurrences that are pending (due today) or overdue and closed statements due within 3 days or past due
   go only to `actions`, so one item never appears in both lists. Statements are read as stored (the daily
   jobs of the credit cards module create them). Whether the request also materializes the pending
   occurrences, as `GET /recurring/upcoming` does with an idempotent write, is open question 2 of the report.
-- 2026-10-12: Proposed by the model, for owner ratification (8): failed syncs and group conflicts (parent
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (8): failed syncs and group conflicts (parent
   FR-12) are device state of PRD 04 and are not stored on the server; the endpoint returns the server-side
   items and 09c appends the local ones. The `firstSteps` flag counts non-archived accounts and any movement,
   and the endpoint still returns the other sections with zero values when it is true, so the screen decides
   what to hide.
-- 2026-10-12: Proposed by the model, for owner ratification (9): no migration. The latest stored rate of
+- 2026-10-12: Proposed by the model, ratified by the owner on 2026-10-12 (9): no migration. The latest stored rate of
   the default rate type is read from `exchange_rates`, the same source the reports use for the current
   point; the history table of 09a is not needed for "now".
