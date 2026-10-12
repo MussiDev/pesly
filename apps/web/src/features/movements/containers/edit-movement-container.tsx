@@ -5,10 +5,12 @@ import {
   formatRateInput,
   instantToZonedLocal,
   type CategoryLanguage,
+  type MovementGroupLink,
   type MovementResponse,
 } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AccountsLoadStateView } from '@/features/accounts/components/accounts-load-state';
@@ -42,7 +44,16 @@ type MovementState =
   | { kind: 'notFound' }
   | { kind: 'notAvailableOffline' }
   /** `queued`: the device has a change of it the server does not; a save joins that change. */
-  | { kind: 'ready'; movement: MovementResponse; queued: boolean };
+  | {
+      kind: 'ready';
+      movement: MovementResponse;
+      queued: boolean;
+      /** The group expense the server links to this movement; copies and queued changes have none. */
+      groupExpense: MovementGroupLink | null;
+    };
+
+/** The group name for the notice: `undefined` while loading, `null` when the group is not visible. */
+type GroupNameState = { groupId: string; name: string | null } | undefined;
 
 /** What the form shows before the user touches anything: the movement as it is stored. */
 function initialValuesOf(
@@ -89,6 +100,29 @@ export function MovementNotFoundView({
   );
 }
 
+/** Says which group expense the movement belongs to and, when adopted, what is locked. */
+function GroupLinkNotice({
+  groupName,
+  locked,
+}: {
+  groupName: string | null | undefined;
+  locked: boolean;
+}) {
+  const t = useTranslations('movements.edit');
+  return (
+    <Alert>
+      <AlertDescription className="grid gap-1">
+        {groupName === undefined ? null : (
+          <p>
+            {groupName === null ? t('groupNoticeUnknown') : t('groupNotice', { group: groupName })}
+          </p>
+        )}
+        {locked ? <p>{t('lockedFields')}</p> : null}
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 /** Edits one movement of the user: the entry form filled in, type locked, saved with `PUT`. */
 export function EditMovementContainer({ movementId }: { movementId: string }) {
   const api = useApiClient();
@@ -100,6 +134,24 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<MovementFormErrors>({});
+  const [groupName, setGroupName] = useState<GroupNameState>(undefined);
+  const linkedGroupId =
+    movementState.kind === 'ready' ? movementState.groupExpense?.groupId : undefined;
+
+  // One read of the group for the notice; a group the person cannot see is the neutral text.
+  useEffect(() => {
+    if (linkedGroupId === undefined) return;
+    let active = true;
+    const isActive = () => active;
+    void (async () => {
+      const result = await api.getGroup(linkedGroupId);
+      if (!isActive()) return;
+      setGroupName({ groupId: linkedGroupId, name: result.ok ? result.data.name : null });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [api, linkedGroupId]);
 
   useEffect(() => {
     let active = true;
@@ -114,7 +166,12 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         setMovementState(
           queued.operation === 'delete'
             ? { kind: 'notFound' }
-            : { kind: 'ready', movement: changeToMovement(queued), queued: true },
+            : {
+                kind: 'ready',
+                movement: changeToMovement(queued),
+                queued: true,
+                groupExpense: null,
+              },
         );
         return;
       }
@@ -125,7 +182,7 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         setMovementState(
           saved === undefined
             ? { kind: 'notAvailableOffline' }
-            : { kind: 'ready', movement: saved, queued: false },
+            : { kind: 'ready', movement: saved, queued: false, groupExpense: null },
         );
       };
       if (isOffline()) {
@@ -135,7 +192,8 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
       const result = await api.getMovement(movementId);
       if (!isActive()) return;
       if (result.ok) {
-        setMovementState({ kind: 'ready', movement: result.data, queued: false });
+        const { groupExpense, ...movement } = result.data;
+        setMovementState({ kind: 'ready', movement, queued: false, groupExpense });
       } else if (result.code === 'NETWORK') {
         await showCopy();
       } else if (result.code === 'UNAUTHENTICATED') {
@@ -173,10 +231,11 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
     data: MovementFormData,
     movement: MovementResponse,
     queued: boolean,
+    locked: boolean,
   ) {
     if (pending) return;
     const offline = data.offline || isOffline();
-    const { request, fields } = buildMovementRequest(values, {
+    const built = buildMovementRequest(values, {
       accounts: data.accounts,
       categories: data.categories,
       timeZone: data.timeZone,
@@ -192,10 +251,20 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         ...(movement.categoryId === null ? {} : { categoryId: movement.categoryId }),
       },
     });
-    if (request === undefined) {
+    const { fields } = built;
+    if (built.request === undefined) {
       setErrors({ fields });
       return;
     }
+    // A locked movement goes back exactly as stored: the form shows the date to the minute only.
+    const request: QueuedEditRequest = locked
+      ? {
+          ...built.request,
+          accountId: movement.accountId,
+          amount: movement.amount,
+          occurredAt: movement.occurredAt,
+        }
+      : built.request;
     setPending(true);
     setErrors({});
     // A movement with a change already waiting goes through the queue, so its changes keep order.
@@ -239,10 +308,21 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
   }
 
   const { data } = form.state;
-  const { movement, queued } = movementState;
+  const { movement, queued, groupExpense } = movementState;
+  const locked = groupExpense?.adopted === true;
+  const notice =
+    groupExpense === null ? undefined : (
+      <GroupLinkNotice
+        // The name of another link (a previous movement) must not show under this one.
+        groupName={groupName?.groupId === groupExpense.groupId ? groupName.name : undefined}
+        locked={locked}
+      />
+    );
   return (
     <MovementForm
       mode="edit"
+      lockedFields={locked}
+      groupNotice={notice}
       initialValues={initialValuesOf(movement, data, locale)}
       accounts={data.accounts.filter(
         (item) =>
@@ -266,7 +346,7 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         <TagInputContainer value={value} onChange={onChange} error={error} />
       )}
       onSubmit={(values) => {
-        void save(values, data, movement, queued);
+        void save(values, data, movement, queued, locked);
       }}
     />
   );

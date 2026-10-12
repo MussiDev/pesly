@@ -56,6 +56,12 @@ import {
   holdingResponseSchema,
   latestRatesResponseSchema,
   listMovementsResponseSchema,
+  movementDetailResponseSchema,
+  sendMovementToGroupRequestSchema,
+  sendMovementToGroupResponseSchema,
+  type MovementDetailResponse,
+  type SendMovementToGroupRequest,
+  type SendMovementToGroupResponse,
   listTagsResponseSchema,
   movementResponseSchema,
   tagSuggestionsResponseSchema,
@@ -251,6 +257,10 @@ export type ApiErrorKey =
   | 'goalProgressTooLarge'
   | 'goalLimitReached'
   | 'accountLinkedToGoal'
+  | 'groupMovementNotExpense'
+  | 'groupMovementAlreadySent'
+  | 'groupMovementChanged'
+  | 'movementLockedByGroupExpense'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
 
@@ -362,6 +372,10 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GOAL_PROGRESS_TOO_LARGE: 'goalProgressTooLarge',
   GOAL_LIMIT_REACHED: 'goalLimitReached',
   ACCOUNT_LINKED_TO_GOAL: 'accountLinkedToGoal',
+  GROUP_MOVEMENT_NOT_EXPENSE: 'groupMovementNotExpense',
+  GROUP_MOVEMENT_ALREADY_SENT: 'groupMovementAlreadySent',
+  GROUP_MOVEMENT_CHANGED: 'groupMovementChanged',
+  MOVEMENT_LOCKED_BY_GROUP_EXPENSE: 'movementLockedByGroupExpense',
 };
 
 /**
@@ -639,7 +653,12 @@ export interface ApiClient {
   setHoldingAutomaticPrice(holdingId: string): Promise<ApiResult<HoldingResponse>>;
   deleteHolding(holdingId: string): Promise<ApiResult<undefined>>;
   createMovement(body: CreateMovementInput): Promise<ApiResult<MovementResponse>>;
-  getMovement(id: string): Promise<ApiResult<MovementResponse>>;
+  getMovement(id: string): Promise<ApiResult<MovementDetailResponse>>;
+  /** An invalid body is refused locally and sends no request. */
+  sendMovementToGroup(
+    groupId: string,
+    body: SendMovementToGroupRequest,
+  ): Promise<ApiResult<SendMovementToGroupResponse>>;
   /** A full replacement: what the body omits (note, tags) is cleared. */
   updateMovement(id: string, body: UpdateMovementInput): Promise<ApiResult<MovementResponse>>;
   deleteMovement(id: string): Promise<ApiResult<undefined>>;
@@ -1535,9 +1554,21 @@ export function createApiClient({
         request({
           method: 'GET',
           path,
-          response: movementResponseSchema,
+          response: movementDetailResponseSchema,
           refreshOnUnauthenticated: true,
         }),
+      ),
+    sendMovementToGroup: (groupId, body) =>
+      onGroup(groupId, (path) =>
+        sendMovementToGroupRequestSchema.safeParse(body).success
+          ? request({
+              method: 'POST',
+              path: `${path}/expenses/from-movement`,
+              body,
+              response: sendMovementToGroupResponseSchema,
+              refreshOnUnauthenticated: true,
+            })
+          : Promise.resolve(failure('VALIDATION_FAILED')),
       ),
     updateMovement: (id, body) =>
       onMovement(id, (path) =>

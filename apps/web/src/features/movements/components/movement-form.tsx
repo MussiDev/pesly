@@ -1,6 +1,12 @@
 'use client';
 
-import { MOVEMENT_TYPES, type MovementType, type RateType } from '@pesly/shared';
+import {
+  formatMoney,
+  MOVEMENT_TYPES,
+  parseAmountInput,
+  type MovementType,
+  type RateType,
+} from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import {
@@ -93,6 +99,13 @@ export interface MovementFormProps {
   /** The type a new movement opens on, e.g. from a quick action; edit mode keeps the stored type. */
   initialType?: MovementType;
   initialValues?: MovementFormInitialValues;
+  /**
+   * Amount, account and date show as read-only text (an adopted group movement); their stored
+   * values still travel with the submit through hidden fields. Needs `initialValues`.
+   */
+  lockedFields?: boolean;
+  /** A notice above the fields, e.g. the group expense the movement belongs to. */
+  groupNotice?: ReactNode;
   onSubmit: (values: MovementFormValues) => void;
 }
 
@@ -114,6 +127,8 @@ export function MovementForm({
   mode = 'create',
   initialType,
   initialValues,
+  lockedFields = false,
+  groupNotice,
   onSubmit,
 }: MovementFormProps) {
   const t = useTranslations('movements');
@@ -142,6 +157,13 @@ export function MovementForm({
   const showDestinationHint =
     !categorized &&
     (source === undefined ? !hasDestinationPair(type, accounts) : destinations.length === 0);
+  const locked = lockedFields && initialValues !== undefined && type === 'expense';
+  // The form carries the amount as locale text; the locked view shows it as money in the account currency.
+  const lockedMinor = locked ? parseAmountInput(initialValues.amount, locale) : null;
+  const lockedAmountText =
+    lockedMinor === null || source === undefined
+      ? (initialValues?.amount ?? '')
+      : formatMoney(lockedMinor, source.currency, locale === 'en' ? 'en' : 'es');
   const [tags, setTags] = useState<string[]>(initialValues?.tags ?? []);
 
   // After a failed submit, focus the first invalid field so its message is announced with it.
@@ -199,32 +221,43 @@ export function MovementForm({
       </CardHeader>
       <CardContent className="grid gap-4">
         <form ref={formRef} className="grid min-w-0 gap-4" noValidate onSubmit={handleSubmit}>
+          {groupNotice}
           <FormAlert error={errors.form} />
           <RateLimitAlert rateLimit={errors.rateLimit} />
           <TypePills value={type} disabled={mode === 'edit'} onChange={handleTypeChange} />
-          <MovementField
-            label={type === 'exchange' ? t('fields.amountOut') : t('fields.amount')}
-            error={errors.fields?.amount}
-          >
-            {(control) => (
-              <MoneyInput
-                ref={amountRef}
-                name="amount"
-                defaultValue={initialValues?.amount}
-                required
-                keyboard={compact ? 'none' : 'default'}
-                className="h-14 text-center text-title font-bold"
-                placeholder="0"
-                onFocus={() => {
-                  activeAmountRef.current = 'amount';
-                }}
-                onChange={(event) => {
-                  setAmount(event.currentTarget.value);
-                }}
-                {...control}
-              />
-            )}
-          </MovementField>
+          {locked ? (
+            <LockedValue
+              label={t('fields.amount')}
+              name="amount"
+              value={initialValues.amount}
+              text={lockedAmountText}
+              large
+            />
+          ) : (
+            <MovementField
+              label={type === 'exchange' ? t('fields.amountOut') : t('fields.amount')}
+              error={errors.fields?.amount}
+            >
+              {(control) => (
+                <MoneyInput
+                  ref={amountRef}
+                  name="amount"
+                  defaultValue={initialValues?.amount}
+                  required
+                  keyboard={compact ? 'none' : 'default'}
+                  className="h-14 text-center text-title font-bold"
+                  placeholder="0"
+                  onFocus={() => {
+                    activeAmountRef.current = 'amount';
+                  }}
+                  onChange={(event) => {
+                    setAmount(event.currentTarget.value);
+                  }}
+                  {...control}
+                />
+              )}
+            </MovementField>
+          )}
           {type === 'exchange' ? (
             <>
               <MovementField label={t('fields.amountIn')} error={errors.fields?.destinationAmount}>
@@ -259,27 +292,36 @@ export function MovementForm({
               )}
             </>
           ) : null}
-          <NumericKeypad onKey={pressKey} />
-          <MovementField label={t('fields.account')} error={errors.fields?.account}>
-            {(control) => (
-              <AccountPicker
-                id={control.id}
-                name="accountId"
-                picked={source}
-                defaultValue={initialValues?.accountId ?? ''}
-                invalid={control['aria-invalid']}
-                describedBy={control['aria-describedby']}
-                onChange={handleSourceChange}
-              >
-                <option value="">{t('fields.accountPlaceholder')}</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {`${account.name} (${account.currency})`}
-                  </option>
-                ))}
-              </AccountPicker>
-            )}
-          </MovementField>
+          {locked ? null : <NumericKeypad onKey={pressKey} />}
+          {locked ? (
+            <LockedValue
+              label={t('fields.account')}
+              name="accountId"
+              value={initialValues.accountId}
+              text={source === undefined ? '' : `${source.name} (${source.currency})`}
+            />
+          ) : (
+            <MovementField label={t('fields.account')} error={errors.fields?.account}>
+              {(control) => (
+                <AccountPicker
+                  id={control.id}
+                  name="accountId"
+                  picked={source}
+                  defaultValue={initialValues?.accountId ?? ''}
+                  invalid={control['aria-invalid']}
+                  describedBy={control['aria-describedby']}
+                  onChange={handleSourceChange}
+                >
+                  <option value="">{t('fields.accountPlaceholder')}</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {`${account.name} (${account.currency})`}
+                    </option>
+                  ))}
+                </AccountPicker>
+              )}
+            </MovementField>
+          )}
           {categorized ? null : (
             <MovementField
               label={t('fields.destinationAccount')}
@@ -339,17 +381,26 @@ export function MovementForm({
               ) : null}
             </div>
           ) : null}
-          <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
-            {(control) => (
-              <Input
-                name="occurredAt"
-                type="datetime-local"
-                defaultValue={initialValues?.occurredAt ?? defaultOccurredAt}
-                required
-                {...control}
-              />
-            )}
-          </MovementField>
+          {locked ? (
+            <LockedValue
+              label={t('fields.occurredAt')}
+              name="occurredAt"
+              value={initialValues.occurredAt}
+              text={formatWallClock(initialValues.occurredAt, locale)}
+            />
+          ) : (
+            <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
+              {(control) => (
+                <Input
+                  name="occurredAt"
+                  type="datetime-local"
+                  defaultValue={initialValues?.occurredAt ?? defaultOccurredAt}
+                  required
+                  {...control}
+                />
+              )}
+            </MovementField>
+          )}
           {categorized ? (
             <RateField
               defaultValue={initialValues?.rate ?? defaultRate}
@@ -410,6 +461,44 @@ function hasDestinationPair(
   accounts: readonly MovementAccountOption[],
 ): boolean {
   return accounts.some((account) => destinationsFor(type, account, accounts).length > 0);
+}
+
+/** A wall-clock `YYYY-MM-DDTHH:mm` shown in the locale, read as-is (no time zone shift). */
+function formatWallClock(local: string, locale: string): string {
+  const date = new Date(`${local}:00Z`);
+  if (Number.isNaN(date.getTime())) return local;
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  }).format(date);
+}
+
+/** A locked field: read-only text for the person, the stored value in a hidden field for the submit. */
+function LockedValue({
+  label,
+  name,
+  value,
+  text,
+  large = false,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  text: string;
+  large?: boolean;
+}) {
+  return (
+    <div className="grid min-w-0 gap-1">
+      <span className="text-small font-medium">{label}</span>
+      <p
+        className={`min-w-0 break-words text-muted-foreground ${large ? 'text-center text-title font-bold' : ''}`}
+      >
+        {text}
+      </p>
+      <input type="hidden" name={name} value={value} readOnly />
+    </div>
+  );
 }
 
 function ImpliedRateLine({ preview }: { preview: ImpliedRatePreview }) {
