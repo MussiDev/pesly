@@ -23,6 +23,7 @@ import {
 import { createBudgetAlertListener } from './budgets';
 import { BestEffortExpenseSavedHook } from './movements/application/best-effort-expense-saved';
 import { createRecurringExpenseRecorder } from './movements/infrastructure/recurring/drizzle-recurring-expense-recorder';
+import { createPushJob, createPushProvider } from './push/jobs';
 import { createRecurringJobs } from './recurring/jobs';
 import { parseWorkerEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
@@ -102,6 +103,13 @@ const statementReminderJob = createStatementReminderJob({
   intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS,
 });
 
+const pushJob = createPushJob({
+  db,
+  logger,
+  provider: createPushProvider(env),
+  intervalSeconds: env.PUSH_JOB_INTERVAL_SECONDS,
+});
+
 worker.start();
 logger.info({ provider: env.EMAIL_PROVIDER }, 'email worker started');
 ratesJob.start();
@@ -121,6 +129,11 @@ logger.info(
   { intervalSeconds: env.RECURRING_JOB_INTERVAL_SECONDS },
   'statement reminder job started',
 );
+pushJob.start();
+logger.info(
+  { provider: env.PUSH_PROVIDER, intervalSeconds: env.PUSH_JOB_INTERVAL_SECONDS },
+  'push job started',
+);
 
 const shutdown = createShutdown({
   name: 'email worker',
@@ -133,6 +146,7 @@ const shutdown = createShutdown({
       recurringJobs.stop(),
       automaticDebitJob.stop(),
       statementReminderJob.stop(),
+      pushJob.stop(),
     ]);
     await pool.end();
   },

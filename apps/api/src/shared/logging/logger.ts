@@ -36,6 +36,13 @@ const SECRET_KEYS = [
   'grantToken',
   'grant',
   'authorizationUrl',
+  // Web Push (DISC-001-08d): the push URL is a capability, the keys and the auth secret decrypt
+  // what is sent to the device, and the VAPID private key signs as the server.
+  'endpoint',
+  'p256dh',
+  'authSecret',
+  'vapidPrivateKey',
+  'VAPID_PRIVATE_KEY',
 ];
 
 /**
@@ -50,6 +57,11 @@ export const REDACT_PATHS = [
   'body.code',
   '*.query.code',
   '*.body.code',
+  // `auth` alone is too common a key to redact everywhere: only the subscription keys of a body.
+  'body.keys.auth',
+  '*.body.keys.auth',
+  'keys.auth',
+  '*.keys.auth',
   'headers.cookie',
   'headers["set-cookie"]',
   '*.headers.cookie',

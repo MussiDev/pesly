@@ -42,6 +42,10 @@ const API_ENV = {
   BREACH_CHECKER: 'fake',
   // Base64 of 32 bytes, for e2e runs only: seals the TOTP secrets enrolled by the 2FA flows.
   TOTP_ENCRYPTION_KEY: 'ZTJlLW9ubHktdG90cC1lbmNyeXB0aW9uLWtleS0zMmI=',
+  // The push provider is `fake` by default; the API only has to serve a well formed public key
+  // (base64url of an uncompressed P-256 point). No private key exists for it: nothing is delivered.
+  VAPID_PUBLIC_KEY:
+    'BM6i7P4qHegg2aEw6eSHHAtdVz62Zk95yWkLlZkAta5N32kA2LRveo0mr5ZtJUA_HS8hKfgi681-PTaDNd1gi8c',
   ...FAKE_GOOGLE_CLIENT,
   GOOGLE_AUTHORIZATION_URL: `${FAKE_GOOGLE_ORIGIN}/authorize`,
   GOOGLE_TOKEN_URL: `${FAKE_GOOGLE_ORIGIN}/token`,

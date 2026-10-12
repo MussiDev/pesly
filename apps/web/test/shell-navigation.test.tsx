@@ -287,6 +287,7 @@ describe('current destination (AC-14)', () => {
     ['/categories', '/es/more', '/es/categories'],
     ['/settings/profile', '/es/more', '/es/settings/profile'],
     ['/settings/security', '/es/more', '/es/settings/security'],
+    ['/settings/notifications', '/es/more', '/es/settings/notifications'],
   ])('on %s the bottom bar marks %s and the top nav %s, one link each', (path, bottom, top) => {
     const { container } = renderShellAt(path);
 
@@ -381,6 +382,7 @@ describe('MoreMenu (FR-07)', () => {
       '/en/notices',
       '/en/settings/profile',
       '/en/settings/security',
+      '/en/settings/notifications',
     ]);
   });
 
@@ -398,6 +400,9 @@ describe('MoreMenu (FR-07)', () => {
     expect(screen.getByRole('link', { name: en.app.nav.security }).getAttribute('href')).toBe(
       '/en/settings/security',
     );
+    expect(
+      screen.getByRole('link', { name: en.app.nav.notificationSettings }).getAttribute('href'),
+    ).toBe('/en/settings/notifications');
     expect(screen.getByRole('switch', { name: en.theme.darkMode })).toBeDefined();
     await userEvent.setup().click(screen.getByRole('button', { name: en.auth.signOut.label }));
     expect(onSignOut).toHaveBeenCalledOnce();
