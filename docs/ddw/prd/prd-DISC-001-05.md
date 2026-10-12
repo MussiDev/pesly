@@ -18,6 +18,7 @@
 | DISC-001-05f | Group Expenses Screens | not written yet | depends on e | expense list, the split editor (equal, percentage, exact), the default split and the personal shares view |
 | DISC-001-05g | Balances and Settlements Screens | prd-DISC-001-05g.md | depends on e (stacked on its branch) and on 05f only for `selfMemberId` | web only, done: branch `feat/DISC-001-05g-balances-settlements-ui`; balances per currency, suggested payments, single and consolidated settlements, history; carries the 05f commit that exposes `selfMemberId` (merge order decides who rebases) |
 | DISC-001-05h | Editing, Activity and Conflict Screens | prd-DISC-001-05h.md | depends on f and g | PRD written, not built: edit and delete, the activity log, and mounting the 04e queue, sync badges and conflict resolution |
+| DISC-001-05j | Group Category Views | prd-DISC-001-05j.md | depends on f and h (branches after 05h merges) | PRD written, not built: category icon, color and name on group expenses, a category and month filter, and a spending-by-category summary per currency; needs a small API addition (filter and summary), no migration expected |
 
 ## Suggested implementation order
 a → b → c → d, a chain: each one needs the one before it. DISC-001-04e (conflicts on group
