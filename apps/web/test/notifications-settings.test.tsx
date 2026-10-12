@@ -62,7 +62,10 @@ function install({
     return Promise.resolve(true);
   });
   Object.defineProperty(navigator, 'serviceWorker', {
-    value: { ready: Promise.resolve({ pushManager }) },
+    value: {
+      ready: Promise.resolve({ pushManager }),
+      getRegistration: () => Promise.resolve({ pushManager }),
+    },
     configurable: true,
   });
   const notification = {
