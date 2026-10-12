@@ -29,6 +29,7 @@ import {
   eraseUserMovements,
 } from './movements';
 import { createNoticesRoutes, renderBudgetAlertText } from './notices';
+import { createPushRoutes } from './push';
 import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { createReportRoutes } from './reports';
 import { parseEnv } from './shared/config/env';
@@ -98,6 +99,7 @@ const app = createApp({
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger, expenseSaved }),
     createNoticesRoutes({ db, logger }),
+    createPushRoutes({ db, logger, publicKey: env.VAPID_PUBLIC_KEY }),
     createRecurringRoutes({
       db,
       logger,
