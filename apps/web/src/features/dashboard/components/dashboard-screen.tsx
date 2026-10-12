@@ -1,5 +1,6 @@
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { QuickActions } from '@/features/home/components/quick-actions';
 import type { Locale } from '@/i18n/routing';
 import type { AttentionItem } from '../attention/attention-items';
@@ -53,12 +54,7 @@ export function DashboardFrame({ children }: { children: ReactNode }) {
     <div className="grid min-w-0 gap-6">
       {/* The top navigation carries the brand from `desk`; below it the page does. */}
       <p className="flex items-center gap-2.5 text-heading desk:hidden">
-        <span
-          aria-hidden
-          className="inline-flex size-9 items-center justify-center rounded-xl bg-primary text-small font-semibold text-primary-foreground"
-        >
-          {tApp('brand').charAt(0)}
-        </span>
+        <BrandMark />
         {tApp('brand')}
       </p>
       <h1 className="sr-only">{t('title')}</h1>

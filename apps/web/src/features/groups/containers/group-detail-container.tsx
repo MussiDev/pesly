@@ -12,6 +12,7 @@ import { useApiClient } from '@/lib/api-client-provider';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
 import { GroupAdminActions } from '../components/group-admin-actions';
 import { OwnBalanceSummary, type OwnBalanceLine } from '../components/own-balance-summary';
+import { GroupShortcuts } from '../components/group-shortcuts';
 import { GroupMembers } from '../components/group-members';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
 import { LeaveGroupPanel } from '../components/leave-group-panel';
@@ -211,48 +212,9 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
       <PageHeader
         title={group.name}
         description={t('defaultRate', { rateType: tRate(group.defaultRateType) })}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/expenses`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('expensesLink')}
-            </Link>
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/expenses/new`}
-              className={buttonVariants()}
-            >
-              {t('addExpenseLink')}
-            </Link>
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/balances`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('balancesLink')}
-            </Link>
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/default-split`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('defaultSplitLink')}
-            </Link>
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/categories`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('categoriesLink')}
-            </Link>
-            <Link
-              href={`/groups/${encodeURIComponent(group.id)}/activity`}
-              className={buttonVariants({ variant: 'outline' })}
-            >
-              {t('activityLink')}
-            </Link>
-          </div>
-        }
       />
-      {ownBalance === undefined ? null : <OwnBalanceSummary lines={ownBalance} />}
+      <OwnBalanceSummary groupId={group.id} lines={ownBalance} />
+      <GroupShortcuts groupId={group.id} />
       <GroupMembers
         members={group.members}
         formerMembers={group.formerMembers}

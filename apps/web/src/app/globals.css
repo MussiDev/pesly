@@ -46,11 +46,16 @@
   /* Flat cards, as in the design; a valid zero shadow, since `none` would invalidate the focus ring that shares box-shadow. */
   --elevation-1: 0 0 0 0 transparent;
   --elevation-2: 0 12px 32px -8px oklch(0.2 0.05 265 / 0.22);
+  --elevation-hero: 0 16px 32px -16px oklch(0.31 0.095 265 / 0.55);
 
-  /* The balance card: a flat navy with light text, the one saturated surface per screen. */
+  /* The balance card: navy with a soft blue glow in two corners and light text, the one saturated surface per screen. */
   --hero-from: oklch(0.31 0.095 265);
   --hero-to: oklch(0.31 0.095 265);
-  --hero: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  --hero-glow: oklch(0.42 0.13 255);
+  --hero:
+    radial-gradient(120% 90% at 100% 0%, var(--hero-glow) 0%, transparent 55%),
+    radial-gradient(90% 80% at 0% 100%, var(--hero-glow) 0%, transparent 60%),
+    linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
 
@@ -113,10 +118,15 @@
 
   --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --elevation-2: 0 12px 32px -8px oklch(0 0 0 / 0.6);
+  --elevation-hero: 0 16px 32px -16px oklch(0 0 0 / 0.6);
 
   --hero-from: oklch(0.32 0.08 265);
   --hero-to: oklch(0.32 0.08 265);
-  --hero: linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
+  --hero-glow: oklch(0.42 0.11 255);
+  --hero:
+    radial-gradient(120% 90% at 100% 0%, var(--hero-glow) 0%, transparent 55%),
+    radial-gradient(90% 80% at 0% 100%, var(--hero-glow) 0%, transparent 60%),
+    linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
 
@@ -226,6 +236,7 @@
   --color-expense: var(--expense);
   --color-hero-from: var(--hero-from);
   --color-hero-to: var(--hero-to);
+  --color-hero-glow: var(--hero-glow);
   --color-hero-foreground: var(--hero-foreground);
   --color-hero-muted: var(--hero-muted);
   --color-logo-surface: var(--logo-surface);
@@ -273,9 +284,14 @@
   }
 }
 
-/* The balance card background; a gradient cannot be a colour utility. */
+/*
+ * The balance card background and its lift; a gradient cannot be a colour utility. The solid colour
+ * under it is what shows if the gradient does not paint, and what a contrast check reads.
+ */
 @utility bg-hero {
+  background-color: var(--hero-from);
   background-image: var(--hero);
+  box-shadow: var(--elevation-hero);
 }
 
 /* Keeps fixed bottom bars clear of the home indicator on notched devices. */
