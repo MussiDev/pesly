@@ -142,6 +142,7 @@ import {
   listRecurringPaymentsResponseSchema,
   recurringPaymentResponseSchema,
   upcomingResponseSchema,
+  netWorthResponseSchema,
   listNoticesResponseSchema,
   markAllReadResponseSchema,
   noticeSchema,
@@ -151,6 +152,7 @@ import {
   type ConfirmOccurrence,
   type CreateRecurringPayment,
   type ListRecurringPaymentsResponse,
+  type NetWorthResponse,
   type RecurringPaymentResponse,
   type UpcomingResponse,
   type UpdateRecurringPayment,
@@ -217,6 +219,7 @@ import {
   type VerifyEmailResponse,
 } from '@pesly/shared';
 import { z } from 'zod';
+import { dashboardResponseSchema, type DashboardResponse } from './dashboard-contract';
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -603,6 +606,10 @@ export interface ApiClient {
   deleteRecurringPayment(id: string): Promise<ApiResult<undefined>>;
   /** Overdue and pending occurrences first, then the next 30 days; needs a connection. */
   getUpcomingRecurring(): Promise<ApiResult<UpcomingResponse>>;
+  /** The home dashboard read; sent with no query (spec DISC-001-09c FR-18). */
+  getDashboard(): Promise<ApiResult<DashboardResponse>>;
+  /** Net worth series; no range, so the API answers its default 12 months ending today (D2). */
+  getNetWorthSeries(): Promise<ApiResult<NetWorthResponse>>;
   /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
   confirmOccurrence(occurrenceId: string, body: ConfirmOccurrence): Promise<ApiResult<undefined>>;
   skipOccurrence(occurrenceId: string): Promise<ApiResult<undefined>>;
@@ -1290,6 +1297,20 @@ export function createApiClient({
         method: 'GET',
         path: '/recurring/upcoming',
         response: upcomingResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getDashboard: () =>
+      request({
+        method: 'GET',
+        path: '/dashboard',
+        response: dashboardResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getNetWorthSeries: () =>
+      request({
+        method: 'GET',
+        path: '/reports/net-worth',
+        response: netWorthResponseSchema,
         refreshOnUnauthenticated: true,
       }),
     confirmOccurrence: (occurrenceId, body) =>

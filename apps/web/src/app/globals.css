@@ -150,7 +150,7 @@
   /* The diameter of a circular action: above the 44 px touch-target minimum. */
   --spacing-circle-action: 3.25rem;
   /* Below it the bottom bar serves; from it the side menu. */
-  --breakpoint-desk: 56.25rem;
+  --breakpoint-desk: 64rem;
 
   --radius-card: 1.5rem;
   --radius-pill: 9999px;

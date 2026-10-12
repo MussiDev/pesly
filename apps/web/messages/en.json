@@ -215,7 +215,8 @@
     "label": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "darkMode": "Dark mode"
+    "darkMode": "Dark mode",
+    "system": "System"
   },
   "ui": {
     "loading": "Loading…",
@@ -2225,6 +2226,99 @@
       "description": "Your past spending is not affected.",
       "confirm": "Delete budget",
       "cancel": "Cancel"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "netWorth": {
+      "label": "Net worth",
+      "ars": "In pesos",
+      "usd": "In dollars",
+      "conversionUnavailable": "Conversion unavailable: there is no exchange rate for some of your balances.",
+      "holdingsWithoutPrice": "{count, plural, one {# holding has no price and is not counted.} other {# holdings have no price and are not counted.}}",
+      "lastPointNote": "The last point of the chart may differ slightly from the figure above."
+    },
+    "month": {
+      "title": "This month",
+      "expenses": "Expenses",
+      "income": "Income",
+      "net": "Net result",
+      "comparison": "Compared with the same period of the previous month",
+      "leftOut": "{count, plural, one {# share or installment is left out.} other {# shares or installments are left out.}}",
+      "leftOutReason": "They are in another currency and have no frozen exchange rate."
+    },
+    "delta": {
+      "favorable": "Favorable",
+      "unfavorable": "Unfavorable",
+      "noChange": "No change",
+      "noComparison": "No comparison"
+    },
+    "chart": {
+      "name": "Net worth over the last 12 months",
+      "tooltip": "{date}: {value}",
+      "pointsCaption": "Net worth by date",
+      "dateHeading": "Date",
+      "valueHeading": "Net worth",
+      "arsHeading": "Pesos",
+      "usdHeading": "Dollars",
+      "singlePoint": "Only one point so far: {value}",
+      "noConvertedPoint": "No point could be converted to your display currency.",
+      "failed": "The chart could not be loaded.",
+      "retry": "Retry chart"
+    },
+    "categories": {
+      "title": "Spending by category",
+      "empty": "No spending this month.",
+      "other": "Other"
+    },
+    "budgets": {
+      "title": "Budgets",
+      "onTrack": "On track",
+      "close": "Close",
+      "over": "Over",
+      "create": "Create a budget",
+      "used": "{percent} used"
+    },
+    "upcoming": {
+      "title": "Next 7 days",
+      "empty": "Nothing is due in the next 7 days.",
+      "payment": "Payment",
+      "statement": "Card statement"
+    },
+    "groups": {
+      "title": "Groups",
+      "owedToYou": "Owed to you",
+      "youOwe": "You owe"
+    },
+    "attention": {
+      "title": "Do these first",
+      "overdue": "Overdue",
+      "pendingOccurrence": "Confirm payment",
+      "overdueOccurrence": "Overdue payment",
+      "statementDue": "Pay card statement",
+      "unknown": "Needs your attention",
+      "failedMovements": "{count, plural, one {# movement failed to sync} other {# movements failed to sync}}",
+      "failedGroupChanges": "{count, plural, one {# group change failed to sync} other {# group changes failed to sync}}",
+      "groupConflicts": "{count, plural, one {# group conflict to resolve} other {# group conflicts to resolve}}"
+    },
+    "insight": {
+      "above": "{category} is {share} of your spending, {change} above the average of the previous 3 months.",
+      "below": "{category} is {share} of your spending, {change} below the average of the previous 3 months.",
+      "inLine": "{category} is {share} of your spending, in line with the average of the previous 3 months.",
+      "shareOnly": "{category} is {share} of your spending this month."
+    },
+    "firstSteps": {
+      "title": "First steps",
+      "createAccount": "Create an account",
+      "recordMovement": "Record a movement",
+      "done": "Done"
+    },
+    "states": {
+      "loading": "Loading your dashboard",
+      "error": "The dashboard could not be loaded.",
+      "offline": "You are offline and there is no saved data to show.",
+      "outOfDate": "You are offline. These figures may be out of date.",
+      "retry": "Try again"
     }
   }
 }

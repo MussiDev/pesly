@@ -215,7 +215,8 @@
     "label": "Tema",
     "light": "Claro",
     "dark": "Oscuro",
-    "darkMode": "Modo oscuro"
+    "darkMode": "Modo oscuro",
+    "system": "Sistema"
   },
   "ui": {
     "loading": "Cargando…",
@@ -2231,6 +2232,99 @@
       "description": "Tus gastos pasados no cambian.",
       "confirm": "Eliminar presupuesto",
       "cancel": "Cancelar"
+    }
+  },
+  "dashboard": {
+    "title": "Inicio",
+    "netWorth": {
+      "label": "Patrimonio neto",
+      "ars": "En pesos",
+      "usd": "En dólares",
+      "conversionUnavailable": "Conversión no disponible: falta la cotización de algunos de tus saldos.",
+      "holdingsWithoutPrice": "{count, plural, one {# tenencia no tiene precio y no se cuenta.} other {# tenencias no tienen precio y no se cuentan.}}",
+      "lastPointNote": "El último punto del gráfico puede diferir levemente de la cifra de arriba."
+    },
+    "month": {
+      "title": "Este mes",
+      "expenses": "Gastos",
+      "income": "Ingresos",
+      "net": "Resultado neto",
+      "comparison": "Comparado con el mismo período del mes anterior",
+      "leftOut": "{count, plural, one {# parte o cuota queda afuera.} other {# partes o cuotas quedan afuera.}}",
+      "leftOutReason": "Están en otra moneda y no tienen cotización congelada."
+    },
+    "delta": {
+      "favorable": "Favorable",
+      "unfavorable": "Desfavorable",
+      "noChange": "Sin cambio",
+      "noComparison": "Sin comparación"
+    },
+    "chart": {
+      "name": "Patrimonio neto de los últimos 12 meses",
+      "tooltip": "{date}: {value}",
+      "pointsCaption": "Patrimonio neto por fecha",
+      "dateHeading": "Fecha",
+      "valueHeading": "Patrimonio neto",
+      "arsHeading": "Pesos",
+      "usdHeading": "Dólares",
+      "singlePoint": "Por ahora hay un solo punto: {value}",
+      "noConvertedPoint": "Ningún punto se pudo convertir a tu moneda de visualización.",
+      "failed": "No se pudo cargar el gráfico.",
+      "retry": "Reintentar gráfico"
+    },
+    "categories": {
+      "title": "Gastos por categoría",
+      "empty": "No hay gastos este mes.",
+      "other": "Otra"
+    },
+    "budgets": {
+      "title": "Presupuestos",
+      "onTrack": "En camino",
+      "close": "Cerca",
+      "over": "Excedido",
+      "create": "Crear un presupuesto",
+      "used": "{percent} usado"
+    },
+    "upcoming": {
+      "title": "Próximos 7 días",
+      "empty": "No vence nada en los próximos 7 días.",
+      "payment": "Pago",
+      "statement": "Resumen de tarjeta"
+    },
+    "groups": {
+      "title": "Grupos",
+      "owedToYou": "Te deben",
+      "youOwe": "Debés"
+    },
+    "attention": {
+      "title": "Hacé esto primero",
+      "overdue": "Vencido",
+      "pendingOccurrence": "Confirmar pago",
+      "overdueOccurrence": "Pago vencido",
+      "statementDue": "Pagar resumen de tarjeta",
+      "unknown": "Requiere tu atención",
+      "failedMovements": "{count, plural, one {# movimiento no se sincronizó} other {# movimientos no se sincronizaron}}",
+      "failedGroupChanges": "{count, plural, one {# cambio de grupo no se sincronizó} other {# cambios de grupo no se sincronizaron}}",
+      "groupConflicts": "{count, plural, one {# conflicto de grupo por resolver} other {# conflictos de grupo por resolver}}"
+    },
+    "insight": {
+      "above": "{category} es el {share} de tus gastos, {change} por encima del promedio de los 3 meses anteriores.",
+      "below": "{category} es el {share} de tus gastos, {change} por debajo del promedio de los 3 meses anteriores.",
+      "inLine": "{category} es el {share} de tus gastos, en línea con el promedio de los 3 meses anteriores.",
+      "shareOnly": "{category} es el {share} de tus gastos de este mes."
+    },
+    "firstSteps": {
+      "title": "Primeros pasos",
+      "createAccount": "Crear una cuenta",
+      "recordMovement": "Registrar un movimiento",
+      "done": "Hecho"
+    },
+    "states": {
+      "loading": "Cargando tu inicio",
+      "error": "No se pudo cargar el inicio.",
+      "offline": "Estás sin conexión y no hay datos guardados para mostrar.",
+      "outOfDate": "Estás sin conexión. Estas cifras pueden estar desactualizadas.",
+      "retry": "Reintentar"
     }
   }
 }
