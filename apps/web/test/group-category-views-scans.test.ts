@@ -96,8 +96,24 @@ describe('the group category view sources', () => {
   });
 });
 
-/** The commit this branch started from, or undefined where git has no main to compare with. */
+const OWN_BRANCH = 'feat/DISC-001-05j-group-category-views';
+
+/**
+ * The commit this branch started from, or undefined where git has no main to compare with. The
+ * comparison belongs to the branch of this ticket only: on main or on any later branch it would
+ * flag the later tickets' own migrations and dependencies.
+ */
 function baseCommit(): string | undefined {
+  try {
+    const branch = execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    if (branch !== OWN_BRANCH) return undefined;
+  } catch {
+    return undefined;
+  }
   for (const ref of ['origin/main', 'main']) {
     try {
       return execFileSync('git', ['merge-base', 'HEAD', ref], {
