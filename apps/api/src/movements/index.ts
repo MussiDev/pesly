@@ -11,3 +11,13 @@ export { createCardPayments } from './infrastructure/credit-cards/drizzle-card-p
 export { createStatementPaymentRecorder } from './infrastructure/credit-cards/drizzle-statement-payment-recorder';
 export { createAutomaticDebitRecorder } from './infrastructure/credit-cards/drizzle-automatic-debit-recorder';
 export { createRecurringExpenseRecorder } from './infrastructure/recurring/drizzle-recurring-expense-recorder';
+export {
+  BestEffortExpenseSavedHook,
+  EXPENSE_SAVED_TIMEOUT_MS,
+  type ExpenseSavedFailure,
+} from './application/best-effort-expense-saved';
+export type {
+  ExpenseSavedEvent,
+  ExpenseSavedHook,
+  ExpenseSavedListener,
+} from './application/ports/expense-saved-listener';

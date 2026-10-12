@@ -18,6 +18,7 @@ const BUILD_CANARY = 'build-canary-4f1c9e27d8';
 const ALL_TABLES = [
   'accounts',
   'auth_attempts',
+  'budget_alert_marks',
   'budget_version_categories',
   'budget_version_thresholds',
   'budget_versions',

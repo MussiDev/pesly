@@ -18,4 +18,8 @@ export * from './application/list-budgets';
 export * from './application/get-budget';
 export * from './application/update-budget';
 export * from './application/delete-budget';
+export * from './domain/alerts';
+export * from './application/ports/budget-alert-store';
+export * from './application/evaluate-budget-alerts';
+export * from './infrastructure/budget-alert-listener';
 export * from './infrastructure/http/budget-routes';

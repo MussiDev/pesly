@@ -43,6 +43,7 @@ export async function computeSpending(
   scope: AccessScope,
   requestedMonth: string | undefined,
   budgetId?: string,
+  categoryId?: string,
 ): Promise<{ month: string; budgets: BudgetSpending[] }> {
   const timeZone = await deps.timeZones.timeZoneOf(scope.userId);
   const currentMonth = monthOf(todayInTimeZone(deps.clock.now(), timeZone));
@@ -56,6 +57,13 @@ export async function computeSpending(
     const current = entry.byMonth.get(month) ?? null;
     // A budget with no version in force that month did not exist yet (D3).
     if (current === null) return [];
+    // The alert evaluation keeps only the budgets that cover the saved expense's category (06d D6).
+    if (
+      categoryId !== undefined &&
+      !current.covered.some((category) => category.id === categoryId)
+    ) {
+      return [];
+    }
     const previous = entry.byMonth.get(before) ?? null;
     return [{ entry, current, previous, carries: current.version.rollover && previous !== null }];
   });

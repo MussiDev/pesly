@@ -17,6 +17,7 @@ const TABLES = [
   'budget_versions',
   'budget_version_categories',
   'budget_version_thresholds',
+  'budget_alert_marks',
 ];
 
 interface ForeignKey {

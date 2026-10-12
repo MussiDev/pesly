@@ -2,7 +2,7 @@
 import type { Notice } from '@pesly/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { NoticeList } from '../src/features/notices/components/notice-list';
 import { NoticesLink } from '../src/features/notices/components/notices-link';
 import { NoticesContainer } from '../src/features/notices/containers/notices-container';
@@ -117,6 +117,29 @@ describe('NoticeList', () => {
 
     expect(screen.getByText(text)).toBeTruthy();
     expect(container.querySelector('b, img')).toBeNull();
+  });
+
+  it('renders a budget_alert notice as plain text and opens an unread one (AC-15)', async () => {
+    const onOpen = vi.fn();
+    renderApp(
+      <NoticeList
+        notices={[
+          notice(1, {
+            kind: 'budget_alert',
+            text: 'Outings reached 80% of its budget',
+            dueDate: '2026-10-01',
+          }),
+        ]}
+        onOpen={onOpen}
+      />,
+      { locale: 'en' },
+    );
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: /Outings reached 80% of its budget/ }));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(onOpen.mock.calls[0]?.[0]).toMatchObject({ id: id(1), kind: 'budget_alert' });
   });
 
   it('formats the due date with the locale, not a fixed format', () => {

@@ -155,13 +155,23 @@ describe('notice response schemas', () => {
     ).toBe(true);
   });
 
-  it('knows the four kinds', () => {
+  it('knows the five kinds', () => {
     expect(noticeKindSchema.options).toEqual([
       'reminder',
       'recorded',
       'not_recorded',
       'card_statement_due',
+      'budget_alert',
     ]);
+  });
+
+  it('parses a budget_alert notice in the list and rejects an unknown kind (AC-15)', () => {
+    const alert = { ...notice, kind: 'budget_alert' };
+    expect(
+      listNoticesResponseSchema.safeParse({ items: [alert], nextCursor: null, unreadCount: 1 })
+        .success,
+    ).toBe(true);
+    expect(noticeKindSchema.safeParse('budget_warning').success).toBe(false);
   });
 
   it('parses a card_statement_due notice in the list and rejects an unknown kind (FR-01)', () => {

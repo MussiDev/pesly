@@ -5,6 +5,7 @@ import {
   type BuildMovementDependencies,
   type CreateMovementInput,
 } from './build-new-movement';
+import type { ExpenseSavedHook } from './ports/expense-saved-listener';
 import type { MovementRepository } from './ports/movement-repository';
 
 export type {
@@ -16,6 +17,8 @@ export type {
 
 export interface CreateMovementDependencies extends BuildMovementDependencies {
   movements: MovementRepository;
+  /** Called after an expense is stored; absent for writers that must not evaluate it. */
+  expenseSaved?: ExpenseSavedHook;
 }
 
 export class CreateMovement {
@@ -30,6 +33,17 @@ export class CreateMovement {
     input: CreateMovementInput,
     id?: string,
   ): Promise<Movement> {
-    return this.deps.movements.insert(scope, await buildNewMovement(this.deps, scope, input), id);
+    const movement = await this.deps.movements.insert(
+      scope,
+      await buildNewMovement(this.deps, scope, input),
+      id,
+    );
+    if (movement.type === 'expense') {
+      await this.deps.expenseSaved?.run(scope, {
+        categoryId: movement.categoryId,
+        occurredAt: movement.occurredAt,
+      });
+    }
+    return movement;
   }
 }

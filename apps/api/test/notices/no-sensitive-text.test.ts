@@ -1,6 +1,6 @@
 import { AppError } from '@pesly/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createNoticePublisher } from '../../src/notices';
+import { createNoticePublisher, renderBudgetAlertText } from '../../src/notices';
 import { renderNoticeText, type NoticeLanguage } from '../../src/notices/domain/notice-text';
 import { CreateDueReminders } from '../../src/recurring/application/create-due-reminders';
 import { RecordDueOccurrences } from '../../src/recurring/application/record-due-occurrences';
@@ -69,6 +69,21 @@ describe('renderNoticeText', () => {
     expect(texts).toHaveLength(4);
     for (const text of texts) expect(forbiddenIn(text)).toEqual([]);
   });
+
+  it.each(LANGUAGES)(
+    'a budget alert holds no digit but the threshold, no currency and no names in %s (AC-17)',
+    (language) => {
+      const text = renderBudgetAlertText({
+        language,
+        budgetName: 'Outings',
+        threshold: 80,
+        month: '2026-10-01',
+      });
+      expect(text.match(/\d+/g)).toEqual(['80']);
+      expect(text).not.toMatch(/[$€]|ARS|USD/);
+      expect(forbiddenIn(text)).toEqual([]);
+    },
+  );
 });
 
 describe('stored notices over the real reminder and recording paths', () => {
