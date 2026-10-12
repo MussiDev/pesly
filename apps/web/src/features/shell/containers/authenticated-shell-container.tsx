@@ -2,6 +2,7 @@
 
 import { useLocale } from 'next-intl';
 import { useEffect, useState, type ReactNode } from 'react';
+import { signInHref } from '@/features/auth/return-path';
 import { UnreadBadgeContainer } from '@/features/notices/containers/unread-badge-container';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
@@ -87,7 +88,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
     void api.getSession().then((result) => {
       if (!active) return;
       if (!result.ok) {
-        if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+        if (result.code === 'UNAUTHENTICATED') router.replace(signInHref(pathname ?? ''));
         else if (result.code === 'NETWORK' && openFromPointer()) return;
         else setState({ kind: 'failed', error: result.messageKey });
         return;
@@ -107,7 +108,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
     return () => {
       active = false;
     };
-  }, [api, router, attempt, online]);
+  }, [api, router, attempt, online, pathname]);
 
   // Once the session is confirmed and there is a connection, the worker is asked to keep the two
   // screens the offline flow needs. Nothing happens, and nothing breaks, without a worker.

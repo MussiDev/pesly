@@ -379,6 +379,7 @@ describe('MoreMenu (FR-07)', () => {
       '/en/recurring',
       '/en/investments',
       '/en/categories',
+      '/en/reports',
       '/en/notices',
       '/en/settings/profile',
       '/en/settings/security',

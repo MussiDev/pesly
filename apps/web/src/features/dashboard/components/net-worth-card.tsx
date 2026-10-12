@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import { drawnPoints } from '../chart/chart-geometry';
@@ -73,6 +74,12 @@ export function NetWorthCard({
         ) : (
           <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
         )}
+        <Link
+          href="/reports/net-worth"
+          className="inline-flex min-h-11 items-center self-start text-small font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t('netWorth.viewReport')}
+        </Link>
       </CardContent>
     </Card>
   );
