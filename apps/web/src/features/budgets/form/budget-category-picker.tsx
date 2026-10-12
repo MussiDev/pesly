@@ -69,9 +69,15 @@ export function BudgetCategoryPicker({
   }
 
   const groups = categories.kind === 'ready' ? groupCategories(categories.items) : [];
+  // A selected id the list does not offer (archived, or past the first page) stays visible so it
+  // can be unchecked; otherwise it would be saved without the user ever seeing it.
+  const offered = new Set(
+    groups.flatMap(({ parent, children }) => [parent.id, ...children.map((c) => c.id)]),
+  );
+  const unavailable = categories.kind === 'ready' ? selected.filter((id) => !offered.has(id)) : [];
   let first = true;
 
-  function row(category: CategoryResponse) {
+  function row(category: { id: string }, label: string) {
     const id = `${base}-${category.id}`;
     const invalid = first && Boolean(error);
     first = false;
@@ -86,7 +92,7 @@ export function BudgetCategoryPicker({
             onToggle(category.id);
           }}
         />
-        <Label htmlFor={id}>{categoryLabel(category, language)}</Label>
+        <Label htmlFor={id}>{label}</Label>
       </div>
     );
   }
@@ -96,18 +102,19 @@ export function BudgetCategoryPicker({
       <legend className="mb-2 text-small font-medium">{t('categories')}</legend>
       {groups.map(({ parent, children }) => (
         <div key={parent.id} className="grid gap-1">
-          {row(parent)}
+          {row(parent, categoryLabel(parent, language))}
           {children.length > 0 ? (
             <div
               role="group"
               aria-label={t('categoriesGroup', { parent: categoryLabel(parent, language) })}
               className="ml-8 grid gap-1"
             >
-              {children.map(row)}
+              {children.map((child) => row(child, categoryLabel(child, language)))}
             </div>
           ) : null}
         </div>
       ))}
+      {unavailable.map((id) => row({ id }, t('categoryUnavailable')))}
       {error ? (
         <p id={messageId} className="text-small text-destructive">
           {tAll(error)}

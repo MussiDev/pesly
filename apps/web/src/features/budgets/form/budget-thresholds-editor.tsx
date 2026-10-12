@@ -7,16 +7,21 @@ import {
 } from '@pesly/shared';
 import { X } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { useId, useState, type KeyboardEvent } from 'react';
+import { useId, type KeyboardEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { addThreshold, canAddThreshold, removeThreshold } from '../helpers/budget-thresholds';
+import { canAddThreshold, removeThreshold } from '../helpers/budget-thresholds';
 
 interface BudgetThresholdsEditorProps {
   thresholds: readonly number[];
   /** A full catalog path from the form validation. */
   error: string | undefined;
+  /** What is typed in the add input; the form owns it so a save can commit it. */
+  draft: string;
+  onDraftChange: (draft: string) => void;
+  /** Adds the draft to the list, or reports why it cannot be added. */
+  onAdd: () => void;
   onChange: (thresholds: number[]) => void;
 }
 
@@ -24,36 +29,26 @@ interface BudgetThresholdsEditorProps {
 export function BudgetThresholdsEditor({
   thresholds,
   error,
+  draft,
+  onDraftChange,
+  onAdd,
   onChange,
 }: BudgetThresholdsEditorProps) {
   const t = useTranslations('budgets.form.thresholds');
   const tAll = useTranslations();
   const format = useFormatter();
   const base = useId();
-  const [draft, setDraft] = useState('');
-  const [addError, setAddError] = useState<string | undefined>();
-  const message = addError ?? error;
+  const message = error;
   const messageId = `${base}-message`;
 
   // Display only: the percent formatter takes the 0-1 fraction of the whole number.
   const percent = (value: number) => format.number(value / 100, { style: 'percent' });
 
-  function add() {
-    const result = addThreshold(thresholds, draft);
-    if (result.error !== undefined) {
-      setAddError(result.error);
-      return;
-    }
-    setAddError(undefined);
-    setDraft('');
-    onChange(result.list);
-  }
-
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key !== 'Enter') return;
     // Enter would submit the whole form; here it means "add this threshold".
     event.preventDefault();
-    add();
+    onAdd();
   }
 
   return (
@@ -67,7 +62,6 @@ export function BudgetThresholdsEditor({
               variant="outline"
               aria-label={t('remove', { percent: value })}
               onClick={() => {
-                setAddError(undefined);
                 onChange(removeThreshold(thresholds, value));
               }}
             >
@@ -89,13 +83,12 @@ export function BudgetThresholdsEditor({
               aria-invalid={Boolean(message)}
               aria-describedby={message ? `${base}-hint ${messageId}` : `${base}-hint`}
               onChange={(event) => {
-                setDraft(event.currentTarget.value);
-                setAddError(undefined);
+                onDraftChange(event.currentTarget.value);
               }}
               onKeyDown={handleKeyDown}
               className="w-auto flex-1"
             />
-            <Button type="button" variant="secondary" onClick={add}>
+            <Button type="button" variant="secondary" onClick={onAdd}>
               {t('add')}
             </Button>
           </div>

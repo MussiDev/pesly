@@ -9,9 +9,13 @@ const { en, es } = CATALOGS;
 const BUDGET_ID = '11111111-1111-4111-8111-111111111111';
 const ROUTE = `DELETE /budgets/${BUDGET_ID}`;
 
+let lastRouter: ReturnType<typeof renderApp>['router'] | undefined;
+
 function open(locale: 'en' | 'es' = 'en') {
   const onDeleted = vi.fn();
-  renderApp(<BudgetDeleteAction budgetId={BUDGET_ID} onDeleted={onDeleted} />, { locale });
+  lastRouter = renderApp(<BudgetDeleteAction budgetId={BUDGET_ID} onDeleted={onDeleted} />, {
+    locale,
+  }).router;
   return onDeleted;
 }
 
@@ -131,6 +135,48 @@ describe('BudgetDeleteAction', () => {
       expect(button.className).toContain('min-h-11');
       expect(button.textContent.length).toBeGreaterThan(0);
     }
+  });
+
+  it('disables cancel while the delete is pending (M3)', async () => {
+    stubApi({ [ROUTE]: { status: 204 } });
+    open();
+    const user = userEvent.setup();
+
+    await ask(user);
+    fireEvent.click(screen.getByRole('button', { name: en.budgets.delete.confirm }));
+
+    expect(
+      screen.getByRole<HTMLButtonElement>('button', { name: en.budgets.delete.cancel }).disabled,
+    ).toBe(true);
+  });
+
+  it('sends a signed-out user to sign in when the delete answers 401 (M4)', async () => {
+    stubApi({ [ROUTE]: { status: 401, body: { code: 'UNAUTHENTICATED' } } });
+    const onDeleted = open();
+    const user = userEvent.setup();
+
+    await ask(user);
+    await user.click(screen.getByRole('button', { name: en.budgets.delete.confirm }));
+
+    await waitFor(() => {
+      expect(lastRouter?.replace).toHaveBeenCalledWith('/en/sign-in');
+    });
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+
+  it('moves focus into the confirmation, names it, and restores focus on cancel (L7)', async () => {
+    stubApi({});
+    open();
+    const user = userEvent.setup();
+
+    await ask(user);
+    const dialog = screen.getByRole('alertdialog', { name: en.budgets.delete.title });
+    expect(dialog.contains(document.activeElement)).toBe(true);
+
+    await user.click(screen.getByRole('button', { name: en.budgets.delete.cancel }));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: en.budgets.detail.delete }),
+    );
   });
 
   it('renders Spanish strings (AC-30)', async () => {

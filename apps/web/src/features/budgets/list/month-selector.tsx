@@ -5,6 +5,12 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { formatPeriod } from '@/features/credit-cards/format-dates';
 
+/** Only the first letter: the CSS `capitalize` would turn "octubre de 2026" into "Octubre De 2026". */
+function capitalizeFirst(text: string, locale: string): string {
+  const [first = '', ...rest] = Array.from(text);
+  return first.toLocaleUpperCase(locale) + rest.join('');
+}
+
 interface MonthSelectorProps {
   /** `YYYY-MM`, the month on screen. */
   month: string;
@@ -38,8 +44,8 @@ export function MonthSelector({
         <ChevronLeft aria-hidden="true" />
       </Button>
       <div className="grid justify-items-center">
-        <span aria-live="polite" className="text-body font-medium capitalize">
-          {formatPeriod(month, locale)}
+        <span aria-live="polite" className="text-body font-medium">
+          {capitalizeFirst(formatPeriod(month, locale), locale)}
         </span>
         {isCurrent ? (
           <span className="text-small text-muted-foreground">{t('current')}</span>

@@ -15,7 +15,12 @@ import { Select } from '@/components/ui/select';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
 import { defaultThresholds } from '../helpers/budget-request';
-import type { BudgetFieldErrors, BudgetFormState } from '../helpers/budget-request';
+import type {
+  BudgetFieldErrors,
+  BudgetFieldName,
+  BudgetFormState,
+} from '../helpers/budget-request';
+import { addThreshold, type ThresholdError } from '../helpers/budget-thresholds';
 import { BudgetCategoryPicker } from './budget-category-picker';
 import { BudgetThresholdsEditor } from './budget-thresholds-editor';
 import type { BudgetCategoriesState } from './use-budget-categories';
@@ -40,6 +45,8 @@ interface BudgetFormProps {
   /** Edit mode: true while the current values equal the saved ones, which disables the save. */
   isUnchanged?: (state: BudgetFormState) => boolean;
   onSubmit: (state: BudgetFormState) => void;
+  /** Called whenever the user changes a value, so a result shown for the last save can go away. */
+  onEdit?: () => void;
 }
 
 /** Name, amount, categories, rollover and thresholds, plus the currency when creating. */
@@ -54,6 +61,7 @@ export function BudgetForm({
   cancelHref,
   isUnchanged,
   onSubmit,
+  onEdit,
 }: BudgetFormProps) {
   const t = useTranslations('budgets.form');
   const tAll = useTranslations();
@@ -70,17 +78,61 @@ export function BudgetForm({
     },
   );
 
+  // What is typed in the threshold input but not added yet; a save commits it.
+  const [draft, setDraft] = useState('');
+  const [draftError, setDraftError] = useState<ThresholdError | undefined>();
+  // Fields the user edited since `errors` last arrived; their messages are hidden.
+  const [cleared, setCleared] = useState<{
+    source: BudgetFieldErrors | undefined;
+    names: BudgetFieldName[];
+  }>({ source: undefined, names: [] });
+
+  const fieldErrors: BudgetFieldErrors = {};
+  for (const [name, message] of Object.entries(errors.fields ?? {}) as [
+    BudgetFieldName,
+    BudgetFieldErrors[BudgetFieldName],
+  ][]) {
+    if (cleared.source === errors.fields && cleared.names.includes(name)) continue;
+    fieldErrors[name] = message;
+  }
+
   // After a failed submit, focus the first invalid field so its message is announced with it.
   useEffect(() => {
-    if (!errors.fields) return;
+    if (!errors.fields && !draftError) return;
     formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [errors]);
+  }, [errors, draftError]);
 
-  function update(changes: Partial<BudgetFormState>) {
+  function touch(field?: BudgetFieldName) {
+    onEdit?.();
+    if (field === undefined) return;
+    setCleared((current) => ({
+      source: errors.fields,
+      names: [...(current.source === errors.fields ? current.names : []), field],
+    }));
+  }
+
+  function update(changes: Partial<BudgetFormState>, field?: BudgetFieldName) {
+    touch(field);
     setState((current) => ({ ...current, ...changes }));
   }
 
+  function changeThresholds(thresholds: number[]) {
+    setDraftError(undefined);
+    update({ thresholds }, 'thresholds');
+  }
+
+  function addDraft() {
+    const result = addThreshold(state.thresholds, draft);
+    if (result.error !== undefined) {
+      setDraftError(result.error);
+      return;
+    }
+    setDraft('');
+    changeThresholds(result.list);
+  }
+
   function toggleCategory(id: string) {
+    touch('categoryIds');
     setState((current) => ({
       ...current,
       categoryIds: current.categoryIds.includes(id)
@@ -91,10 +143,22 @@ export function BudgetForm({
 
   function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    onSubmit(state);
+    let values = state;
+    // A threshold typed but not added would be dropped silently: commit it, or say why not.
+    if (draft.trim() !== '') {
+      const result = addThreshold(state.thresholds, draft);
+      if (result.error !== undefined) {
+        setDraftError(result.error);
+        return;
+      }
+      values = { ...state, thresholds: result.list };
+      setState(values);
+      setDraft('');
+    }
+    onSubmit(values);
   }
 
-  const unchanged = isUnchanged?.(state) ?? false;
+  const unchanged = draft.trim() === '' && (isUnchanged?.(state) ?? false);
   const disabled = pending || categories.kind !== 'ready' || unchanged;
 
   return (
@@ -110,7 +174,7 @@ export function BudgetForm({
               <AlertDescription>{tAll(errors.form)}</AlertDescription>
             </Alert>
           ) : null}
-          <MovementField label={t('name')} error={errors.fields?.name}>
+          <MovementField label={t('name')} error={fieldErrors.name}>
             {(control) => (
               <Input
                 name="name"
@@ -118,19 +182,19 @@ export function BudgetForm({
                 defaultValue={initial?.name}
                 maxLength={BUDGET_NAME_MAX_LENGTH * 2}
                 onChange={(event) => {
-                  update({ name: event.currentTarget.value });
+                  update({ name: event.currentTarget.value }, 'name');
                 }}
                 {...control}
               />
             )}
           </MovementField>
-          <MovementField label={t('amount')} error={errors.fields?.amount}>
+          <MovementField label={t('amount')} error={fieldErrors.amount}>
             {(control) => (
               <MoneyInput
                 name="amount"
                 defaultValue={initial?.amount}
                 onChange={(event) => {
-                  update({ amount: event.currentTarget.value });
+                  update({ amount: event.currentTarget.value }, 'amount');
                 }}
                 {...control}
               />
@@ -161,7 +225,7 @@ export function BudgetForm({
           <BudgetCategoryPicker
             categories={categories}
             selected={state.categoryIds}
-            error={errors.fields?.categoryIds}
+            error={fieldErrors.categoryIds}
             onToggle={toggleCategory}
             onRetry={onRetryCategories}
           />
@@ -177,10 +241,14 @@ export function BudgetForm({
           </div>
           <BudgetThresholdsEditor
             thresholds={state.thresholds}
-            error={errors.fields?.thresholds}
-            onChange={(thresholds) => {
-              update({ thresholds });
+            error={draftError ?? fieldErrors.thresholds}
+            draft={draft}
+            onDraftChange={(text) => {
+              setDraft(text);
+              setDraftError(undefined);
             }}
+            onAdd={addDraft}
+            onChange={changeThresholds}
           />
           {mode === 'edit' ? (
             <p className="text-small text-muted-foreground">{t('editNote')}</p>

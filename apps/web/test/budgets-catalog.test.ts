@@ -67,6 +67,7 @@ const BUDGET_KEYS: Record<string, string[]> = {
   'form.currencyReadOnly': [],
   'form.categories': [],
   'form.categoriesGroup': ['parent'],
+  'form.categoryUnavailable': [],
   'form.rollover': [],
   'form.thresholds.label': [],
   'form.thresholds.hint': ['min', 'max'],

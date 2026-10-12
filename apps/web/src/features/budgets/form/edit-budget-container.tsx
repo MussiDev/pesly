@@ -138,6 +138,9 @@ export function EditBudgetContainer({ budgetId }: { budgetId: string }) {
         pending={pending}
         errors={errors}
         cancelHref={`/budgets/${encodeURIComponent(budgetId)}`}
+        onEdit={() => {
+          setSaved(undefined);
+        }}
         isUnchanged={(form) => buildUpdateBudget(form, budget, locale).unchanged === true}
         onSubmit={(form) => {
           void save(budget, form);

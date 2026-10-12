@@ -149,6 +149,16 @@ describe('BudgetDetailContainer', () => {
     expect(within(covered).queryByText('Fun')).toBeNull();
   });
 
+  it('lists a covered category the list does not name with the unavailable label (M1)', async () => {
+    const GONE = '22222222-2222-4222-8222-222222222299';
+    stubApi(routes({ [GET_BUDGET]: ok(budget({ categoryIds: [FOOD, GONE] })) }));
+    open();
+
+    const covered = await screen.findByRole('list', { name: en.budgets.detail.categories });
+    expect(within(covered).getByText('Food')).toBeTruthy();
+    expect(within(covered).getByText(en.budgets.form.categoryUnavailable)).toBeTruthy();
+  });
+
   it('shows the not found state for a missing, foreign or not-yet-existing budget (AC-12)', async () => {
     stubApi(routes({ [GET_BUDGET]: notFound, [GET_SPENDING]: notFound }));
     open();

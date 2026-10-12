@@ -2116,6 +2116,7 @@
       "currencyReadOnly": "La moneda no se puede cambiar",
       "categories": "Categorías",
       "categoriesGroup": "Subcategorías de {parent}",
+      "categoryUnavailable": "Categoría no disponible",
       "rollover": "Llevar lo que sobre al mes siguiente",
       "thresholds": {
         "label": "Umbrales de alerta",

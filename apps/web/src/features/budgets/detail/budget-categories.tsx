@@ -7,6 +7,8 @@ import { categoryLabel, compareCategories } from '@/features/categories/category
 export interface CoveredCategoryGroup {
   id: string;
   label: string;
+  /** The id is not in the category list (archived): there is no name to show. */
+  unavailable?: boolean;
   /** Only the selected subcategories. */
   children: { id: string; label: string }[];
 }
@@ -14,7 +16,7 @@ export interface CoveredCategoryGroup {
 /**
  * The categories the user selected, with each subcategory under its parent. A parent that was not
  * selected itself still heads the subcategories that were; an id the list does not know (an
- * archived category) has no name to show and is left out.
+ * archived category) has no name to show and is listed last, flagged as unavailable.
  */
 export function coveredCategoryGroups(
   items: ReadonlyArray<CategoryResponse>,
@@ -29,8 +31,7 @@ export function coveredCategoryGroups(
 
   for (const item of ordered) {
     if (!selected.has(item.id)) continue;
-    const parent = item.parentId === null ? item : byId.get(item.parentId);
-    if (parent === undefined) continue;
+    const parent = item.parentId === null ? item : (byId.get(item.parentId) ?? item);
     let group = groups.get(parent.id);
     if (group === undefined) {
       group = { id: parent.id, label: categoryLabel(parent, language), children: [] };
@@ -40,19 +41,26 @@ export function coveredCategoryGroups(
       group.children.push({ id: item.id, label: categoryLabel(item, language) });
     }
   }
-  return [...groups.values()].sort((a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0));
+  const named = [...groups.values()].sort(
+    (a, b) => (position.get(a.id) ?? 0) - (position.get(b.id) ?? 0),
+  );
+  const unknown = [...new Set(selectedIds)]
+    .filter((id) => !byId.has(id))
+    .map((id): CoveredCategoryGroup => ({ id, label: '', unavailable: true, children: [] }));
+  return [...named, ...unknown];
 }
 
 /** The covered categories by name; pure. */
 export function BudgetCategories({ groups }: { groups: ReadonlyArray<CoveredCategoryGroup> }) {
   const t = useTranslations('budgets.detail');
+  const tForm = useTranslations('budgets.form');
   return (
     <section className="grid gap-2">
       <h2 className="text-h3 font-semibold">{t('categories')}</h2>
       <ul aria-label={t('categories')} className="grid gap-2">
         {groups.map((group) => (
           <li key={group.id} className="rounded-xl border bg-card px-4 py-3 text-body">
-            <span>{group.label}</span>
+            <span>{group.unavailable ? tForm('categoryUnavailable') : group.label}</span>
             {group.children.length === 0 ? null : (
               <ul className="mt-1 grid gap-1 ps-4 text-small text-muted-foreground">
                 {group.children.map((child) => (

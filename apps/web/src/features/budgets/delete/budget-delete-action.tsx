@@ -1,8 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { budgetFailureKey } from '../helpers/budget-failure';
 import { BudgetDeleteConfirmation } from './budget-delete-confirmation';
@@ -15,12 +16,22 @@ export interface BudgetDeleteActionProps {
 /** A delete button that opens an inline confirmation; nothing is sent until it is confirmed. */
 export function BudgetDeleteAction({ budgetId, onDeleted }: BudgetDeleteActionProps) {
   const api = useApiClient();
+  const router = useRouter();
   const t = useTranslations('budgets.detail');
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<string>();
   // A ref, not state: a second tap in the same tick must see the first one.
   const locked = useRef(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+
+  // Cancelling unmounts the confirmation; put focus back where the user was.
+  useEffect(() => {
+    if (open || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    trigger.current?.focus();
+  }, [open]);
 
   async function confirm() {
     if (locked.current) return;
@@ -33,6 +44,10 @@ export function BudgetDeleteAction({ budgetId, onDeleted }: BudgetDeleteActionPr
       if (result.ok) {
         succeeded = true;
         onDeleted();
+        return;
+      }
+      if (result.code === 'UNAUTHENTICATED') {
+        router.replace('/sign-in');
         return;
       }
       const key = budgetFailureKey(result);
@@ -49,6 +64,7 @@ export function BudgetDeleteAction({ budgetId, onDeleted }: BudgetDeleteActionPr
   if (!open) {
     return (
       <Button
+        ref={trigger}
         type="button"
         variant="outline"
         onClick={() => {
@@ -68,6 +84,7 @@ export function BudgetDeleteAction({ budgetId, onDeleted }: BudgetDeleteActionPr
         void confirm();
       }}
       onCancel={() => {
+        restoreFocus.current = true;
         setOpen(false);
         setFailure(undefined);
       }}

@@ -2,6 +2,7 @@
 
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useEffect, useId, useRef } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 
@@ -21,13 +22,27 @@ export function BudgetDeleteConfirmation({
 }: BudgetDeleteConfirmationProps) {
   const t = useTranslations('budgets.delete');
   const tAll = useTranslations();
+  const base = useId();
+  const cancelRef = useRef<HTMLButtonElement>(null);
+
+  // Opening the confirmation moves focus into it; cancel is the safe default for a destructive step.
+  useEffect(() => {
+    cancelRef.current?.focus();
+  }, []);
 
   return (
-    <div role="group" aria-labelledby="budget-delete-title" className="grid gap-3">
-      <h3 id="budget-delete-title" className="text-body font-medium">
+    <div
+      role="alertdialog"
+      aria-labelledby={`${base}-title`}
+      aria-describedby={`${base}-description`}
+      className="grid gap-3"
+    >
+      <h3 id={`${base}-title`} className="text-body font-medium">
         {t('title')}
       </h3>
-      <p className="text-small text-muted-foreground">{t('description')}</p>
+      <p id={`${base}-description`} className="text-small text-muted-foreground">
+        {t('description')}
+      </p>
       {failure ? (
         <Alert variant="destructive">
           <CircleAlert aria-hidden />
@@ -38,7 +53,13 @@ export function BudgetDeleteConfirmation({
         <Button type="button" variant="destructive" disabled={pending} onClick={onConfirm}>
           {t('confirm')}
         </Button>
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button
+          ref={cancelRef}
+          type="button"
+          variant="outline"
+          disabled={pending}
+          onClick={onCancel}
+        >
           {t('cancel')}
         </Button>
       </div>

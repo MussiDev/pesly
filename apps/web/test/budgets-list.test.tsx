@@ -88,7 +88,9 @@ describe('BudgetsContainer', () => {
         year: 'numeric',
         timeZone: 'UTC',
       }).format(new Date('2026-10-01T00:00:00Z'));
-      expect(screen.getByText(month)).toBeDefined();
+      expect(
+        screen.getByText(month.charAt(0).toLocaleUpperCase(locale) + month.slice(1)),
+      ).toBeDefined();
       expect(within(card).getByRole('link').getAttribute('href')).toBe(
         `/${locale}/budgets/${BUDGET_ID}?month=2026-10`,
       );
@@ -338,6 +340,14 @@ describe('BudgetsContainer', () => {
 
     expect(await screen.findByText(en.errors.network)).toBeDefined();
     expect(screen.queryByText(en.budgets.list.empty.title)).toBeNull();
+  });
+
+  it('capitalises only the first letter of the Spanish month label (L2)', async () => {
+    stubApi({ 'GET /budgets/spending': list([spending()]) });
+    renderApp(<BudgetsContainer />, { locale: 'es' });
+
+    const label = await screen.findByText('Octubre de 2026');
+    expect(label.className).not.toContain('capitalize');
   });
 
   it('sends a signed-out user to sign in (sad path)', async () => {

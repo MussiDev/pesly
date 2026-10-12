@@ -11,6 +11,7 @@ const BUDGET_ID = '77777777-7777-4777-8777-777777777777';
 const FOOD = '11111111-1111-4111-8111-111111111111';
 const GROCERIES = '22222222-2222-4222-8222-222222222222';
 const TRANSPORT = '33333333-3333-4333-8333-333333333333';
+const GONE = '55555555-5555-4555-8555-555555555555';
 const SALARY = '44444444-4444-4444-8444-444444444444';
 const CATEGORIES = 'GET /categories?kind=expense&archived=false&limit=100';
 const CREATE = 'POST /budgets';
@@ -477,6 +478,93 @@ describe('EditBudgetContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: f.submit }));
     expect(await screen.findByText(en.errors.network)).toBeTruthy();
     expect(screen.getByLabelText<HTMLInputElement>(f.name).value).toBe('Other');
+  });
+
+  it('shows a selected category the picker does not offer and lets it be unchecked (M1)', async () => {
+    const { calls } = stubEdit({
+      [GET]: { status: 200, body: budget({ categoryIds: [FOOD, GONE] }) },
+      [PATCH]: { status: 200, body: budget() },
+    });
+    renderApp(<EditBudgetContainer budgetId={BUDGET_ID} />, { locale: 'en' });
+    await screen.findByRole('checkbox', { name: 'Food' });
+    const gone = screen.getByRole<HTMLInputElement>('checkbox', { name: f.categoryUnavailable });
+    expect(gone.checked).toBe(true);
+
+    await userEvent.click(gone);
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PATCH')).toBe(true);
+    });
+    expect(calls.at(-1)?.body).toEqual({ categoryIds: [FOOD] });
+  });
+
+  it('commits a typed but not added threshold on save (M2)', async () => {
+    const { calls } = stubEdit({ [PATCH]: { status: 200, body: budget() } });
+    renderApp(<EditBudgetContainer budgetId={BUDGET_ID} />, { locale: 'en' });
+    await screen.findByRole('checkbox', { name: 'Food' });
+    await userEvent.type(screen.getByLabelText(f.thresholds.input), '50');
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PATCH')).toBe(true);
+    });
+    expect(calls.at(-1)?.body).toEqual({ thresholds: [50, 80, 100] });
+  });
+
+  it('shows an error and sends nothing for an invalid typed threshold on save (M2)', async () => {
+    const { calls } = stubEdit({ [PATCH]: { status: 200, body: budget() } });
+    renderApp(<EditBudgetContainer budgetId={BUDGET_ID} />, { locale: 'en' });
+    await screen.findByRole('checkbox', { name: 'Food' });
+    await userEvent.type(screen.getByLabelText(f.name), 'x');
+    await userEvent.type(screen.getByLabelText(f.thresholds.input), '999');
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+    expect(await screen.findByText(f.errors.thresholdInvalid)).toBeTruthy();
+    expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
+  });
+
+  it('clears a field error as soon as the field is edited (L3)', async () => {
+    stubEdit();
+    renderApp(<EditBudgetContainer budgetId={BUDGET_ID} />, { locale: 'en' });
+    const name = await screen.findByLabelText(f.name);
+    await screen.findByRole('checkbox', { name: 'Food' });
+    const amount = screen.getByLabelText(f.amount);
+
+    await userEvent.clear(name);
+    await userEvent.clear(amount);
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Food' }));
+    await userEvent.click(removeButton(80) as HTMLElement);
+    await userEvent.click(removeButton(100) as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+    for (const message of [
+      f.errors.nameRequired,
+      f.errors.amountInvalid,
+      f.errors.categoriesRequired,
+      f.errors.thresholdsRequired,
+    ]) {
+      expect(await screen.findByText(message)).toBeTruthy();
+    }
+
+    await userEvent.type(name, 'a');
+    expect(screen.queryByText(f.errors.nameRequired)).toBeNull();
+    await userEvent.type(amount, '5');
+    expect(screen.queryByText(f.errors.amountInvalid)).toBeNull();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Food' }));
+    expect(screen.queryByText(f.errors.categoriesRequired)).toBeNull();
+    await userEvent.type(screen.getByLabelText(f.thresholds.input), '50');
+    await userEvent.click(screen.getByRole('button', { name: f.thresholds.add }));
+    expect(screen.queryByText(f.errors.thresholdsRequired)).toBeNull();
+  });
+
+  it('hides the saved summary once the user edits again (L6)', async () => {
+    stubEdit({ [PATCH]: { status: 200, body: budget({ name: 'Home 2' }) } });
+    renderApp(<EditBudgetContainer budgetId={BUDGET_ID} />, { locale: 'en' });
+    const name = await screen.findByLabelText(f.name);
+    await screen.findByRole('checkbox', { name: 'Food' });
+    await userEvent.type(name, '2');
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+    expect(await screen.findByRole('status')).toBeTruthy();
+
+    await userEvent.type(name, '3');
+    expect(screen.queryByRole('status')).toBeNull();
   });
 
   it('renders Spanish strings', async () => {

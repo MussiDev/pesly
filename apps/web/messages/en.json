@@ -2110,6 +2110,7 @@
       "currencyReadOnly": "The currency cannot be changed",
       "categories": "Categories",
       "categoriesGroup": "Subcategories of {parent}",
+      "categoryUnavailable": "Unavailable category",
       "rollover": "Carry unused money to the next month",
       "thresholds": {
         "label": "Alert thresholds",
