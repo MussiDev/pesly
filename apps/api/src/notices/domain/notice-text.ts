@@ -11,7 +11,11 @@ export interface NoticeTextInput {
   subjectName: string;
   dueDate: string;
   daysUntilDue?: number;
+  /** The budget threshold percent (1 to 200), required for `budget_alert`. */
+  threshold?: number;
 }
+
+const MAX_ALERT_THRESHOLD = 200;
 
 function formatDay(dueDate: string, language: NoticeLanguage): string {
   return new Intl.DateTimeFormat(language, {
@@ -42,6 +46,20 @@ export function renderNoticeText(input: NoticeTextInput): string {
   if (input.kind === 'reminder') {
     if (input.daysUntilDue === undefined) throw new Error('A reminder needs daysUntilDue');
     return reminderText(name, language, input.daysUntilDue);
+  }
+  if (input.kind === 'budget_alert') {
+    const { threshold } = input;
+    if (
+      threshold === undefined ||
+      !Number.isInteger(threshold) ||
+      threshold < 1 ||
+      threshold > MAX_ALERT_THRESHOLD
+    ) {
+      throw new Error('A budget alert needs an integer threshold from 1 to 200');
+    }
+    return language === 'es'
+      ? `${name} alcanzó el ${String(threshold)}% de su presupuesto`
+      : `${name} reached ${String(threshold)}% of its budget`;
   }
   const day = formatDay(input.dueDate, language);
   if (input.kind === 'card_statement_due') {

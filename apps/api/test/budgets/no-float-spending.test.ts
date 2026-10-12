@@ -81,4 +81,9 @@ describe('no float money in the budget spending feature (NFR-02, AC-28)', () => 
     );
     expect(sql).not.toMatch(/\b(real|double precision|numeric|decimal|float|money)\b/i);
   });
+
+  it('the 0036 migration declares no float, numeric or money column', () => {
+    const sql = readFileSync(join(apiRoot, 'drizzle', '0036_budget_alert_marks.sql'), 'utf8');
+    expect(sql).not.toMatch(/\b(real|double precision|numeric|decimal|float|money)\b/i);
+  });
 });

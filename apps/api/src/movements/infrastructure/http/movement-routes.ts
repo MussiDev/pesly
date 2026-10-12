@@ -37,6 +37,7 @@ import { DeleteMovement } from '../../application/delete-movement';
 import { GetMovement } from '../../application/get-movement';
 import { ListMovements } from '../../application/list-movements';
 import type { Clock } from '../../application/ports/clock';
+import type { ExpenseSavedHook } from '../../application/ports/expense-saved-listener';
 import { RecordDeviceMovement } from '../../application/record-device-movement';
 import { RecordManualMovement } from '../../application/record-manual-movement';
 import { UpdateMovement } from '../../application/update-movement';
@@ -59,6 +60,8 @@ export interface MovementRoutesOptions {
   deviceWriteLimit?: number;
   /** Defaults to the system clock; tests inject one to cross the limiter windows. */
   clock?: Clock;
+  /** Called after an expense is created or edited (budget alerts); optional. */
+  expenseSaved?: ExpenseSavedHook;
 }
 
 type CreateBody = z.infer<typeof createMovementRequestSchema>;
@@ -169,6 +172,7 @@ export function createMovementRoutes({
   writeLimit,
   deviceWriteLimit,
   clock = new SystemClock(),
+  expenseSaved,
 }: MovementRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
   const movements = new DrizzleMovementRepository(db);
@@ -179,6 +183,7 @@ export function createMovementRoutes({
     rates: new DrizzleRateLookup(db),
     preferences: new DrizzleUserPreferences(db),
     clock,
+    ...(expenseSaved === undefined ? {} : { expenseSaved }),
   });
   const limiter = new DrizzleMovementWriteLimiter(db, clock);
   // A failed refund only makes the limit stricter; it is logged without any request data.
@@ -205,6 +210,7 @@ export function createMovementRoutes({
     rates: new DrizzleRateLookup(db),
     preferences: new DrizzleUserPreferences(db),
     clock,
+    ...(expenseSaved === undefined ? {} : { expenseSaved }),
   });
   const deleteMovement = new DeleteMovement({ movements });
 

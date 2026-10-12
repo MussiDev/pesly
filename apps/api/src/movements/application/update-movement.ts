@@ -6,10 +6,12 @@ import {
   type BuildMovementDependencies,
   type EditMovementInput,
 } from './build-new-movement';
+import type { ExpenseSavedHook } from './ports/expense-saved-listener';
 import type { MovementRepository } from './ports/movement-repository';
 
 export interface UpdateMovementDependencies extends BuildMovementDependencies {
   movements: MovementRepository;
+  expenseSaved?: ExpenseSavedHook;
 }
 
 /**
@@ -31,6 +33,13 @@ export class UpdateMovement {
 
     const data = await buildNewMovement(this.deps, scope, input, existing);
     // `null`: the movement vanished between the read and the write.
-    return notFoundUnlessAllowed(await this.deps.movements.update(scope, id, data));
+    const movement = notFoundUnlessAllowed(await this.deps.movements.update(scope, id, data));
+    if (movement.type === 'expense') {
+      await this.deps.expenseSaved?.run(scope, {
+        categoryId: movement.categoryId,
+        occurredAt: movement.occurredAt,
+      });
+    }
+    return movement;
   }
 }

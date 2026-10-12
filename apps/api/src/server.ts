@@ -1,6 +1,6 @@
 import { createAccountRoutes } from './accounts';
 import { createApp } from './app';
-import { createBudgetRoutes } from './budgets';
+import { createBudgetAlertListener, createBudgetRoutes } from './budgets';
 import { createCategoryRoutes, seedDefaultCategories } from './categories';
 import {
   createCardAccountLinks,
@@ -14,6 +14,7 @@ import { createGoalRoutes, eraseUserGoals } from './goals';
 import { createGroupRoutes, eraseUserGroups } from './groups';
 import { createInvestmentsRoutes } from './investments';
 import {
+  BestEffortExpenseSavedHook,
   createAccountMovements,
   createCardPayments,
   createCardPurchases,
@@ -27,7 +28,7 @@ import {
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
-import { createNoticesRoutes } from './notices';
+import { createNoticesRoutes, renderBudgetAlertText } from './notices';
 import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
@@ -45,6 +46,13 @@ const categoryUsage = {
     (await movementCategoryUsage.isUsed(categoryId)) ||
     (await installmentCategoryUsage.isUsed(categoryId)),
 };
+// Budget alerts after a saved expense (DISC-001-06d): best effort, a failure is logged without data.
+const expenseSaved = new BestEffortExpenseSavedHook(
+  createBudgetAlertListener(db, { renderText: renderBudgetAlertText }),
+  (failure) => {
+    logger.error(failure, 'budget alert evaluation failed');
+  },
+);
 const app = createApp({
   env,
   logger,
@@ -76,7 +84,7 @@ const app = createApp({
       db,
       logger,
       activity: createAccountMovements(db),
-      expenses: createExpenseRecorder(db, logger),
+      expenses: createExpenseRecorder(db, logger, { expenseSaved }),
       purchases: createCardPurchases(db),
       cardPayments: createCardPayments(db),
       paymentRecorder: createStatementPaymentRecorder(db, logger),
@@ -87,12 +95,12 @@ const app = createApp({
     createGoalRoutes({ db, logger, movements: createAccountMovements(db) }),
     createGroupRoutes({ db, logger }),
     createInvestmentsRoutes({ db, logger }),
-    createMovementRoutes({ db, logger }),
+    createMovementRoutes({ db, logger, expenseSaved }),
     createNoticesRoutes({ db, logger }),
     createRecurringRoutes({
       db,
       logger,
-      expenses: createRecurringExpenseRecorder(db, logger),
+      expenses: createRecurringExpenseRecorder(db, logger, { expenseSaved }),
     }),
     createTagRoutes({ db }),
   ],
