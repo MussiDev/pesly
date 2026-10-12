@@ -21,6 +21,8 @@ const SECRETS = [
   'TOTP_ENCRYPTION_KEY',
   // Optional Demo plan key of the worker's price job (DISC-001-07b); the worker starts without it.
   'COINGECKO_API_KEY',
+  // Signs Web Push requests (DISC-001-08d); only the worker holds it.
+  'VAPID_PRIVATE_KEY',
 ];
 
 const ALLOWED_LITERALS: Record<string, readonly string[]> = {
@@ -31,12 +33,13 @@ const ALLOWED_LITERALS: Record<string, readonly string[]> = {
     'EMAIL_PROVIDER',
     'LOG_LEVEL',
     'NODE_ENV',
+    'PUSH_PROVIDER',
     'TRUST_PROXY',
     'WEB_BASE_URL',
     'WEB_ORIGIN',
   ],
   // With its references and secrets, exactly what parseWorkerEnv reads (FIX-003).
-  'argent-worker': ['EMAIL_PROVIDER', 'LOG_LEVEL', 'NODE_ENV'],
+  'argent-worker': ['EMAIL_PROVIDER', 'LOG_LEVEL', 'NODE_ENV', 'PUSH_PROVIDER'],
   'argent-web': ['NODE_ENV'],
 };
 
@@ -58,8 +61,15 @@ const SERVICE_SECRETS: Record<string, readonly string[]> = {
     'JWT_SECRET',
     'RESEND_API_KEY',
     'TOTP_ENCRYPTION_KEY',
+    'VAPID_PUBLIC_KEY',
   ],
-  'argent-worker': ['COINGECKO_API_KEY', 'RESEND_API_KEY'],
+  'argent-worker': [
+    'COINGECKO_API_KEY',
+    'RESEND_API_KEY',
+    'VAPID_PRIVATE_KEY',
+    'VAPID_PUBLIC_KEY',
+    'VAPID_SUBJECT',
+  ],
   'argent-web': [],
 };
 
@@ -392,6 +402,25 @@ describe('Railway Infrastructure as Code definition', () => {
       if (service.name !== 'argent-worker')
         expect(names, service.name).not.toContain('COINGECKO_API_KEY');
     }
+  });
+
+  it('declares the push settings: webpush and public key on API and worker, private key and subject on the worker only', () => {
+    const literal = (name: string, variable: string): string | null | undefined => {
+      const value = serviceNamed(name).variables?.[variable];
+      return value?.type === 'literal' ? value.value : undefined;
+    };
+    for (const name of ['argent-api', 'argent-worker']) {
+      expect(literal(name, 'PUSH_PROVIDER'), name).toBe('webpush');
+      expect(serviceNamed(name).variables?.VAPID_PUBLIC_KEY, name).toEqual(preserve());
+    }
+    expect(serviceNamed('argent-worker').variables?.VAPID_PRIVATE_KEY).toEqual(preserve());
+    expect(serviceNamed('argent-worker').variables?.VAPID_SUBJECT).toEqual(preserve());
+    for (const name of ['argent-api', 'argent-web']) {
+      const names = Object.keys(serviceNamed(name).variables ?? {});
+      expect(names, name).not.toContain('VAPID_PRIVATE_KEY');
+      expect(names, name).not.toContain('VAPID_SUBJECT');
+    }
+    expect(Object.keys(serviceNamed('argent-web').variables ?? {})).not.toContain('PUSH_PROVIDER');
   });
 
   it('pins the same exact railway SDK version in the root and API package.json', () => {

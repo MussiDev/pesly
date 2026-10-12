@@ -694,6 +694,38 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'push_subscriptions',
+    userColumn: 'user_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        'insert into push_subscriptions (user_id, endpoint, p256dh, auth) values ($1, $2, $3, $4)',
+        [
+          context.userId,
+          `https://push.example.test/${context.userId}`,
+          'p'.repeat(87),
+          'a'.repeat(22),
+        ],
+      );
+    },
+  },
+  {
+    table: 'push_deliveries',
+    userColumn: 'notice_id',
+    rowsSql:
+      'select count(*) as n from push_deliveries d join notices n on n.id = d.notice_id where n.owner_id = $1',
+    policy: 'cascade',
+    // Registered after notices and push_subscriptions: the delivery joins the notice and the subscription those seeders created.
+    seed: async (context) => {
+      await query(
+        context,
+        'insert into push_deliveries (notice_id, subscription_id) select n.id, s.id from notices n, push_subscriptions s where n.owner_id = $1 and s.user_id = $1 limit 1',
+        [context.userId],
+      );
+    },
+  },
+  {
     table: 'group_members',
     userColumn: 'user_id',
     policy: 'erase-step',

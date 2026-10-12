@@ -1,6 +1,11 @@
 /// <reference lib="webworker" />
 import { Serwist, type PrecacheEntry, type SerwistGlobalConfig } from 'serwist';
 import { cacheRequestedUrls } from '../lib/service-worker/cache-urls';
+import {
+  handleNotificationClick,
+  handlePush,
+  type WorkerDeps,
+} from '../lib/service-worker/push-handlers';
 import { CACHE_URLS_MESSAGE } from '../lib/service-worker/warmup';
 import {
   isCacheableDocument,
@@ -86,6 +91,31 @@ self.addEventListener('message', (event) => {
       open: openPages,
     }),
   );
+});
+
+function workerDeps(): WorkerDeps {
+  return {
+    showNotification: (title, options) => self.registration.showNotification(title, options),
+    matchAll: async () => {
+      return self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    },
+    openWindow: (url) => self.clients.openWindow(url),
+    origin: self.location.origin,
+  };
+}
+
+self.addEventListener('push', (event) => {
+  let text: string | null = null;
+  try {
+    text = event.data ? event.data.text() : null;
+  } catch {
+    // An unreadable payload is shown as the generic notification.
+  }
+  event.waitUntil(handlePush(text, workerDeps()));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.waitUntil(handleNotificationClick(event.notification, workerDeps()));
 });
 
 serwist.addEventListeners();

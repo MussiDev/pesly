@@ -2,6 +2,7 @@
 import { screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import DeleteAccountPage from '../src/app/[locale]/(app)/settings/delete-account/page';
+import NotificationsSettingsPage from '../src/app/[locale]/(app)/settings/notifications/page';
 import ProfileSettingsPage from '../src/app/[locale]/(app)/settings/profile/page';
 import SecuritySettingsPage from '../src/app/[locale]/(app)/settings/security/page';
 import { CATALOGS, renderApp } from './support/render-app';
@@ -13,6 +14,9 @@ vi.mock('../src/features/profile/containers/profile-container', () => ({
 vi.mock('../src/features/two-factor/containers/security-settings-container', () => ({
   SecuritySettingsContainer: () => <section data-testid="container" />,
 }));
+vi.mock('../src/features/notifications/containers/notifications-settings-container', () => ({
+  NotificationsSettingsContainer: () => <section data-testid="container" />,
+}));
 vi.mock('../src/features/profile/containers/delete-user-container', () => ({
   DeleteUserContainer: () => <section data-testid="container" />,
 }));
@@ -23,6 +27,7 @@ describe('settings screens (AC-16)', () => {
   it.each([
     ['profile', ProfileSettingsPage, es.profile.title, es.profile.subtitle],
     ['security', SecuritySettingsPage, es.security.title, es.security.subtitle],
+    ['notifications', NotificationsSettingsPage, es.notifications.title, es.notifications.subtitle],
     ['delete account', DeleteAccountPage, es.deleteUser.title, es.deleteUser.subtitle],
   ] as const)('%s opens with the page header and its container', (_name, Page, title, subtitle) => {
     renderApp(<Page />);

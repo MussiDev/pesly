@@ -13,6 +13,11 @@ const WORKER_PRODUCTION = {
   EMAIL_PROVIDER: 'resend',
   RESEND_API_KEY: 're_worker_test_key_0123456789',
   EMAIL_FROM: 'App <no-reply@example.com>',
+  PUSH_PROVIDER: 'webpush',
+  VAPID_PUBLIC_KEY:
+    'BIb54nj4rQhdyWAbVhqO8fnuXtV63GEWGtoFlOX9_N_MOKRx8p2uZBAmtlZQTxmI97il3n5xo37qQi_-k7_drfc',
+  VAPID_PRIVATE_KEY: '1uzs8qQlPbz2Em3SoJXwsdwyMW2VNc7DDhvb9jRoNH8',
+  VAPID_SUBJECT: 'mailto:ops@example.com',
 };
 
 function parseProduction(overrides: Record<string, string | undefined>) {
