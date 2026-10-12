@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { calendarDateSchema } from '../credit-cards/credit-card';
 
-export const NOTICE_KINDS = ['reminder', 'recorded', 'not_recorded', 'card_statement_due'] as const;
+export const NOTICE_KINDS = [
+  'reminder',
+  'recorded',
+  'not_recorded',
+  'card_statement_due',
+  'budget_alert',
+] as const;
 export const noticeKindSchema = z.enum(NOTICE_KINDS);
 export type NoticeKind = z.infer<typeof noticeKindSchema>;
 

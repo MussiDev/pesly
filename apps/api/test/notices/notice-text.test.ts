@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { renderBudgetAlertText } from '../../src/notices';
 import { renderNoticeText } from '../../src/notices/domain/notice-text';
 
 const DUE = '2026-10-05';
@@ -129,6 +130,59 @@ describe('renderNoticeText: card_statement_due', () => {
       expect(text).not.toContain('V'.repeat(81));
       expect(text.length).toBeLessThan(300);
     }
+  });
+});
+
+describe('renderNoticeText: budget_alert', () => {
+  const base = { kind: 'budget_alert', dueDate: '2026-10-01' } as const;
+
+  it('names the budget and the threshold in both languages (AC-15)', () => {
+    expect(
+      renderNoticeText({ ...base, language: 'es', subjectName: 'Outings', threshold: 80 }),
+    ).toBe('Outings alcanzó el 80% de su presupuesto');
+    expect(
+      renderNoticeText({ ...base, language: 'en', subjectName: 'Outings', threshold: 80 }),
+    ).toBe('Outings reached 80% of its budget');
+  });
+
+  it('cuts a 120 character name to 80 and stays within 1 to 300 characters (AC-16)', () => {
+    for (const language of ['es', 'en'] as const) {
+      const text = renderNoticeText({
+        ...base,
+        language,
+        subjectName: 'B'.repeat(120),
+        threshold: 200,
+      });
+      expect(text).toContain('B'.repeat(80));
+      expect(text).not.toContain('B'.repeat(81));
+      expect(text.length).toBeGreaterThanOrEqual(1);
+      expect(text.length).toBeLessThanOrEqual(300);
+    }
+  });
+
+  it.each([undefined, 0, 201, 80.5, -1, Number.NaN])(
+    'rejects the threshold %s by throwing (AC-16)',
+    (threshold) => {
+      expect(() =>
+        renderNoticeText({
+          ...base,
+          language: 'en',
+          subjectName: 'Outings',
+          ...(threshold === undefined ? {} : { threshold }),
+        }),
+      ).toThrow('threshold');
+    },
+  );
+
+  it('is reachable through renderBudgetAlertText, which uses the month start (AC-15)', () => {
+    expect(
+      renderBudgetAlertText({
+        language: 'en',
+        budgetName: 'Outings',
+        threshold: 50,
+        month: '2026-10-17',
+      }),
+    ).toBe('Outings reached 50% of its budget');
   });
 });
 

@@ -17,9 +17,9 @@ export const notices = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     kind: text('kind')
-      .$type<'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due'>()
+      .$type<'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due' | 'budget_alert'>()
       .notNull(),
-    /** A recurring payment id, or a credit card statement id for `card_statement_due` (DISC-001-10f); never a foreign key. */
+    /** A recurring payment id, or a credit card statement id for `card_statement_due` (DISC-001-10f), a budget alert mark id for `budget_alert` (DISC-001-06d); never a foreign key. */
     paymentId: uuid('payment_id').notNull(),
     dueDate: date('due_date', { mode: 'string' }).notNull(),
     text: text('text').notNull(),
@@ -29,7 +29,7 @@ export const notices = pgTable(
   (table) => [
     check(
       'notices_kind_check',
-      sql`${table.kind} in ('reminder', 'recorded', 'not_recorded', 'card_statement_due')`,
+      sql`${table.kind} in ('reminder', 'recorded', 'not_recorded', 'card_statement_due', 'budget_alert')`,
     ),
     check('notices_text_length_check', sql`char_length(${table.text}) between 1 and 300`),
     unique('notices_kind_payment_due_unique').on(table.kind, table.paymentId, table.dueDate),

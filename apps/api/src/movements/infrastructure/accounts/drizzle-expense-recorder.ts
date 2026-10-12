@@ -7,6 +7,7 @@ import type { Database } from '../../../shared/db/client';
 import type { Logger } from '../../../shared/logging/logger';
 import { CreateMovement, type CreateMovementInput } from '../../application/create-movement';
 import type { Clock } from '../../application/ports/clock';
+import type { ExpenseSavedHook } from '../../application/ports/expense-saved-listener';
 import type { MovementRepository } from '../../application/ports/movement-repository';
 import { DuplicateMovementId } from '../../domain/errors';
 import { RecordManualMovement } from '../../application/record-manual-movement';
@@ -23,6 +24,8 @@ export interface ExpenseRecorderOptions {
   writeLimit?: number;
   /** Defaults to the system clock; tests inject one to control the limiter window. */
   clock?: Clock;
+  /** Called after each expense is stored; the credit card and recurring recorders pass it. */
+  expenseSaved?: ExpenseSavedHook;
 }
 
 function toInput(expense: ExpenseToRecord): CreateMovementInput {
@@ -42,6 +45,8 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
     private readonly recordManualMovement: RecordManualMovement,
     private readonly createMovement: CreateMovement,
     private readonly movements: MovementRepository,
+    /** Statement import: hundreds of lines in one request must not each run an alert evaluation. */
+    private readonly bulkCreateMovement: CreateMovement = createMovement,
   ) {}
 
   async record(
@@ -56,7 +61,7 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
     scope: AccessScope<'write'>,
     expense: ExpenseToRecord,
   ): Promise<{ id: string; occurredAt: Date }> {
-    const movement = await this.createMovement.execute(scope, toInput(expense));
+    const movement = await this.bulkCreateMovement.execute(scope, toInput(expense));
     return { id: movement.id, occurredAt: movement.occurredAt };
   }
 
@@ -84,17 +89,22 @@ export class MovementsExpenseRecorder implements ExpenseRecorder {
 function buildRecorder(
   db: Database,
   logger: Logger,
-  { writeLimit, clock = new SystemClock() }: ExpenseRecorderOptions,
+  { writeLimit, clock = new SystemClock(), expenseSaved }: ExpenseRecorderOptions,
 ): MovementsExpenseRecorder {
   const movements = new DrizzleMovementRepository(db);
-  const createMovement = new CreateMovement({
+  const baseDeps = {
     movements,
     accounts: new DrizzleAccountLookup(db),
     categories: new DrizzleCategoryLookup(db),
     rates: new DrizzleRateLookup(db),
     preferences: new DrizzleUserPreferences(db),
     clock,
+  };
+  const createMovement = new CreateMovement({
+    ...baseDeps,
+    ...(expenseSaved === undefined ? {} : { expenseSaved }),
   });
+  const bulkCreateMovement = new CreateMovement(baseDeps);
   return new MovementsExpenseRecorder(
     new RecordManualMovement(
       {
@@ -110,6 +120,7 @@ function buildRecorder(
     ),
     createMovement,
     movements,
+    bulkCreateMovement,
   );
 }
 

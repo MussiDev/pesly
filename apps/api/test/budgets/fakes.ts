@@ -17,6 +17,10 @@ import type {
   CoveredCategory,
   VersionInForce,
 } from '../../src/budgets/application/ports/budget-version-reader';
+import type {
+  AlertCrossing,
+  BudgetAlertStore,
+} from '../../src/budgets/application/ports/budget-alert-store';
 import type { Clock } from '../../src/budgets/application/ports/clock';
 import type {
   BucketedPersonalRow,
@@ -273,5 +277,26 @@ export class FakeSpendingReader implements SpendingReader {
     await Promise.resolve();
     this.shareCalls.push({ window });
     return this.shares.get(scope.userId) ?? [];
+  }
+}
+
+/** Records the crossings it was given; a crossing already marked is not published again. */
+export class InMemoryAlertStore implements BudgetAlertStore {
+  readonly calls: { userId: string; crossings: AlertCrossing[] }[] = [];
+  readonly marks = new Set<string>();
+  readonly published: AlertCrossing[] = [];
+
+  async publish(scope: AccessScope, crossings: readonly AlertCrossing[]): Promise<number> {
+    await Promise.resolve();
+    this.calls.push({ userId: scope.userId, crossings: [...crossings] });
+    let created = 0;
+    for (const crossing of crossings) {
+      const key = `${crossing.budgetId}|${crossing.month}|${crossing.threshold}`;
+      if (this.marks.has(key)) continue;
+      this.marks.add(key);
+      this.published.push(crossing);
+      created += 1;
+    }
+    return created;
   }
 }
