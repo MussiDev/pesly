@@ -36,6 +36,8 @@ export class DrizzleActivityLogReader implements ActivityLogReader {
         createdAt: groupActivityLog.createdAt,
         before: groupActivityLog.before,
         after: groupActivityLog.after,
+        fromMovement: groupActivityLog.fromMovement,
+        autoCategory: groupActivityLog.autoCategory,
       })
       .from(groupActivityLog)
       .where(and(eq(groupActivityLog.groupId, groupId), afterCursor(cursor)))
@@ -58,6 +60,8 @@ export class DrizzleActivityLogReader implements ActivityLogReader {
         // The snapshots are written only by the change use cases, in the shape of the contract.
         before: row.before as ExpenseSnapshot | SettlementSnapshot | null,
         after: row.after as ExpenseSnapshot | SettlementSnapshot | null,
+        fromMovement: row.fromMovement,
+        autoCategory: row.autoCategory,
       })),
       nextCursor: page.nextCursor,
     };

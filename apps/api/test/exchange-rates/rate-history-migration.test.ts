@@ -5,8 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const TAG = '0037_exchange_rate_history';
-const PREVIOUS_MAX_WHEN = 1791800000000;
+const TAG = '0038_exchange_rate_history';
+const PREVIOUS_MAX_WHEN = 1791810000000;
 const HOOK_TIMEOUT_MS = 60_000;
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -68,7 +68,7 @@ const insertHistory = (rateType: string, date: string, buy: number, sell: number
     [rateType, date, buy, sell],
   );
 
-describe('0037_exchange_rate_history migration', () => {
+describe('0038_exchange_rate_history migration', () => {
   it('creates the table with no float column', async () => {
     expect(await tableExists('exchange_rate_history')).toBe(true);
     const floats = await client.query(
@@ -160,21 +160,21 @@ describe('0037_exchange_rate_history migration', () => {
     const own = journal.entries.find((entry) => entry.tag === TAG);
     const script = await fileOf(`rollback/${TAG}.down.sql`);
 
-    expect(own?.when).toBe(1791810000000);
+    expect(own?.when).toBe(1791820000000);
     expect(script).toContain(`"created_at" = ${own?.when}`);
   });
 
-  it('has the journal entry at idx 37 with the greatest when, chained to 0036', async () => {
+  it('has the journal entry at idx 38 with the greatest when, chained to 0037', async () => {
     const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
       entries: { idx: number; when: number; tag: string }[];
     };
     const own = journal.entries.find((entry) => entry.tag === TAG);
 
-    expect(own?.idx).toBe(37);
+    expect(own?.idx).toBe(38);
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
     expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
-    const snapshot = JSON.parse(await fileOf('meta/0037_snapshot.json')) as { prevId: string };
-    const previous = JSON.parse(await fileOf('meta/0036_snapshot.json')) as { id: string };
+    const snapshot = JSON.parse(await fileOf('meta/0038_snapshot.json')) as { prevId: string };
+    const previous = JSON.parse(await fileOf('meta/0037_snapshot.json')) as { id: string };
     expect(snapshot.prevId).toBe(previous.id);
   });
 });

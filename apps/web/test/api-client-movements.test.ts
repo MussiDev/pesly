@@ -120,7 +120,7 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
   });
 
   it('listMovements sends limit and offset and parses the page', async () => {
-    const page = { items: [MOVEMENT], total: 1, limit: 100, offset: 0 };
+    const page = { items: [MOVEMENT], total: 1, limit: 100, offset: 0, groupLinks: {} };
     const { client, fetch } = clientWith(jsonResponse(200, page), jsonResponse(200, page));
 
     expect(await client.listMovements({ limit: 100, offset: 200 })).toEqual({
@@ -337,11 +337,12 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
 
 describe('api client: edit and delete movements (DISC-001-03e Block 6)', () => {
   it('getMovement gets /movements/:id and parses the movement (AC-01)', async () => {
-    const { client, fetch } = clientWith(jsonResponse(200, MOVEMENT));
+    const detail = { ...MOVEMENT, groupExpense: null };
+    const { client, fetch } = clientWith(jsonResponse(200, detail));
 
     const result = await client.getMovement(MOVEMENT.id);
 
-    expect(result).toEqual({ ok: true, data: MOVEMENT });
+    expect(result).toEqual({ ok: true, data: detail });
     expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements/${MOVEMENT.id}`);
     expect(requestAt(fetch, 0).init.method).toBe('GET');
   });

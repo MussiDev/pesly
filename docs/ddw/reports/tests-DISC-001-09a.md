@@ -16,7 +16,7 @@
 
 ## Scope
 
-Full-suite run on the worktree of DISC-001-09a (578 test files), measured over `apps/api/src`, `apps/web/src` and `packages/shared/src` together, as AGENTS.md requires. The ticket adds the `reports` module in `apps/api` (three read-only reports: expenses by category, income and expenses per month, net worth per month end), the shared contracts and range helpers in `packages/shared/src/reports`, one migration (0037, additive: table `exchange_rate_history`, seeded from the stored rates and written by the existing rate refresh) and no dependency. No screen and no dashboard route are added.
+Full-suite run on the worktree of DISC-001-09a (578 test files), measured over `apps/api/src`, `apps/web/src` and `packages/shared/src` together, as AGENTS.md requires. The ticket adds the `reports` module in `apps/api` (three read-only reports: expenses by category, income and expenses per month, net worth per month end), the shared contracts and range helpers in `packages/shared/src/reports`, one migration (0038, additive: table `exchange_rate_history`, seeded from the stored rates and written by the existing rate refresh) and no dependency. No screen and no dashboard route are added.
 
 Run anomalies and the fix: the first full run had one failing test, the build-output deploy test (`apps/api/test/deploy/build-output.test.ts`), whose table list did not include the new table `exchange_rate_history`. The list was fixed and the full run was repeated: 9625 of 9625 pass. The figures above are those of the repeated run.
 
@@ -89,7 +89,7 @@ Folder `apps/api/test/reports` unless a path is given; `shared:` is `packages/sh
 
 Sad-path tests: range over the limit (25 and 13 months) with nothing read, `from` after `to`, `to` after today, malformed date, no session (401), account or tag of another user (404), another user's movements, shares, snapshots and installments never returned, shares and installments in the other currency with no rate left out and counted, missing rate giving a null total with `no_rate`, a portfolio with no snapshot marked incomplete, database failure rejecting the whole read with no partial result, a rate reader exception propagated with no response built, LIKE wildcards in a tag treated as plain characters, a missing user failing closed, an invalid stored time zone falling back to Buenos Aires, a point setting both or neither of total and reason refused, decimal, exponent and numeric amounts refused by every response schema.
 
-Migration 0037: `rate-history-migration.test.ts` (seed of one row per stored rate dated in Argentina, idempotent rollback applied twice, the rollback forgets exactly its own journal `when`) and `rate-history-write.test.ts` (two refreshes on the same day keep one row per type).
+Migration 0038: `rate-history-migration.test.ts` (seed of one row per stored rate dated in Argentina, idempotent rollback applied twice, the rollback forgets exactly its own journal `when`) and `rate-history-write.test.ts` (two refreshes on the same day keep one row per type).
 
 Other checks:
 
@@ -114,7 +114,7 @@ Other checks:
 - L4: a past point can be dated after the requested `to` (spec decision 8); accepted.
 - L5: the rate history day (Argentina) against the month end in the user's zone has a one-day edge; accepted.
 - L6: the installment period uses a margin of 2 months as a heuristic; accepted.
-- Migration 0037 must keep a journal `when` above the maximum on `main` at merge.
+- Migration 0038 must keep a journal `when` above the maximum on `main` at merge.
 
 ## Failures
 

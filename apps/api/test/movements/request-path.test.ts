@@ -219,7 +219,7 @@ import { accounts } from '${toSrc('accounts/infrastructure/db/schema')}';
 
   it('foreign-relations.ts is the one file that imports other modules persistence files', () => {
     const file = join(movementsRoot, FOREIGN_RELATIONS);
-    expect(foreignPersistenceFindings(file, readFileSync(file, 'utf8'))).toHaveLength(4);
+    expect(foreignPersistenceFindings(file, readFileSync(file, 'utf8'))).toHaveLength(5);
   });
 
   const pureFiles = files.filter((file) =>

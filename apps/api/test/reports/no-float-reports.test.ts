@@ -69,8 +69,8 @@ describe('no float money in the reports feature (NFR-02, AC-48)', () => {
     for (const [, pattern] of FORBIDDEN) expect(pattern.test(code(allowed))).toBe(false);
   });
 
-  it('the 0037 migration declares no float, numeric or money column', () => {
-    const sql = readFileSync(join(apiRoot, 'drizzle', '0037_exchange_rate_history.sql'), 'utf8');
+  it('the 0038 migration declares no float, numeric or money column', () => {
+    const sql = readFileSync(join(apiRoot, 'drizzle', '0038_exchange_rate_history.sql'), 'utf8');
     expect(sql).not.toMatch(/\b(real|double precision|numeric|decimal|float|money)\b/i);
   });
 });

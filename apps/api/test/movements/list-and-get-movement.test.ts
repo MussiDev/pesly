@@ -214,10 +214,42 @@ describe('GetMovement', () => {
     const theirs = movements.seed(BOB);
     const scope = await readScopeFor(ALICE);
 
-    await expect(get.execute(scope, mine.id)).resolves.toMatchObject({ id: mine.id });
+    await expect(get.execute(scope, mine.id)).resolves.toMatchObject({
+      movement: { id: mine.id },
+      groupExpense: null,
+    });
     await expect(get.execute(scope, theirs.id)).rejects.toBeInstanceOf(ResourceNotFound);
     await expect(get.execute(scope, '33333333-3333-4333-8333-333333333333')).rejects.toBeInstanceOf(
       ResourceNotFound,
     );
+  });
+});
+
+describe('group links in the reads (spec 05i D4)', () => {
+  const LINK = {
+    groupId: '44444444-4444-4444-8444-444444444444',
+    expenseId: '55555555-5555-4555-8555-555555555555',
+    adopted: true,
+  };
+
+  it('GetMovement returns the link of a linked movement', async () => {
+    const mine = movements.seed(ALICE);
+    movements.links.set(mine.id, LINK);
+
+    await expect(get.execute(await readScopeFor(ALICE), mine.id)).resolves.toMatchObject({
+      groupExpense: LINK,
+    });
+  });
+
+  it('ListMovements asks once for the ids of the page and returns the links', async () => {
+    const linked = movements.seed(ALICE);
+    movements.seed(ALICE);
+    movements.links.set(linked.id, LINK);
+
+    const result = await list.execute(await readScopeFor(ALICE), { limit: 10, offset: 0 });
+
+    expect(movements.groupLinksCalls).toHaveLength(1);
+    expect(movements.groupLinksCalls[0]).toHaveLength(2);
+    expect(result.groupLinks).toEqual({ [linked.id]: LINK });
   });
 });

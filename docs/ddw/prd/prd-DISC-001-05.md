@@ -18,6 +18,7 @@
 | DISC-001-05f | Group Expenses Screens | not written yet | depends on e | expense list, the split editor (equal, percentage, exact), the default split and the personal shares view |
 | DISC-001-05g | Balances and Settlements Screens | prd-DISC-001-05g.md | depends on e (stacked on its branch) and on 05f only for `selfMemberId` | web only, done: branch `feat/DISC-001-05g-balances-settlements-ui`; balances per currency, suggested payments, single and consolidated settlements, history; carries the 05f commit that exposes `selfMemberId` (merge order decides who rebases) |
 | DISC-001-05h | Editing, Activity and Conflict Screens | prd-DISC-001-05h.md | depends on f and g | PRD written, not built: edit and delete, the activity log, and mounting the 04e queue, sync badges and conflict resolution |
+| DISC-001-05i | Send an Existing Movement to a Group | prd-DISC-001-05i.md | depends on b, d and f | PRD written, not built: a "Send to group" action on a personal expense that adopts the movement as the payer movement (no duplicate); needs one endpoint and a database change; five open questions for the owner (delete detaches, note, lock, log marker) |
 
 ## Suggested implementation order
 a → b → c → d, a chain: each one needs the one before it. DISC-001-04e (conflicts on group

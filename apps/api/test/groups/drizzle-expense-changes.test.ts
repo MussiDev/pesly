@@ -110,8 +110,14 @@ function expenseOf(w: World, overrides: Partial<NewGroupExpense> = {}): NewGroup
       [w.beaMember, 1_000_000n],
       [w.ghost, 1_000_000n],
     ]),
-    activity: { action: 'expense_created', memberId: w.anaMember, createdAt: NOW },
+    activity: {
+      action: 'expense_created',
+      memberId: w.anaMember,
+      createdAt: NOW,
+      fromMovement: false,
+    },
     payerMovement: null,
+    adoptedMovement: null,
     ...overrides,
   };
 }
@@ -265,8 +271,16 @@ async function logRows(groupId: string, action: string): Promise<LogRow[]> {
   return result.rows;
 }
 
+/** A copy of `value` without `key`, for asserting what a schema or a read does without a field. */
+function omit<T extends object, K extends keyof T>(value: T, key: K): Omit<T, K> {
+  const copy = { ...value };
+  Reflect.deleteProperty(copy, key);
+  return copy;
+}
+
 async function stored(w: World, expense: NewGroupExpense) {
-  const saved = await repository.saveExpense(expense);
+  // The stored shape is what later reads return, so the send-only field is dropped.
+  const saved = omit(await repository.saveExpense(expense), 'autoCategory');
   const before = snapshotOf(w, {
     amount: saved.amount,
     occurredAt: saved.occurredAt,
@@ -441,6 +455,8 @@ describe('updateExpense', () => {
     const { saved, before } = await stored(w, expenseOf(w, { payerMovement: movementOf(w) }));
     const failing = new DrizzleGroupExpenseRepository(connection.db, {
       isUsable: (check) => recorder.isUsable(check),
+      peekAdoptable: (userId, movementId) => recorder.peekAdoptable(userId, movementId),
+      lockForAdoption: (tx, userId, movementId) => recorder.lockForAdoption(tx, userId, movementId),
       record: (tx, movement) => recorder.record(tx, movement),
       update: async (tx, change) => {
         await recorder.update(tx, change);

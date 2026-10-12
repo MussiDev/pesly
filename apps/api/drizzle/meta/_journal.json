@@ -258,7 +258,14 @@
       "idx": 37,
       "version": "7",
       "when": 1791810000000,
-      "tag": "0037_exchange_rate_history",
+      "tag": "0037_group_expense_from_movement",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791820000000,
+      "tag": "0038_exchange_rate_history",
       "breakpoints": true
     }
   ]

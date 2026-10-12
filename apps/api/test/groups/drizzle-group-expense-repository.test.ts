@@ -88,6 +88,12 @@ async function newWorld(): Promise<World> {
   };
 }
 
+function withoutAutoCategory<T extends { autoCategory: unknown }>(saved: T) {
+  const expense = { ...saved };
+  Reflect.deleteProperty(expense, 'autoCategory');
+  return expense as Omit<T, 'autoCategory'>;
+}
+
 function equalShares(total: bigint, memberIds: string[]) {
   const each = total / BigInt(memberIds.length);
   let leftover = total - each * BigInt(memberIds.length);
@@ -115,8 +121,14 @@ function expenseOf(
     description: 'Supermercado',
     splitMode: 'equal',
     shares: equalShares(amount, members ?? [w.anaMember, w.beaMember, w.ghost]),
-    activity: { action: 'expense_created', memberId: w.anaMember, createdAt: NOW },
+    activity: {
+      action: 'expense_created',
+      memberId: w.anaMember,
+      createdAt: NOW,
+      fromMovement: false,
+    },
     payerMovement: null,
+    adoptedMovement: null,
     ...rest,
   };
 }
@@ -158,7 +170,7 @@ describe('saveExpense', () => {
     expect(saved.shares.reduce((sum, s) => sum + s.amount, 0n)).toBe(4_000_000n);
     expect(saved.shares).toHaveLength(3);
     const read = await repository.getExpense(w.groupId, saved.id);
-    expect(read).toEqual(saved);
+    expect(read).toEqual(withoutAutoCategory(saved));
     const log = await connection.pool.query<{
       member_id: string;
       action: string;
@@ -197,6 +209,8 @@ describe('saveExpense', () => {
     const w = await newWorld();
     const failing = new DrizzleGroupExpenseRepository(connection.db, {
       isUsable: (check) => recorder.isUsable(check),
+      peekAdoptable: (userId, movementId) => recorder.peekAdoptable(userId, movementId),
+      lockForAdoption: (tx, userId, movementId) => recorder.lockForAdoption(tx, userId, movementId),
       record: async (tx, movement) => {
         await recorder.record(tx, movement);
         throw new Error('forced failure');

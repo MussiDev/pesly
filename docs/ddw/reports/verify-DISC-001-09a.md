@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Module | `apps/api/src/reports/**` (domain, application, Drizzle readers, clock, HTTP routes), `apps/api/src/exchange-rates/**` (history write path in the refresh), `packages/shared/src/reports/**` (contracts and range helpers); migration `0037_exchange_rate_history` |
+| Module | `apps/api/src/reports/**` (domain, application, Drizzle readers, clock, HTTP routes), `apps/api/src/exchange-rates/**` (history write path in the refresh), `packages/shared/src/reports/**` (contracts and range helpers); migration `0038_exchange_rate_history` |
 | Line coverage | suite 96.82% |
 | Branch coverage | suite 90.04% |
 | Function coverage | suite 94.96% |
@@ -66,7 +66,7 @@ Verified against the PRD (`docs/ddw/prd/prd-DISC-001-09a.md`) and the spec (`doc
 
 ## Spec blocks
 - ✅ Block 0 — shared contracts, range and month helpers: `packages/shared/src/reports/report.ts` and `report-range.ts`; `report-contracts.test.ts` and `report-range.test.ts`.
-- ✅ Block 1 — exchange rate history, migration 0037, write path and seed: `apps/api/drizzle/0037_exchange_rate_history.sql` and `rollback/0037_exchange_rate_history.down.sql` exist; `rate-history-migration.test.ts` and `rate-history-write.test.ts` cover the seed, the daily upsert, the idempotent rollback and the journal entry.
+- ✅ Block 1 — exchange rate history, migration 0038, write path and seed: `apps/api/drizzle/0038_exchange_rate_history.sql` and `rollback/0038_exchange_rate_history.down.sql` exist; `rate-history-migration.test.ts` and `rate-history-write.test.ts` cover the seed, the daily upsert, the idempotent rollback and the journal entry.
 - ✅ Block 2 — module skeleton, routes, preferences and filter checks: `report-routes.test.ts`, `prepare-report.test.ts`, `filter-reader.test.ts` and `dependencies.test.ts`.
 - ✅ Block 3 — flow core, conversion rules and the aggregated readers: `flow-domain.test.ts`, `flow-reader.test.ts` and `category-totals-domain.test.ts`.
 - ✅ Block 4 — income and expenses report: `income-expenses-domain.test.ts`, `income-expenses-use-case.test.ts` and `income-expenses-flow.test.ts`.
@@ -76,11 +76,11 @@ Verified against the PRD (`docs/ddw/prd/prd-DISC-001-09a.md`) and the spec (`doc
 - ✅ Block 8 — composition, ownership flows and benchmark: `reports-flow.test.ts`, `no-outbound.test.ts`, `no-float-reports.test.ts` and `apps/api/test/perf/reports.perf.test.ts`.
 
 ## Tests
-- ✅ Tests that name 0036 as the newest migration were updated by the spec (modified files); the full suite passes with 0037 in place.
+- ✅ Tests that name 0037 as the newest migration were updated by the spec (modified files); the full suite passes with 0038 in place.
 - ✅ Sad-path tests: range over the limit with nothing read, `from` after `to`, `to` after today, malformed date, no session 401, account or tag of another user 404, other users' rows never returned, shares and installments in the other currency with no rate counted and left out, missing rate giving a null total with `no_rate`, a portfolio with no snapshot marked incomplete, a database exception rejecting the whole read, a rate reader exception propagated with no response built, invalid response amounts refused by the schemas.
 - ✅ NFR-01 (p95 under 2 s for 100,000 movements): 176.7 ms, 77.4 ms and 161.6 ms.
 - ✅ NFR-02 (64-bit integers, 0 floating-point values): `no-float-reports.test.ts` finds 0 hits in the feature and the migration; the response schemas refuse decimals.
-- ✅ NFR-03 (one additive migration with rollback, 0 new dependencies): migration 0037 only; no `package.json` or lockfile change.
+- ✅ NFR-03 (one additive migration with rollback, 0 new dependencies): migration 0038 only; no `package.json` or lockfile change.
 - ✅ NFR-04 (0 outbound calls): `no-outbound.test.ts`.
 - ✅ Registries: the full run found one list missing the new table (`exchange_rate_history` in the build-output deploy test); it is fixed and the repeat run passes with 9625 of 9625.
 - ✅ Independent module verifier: 0 High. One Medium finding, fixed: net worth investments carried a stale per-currency snapshot; fixed with a failing-first test (commit "fix(api): count the latest snapshot day per portfolio in net worth") and three tests in `net-worth-sources.test.ts`. Low findings: L7 (AC tags missing on some tests) fixed; L2, L3, L4, L5 and L6 accepted and listed below.
@@ -92,6 +92,6 @@ Verified against the PRD (`docs/ddw/prd/prd-DISC-001-09a.md`) and the spec (`doc
   - L5: the rate history day (Argentina) against the month end in the user's zone has a one-day edge.
   - L6: the installment period uses a margin of 2 months as a heuristic.
   - AC-13, AC-26 and AC-31 have no AC tag in their tests; they are matched by test name above and could be tagged when the files are next edited.
-  - Migration 0037 must keep a journal `when` above the maximum on `main` at merge.
+  - Migration 0038 must keep a journal `when` above the maximum on `main` at merge.
 
 Result: PASSED

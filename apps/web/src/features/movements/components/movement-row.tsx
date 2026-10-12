@@ -1,7 +1,7 @@
 'use client';
 
 import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
-import { CloudCheck, Pencil, RotateCw, Trash2, Undo2 } from 'lucide-react';
+import { CloudCheck, Pencil, RotateCw, Trash2, Undo2, Users } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Amount } from '@/components/ui/amount';
 import { Badge } from '@/components/ui/badge';
@@ -30,8 +30,17 @@ export interface MovementRowActions {
   onDiscard?: () => void;
 }
 
+/** What the row says about sending the movement to a group: the action, or where it already is. */
+export type MovementGroupAction =
+  | { kind: 'send' }
+  /** `groupName` is `undefined` when the group is not among the person's groups. */
+  | { kind: 'linked'; groupName: string | undefined };
+
 export interface MovementRowProps {
   movement: MovementResponse;
+  groupAction?: MovementGroupAction | undefined;
+  /** The row the person came to find (a link from the home screen): marked, not by color alone. */
+  highlighted?: boolean;
   /** `undefined` when the account is not in the loaded sets: a neutral placeholder shows. */
   accountName: string | undefined;
   currency: string | undefined;
@@ -110,6 +119,8 @@ export function MovementRow({
   actions,
   syncState,
   failure,
+  groupAction,
+  highlighted = false,
 }: MovementRowProps) {
   const t = useTranslations('movements.list');
   const tSync = useTranslations('movements.sync');
@@ -162,7 +173,16 @@ export function MovementRow({
     ) : null;
 
   return (
-    <li className="grid gap-1 text-card-foreground">
+    <li
+      id={`movement-row-${movement.id}`}
+      className={
+        highlighted
+          ? 'grid gap-1 rounded-card text-card-foreground ring-2 ring-ring outline-none'
+          : 'grid gap-1 text-card-foreground'
+      }
+      {...(highlighted ? { 'aria-current': 'true' as const, tabIndex: -1 } : {})}
+    >
+      {highlighted ? <span className="sr-only">{t('highlighted')}</span> : null}
       <ListRow
         leading={
           <MovementAvatar
@@ -220,6 +240,15 @@ export function MovementRow({
       {movement.note === null ? null : (
         <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
       )}
+      {groupAction?.kind === 'linked' &&
+      actions?.confirmingDelete !== true &&
+      failure?.operation !== 'delete' ? (
+        <p className="px-1 text-small text-muted-foreground">
+          {groupAction.groupName === undefined
+            ? t('inGroupUnknown')
+            : t('inGroup', { name: groupAction.groupName })}
+        </p>
+      ) : null}
       {movement.tags.length > 0 ? (
         <div role="group" aria-label={t('tags')} className="flex flex-wrap gap-1 px-1">
           {movement.tags.map((tag) => (
@@ -287,6 +316,18 @@ export function MovementRow({
             {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
             {failure?.operation === 'delete' ? null : (
               <>
+                {groupAction?.kind === 'send' ? (
+                  <Link
+                    href={`/movements/send?id=${movement.id}`}
+                    title={tActions('sendToGroup')}
+                    className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+                  >
+                    <Users aria-hidden />
+                    <span className="sr-only">
+                      {tActions('sendToGroup')} {title}
+                    </span>
+                  </Link>
+                ) : null}
                 <Link
                   href={`/movements/edit?id=${movement.id}`}
                   title={tActions('edit')}

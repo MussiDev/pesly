@@ -19,7 +19,7 @@ reads. Net worth is rebuilt from four sources, each one statement bucketed by mo
 the opening balances plus the signed movements and settlement payments of the non-archived accounts, the
 latest daily portfolio snapshot per portfolio, the user's group balance, and the pending installment debt;
 the USD part of a past point is converted with a month-end rate read from a new history table. One migration,
-0037, adds `exchange_rate_history`, seeded from the rates stored today and written by the existing refresh.
+0038, adds `exchange_rate_history`, seeded from the rates stored today and written by the existing refresh.
 No screen, no dashboard route, no new runtime dependency and no external call are part of this ticket.
 
 ## Design decisions
@@ -127,12 +127,12 @@ No screen, no dashboard route, no new runtime dependency and no external call ar
   the end bound (100,000 rows aggregated in the database, never in the application); every other source is
   one statement. The benchmark seeds 100,000 movements spread over 24 months; if a report misses 2 s at p95
   the block reports the measured value and the options (an index, a snapshot table) go back to the owner.
-- D19: Migration 0037 (NFR-03). `0037_exchange_rate_history`: create the table and its checks, then a seed
-  `INSERT ... SELECT` appended by hand to the generated file. Journal `idx` 37, `when` 1791810000000 (the
-  maximum on `main` is 1791800000000 for 0036); it must exceed the maximum on `main` at merge time and the
+- D19: Migration 0038 (NFR-03). `0038_exchange_rate_history`: create the table and its checks, then a seed
+  `INSERT ... SELECT` appended by hand to the generated file. Journal `idx` 38, `when` 1791820000000 (the
+  maximum on `main` is 1791810000000 for 0037); it must exceed the maximum on `main` at merge time and the
   number is provisional and renumbered at merge (the Drizzle merge rule). Rollback script
-  `apps/api/drizzle/rollback/0037_exchange_rate_history.down.sql`, idempotent: drops the table and deletes the
-  journal row by `created_at`. It is applied before the rollback of 0036.
+  `apps/api/drizzle/rollback/0038_exchange_rate_history.down.sql`, idempotent: drops the table and deletes the
+  journal row by `created_at`. It is applied before the rollback of 0037.
 
 ## Open questions for the owner
 1. Default windows when `from` and `to` are omitted on the category report (the current month) and on the net
@@ -264,12 +264,12 @@ importable from `@pesly/shared`.
 - `apps/api/src/exchange-rates/infrastructure/db/schema.ts` (modified) — `exchangeRateHistory`.
 - `apps/api/src/exchange-rates/infrastructure/db/drizzle-rate-repository.ts` (modified) — `replaceAll` writes
   both tables in one transaction.
-- `apps/api/drizzle/0037_exchange_rate_history.sql` (generated, plus the hand-appended seed),
-  `apps/api/drizzle/meta/*` (generated, `0037_snapshot.json` and the journal entry at idx 37 with `when`
-  1791810000000), `apps/api/drizzle/rollback/0037_exchange_rate_history.down.sql` (new).
+- `apps/api/drizzle/0038_exchange_rate_history.sql` (generated, plus the hand-appended seed),
+  `apps/api/drizzle/meta/*` (generated, `0038_snapshot.json` and the journal entry at idx 38 with `when`
+  1791820000000), `apps/api/drizzle/rollback/0038_exchange_rate_history.down.sql` (new).
 - `apps/api/test/exchange-rates/rate-history-migration.test.ts`, `apps/api/test/exchange-rates/rate-history-write.test.ts`
   (new; need `TEST_DATABASE_URL`).
-- Tests that name 0036 as the newest migration or roll back newer migrations first (modified; found with
+- Tests that name 0037 as the newest migration or roll back newer migrations first (modified; found with
   `grep -rl 0036_budget_alert_marks apps/api/test`): `budgets/alert-marks-migration.test.ts`,
   `budgets/migration.test.ts`, `budgets/spending-migration.test.ts`, `credit-cards/automatic-debit-migration.test.ts`,
   `credit-cards/statement-reminders-migration.test.ts`, `goals/migration.test.ts`,
@@ -286,8 +286,8 @@ date of `fetched_at`. `replaceAll` keeps its port signature: inside `db.transact
 `exchange_rates` as today and upserts one history row per quote, dated with `dateInTimeZone(fetchedAt,
 'America/Argentina/Buenos_Aires')`, updating `buy`, `sell` and `recorded_at` on conflict. A failure of either
 statement rolls both back. Each test above that rolls back newer migrations to test an older one first applies
-`0037_exchange_rate_history.down.sql`, then the 0036 rollback, and each that names the newest migration or the
-journal length moves from 0036 to 0037. The rollback drops the table and deletes the journal row.
+`0038_exchange_rate_history.down.sql`, then the 0037 rollback, and each that names the newest migration or the
+journal length moves from 0037 to 0038. The rollback drops the table and deletes the journal row.
 
 **Data model**
 - New table `exchange_rate_history`: `rate_type` text not null, `rate_date` date not null, `buy` bigint not null,
@@ -311,20 +311,20 @@ the second line: rate type, range of `buy` and `sell`, and the primary key.
       second — validates AC-40
 - [ ] A refresh on the next day adds a second row and keeps the first; a fetch at 02:00 UTC counts as the
       previous Argentina day — validates AC-40
-- [ ] Applying 0037 on a database whose `exchange_rates` holds seven rows creates seven history rows dated by
+- [ ] Applying 0038 on a database whose `exchange_rates` holds seven rows creates seven history rows dated by
       `fetched_at` with the same `buy` and `sell` — validates AC-41
 - [ ] A history row with an unknown rate type, a `sell` of 0 or a duplicate key is invalid and raises a
       constraint error — validates FR-14
 - [ ] A forced error in the history upsert leaves `exchange_rates` unchanged — validates FR-14
-- [ ] The rollback, run twice with no error, drops the table and removes only the 0037 journal row; applying
-      0037 again afterwards works, and every other table keeps its rows — validates AC-49
-- [ ] The journal entry at idx 37 has the greatest `when`, above 1791800000000, and its snapshot is chained to
-      0036 — validates NFR-03
-- [ ] Every migration test named in the Files list passes with 0037 as the newest migration — validates NFR-03
+- [ ] The rollback, run twice with no error, drops the table and removes only the 0038 journal row; applying
+      0038 again afterwards works, and every other table keeps its rows — validates AC-49
+- [ ] The journal entry at idx 38 has the greatest `when`, above 1791810000000, and its snapshot is chained to
+      0037 — validates NFR-03
+- [ ] Every migration test named in the Files list passes with 0038 as the newest migration — validates NFR-03
 
 **Completion criterion**
 The migration and write tests pass against PostgreSQL, `pnpm typecheck` passes, and no migration test that
-names 0036 as the newest still fails.
+names 0037 as the newest still fails.
 
 ## Block 2 — Reports module skeleton, routes, preferences and filter checks
 
@@ -742,7 +742,7 @@ The flow, scan and dependency tests pass against PostgreSQL, the benchmark repor
 
 ## Final verification
 Every AC of the PRD has at least one named test (see the coverage tables). `pnpm install --frozen-lockfile`,
-`pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:perf` pass; migration 0037 applies on an empty
+`pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:perf` pass; migration 0038 applies on an empty
 database and on a copy of the schema of `main`, rolls back twice without error, and its journal `when` is above
 the maximum on `main`; the reports of a seeded user equal the hand-computed fixtures; and the budgets spending
 of the same data equals the category report for a covered category.

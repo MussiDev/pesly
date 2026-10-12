@@ -1,5 +1,5 @@
 {
-  "id": "51d560a5-4cbb-40c5-92cc-64a609591017",
+  "id": "ef48b29c-6d4b-47a9-ae7a-0bbb9104db56",
   "prevId": "d536edc5-5418-4d66-bcd5-d10d2a893468",
   "version": "7",
   "dialect": "postgresql",
@@ -1858,70 +1858,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.exchange_rate_history": {
-      "name": "exchange_rate_history",
-      "schema": "",
-      "columns": {
-        "rate_type": {
-          "name": "rate_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "rate_date": {
-          "name": "rate_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "buy": {
-          "name": "buy",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sell": {
-          "name": "sell",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "recorded_at": {
-          "name": "recorded_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "exchange_rate_history_pkey": {
-          "name": "exchange_rate_history_pkey",
-          "columns": [
-            "rate_type",
-            "rate_date"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "exchange_rate_history_rate_type_check": {
-          "name": "exchange_rate_history_rate_type_check",
-          "value": "\"exchange_rate_history\".\"rate_type\" in ('oficial', 'blue', 'mep', 'ccl', 'mayorista', 'cripto', 'tarjeta')"
-        },
-        "exchange_rate_history_buy_range_check": {
-          "name": "exchange_rate_history_buy_range_check",
-          "value": "\"exchange_rate_history\".\"buy\" between 1 and 100000000000"
-        },
-        "exchange_rate_history_sell_range_check": {
-          "name": "exchange_rate_history_sell_range_check",
-          "value": "\"exchange_rate_history\".\"sell\" between 1 and 100000000000"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.exchange_rate_refresh_failures": {
       "name": "exchange_rate_refresh_failures",
       "schema": "",
@@ -2447,6 +2383,19 @@
           "type": "jsonb",
           "primaryKey": false,
           "notNull": false
+        },
+        "from_movement": {
+          "name": "from_movement",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "auto_category": {
+          "name": "auto_category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         }
       },
       "indexes": {
@@ -2512,6 +2461,14 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {
+        "group_activity_log_from_movement_check": {
+          "name": "group_activity_log_from_movement_check",
+          "value": "\"group_activity_log\".\"from_movement\" = false or \"group_activity_log\".\"action\" = 'expense_created'"
+        },
+        "group_activity_log_auto_category_check": {
+          "name": "group_activity_log_auto_category_check",
+          "value": "\"group_activity_log\".\"auto_category\" is null or (\"group_activity_log\".\"auto_category\" in ('created', 'restored') and \"group_activity_log\".\"action\" = 'expense_created' and \"group_activity_log\".\"from_movement\")"
+        },
         "group_activity_log_action_check": {
           "name": "group_activity_log_action_check",
           "value": "\"group_activity_log\".\"action\" in ('expense_created', 'expense_updated', 'expense_deleted', 'settlement_created', 'settlement_updated', 'settlement_deleted')"
@@ -3075,6 +3032,13 @@
           "primaryKey": false,
           "notNull": true,
           "default": 1
+        },
+        "adopted_movement": {
+          "name": "adopted_movement",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         }
       },
       "indexes": {
@@ -3120,8 +3084,8 @@
           "method": "btree",
           "with": {}
         },
-        "group_expenses_payer_movement_idx": {
-          "name": "group_expenses_payer_movement_idx",
+        "group_expenses_payer_movement_unique": {
+          "name": "group_expenses_payer_movement_unique",
           "columns": [
             {
               "expression": "payer_movement_id",
@@ -3130,7 +3094,7 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
           "where": "\"group_expenses\".\"payer_movement_id\" is not null",
           "concurrently": false,
           "method": "btree",

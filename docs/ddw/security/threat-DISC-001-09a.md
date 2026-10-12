@@ -176,7 +176,7 @@
 ### `apps/api/src/exchange-rates/infrastructure/db/schema.ts`
 - **Spoofing:** not applicable: a schema file holds no identity and performs no I/O.
 - **Tampering:** the primary key `(rate_type, rate_date)` and the checks on the rate type and on the range of
-  `buy` and `sell` keep rows consistent even if application code has a bug; migration 0037 is additive and its
+  `buy` and `sell` keep rows consistent even if application code has a bug; migration 0038 is additive and its
   rollback is idempotent.
 - **Repudiation:** history rows are keyed by day and carry `recorded_at`; the migration seeds exactly one row
   per stored rate type, dated by its fetch.
@@ -211,4 +211,4 @@
 ## Supply chain
 No new runtime dependency: the feature reuses Drizzle, Express and Zod and the shared money, time and
 statement-cycle helpers already in the project, and a test pins the dependency lists of `apps/api` and
-`packages/shared` (spec D17). The only schema change is one table and its seed in migration 0037.
+`packages/shared` (spec D17). The only schema change is one table and its seed in migration 0038.

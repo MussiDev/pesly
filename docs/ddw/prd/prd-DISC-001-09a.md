@@ -237,7 +237,7 @@ renumbered for this sub-ticket; the original IDs of the parent PRD are in the De
   is not the user's answers 404 (AC-43).
 - **Day boundaries disagree with what the user sees** → months and range days are computed in the user's
   time zone (AC-14, AC-28).
-- **The migration number collides with another branch** → this ticket adds migration 0037, renumbered at
+- **The migration number collides with another branch** → this ticket adds migration 0038, renumbered at
   merge, and its journal `when` must exceed the maximum `when` on `main` at merge time (same rule as
   DISC-001-05a, 06b and 06c).
 
@@ -256,7 +256,7 @@ renumbered for this sub-ticket; the original IDs of the parent PRD are in the De
   merged.
 - PRD 10 (Credit Cards: Statements & Installments) — installments, statements and their dates (FR-08,
   FR-12); merged.
-- Database migration: 0037 (one history table of rates and its seed), its journal `when` greater than
+- Database migration: 0038 (one history table of rates and its seed), its journal `when` greater than
   the maximum on `main` when it merges.
 
 ## Decision Log
@@ -349,4 +349,4 @@ renumbered for this sub-ticket; the original IDs of the parent PRD are in the De
 - 2026-10-12: Proposed by the model, for owner ratification (15): the reports are computed on the fly
   with aggregated SQL (one statement per source, bucketed by month in the user's time zone), with no
   precomputed month-end snapshot; parent Risks leave that choice to PLAN and it is revisited only if the
-  benchmark of NFR-01 fails. The migration number 0037 is provisional and renumbered at merge.
+  benchmark of NFR-01 fails. The migration number 0038 is provisional and renumbered at merge.

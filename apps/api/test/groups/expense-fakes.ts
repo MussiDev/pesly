@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import type {
-  AccountCurrency,
-  ExpenseSnapshot,
-  GroupActivityAction,
-  SettlementSnapshot,
+import {
+  AUTOMATIC_SEND_CATEGORY_KEY,
+  DEFAULT_CATEGORIES,
+  type AccountCurrency,
+  type AutomaticCategoryChange,
+  type ExpenseSnapshot,
+  type GroupActivityAction,
+  type SettlementSnapshot,
 } from '@pesly/shared';
 import {
   assertChangedMembersActive,
@@ -14,6 +17,8 @@ import {
   type DeleteGroupExpenseData,
   type GroupSettlement,
   type Member,
+  type AdoptableMovement,
+  type SavedExpense,
   type PayerMovementRemoval,
   type PayerMovementUpdate,
   type UpdateGroupExpenseData,
@@ -71,6 +76,51 @@ export class InMemoryPayerMovementRecorder implements PayerMovementRecorder<Fake
   /** Committed movements only. */
   readonly movements: RecordedMovement[] = [];
   readonly calls: RecordedMovementCall[] = [];
+  /** Movements a person already has, readable for adoption (spec 05i D2). */
+  readonly adoptable = new Map<string, AdoptableMovement & { userId: string }>();
+
+  seedMovement(userId: string, movement: Partial<AdoptableMovement> = {}): string {
+    const id = randomUUID();
+    this.adoptable.set(id, {
+      id,
+      userId,
+      type: 'expense',
+      amount: 4_000_000n,
+      currency: 'ARS',
+      occurredAt: new Date('2026-10-01T12:00:00.000Z'),
+      note: 'Supermercado',
+      categoryId: null,
+      categoryDefaultKey: null,
+      linked: false,
+      ...movement,
+    });
+    return id;
+  }
+
+  async peekAdoptable(userId: string, movementId: string): Promise<AdoptableMovement | null> {
+    await Promise.resolve();
+    const found = this.adoptable.get(movementId);
+    if (found === undefined || found.userId !== userId) return null;
+    return {
+      id: found.id,
+      type: found.type,
+      amount: found.amount,
+      currency: found.currency,
+      occurredAt: found.occurredAt,
+      note: found.note,
+      categoryId: found.categoryId,
+      categoryDefaultKey: found.categoryDefaultKey,
+      linked: found.linked,
+    };
+  }
+
+  async lockForAdoption(
+    _unit: FakeUnitOfWork,
+    userId: string,
+    movementId: string,
+  ): Promise<AdoptableMovement | null> {
+    return this.peekAdoptable(userId, movementId);
+  }
 
   seedAccount(userId: string, currency: 'ARS' | 'USD'): string {
     const id = randomUUID();
@@ -159,6 +209,8 @@ export interface ActivityRow {
   createdAt: Date;
   before: ExpenseSnapshot | SettlementSnapshot | null;
   after: ExpenseSnapshot | SettlementSnapshot | null;
+  fromMovement?: boolean;
+  autoCategory?: AutomaticCategoryChange | null;
 }
 
 interface MutableSources {
@@ -245,17 +297,30 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
   readonly ledger = new FakeLedger();
   /** When set, the write fails after the movement was staged (atomicity test). */
   failAfterMovement = false;
+  /** Every saveExpense call as received, so a test can see what the use case passed. */
+  readonly saveCalls: NewGroupExpense[] = [];
 
   constructor(
     private readonly groups: InMemoryGroupRepository,
     private readonly recorder: InMemoryPayerMovementRecorder,
   ) {}
 
-  async saveExpense(data: NewGroupExpense): Promise<GroupExpense> {
+  async saveExpense(data: NewGroupExpense): Promise<SavedExpense> {
+    this.saveCalls.push(data);
     const unit = newUnitOfWork();
     let payerMovementId: string | null = null;
+    let autoCategory: AutomaticCategoryChange | null = null;
+    let categoryId = data.categoryId ?? '';
     if (data.payerMovement !== null) {
       payerMovementId = (await this.recorder.record(unit, data.payerMovement)).id;
+    }
+    if (data.adoptedMovement !== null) {
+      payerMovementId = data.adoptedMovement.movementId;
+    }
+    if (data.categoryId === null) {
+      const resolved = await this.resolveAutomaticCategory(data.groupId);
+      categoryId = resolved.id;
+      autoCategory = resolved.change;
     }
     if (this.failAfterMovement) throw new Error('forced failure');
     const expense: GroupExpense = {
@@ -266,10 +331,11 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       amount: data.amount,
       currency: data.currency,
       occurredAt: data.occurredAt,
-      categoryId: data.categoryId,
+      categoryId,
       description: data.description,
       splitMode: data.splitMode,
       payerMovementId,
+      adoptedMovement: data.adoptedMovement !== null,
       createdAt: data.activity.createdAt,
       version: 1,
       shares: data.shares.map((share) => ({ ...share })),
@@ -284,10 +350,41 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       createdAt: data.activity.createdAt,
       before: null,
       after: null,
+      fromMovement: data.activity.fromMovement,
+      autoCategory,
     });
     this.ledger.applyExpense(expense, 1n);
     this.recorder.commit(unit);
-    return expense;
+    if (data.adoptedMovement !== null) {
+      const adopted = this.recorder.adoptable.get(data.adoptedMovement.movementId);
+      if (adopted !== undefined) adopted.linked = true;
+    }
+    return { ...expense, autoCategory };
+  }
+
+  /** The D18 resolution against the fake group repository: use, restore or create the default. */
+  private async resolveAutomaticCategory(
+    groupId: string,
+  ): Promise<{ id: string; change: AutomaticCategoryChange | null }> {
+    const existing = (await this.groups.listCategories(groupId)).find(
+      (c) => c.defaultKey === AUTOMATIC_SEND_CATEGORY_KEY,
+    );
+    if (existing !== undefined && existing.archivedAt === null) {
+      return { id: existing.id, change: null };
+    }
+    if (existing !== undefined) {
+      await this.groups.updateCategory(groupId, existing.id, { archivedAt: null });
+      return { id: existing.id, change: 'restored' };
+    }
+    const base = DEFAULT_CATEGORIES.find((c) => c.key === AUTOMATIC_SEND_CATEGORY_KEY);
+    if (base === undefined) throw new Error('The automatic category is not a default');
+    const created = await this.groups.addCategory(groupId, {
+      defaultKey: base.key,
+      name: null,
+      icon: base.icon,
+      color: base.color,
+    });
+    return { id: created.id, change: 'created' };
   }
 
   async updateExpense(data: UpdateGroupExpenseData): Promise<GroupExpense> {

@@ -30,6 +30,7 @@ export * from './application/create-group-category';
 export * from './application/update-group-category';
 export * from './application/allocate-expense-shares';
 export * from './application/record-group-expense';
+export * from './application/send-movement-to-group';
 export * from './application/update-group-expense';
 export * from './application/delete-group-expense';
 export * from './application/list-group-expenses';
