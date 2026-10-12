@@ -160,6 +160,22 @@ import {
   type StatementResponse,
   type UpdateCreditCardRequest,
   type UpdateStatementRequest,
+  createGoalEntryRequestSchema,
+  createGoalRequestSchema,
+  goalResponseSchema,
+  listGoalEntriesQuerySchema,
+  listGoalEntriesResponseSchema,
+  listGoalsResponseSchema,
+  recordGoalEntryResponseSchema,
+  updateGoalRequestSchema,
+  type CreateGoalEntryRequest,
+  type CreateGoalRequest,
+  type GoalResponse,
+  type ListGoalEntriesQuery,
+  type ListGoalEntriesResponse,
+  type ListGoalsResponse,
+  type RecordGoalEntryResponse,
+  type UpdateGoalRequest,
   type ResendVerificationResponse,
   type SecondFactorVerifyRequest,
   type SecondFactorVerifyResponse,
@@ -740,6 +756,23 @@ export interface ApiClient {
     categoryId: string,
     body: UpdateGroupCategoryRequest,
   ): Promise<ApiResult<GroupCategoryResponse>>;
+  listGoals(): Promise<ApiResult<ListGoalsResponse>>;
+  getGoal(id: string): Promise<ApiResult<GoalResponse>>;
+  /** A body that fails the shared schema is refused before any request. */
+  createGoal(body: CreateGoalRequest): Promise<ApiResult<GoalResponse>>;
+  /** `targetDate: null` removes the date; an empty body is refused before any request. */
+  updateGoal(id: string, body: UpdateGoalRequest): Promise<ApiResult<GoalResponse>>;
+  deleteGoal(id: string): Promise<ApiResult<undefined>>;
+  /** Answers the new entry and the updated goal. */
+  recordGoalEntry(
+    id: string,
+    body: CreateGoalEntryRequest,
+  ): Promise<ApiResult<RecordGoalEntryResponse>>;
+  /** Newest first; `limit` outside 1 to 100 is refused before any request. */
+  listGoalEntries(
+    id: string,
+    query: ListGoalEntriesQuery,
+  ): Promise<ApiResult<ListGoalEntriesResponse>>;
 }
 
 /**
@@ -926,6 +959,14 @@ export function createApiClient({
     return group === null || record === null
       ? Promise.resolve(failure('VALIDATION_FAILED'))
       : build(`${group}${record}`);
+  }
+
+  function onGoal<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('goals', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
   }
 
   function onGroup<T>(
@@ -1925,5 +1966,74 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
+    listGoals: () =>
+      request({
+        method: 'GET',
+        path: '/goals',
+        response: listGoalsResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getGoal: (id) =>
+      onGoal(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: goalResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    createGoal: (body) => {
+      const parsed = createGoalRequestSchema.safeParse(body);
+      if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+      return request({
+        method: 'POST',
+        path: '/goals',
+        body: parsed.data,
+        response: goalResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    updateGoal: (id, body) =>
+      onGoal(id, (path) => {
+        const parsed = updateGoalRequestSchema.safeParse(body);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        return request({
+          method: 'PATCH',
+          path,
+          body: parsed.data,
+          response: goalResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    deleteGoal: (id) =>
+      onGoal(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
+    recordGoalEntry: (id, body) =>
+      onGoal(id, (path) => {
+        const parsed = createGoalEntryRequestSchema.safeParse(body);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        return request({
+          method: 'POST',
+          path: `${path}/entries`,
+          body: parsed.data,
+          response: recordGoalEntryResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    listGoalEntries: (id, query) =>
+      onGoal(id, (path) => {
+        const parsed = listGoalEntriesQuerySchema.safeParse(query);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        const params = new URLSearchParams();
+        if (parsed.data.limit !== undefined) params.set('limit', String(parsed.data.limit));
+        const suffix = params.size > 0 ? `?${params.toString()}` : '';
+        return request({
+          method: 'GET',
+          path: `${path}/entries${suffix}`,
+          response: listGoalEntriesResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
   };
 }

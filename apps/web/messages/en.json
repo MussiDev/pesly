@@ -1975,5 +1975,86 @@
       "percentage": "Percentages",
       "exact": "Exact amounts"
     }
+  },
+  "goals": {
+    "list": {
+      "title": "Savings goals",
+      "description": "Set aside money for what matters and track how close you are.",
+      "create": "New goal",
+      "empty": {
+        "title": "No savings goals yet",
+        "description": "Create a goal to start tracking your progress.",
+        "action": "Create a goal"
+      },
+      "retry": "Try again",
+      "error": "We could not load your goals. Check your connection and try again."
+    },
+    "card": {
+      "progressOfTarget": "{saved} of {target}",
+      "percentage": "{percent, number, ::percent} saved",
+      "monthlyNeeded": "{amount} per month needed",
+      "reached": "Goal reached",
+      "overdue": "Target date passed",
+      "targetDate": "Target date: {date}",
+      "linkedToAccount": "Linked to {account}"
+    },
+    "detail": {
+      "title": "Goal",
+      "back": "Back to goals",
+      "entries": {
+        "title": "Entries",
+        "contribution": "Contribution",
+        "withdrawal": "Withdrawal",
+        "latestNote": "Only the latest {count} entries are shown.",
+        "empty": "No entries yet.",
+        "loadMore": "Load more"
+      },
+      "edit": "Edit goal",
+      "delete": "Delete goal",
+      "linkedNotice": "This goal follows the balance of its account, so you cannot record contributions or withdrawals on it.",
+      "notFound": {
+        "title": "Goal not found",
+        "description": "This goal does not exist or was deleted.",
+        "back": "Back to goals"
+      }
+    },
+    "form": {
+      "createTitle": "New goal",
+      "editTitle": "Edit goal",
+      "name": "Name",
+      "targetAmount": "Target amount",
+      "currency": "Currency",
+      "targetDate": "Target date (optional)",
+      "clearTargetDate": "Clear target date",
+      "account": "Link to an account (optional)",
+      "accountNone": "No account",
+      "accountLinked": "Linked to an account",
+      "noAccounts": "You have no accounts in this currency to link.",
+      "errors": {
+        "nameRequired": "Enter a name for the goal.",
+        "nameTooLong": "The name is too long.",
+        "amountInvalid": "Enter an amount greater than zero.",
+        "dateInvalid": "Enter a valid date.",
+        "accountRequired": "Choose an account to link."
+      },
+      "submit": "Save goal",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "entries": {
+      "contributionTitle": "Add a contribution",
+      "withdrawalTitle": "Withdraw from this goal",
+      "amount": "Amount",
+      "submitContribution": "Add contribution",
+      "submitWithdrawal": "Withdraw",
+      "recorded": "Entry recorded.",
+      "errors": { "amountInvalid": "Enter an amount greater than zero." }
+    },
+    "delete": {
+      "title": "Delete this goal?",
+      "description": "Its entries will be removed. No account balance changes.",
+      "confirm": "Delete goal",
+      "cancel": "Cancel"
+    }
   }
 }
