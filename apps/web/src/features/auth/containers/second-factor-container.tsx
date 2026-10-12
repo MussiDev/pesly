@@ -7,6 +7,7 @@ import { useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { SecondFactorForm, type SecondFactorMode } from '../components/second-factor-form';
 import { toFormErrors, toValidationErrors, type FormErrors } from '../form-errors';
+import { readReturnPath } from '../read-return-path';
 
 /** The authenticator mode only takes 6 digits; the recovery mode, either kind of code. */
 const totpRequestSchema = z.object({ code: totpCodeSchema });
@@ -49,7 +50,9 @@ export function SecondFactorContainer() {
       return;
     }
     const { user } = result.data;
-    router.replace(user.emailVerified ? '/' : '/check-your-email', { locale: user.language });
+    router.replace(user.emailVerified ? (readReturnPath() ?? '/') : '/check-your-email', {
+      locale: user.language,
+    });
   }
 
   return (

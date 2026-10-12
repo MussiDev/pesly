@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
@@ -52,6 +53,12 @@ export function CategoriesCard({ locale, currency, categories }: CategoriesCardP
             ))}
           </ul>
         )}
+        <Link
+          href="/reports/categories"
+          className="mt-4 inline-flex min-h-11 items-center text-small font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t('viewReport')}
+        </Link>
       </CardContent>
     </Card>
   );

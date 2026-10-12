@@ -44,7 +44,8 @@
       "goals": "Savings goals",
       "settings": "Settings",
       "notices": "Notices",
-      "plan": "Plan"
+      "plan": "Plan",
+      "reports": "Reports"
     },
     "topBar": {
       "upToDate": "Up to date",
@@ -2216,7 +2217,8 @@
       "usd": "In dollars",
       "conversionUnavailable": "Conversion unavailable: there is no exchange rate for some of your balances.",
       "holdingsWithoutPrice": "{count, plural, one {# holding has no price and is not counted.} other {# holdings have no price and are not counted.}}",
-      "lastPointNote": "The last point of the chart may differ slightly from the figure above."
+      "lastPointNote": "The last point of the chart may differ slightly from the figure above.",
+      "viewReport": "View report"
     },
     "month": {
       "title": "This month",
@@ -2249,7 +2251,8 @@
     "categories": {
       "title": "Spending by category",
       "empty": "No spending this month.",
-      "other": "Other"
+      "other": "Other",
+      "viewReport": "View report"
     },
     "budgets": {
       "title": "Budgets",
@@ -2299,6 +2302,106 @@
       "offline": "You are offline and there is no saved data to show.",
       "outOfDate": "You are offline. These figures may be out of date.",
       "retry": "Try again"
+    }
+  },
+  "reports": {
+    "title": "Reports",
+    "tabs": {
+      "label": "Report sections",
+      "categories": "Expenses by category",
+      "incomeExpenses": "Income vs expenses",
+      "netWorth": "Net worth"
+    },
+    "range": {
+      "label": "Date range",
+      "from": "From",
+      "to": "To",
+      "apply": "Apply",
+      "custom": "Custom range",
+      "presets": {
+        "thisMonth": "This month",
+        "last3": "Last 3 months",
+        "last12": "Last 12 months",
+        "last24": "Last 24 months"
+      },
+      "resolved": "Showing {from} to {to}",
+      "limit": "{months, plural, one {The range can cover up to # month.} other {The range can cover up to # months.}}",
+      "errors": {
+        "fromAfterTo": "The start date must not be after the end date.",
+        "tooLong": "{months, plural, one {The range is too long: the limit is # month.} other {The range is too long: the limit is # months.}}",
+        "toInFuture": "The end date cannot be in the future."
+      }
+    },
+    "filters": {
+      "toggle": "{count, plural, =0 {Filters} one {Filters (# active)} other {Filters (# active)}}",
+      "account": "Account",
+      "allAccounts": "All accounts",
+      "archivedAccount": "{name} (archived)",
+      "unknownAccount": "Account not available",
+      "tag": "Tag",
+      "clear": "Clear filters"
+    },
+    "currency": {
+      "note": "Amounts are in {currency}, the display currency of your profile.",
+      "changeLink": "Change it in your profile settings"
+    },
+    "notices": {
+      "unconverted": "Left out because they have no exchange rate: {shares, plural, one {# group share} other {# group shares}} and {installments, plural, one {# installment} other {# installments}}.",
+      "filtered": "Card installments and group shares are not part of a report filtered by account or tag."
+    },
+    "states": {
+      "loading": "Loading the report…",
+      "emptyTitle": "No movements in this range",
+      "emptyDescription": "There is nothing to show between {from} and {to}.",
+      "widen": "Widen the range",
+      "record": "Record a movement",
+      "errorTitle": "The report could not be loaded",
+      "errorDescription": "Something went wrong on our side. Try again in a moment.",
+      "retry": "Try again",
+      "retrying": "Trying again…",
+      "offlineTitle": "Reports need a connection",
+      "offlineDescription": "You are offline. Reconnect to see this report; figures are not saved on this device.",
+      "offlineRetry": "Try again",
+      "filterGoneMessage": "The account or tag you filtered by no longer exists.",
+      "filterGoneReload": "Clear the filters and reload",
+      "badRangeMessage": "The date range is not valid. Check the dates and try again."
+    },
+    "categories": {
+      "title": "Expenses by category",
+      "total": "Total expenses",
+      "other": "Other categories",
+      "groupShares": "Group shares",
+      "unnamed": "Category without a name",
+      "percent": "{percent}%",
+      "underOne": "<1%",
+      "chartName": "Expenses by category chart",
+      "chartSummary": "From {from} to {to}, total expenses {total}.",
+      "listName": "Expenses by category"
+    },
+    "incomeExpenses": {
+      "title": "Income and expenses",
+      "income": "Income",
+      "expenses": "Expenses",
+      "net": "Net result",
+      "chartName": "Income against expenses by month chart",
+      "chartSummary": "From {from} to {to}, {months, plural, one {# month} other {# months}}.",
+      "listName": "Income and expenses by month"
+    },
+    "netWorth": {
+      "title": "Net worth",
+      "date": "Date",
+      "ars": "In pesos",
+      "usd": "In dollars",
+      "total": "Total",
+      "noRate": "There is no exchange rate for the end of this month, so the total cannot be calculated.",
+      "investmentsIncomplete": "The investments of this month are not fully counted.",
+      "conversionUnavailable": "No month could be converted to your display currency. Pesos and dollars are shown separately.",
+      "tooltip": "{date}: {value}",
+      "chartName": "Net worth over time chart",
+      "chartSummary": "From {from} to {to}, {points, plural, one {# point} other {# points}}.",
+      "listName": "Net worth by date",
+      "selectedPoint": "Selected point: {date}",
+      "announce": "{date}, {value}"
     }
   }
 }

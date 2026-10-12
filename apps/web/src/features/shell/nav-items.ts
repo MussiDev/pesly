@@ -13,6 +13,7 @@ import {
   Target,
   TrendingUp,
   Users,
+  ChartLine,
   ChartPie,
   type LucideIcon,
 } from 'lucide-react';
@@ -25,6 +26,7 @@ export type NavLabelKey =
   | 'investments'
   | 'more'
   | 'categories'
+  | 'reports'
   | 'cards'
   | 'recurring'
   | 'groups'
@@ -76,6 +78,7 @@ export const PLAN_ITEMS: readonly NavItem[] = [
   { href: '/recurring', labelKey: 'recurring', icon: Repeat },
   INVESTMENTS_ITEM,
   { href: '/categories', labelKey: 'categories', icon: Tags },
+  { href: '/reports', labelKey: 'reports', icon: ChartLine },
 ];
 
 /** The settings block: the profile page stands for "Settings", security is its sibling. */
@@ -118,7 +121,7 @@ export function backButtonVisibility(currentPath: string | undefined): {
   if (currentPath === undefined) return { compact: false, desk: false };
   return {
     compact: !BOTTOM_ROOTS.includes(currentPath),
-    desk: !MENU_ROOTS.includes(currentPath),
+    desk: !MENU_ROOTS.includes(currentPath) && !currentPath.startsWith('/reports/'),
   };
 }
 
