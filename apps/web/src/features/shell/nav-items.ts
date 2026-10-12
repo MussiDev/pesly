@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   Bell,
+  BellRing,
   CreditCard,
   Ellipsis,
   House,
@@ -34,7 +35,8 @@ export type NavLabelKey =
   | 'settings'
   | 'notices'
   | 'profile'
-  | 'security';
+  | 'security'
+  | 'notificationSettings';
 
 export interface NavItem {
   /** A route without the locale; the next-intl `Link` adds it. Never built from user input. */
@@ -83,6 +85,7 @@ export const PLAN_ITEMS: readonly NavItem[] = [
 export const SETTINGS_ITEMS: readonly NavItem[] = [
   { href: '/settings/profile', labelKey: 'settings', icon: SlidersHorizontal },
   { href: '/settings/security', labelKey: 'security', icon: ShieldCheck },
+  { href: '/settings/notifications', labelKey: 'notificationSettings', icon: BellRing },
 ];
 
 /** What the bottom bar has no room for, so the More page lists it. */

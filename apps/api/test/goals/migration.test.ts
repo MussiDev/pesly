@@ -199,6 +199,7 @@ describe('0033_savings_goals migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0035 and 0034 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
@@ -208,8 +209,8 @@ describe('0033_savings_goals migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await goalTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GOAL_TABLES.length - 6);
-    expect(await appliedMigrations()).toBe(countBefore - 6);
+    expect(await publicTableCount()).toBe(tablesBefore - GOAL_TABLES.length - 8);
+    expect(await appliedMigrations()).toBe(countBefore - 7);
     expect(await countOf('select count(*) as n from users where id = $1', [owner])).toBe(1);
 
     await runMigrations(throwawayUrl);

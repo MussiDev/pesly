@@ -46,7 +46,10 @@ const API_DEV_DEPENDENCIES = [
 ];
 const SHARED_DEPENDENCIES = ['zod'];
 
-/** The migrations before DISC-001-09b: the dashboard adds no migration, table or index. */
+/**
+ * The migrations up to DISC-001-09b: the dashboard adds no migration, table or index. Later tickets
+ * add their own on top, so the pin is the prefix, not the total.
+ */
 const MIGRATION_COUNT = 38;
 const LAST_MIGRATION = '0038_exchange_rate_history.sql';
 
@@ -69,11 +72,13 @@ describe('the dependency lists and the migrations stay pinned (AC-52)', () => {
     const migrations = readdirSync(join(apiRoot, 'drizzle')).filter((name) =>
       name.endsWith('.sql'),
     );
-    expect(migrations).toHaveLength(MIGRATION_COUNT);
-    expect(migrations.sort().at(-1)).toBe(LAST_MIGRATION);
+    const sorted = migrations.sort();
+    expect(sorted.length).toBeGreaterThanOrEqual(MIGRATION_COUNT);
+    expect(sorted[MIGRATION_COUNT - 1]).toBe(LAST_MIGRATION);
+    expect(sorted.filter((name) => name.toLowerCase().includes('dashboard'))).toEqual([]);
     const journal = JSON.parse(
       readFileSync(join(apiRoot, 'drizzle', 'meta', '_journal.json'), 'utf8'),
     ) as { entries: unknown[] };
-    expect(journal.entries).toHaveLength(MIGRATION_COUNT);
+    expect(journal.entries.length).toBeGreaterThanOrEqual(MIGRATION_COUNT);
   });
 });

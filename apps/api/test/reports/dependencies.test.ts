@@ -63,7 +63,7 @@ describe('the dependency lists stay pinned (AC-49)', () => {
 
   it('the migration has an idempotent rollback script next to it', () => {
     const down = readFileSync(
-      join(apiRoot, 'drizzle', 'rollback', '0038_exchange_rate_history.down.sql'),
+      join(apiRoot, 'drizzle', 'rollback', '0039_push_notifications.down.sql'),
       'utf8',
     );
     expect(down).toMatch(/drop table if exists/i);
