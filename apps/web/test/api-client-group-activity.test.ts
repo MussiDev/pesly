@@ -13,6 +13,8 @@ const ENTRY = {
   subjectId: '88888888-8888-4888-8888-888888888888',
   memberId: MEMBER,
   createdAt: '2026-10-04T10:00:00.000Z',
+  fromMovement: false,
+  autoCategory: null,
   before: {
     amount: '1000',
     currency: 'ARS',

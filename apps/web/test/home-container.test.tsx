@@ -105,6 +105,7 @@ function loadedRoutes() {
         total: 9,
         limit: 5,
         offset: 0,
+        groupLinks: {},
       },
     },
     [`GET ${CATEGORIES_PATH}`]: {
@@ -216,6 +217,7 @@ function lateMovementRoutes(overrides: Record<string, unknown> = {}, instant = L
         total: 1,
         limit: 5,
         offset: 0,
+        groupLinks: {},
       },
     },
     ...overrides,
@@ -305,7 +307,7 @@ describe('HomeContainer', () => {
       [`GET ${ACCOUNTS_PATH}`]: { status: 200, body: accountsBody([]) },
       [`GET ${MOVEMENTS_PATH}`]: {
         status: 200,
-        body: { items: [], total: 0, limit: 5, offset: 0 },
+        body: { items: [], total: 0, limit: 5, offset: 0, groupLinks: {} },
       },
     });
     renderApp(<HomeContainer />);
@@ -322,7 +324,7 @@ describe('HomeContainer', () => {
       ...loadedRoutes(),
       [`GET ${MOVEMENTS_PATH}`]: {
         status: 200,
-        body: { items: [], total: 0, limit: 5, offset: 0 },
+        body: { items: [], total: 0, limit: 5, offset: 0, groupLinks: {} },
       },
     });
     renderApp(<HomeContainer />);
@@ -499,6 +501,7 @@ describe('HomeContainer', () => {
           total: 1,
           limit: 5,
           offset: 0,
+          groupLinks: {},
         },
       },
     });
@@ -515,7 +518,13 @@ describe('HomeContainer', () => {
       ...loadedRoutes(),
       [`GET ${MOVEMENTS_PATH}`]: {
         status: 200,
-        body: { items: [movement(5, 'expense', 'a3')], total: 1, limit: 5, offset: 0 },
+        body: {
+          items: [movement(5, 'expense', 'a3')],
+          total: 1,
+          limit: 5,
+          offset: 0,
+          groupLinks: {},
+        },
       },
     });
     renderApp(<HomeContainer />);
@@ -533,7 +542,13 @@ describe('HomeContainer', () => {
       [`GET ${ARCHIVED_ACCOUNTS_PATH}`]: { status: 500 },
       [`GET ${MOVEMENTS_PATH}`]: {
         status: 200,
-        body: { items: [movement(5, 'expense', 'a3')], total: 1, limit: 5, offset: 0 },
+        body: {
+          items: [movement(5, 'expense', 'a3')],
+          total: 1,
+          limit: 5,
+          offset: 0,
+          groupLinks: {},
+        },
       },
     });
     renderApp(<HomeContainer />);

@@ -84,7 +84,7 @@ describe('routes', () => {
       },
       'GET /movements?limit=5': {
         status: 200,
-        body: { items: [], total: 0, limit: 5, offset: 0 },
+        body: { items: [], total: 0, limit: 5, offset: 0, groupLinks: {} },
       },
     });
     renderApp(
@@ -163,7 +163,10 @@ describe('routes', () => {
   });
 
   it('the movements list is only shown behind the session guard', async () => {
-    const empty = { status: 200, body: { items: [], total: 0, limit: 100, offset: 0 } };
+    const empty = {
+      status: 200,
+      body: { items: [], total: 0, limit: 100, offset: 0, groupLinks: {} },
+    };
     const noAccounts = {
       status: 200,
       body: {

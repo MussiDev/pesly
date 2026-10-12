@@ -66,6 +66,8 @@ const entry = (id: string, overrides: Record<string, unknown> = {}) => ({
   createdAt: '2026-10-11T12:00:00.000Z',
   before: null,
   after: null,
+  fromMovement: false,
+  autoCategory: null,
   ...overrides,
 });
 

@@ -26,7 +26,9 @@ const ROW: RecentMovementItem = {
 
 describe('RecentMovements row links (AC-41, AC-42)', () => {
   it('renders one link per row to /movements?focus=<id> named by title plus the sr-only hint, and nothing else interactive', () => {
-    renderApp(<RecentMovements locale="es" timeZone="UTC" items={[ROW, { ...ROW, id: 'm 2/x' }]} />);
+    renderApp(
+      <RecentMovements locale="es" timeZone="UTC" items={[ROW, { ...ROW, id: 'm 2/x' }]} />,
+    );
 
     const rows = screen.getAllByRole('listitem');
     expect(rows).toHaveLength(2);

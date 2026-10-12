@@ -60,6 +60,8 @@ const entry = (overrides: Partial<ActivityEntry> = {}): ActivityEntry => ({
   createdAt: '2026-10-11T12:00:00.000Z',
   before: null,
   after: null,
+  fromMovement: false,
+  autoCategory: null,
   ...overrides,
 });
 
