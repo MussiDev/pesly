@@ -16,6 +16,9 @@ export interface SyncStatusProps {
   groupConflict?: number;
 }
 
+// 44 px tall touch target (NFR-08).
+const LINK = 'inline-flex min-h-11 items-center underline underline-offset-4';
+
 /** How many changes are not on the server yet; nothing at all when there are none. */
 export function SyncStatus({
   pending,
@@ -36,26 +39,26 @@ export function SyncStatus({
   return (
     <div
       role="status"
-      className="flex flex-wrap gap-x-3 gap-y-1 px-4 pt-3 text-small text-muted-foreground"
+      className="flex flex-wrap gap-x-3 px-4 pt-1 text-small text-muted-foreground"
     >
       {pending > 0 ? <span>{t('waiting', { count: pending })}</span> : null}
       {failed > 0 ? (
-        <Link href="/movements" className="text-destructive underline underline-offset-4">
+        <Link href="/movements" className={`${LINK} text-destructive`}>
           {t('failed', { count: failed })}
         </Link>
       ) : null}
       {groupWaiting > 0 ? (
-        <Link href="/groups" className="underline underline-offset-4">
+        <Link href="/groups" className={LINK}>
           {t('groupWaiting', { count: groupWaiting })}
         </Link>
       ) : null}
       {groupFailed > 0 ? (
-        <Link href="/groups" className="text-destructive underline underline-offset-4">
+        <Link href="/groups" className={`${LINK} text-destructive`}>
           {t('groupFailed', { count: groupFailed })}
         </Link>
       ) : null}
       {groupConflict > 0 ? (
-        <Link href="/groups" className="text-destructive underline underline-offset-4">
+        <Link href="/groups" className={`${LINK} text-destructive`}>
           {t('groupConflict', { count: groupConflict })}
         </Link>
       ) : null}

@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event';
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
+import {
+  recallDashboard,
+  rememberDashboard,
+} from '../src/features/dashboard/containers/dashboard-session-cache';
+import type { DashboardView } from '../src/features/dashboard/dashboard-view';
 import { SignOutConfirmation } from '../src/features/shell/components/sign-out-confirmation';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
 import { useSignOut } from '../src/features/shell/use-sign-out';
@@ -262,6 +267,34 @@ describe('sign out with changes pending sync (AC-03, AC-04)', () => {
     expect(signOutCalls(calls)).toBe(1);
     expect(readWipeMarker()).toEqual([]);
     expect(await databaseNames()).toContain(`pesly-${USER}`);
+  });
+
+  it('forgets the dashboard answers remembered in memory once the session ended', async () => {
+    const store = await openLocalStore(USER);
+    store.close();
+    // Only the identity of the entry matters here, not the shape of the view.
+    rememberDashboard(USER, { view: {} as DashboardView, points: null });
+    stubApi({ 'POST /auth/sign-out': { status: 204 } });
+    const { router } = renderApp(<SignOutProbe />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'sign out' }));
+
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(recallDashboard(USER)).toBeUndefined();
+  });
+
+  it('keeps the dashboard answers when the API sign out fails', async () => {
+    rememberDashboard(USER, { view: {} as DashboardView, points: null });
+    stubApi({ 'POST /auth/sign-out': 'network-error' });
+    renderApp(<SignOutProbe />);
+
+    await userEvent.setup().click(screen.getByRole('button', { name: 'sign out' }));
+
+    await waitFor(() => {
+      expect(recallDashboard(USER)).toBeDefined();
+    });
   });
 
   it('error: a wipe that answers pending still completes the sign out', async () => {

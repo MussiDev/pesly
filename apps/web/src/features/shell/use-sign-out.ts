@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { clearDashboardMemory } from '@/features/dashboard/containers/dashboard-session-cache';
 import { useRouter } from '@/i18n/navigation';
 import { type ApiErrorKey } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
@@ -31,6 +32,7 @@ export function useSignOut() {
       const userId = readSessionPointer()?.userId;
       // Whatever the wipe answers, the marker finishes it on the next start.
       if (userId !== undefined) await wipeLocalData(userId);
+      clearDashboardMemory();
       router.replace('/sign-in');
       return;
     }

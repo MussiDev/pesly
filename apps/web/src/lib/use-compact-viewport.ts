@@ -2,8 +2,8 @@
 
 import { useSyncExternalStore } from 'react';
 
-/** The side menu takes over from 900 px (the `desk` breakpoint); below it the screen is compact. */
-const COMPACT_QUERY = '(max-width: 56.2475rem)';
+/** The side menu takes over from 1024 px (the `desk` breakpoint); below it the screen is compact. */
+const COMPACT_QUERY = '(max-width: 63.9975rem)';
 
 function subscribe(onChange: () => void): () => void {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {

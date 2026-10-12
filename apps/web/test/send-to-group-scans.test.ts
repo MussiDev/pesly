@@ -16,7 +16,6 @@ const TOUCHED_FILES = [
   join(movements, 'components/movement-form.tsx'),
   join(movements, 'containers/movements-container.tsx'),
   join(movements, 'containers/edit-movement-container.tsx'),
-  join(src, 'features/home/components/recent-movements.tsx'),
   join(src, 'app/[locale]/(app)/movements/send/page.tsx'),
 ];
 

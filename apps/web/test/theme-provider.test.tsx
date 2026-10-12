@@ -4,8 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import en from '../messages/en.json';
-import es from '../messages/es.json';
-import { ThemeProvider } from '../src/components/theme-provider';
+import { ThemeProvider, useTheme } from '../src/components/theme-provider';
 import { ThemeToggle } from '../src/components/theme-toggle';
 import { THEME_STORAGE_KEY } from '../src/lib/theme';
 
@@ -31,17 +30,25 @@ function stubSystemPreference(initialDark: boolean) {
   };
 }
 
-function renderToggle(locale: 'en' | 'es' = 'en') {
+function Probe() {
+  const { theme, choice } = useTheme();
+  return <output data-testid="probe">{`${choice}:${theme}`}</output>;
+}
+
+function renderToggle() {
   return render(
-    <NextIntlClientProvider locale={locale} messages={locale === 'en' ? en : es}>
+    <NextIntlClientProvider locale="en" messages={en}>
       <ThemeProvider>
         <ThemeToggle />
+        <Probe />
       </ThemeProvider>
     </NextIntlClientProvider>,
   );
 }
 
 const isDark = () => document.documentElement.classList.contains('dark');
+const probe = () => screen.getByTestId('probe').textContent;
+const radio = (name: string) => screen.getByRole<HTMLInputElement>('radio', { name });
 
 beforeEach(() => {
   localStorage.clear();
@@ -53,16 +60,25 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const darkSwitch = (name = 'Dark mode') => screen.getByRole('switch', { name });
+describe('ThemeProvider', () => {
+  it('exposes the choice and the resolved theme (AC-06)', async () => {
+    stubSystemPreference(true);
+    const user = userEvent.setup();
+    renderToggle();
 
-describe('ThemeProvider and ThemeToggle', () => {
+    expect(probe()).toBe('system:dark');
+    await user.click(radio('Light'));
+    expect(probe()).toBe('light:light');
+    expect(isDark()).toBe(false);
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
+  });
+
   it('applies the chosen theme immediately and persists it after remount (AC-06)', async () => {
     stubSystemPreference(false);
     const user = userEvent.setup();
     const first = renderToggle();
 
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('false');
-    await user.click(darkSwitch());
+    await user.click(radio('Dark'));
     expect(isDark()).toBe(true);
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
 
@@ -71,11 +87,7 @@ describe('ThemeProvider and ThemeToggle', () => {
     renderToggle();
 
     expect(isDark()).toBe(true);
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('true');
-
-    await user.click(darkSwitch());
-    expect(isDark()).toBe(false);
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
+    expect(radio('Dark').checked).toBe(true);
   });
 
   it('follows the operating system until a choice is stored (AC-08)', () => {
@@ -83,13 +95,11 @@ describe('ThemeProvider and ThemeToggle', () => {
     renderToggle();
 
     expect(isDark()).toBe(true);
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('true');
-
     act(() => {
       system.set(false);
     });
     expect(isDark()).toBe(false);
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('false');
+    expect(probe()).toBe('system:light');
   });
 
   it('ignores the operating system once a choice is made', async () => {
@@ -97,8 +107,7 @@ describe('ThemeProvider and ThemeToggle', () => {
     const user = userEvent.setup();
     renderToggle();
 
-    await user.click(darkSwitch());
-    await user.click(darkSwitch());
+    await user.click(radio('Light'));
     act(() => {
       system.set(true);
     });
@@ -106,66 +115,86 @@ describe('ThemeProvider and ThemeToggle', () => {
     expect(isDark()).toBe(false);
   });
 
-  it.each(['<img src=x>', 'system'])('treats the stored value %j as unset', (value) => {
+  it('picks up a theme changed in another tab through the storage event', () => {
+    stubSystemPreference(false);
+    renderToggle();
+    expect(probe()).toBe('system:light');
+
+    act(() => {
+      localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+      window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY }));
+    });
+    expect(probe()).toBe('dark:dark');
+    expect(isDark()).toBe(true);
+
+    act(() => {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+      window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY }));
+    });
+    expect(probe()).toBe('system:light');
+  });
+
+  it('ignores storage events for other keys and a cleared storage', () => {
+    stubSystemPreference(false);
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    renderToggle();
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'other' }));
+    });
+    expect(probe()).toBe('dark:dark');
+    act(() => {
+      localStorage.clear();
+      window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    });
+    expect(probe()).toBe('system:light');
+  });
+
+  it('still works when matchMedia is not available', () => {
+    vi.stubGlobal('matchMedia', undefined);
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    renderToggle();
+    expect(probe()).toBe('dark:dark');
+    expect(isDark()).toBe(true);
+  });
+
+  it.each(['<img src=x>', 'system'])('treats the stored value %j as system', (value) => {
     stubSystemPreference(false);
     localStorage.setItem(THEME_STORAGE_KEY, value);
 
     renderToggle();
 
     expect(isDark()).toBe(false);
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('false');
+    expect(probe()).toBe('system:light');
   });
 
-  it('keeps the theme in memory when localStorage throws', async () => {
+  it('keeps the choice in memory when localStorage throws', async () => {
     stubSystemPreference(false);
-    vi.stubGlobal('localStorage', {
-      getItem: () => {
-        throw new Error('blocked');
-      },
-      setItem: () => {
-        throw new Error('blocked');
-      },
-    });
+    const blocked = () => {
+      throw new Error('blocked');
+    };
+    vi.stubGlobal('localStorage', { getItem: blocked, setItem: blocked, removeItem: blocked });
     const user = userEvent.setup();
 
     renderToggle();
-    await user.click(darkSwitch());
+    await user.click(radio('Dark'));
 
     expect(isDark()).toBe(true);
-    expect(darkSwitch().getAttribute('aria-checked')).toBe('true');
+    expect(probe()).toBe('dark:dark');
   });
 
-  it('is named in the active language', () => {
-    stubSystemPreference(false);
-    renderToggle('es');
+  it('removes its media listener on unmount', () => {
+    const system = stubSystemPreference(false);
+    const view = renderToggle();
+    view.unmount();
 
-    expect(darkSwitch('Modo oscuro')).toBeTruthy();
+    expect(() => {
+      system.set(true);
+    }).not.toThrow();
   });
 
-  it('reaches the 44px touch target through its hit area (class contract)', () => {
-    stubSystemPreference(false);
-    renderToggle();
-
-    expect(darkSwitch().className).toMatch(/before:-inset-y-2/);
-  });
-
-  it('keeps several switches in one document in sync', async () => {
-    stubSystemPreference(false);
-    const user = userEvent.setup();
-    render(
-      <NextIntlClientProvider locale="en" messages={en}>
-        <ThemeProvider>
-          <ThemeToggle />
-          <ThemeToggle />
-        </ThemeProvider>
-      </NextIntlClientProvider>,
-    );
-
-    await user.click(screen.getAllByRole('switch', { name: 'Dark mode' })[1] as HTMLElement);
-
-    for (const toggle of screen.getAllByRole('switch', { name: 'Dark mode' })) {
-      expect(toggle.getAttribute('aria-checked')).toBe('true');
-    }
-    expect(isDark()).toBe(true);
+  it('throws when used outside the provider', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => render(<Probe />)).toThrow(/ThemeProvider/);
+    spy.mockRestore();
   });
 });
