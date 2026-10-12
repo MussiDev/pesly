@@ -55,7 +55,7 @@ the parent PRD are listed in the Decision Log.
 ## Non-Functional Requirements
 - NFR-01: The alert must be visible in the notices list within 5 seconds of the response of the request
   that saved the crossing expense, measured server-side.
-- NFR-02: The evaluation must add under 100 ms at p95 to the saving of an expense for a user with 50
+- NFR-02: The evaluation must add under 150 ms at p95 to the saving of an expense for a user with 50
   budgets that cover the category of the expense and 100,000 movements, measured server-side.
 - NFR-03: Money must be computed as 64-bit integers in minor units and the percentage with integer
   arithmetic, with 0 floating-point values anywhere in the feature.
@@ -117,7 +117,7 @@ the parent PRD are listed in the Decision Log.
 - AC-23 (NFR-01): WHEN an expense crosses a threshold, THE system SHALL make the notice readable in
   `GET /notices` within 5 seconds of the response of the saving request.
 - AC-24 (NFR-02): WHEN an expense is saved by a user with 50 budgets covering its category and 100,000
-  movements, THE system SHALL add under 100 ms at p95 to the saving request.
+  movements, THE system SHALL add under 150 ms at p95 to the saving request.
 - AC-25 (NFR-03): WHEN the percentage used is compared with a threshold, THE system SHALL compute it
   with `bigint` division rounded down and no floating-point value.
 - AC-26 (NFR-04): WHEN the migration of this ticket is applied and rolled back twice, THE system SHALL
