@@ -222,11 +222,7 @@ describe('0036_budget_alert_marks migration', () => {
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
     // 0037 and 0038 come after it, so it is the greatest among its own and the older ones.
     expect(own?.when).toBe(
-      Math.max(
-        ...journal.entries
-          .filter((entry) => entry.idx <= 36)
-          .map((entry) => entry.when),
-      ),
+      Math.max(...journal.entries.filter((entry) => entry.idx <= 36).map((entry) => entry.when)),
     );
     const snapshot = JSON.parse(await fileOf('meta/0036_snapshot.json')) as { prevId: string };
     const previous = JSON.parse(await fileOf('meta/0035_snapshot.json')) as { id: string };
