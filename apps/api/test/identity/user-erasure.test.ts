@@ -64,6 +64,11 @@ interface RegisteredTable {
   policy: ErasurePolicy;
   /** For `erase-step`: the constraints of this table that may be non-cascading. */
   stepConstraints?: readonly string[];
+  /**
+   * For `cascade`: keys that do not cascade (`NO ACTION`) but whose referenced rows go in the same
+   * statement as this table's rows, because both hang from the user through cascading keys.
+   */
+  sameStatementConstraints?: readonly string[];
   /** Counts the user's rows when the table has no user column; `$1` is the user id. */
   rowsSql?: string;
   /** The rows belong to a group, which outlives its former member (the member row becomes a ghost). */
@@ -90,6 +95,11 @@ const INSTALLMENT_PURCHASES_STEP_CONSTRAINTS = [
 const RECURRING_PAYMENTS_STEP_CONSTRAINTS = [
   'recurring_payments_account_owner_fk',
   'recurring_payments_category_owner_fk',
+] as const;
+
+/** The `NO ACTION` key from `budget_version_categories` to the category (migration 0034); it leaves with the user. */
+const BUDGET_VERSION_CATEGORIES_SAME_STATEMENT_CONSTRAINTS = [
+  'budget_version_categories_category_owner_kind_fk',
 ] as const;
 
 /** The restricting composite key from `goals` to the linked account (migration 0033). */
@@ -617,6 +627,61 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'budgets',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into categories (owner_id, kind, name, icon, color) values ($1, 'expense', 'Budgeted', 'wallet', 'blue')",
+        [context.userId],
+      );
+      await query(context, "insert into budgets (owner_id, currency) values ($1, 'ARS')", [
+        context.userId,
+      ]);
+    },
+  },
+  {
+    table: 'budget_versions',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after budgets: the version belongs to the budget that seeder created.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into budget_versions (budget_id, owner_id, effective_from, name, amount) select id, owner_id, '2026-10-01', 'Food', 15000000 from budgets where owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'budget_version_categories',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // The key to categories does not cascade, but the category and this row leave in the same
+    // statement: both hang from the user through cascading keys.
+    sameStatementConstraints: BUDGET_VERSION_CATEGORIES_SAME_STATEMENT_CONSTRAINTS,
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into budget_version_categories (version_id, owner_id, category_id) select v.id, v.owner_id, (select id from categories where owner_id = $1 and name = 'Budgeted') from budget_versions v where v.owner_id = $1 limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
+    table: 'budget_version_thresholds',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    seed: async (context) => {
+      await query(
+        context,
+        'insert into budget_version_thresholds (version_id, owner_id, percent) select id, owner_id, 80 from budget_versions where owner_id = $1 limit 1',
+        [context.userId],
+      );
+    },
+  },
+  {
     table: 'group_members',
     userColumn: 'user_id',
     policy: 'erase-step',
@@ -867,7 +932,15 @@ async function guardViolations(
     const entry = registry.find((candidate) => candidate.table === key.child);
     const namedByStep =
       entry?.policy === 'erase-step' && (entry.stepConstraints ?? []).includes(key.constraint);
-    if (key.deleteAction !== 'c' && key.child !== key.parent && !namedByStep) {
+    const namedAsSameStatement =
+      entry?.policy === 'cascade' &&
+      (entry.sameStatementConstraints ?? []).includes(key.constraint);
+    if (
+      key.deleteAction !== 'c' &&
+      key.child !== key.parent &&
+      !namedByStep &&
+      !namedAsSameStatement
+    ) {
       violations.push(`key ${key.constraint} of ${key.child} does not cascade on delete`);
     }
   }

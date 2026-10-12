@@ -48,6 +48,8 @@ const LATER_MIGRATIONS = [
   '0031_group_record_version',
   '0032_card_statement_reminders',
   '0033_savings_goals',
+  '0034_budgets',
+  '0035_group_expense_payer_movement_idx',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -87,6 +89,10 @@ const LATER_TABLES = [
   'groups',
   'goal_entries',
   'goals',
+  'budget_version_categories',
+  'budget_version_thresholds',
+  'budget_versions',
+  'budgets',
 ];
 const TABLES_AFTER_REAPPLY = [...ALL_TABLES, ...LATER_TABLES].sort();
 

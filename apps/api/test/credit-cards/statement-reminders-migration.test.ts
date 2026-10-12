@@ -126,6 +126,8 @@ const noticeKinds = async (owner: string): Promise<string[]> =>
 
 describe('0032_card_statement_reminders migration', () => {
   it('gives existing cards 3 after a rollback re-apply, and a new card without the field 3 (AC-01)', async () => {
+    await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
+    await client.query(await fileOf('rollback/0034_budgets.down.sql'));
     await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const existing = await createCard();
@@ -177,6 +179,8 @@ describe('0032_card_statement_reminders migration', () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
+    await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
+    await client.query(await fileOf('rollback/0034_budgets.down.sql'));
     await client.query(await fileOf('rollback/0033_savings_goals.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -184,7 +188,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await cardColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticeKinds(owner)).toEqual(['not_recorded', 'recorded', 'reminder']);
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBe('23514');
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 4);
 
     await runMigrations(throwawayUrl);
 
@@ -193,7 +197,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBeUndefined();
   });
 
-  it('has the journal entry at idx 32 with the greatest when before 0033, and chains its snapshot onto 0031', async () => {
+  it('has the journal entry at idx 32 with the greatest when before 0033, 0034 and 0035, and chains its snapshot onto 0031', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
@@ -205,7 +209,14 @@ describe('0032_card_statement_reminders migration', () => {
     expect(own?.when).toBe(
       Math.max(
         ...journal.entries
-          .filter((entry) => entry.tag !== '0033_savings_goals')
+          .filter(
+            (entry) =>
+              ![
+                '0033_savings_goals',
+                '0034_budgets',
+                '0035_group_expense_payer_movement_idx',
+              ].includes(entry.tag),
+          )
           .map((entry) => entry.when),
       ),
     );

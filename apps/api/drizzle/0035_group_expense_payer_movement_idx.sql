@@ -1,0 +1,1 @@
+CREATE INDEX "group_expenses_payer_movement_idx" ON "group_expenses" USING btree ("payer_movement_id") WHERE "group_expenses"."payer_movement_id" is not null;
