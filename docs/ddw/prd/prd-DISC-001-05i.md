@@ -383,7 +383,7 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   log has no category actions, so the fact travels on the expense creation entry (smaller change than new
   actions). FR-18 to FR-20, NFR-10 and AC-45 to AC-53 were added; FR-03, FR-08, AC-07, AC-09 and AC-19 were
   adjusted.
-- 2026-10-11: Proposed by the model, awaiting the owner: when the category exists but is archived, the send
+- 2026-10-11: Owner decision (approved 2026-10-11): when the category exists but is archived, the send
   restores it (an admin who archived it on purpose can archive it again, and the log shows the restoration).
   Alternative: do not touch an archived category and fall back to the first active category (a send then
   fails only when the group has no active category, which cannot be fixed without an admin).

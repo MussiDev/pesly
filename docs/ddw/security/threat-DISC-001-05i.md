@@ -269,7 +269,7 @@
 ## Decision Log
 - 2026-10-11: Owner decision: the send keeps the group category automatic and the system creates the group's
   "Other expenses" category when it is missing. The threat entries for the resolver (R-17 to R-20) were added
-  for it. Proposed by the model, awaiting the owner: an archived category is restored (alternative: fall back
+  for it. Owner decision (approved 2026-10-11): an archived category is restored (alternative: fall back
   to the first active category, which never changes an admin's choice).
 
 ## Supply chain

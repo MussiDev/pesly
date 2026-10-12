@@ -145,7 +145,7 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
 - **D19 Decision Log, second owner decision (2026-10-11).** The owner decided that the send keeps the group
   category automatic (no category step, 3 taps) and that the system creates the category when the group has
   no usable one (PRD Decision Log, same date). Spec loops 2; the loop counter since a human decision is 0.
-  Proposed by the model, awaiting the owner: when the category exists but is archived, the send restores it
+  Owner decision (approved 2026-10-11): when the category exists but is archived, the send restores it
   (an admin who archived it can archive it again, and the log entry shows the restoration). Alternative: leave
   the archived category alone and fall back to the first active category of the group, which never changes
   the admin's choice but fails the send when the group has no active category and nobody can create one
@@ -1006,7 +1006,7 @@ The resolver tests pass against PostgreSQL, the concurrency tests run 3 times in
 - No new runtime dependency; the only new route is `POST /groups/:id/expenses/from-movement`; the only new
   tables or foreign keys are none (three columns and one index); the list answer gains a `groupLinks` field.
 - Items for the owner: (1) the automatic category is "Other expenses", created or restored by the send
-  (D18, decided), and proposed by the model and awaiting the owner: an archived category is restored rather
+  (D18, decided), and owner decision (approved 2026-10-11): an archived category is restored rather
   than falling back to the first active one (D19); (2) the
   fourth code `GROUP_MOVEMENT_CHANGED` (D9); (3) the 0036 number is shared with the open 06d branch and the
   second to merge renumbers; (4) the rollback script detaches adopted expenses; (5) an admin edit of an adopted
