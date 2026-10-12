@@ -100,7 +100,7 @@ function movement(overrides: Record<string, unknown> = {}) {
 }
 
 function movementPage(items: unknown[], total = items.length, offset = 0) {
-  return { status: 200, body: { items, total, limit: 100, offset } };
+  return { status: 200, body: { items, total, limit: 100, offset, groupLinks: {} } };
 }
 
 const ARCHIVED_ACCOUNT = account({

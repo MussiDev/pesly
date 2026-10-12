@@ -1,5 +1,6 @@
 import type { AccountCurrency, ExpenseSnapshot, GroupSplitMode, RateType } from '@pesly/shared';
 import type { DefaultSplit, GroupExpense, PersonalShare } from '../../domain/group-expense';
+import type { AutomaticCategoryChange } from '@pesly/shared';
 import type { PayerMovementToRecord } from './payer-movement-recorder';
 
 export interface NewGroupExpenseShare {
@@ -13,7 +14,20 @@ export interface NewExpenseActivity {
   action: 'expense_created';
   memberId: string;
   createdAt: Date;
+  /** True when the expense was created from an existing movement (spec 05i D7). */
+  fromMovement: boolean;
 }
+
+/** An existing movement adopted as the payer's movement; the values are those the use case saw. */
+export interface AdoptedMovement {
+  userId: string;
+  movementId: string;
+  expectedAmount: bigint;
+  expectedOccurredAt: Date;
+}
+
+/** The saved expense plus what the automatic category resolution did (spec 05i D18). */
+export type SavedExpense = GroupExpense & { autoCategory: AutomaticCategoryChange | null };
 
 export interface NewGroupExpense {
   groupId: string;
@@ -22,7 +36,8 @@ export interface NewGroupExpense {
   amount: bigint;
   currency: AccountCurrency;
   occurredAt: Date;
-  categoryId: string;
+  /** Null only with `adoptedMovement`: the repository resolves the automatic category (D18). */
+  categoryId: string | null;
   description: string;
   splitMode: GroupSplitMode;
   /** Shares already allocated: they add up to `amount`. */
@@ -30,6 +45,8 @@ export interface NewGroupExpense {
   activity: NewExpenseActivity;
   /** Set only when the caller is the payer; recorded in the same transaction. */
   payerMovement: PayerMovementToRecord | null;
+  /** Mutually exclusive with `payerMovement`: links an existing movement instead of recording one. */
+  adoptedMovement: AdoptedMovement | null;
 }
 
 /**
@@ -107,7 +124,7 @@ export interface GroupExpenseRepository {
    * movement through the `PayerMovementRecorder` on the same unit of work; the movement id lands
    * in `payerMovementId`. Any failure leaves nothing behind.
    */
-  saveExpense(data: NewGroupExpense): Promise<GroupExpense>;
+  saveExpense(data: NewGroupExpense): Promise<SavedExpense>;
   /**
    * One transaction under the group row `for share` (spec D4): load the expense in the group
    * (`ResourceNotFound` when it is gone), recompute under lock which members' balances change

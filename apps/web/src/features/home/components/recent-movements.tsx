@@ -106,6 +106,8 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
             <ListRow
               key={item.id}
               as="li"
+              interactive
+              className="relative"
               leading={
                 <MovementAvatar
                   type={item.type}
@@ -114,7 +116,15 @@ export function RecentMovements({ locale, timeZone, items }: RecentMovementsProp
                   categoryColor={item.categoryColor}
                 />
               }
-              title={hasNote ? item.note : category}
+              title={
+                <Link
+                  href={`/movements?focus=${encodeURIComponent(item.id)}`}
+                  className="rounded-sm outline-none after:absolute after:inset-0 after:rounded-xl focus-visible:after:ring-2 focus-visible:after:ring-ring"
+                >
+                  {hasNote ? item.note : category}
+                  <span className="sr-only"> · {t('openInMovements')}</span>
+                </Link>
+              }
               description={
                 hasNote
                   ? `${category} · ${item.accountName ?? t('unknownAccount')}`

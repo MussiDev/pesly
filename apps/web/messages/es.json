@@ -23,6 +23,7 @@
     "recent": {
       "title": "Últimos movimientos",
       "seeAll": "Ver todos",
+      "openInMovements": "Abrir en movimientos",
       "income": "Ingreso",
       "expense": "Gasto",
       "transfer": "Transferencia",
@@ -413,6 +414,10 @@
     "goalProgressTooLarge": "Este aporte haría que el monto ahorrado supere el máximo permitido.",
     "goalLimitReached": "Llegaste al límite de 100 metas de ahorro. Eliminá una para crear otra.",
     "accountLinkedToGoal": "Esta cuenta está vinculada a una meta de ahorro, por eso no se puede eliminar. Eliminá la meta primero o archivá la cuenta.",
+    "groupMovementNotExpense": "Solo los gastos se pueden enviar a un grupo.",
+    "groupMovementAlreadySent": "Este movimiento ya se envió a un grupo.",
+    "groupMovementChanged": "El movimiento cambió mientras lo enviabas. Revisalo y volvé a intentar.",
+    "movementLockedByGroupExpense": "Este movimiento está vinculado a un gasto de grupo. Editá el gasto desde el grupo.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
     "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
@@ -715,6 +720,27 @@
   },
   "movements": {
     "title": "Movimientos",
+    "sendToGroup": {
+      "title": "Enviar a un grupo",
+      "summary": "{amount} el {date}",
+      "chooseGroup": "Elige un grupo",
+      "category": "Categoría del grupo",
+      "automaticCategory": "Automática (la misma categoría del movimiento u \"Otros gastos\")",
+      "defaultDescription": "Gasto",
+      "description": "Descripción",
+      "splitSummary": "En partes iguales entre {count} miembros: {each} cada uno",
+      "changeSplit": "Cambiar el reparto",
+      "confirm": "Enviar al grupo",
+      "confirmPending": "Enviando...",
+      "offline": "Enviar a un grupo requiere conexión",
+      "notFound": "No encontramos el movimiento o todavía no se sincronizó",
+      "alreadySent": "Este movimiento ya se envió a un grupo",
+      "noGroups": "Todavía no perteneces a ningún grupo",
+      "goToGroups": "Ir a grupos",
+      "categoryCreated": "Creamos la categoría Otros gastos en este grupo",
+      "categoryRestored": "Restauramos la categoría Otros gastos en este grupo",
+      "viewExpenses": "Ver gastos del grupo"
+    },
     "keypad": {
       "label": "Teclado numérico",
       "decimal": "Coma decimal",
@@ -737,7 +763,11 @@
       "synced": "Sincronizado",
       "failed": "No sincronizado",
       "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
+      "inGroup": "En el grupo {name}",
+      "inGroupUnknown": "En un grupo",
+      "highlighted": "Movimiento seleccionado",
       "actions": {
+        "sendToGroup": "Enviar a un grupo",
         "edit": "Editar",
         "delete": "Eliminar",
         "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
@@ -773,7 +803,10 @@
       "title": "Editar movimiento",
       "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
       "notFound": "Este movimiento no existe o ya no está.",
-      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión."
+      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión.",
+      "groupNotice": "Este movimiento pertenece a un gasto de {group}",
+      "groupNoticeUnknown": "Este movimiento pertenece a un gasto de grupo",
+      "lockedFields": "El monto, la cuenta y la fecha están bloqueados; cámbialos desde el gasto del grupo"
     },
     "fields": {
       "type": "Tipo",
@@ -1296,6 +1329,7 @@
     "linkLabel": "Avisos, {count} sin leer",
     "overflow": "{max}+",
     "dueOn": "Vence el {date}",
+    "alertMonth": "Alerta de presupuesto de {month}",
     "listLabel": "Tus avisos",
     "errors": {
       "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
@@ -1741,6 +1775,9 @@
       "neutralCategory": "Categoría desconocida",
       "before": "Antes",
       "after": "Después",
+      "fromMovement": "Creado a partir de un movimiento",
+      "autoCategoryCreated": "creó la categoría por defecto automáticamente",
+      "autoCategoryRestored": "restauró la categoría por defecto automáticamente",
       "actions": {
         "expense_created": "agregó un gasto",
         "expense_updated": "editó un gasto",
@@ -1980,6 +2017,172 @@
       "equal": "División en partes iguales",
       "percentage": "Porcentajes",
       "exact": "Montos exactos"
+    }
+  },
+  "goals": {
+    "list": {
+      "title": "Metas de ahorro",
+      "description": "Reservá dinero para lo que importa y seguí cuánto te falta.",
+      "create": "Nueva meta",
+      "empty": {
+        "title": "Todavía no tenés metas de ahorro",
+        "description": "Creá una meta para empezar a seguir tu progreso.",
+        "action": "Crear una meta"
+      },
+      "retry": "Reintentar",
+      "error": "No pudimos cargar tus metas. Revisá tu conexión e intentá de nuevo."
+    },
+    "card": {
+      "progressOfTarget": "{saved} de {target}",
+      "percentage": "{percent, number, ::percent} ahorrado",
+      "monthlyNeeded": "Necesitás {amount} por mes",
+      "reached": "Meta alcanzada",
+      "overdue": "Pasó la fecha objetivo",
+      "targetDate": "Fecha objetivo: {date}",
+      "linkedToAccount": "Vinculada a {account}"
+    },
+    "detail": {
+      "title": "Meta",
+      "back": "Volver a las metas",
+      "entries": {
+        "title": "Movimientos",
+        "contribution": "Aporte",
+        "withdrawal": "Retiro",
+        "latestNote": "Solo se muestran los últimos {count} movimientos.",
+        "empty": "Todavía no hay movimientos.",
+        "loadMore": "Ver más"
+      },
+      "edit": "Editar meta",
+      "delete": "Eliminar meta",
+      "linkedNotice": "Esta meta sigue el saldo de su cuenta, por eso no se pueden registrar aportes ni retiros.",
+      "notFound": {
+        "title": "Meta no encontrada",
+        "description": "Esta meta no existe o fue eliminada.",
+        "back": "Volver a las metas"
+      }
+    },
+    "form": {
+      "createTitle": "Nueva meta",
+      "editTitle": "Editar meta",
+      "name": "Nombre",
+      "targetAmount": "Monto objetivo",
+      "currency": "Moneda",
+      "targetDate": "Fecha objetivo (opcional)",
+      "clearTargetDate": "Quitar fecha objetivo",
+      "account": "Vincular a una cuenta (opcional)",
+      "accountNone": "Sin cuenta",
+      "accountLinked": "Vinculada a una cuenta",
+      "noAccounts": "No tenés cuentas en esta moneda para vincular.",
+      "errors": {
+        "nameRequired": "Ingresá un nombre para la meta.",
+        "nameTooLong": "El nombre es demasiado largo.",
+        "amountInvalid": "Ingresá un monto mayor a cero.",
+        "dateInvalid": "Ingresá una fecha válida.",
+        "accountRequired": "Elegí una cuenta para vincular."
+      },
+      "submit": "Guardar meta",
+      "cancel": "Cancelar",
+      "saving": "Guardando..."
+    },
+    "entries": {
+      "contributionTitle": "Agregar un aporte",
+      "withdrawalTitle": "Retirar de esta meta",
+      "amount": "Monto",
+      "submitContribution": "Agregar aporte",
+      "submitWithdrawal": "Retirar",
+      "recorded": "Movimiento registrado.",
+      "errors": { "amountInvalid": "Ingresá un monto mayor a cero." }
+    },
+    "delete": {
+      "title": "¿Eliminar esta meta?",
+      "description": "Se eliminarán sus movimientos. No cambia el saldo de ninguna cuenta.",
+      "confirm": "Eliminar meta",
+      "cancel": "Cancelar"
+    }
+  },
+  "budgets": {
+    "list": {
+      "title": "Presupuestos",
+      "description": "Define un límite mensual para tus gastos y mira cuánto te queda.",
+      "create": "Nuevo presupuesto",
+      "empty": {
+        "title": "Todavía no tienes presupuestos",
+        "description": "Crea un presupuesto para mantener tus gastos bajo control.",
+        "action": "Crear un presupuesto"
+      },
+      "retry": "Reintentar",
+      "error": "No pudimos cargar tus presupuestos. Revisa tu conexión e inténtalo de nuevo.",
+      "month": {
+        "label": "Mes",
+        "previous": "Mes anterior",
+        "next": "Mes siguiente",
+        "current": "Mes actual"
+      }
+    },
+    "card": {
+      "spentOfAvailable": "{spent} de {available}",
+      "remaining": "Quedan {amount}",
+      "overBudget": "Te pasaste por {amount}",
+      "percentage": "{percent, number, ::percent} usado",
+      "rollover": "Incluye {amount} acumulados del mes anterior",
+      "thresholds": "Alertas",
+      "marker": "Alerta al {percent, number, ::percent}",
+      "unconvertedShares": "{count, plural, one {# parte de grupo no se pudo convertir y no se cuenta} other {# partes de grupo no se pudieron convertir y no se cuentan}}"
+    },
+    "detail": {
+      "title": "Presupuesto",
+      "back": "Volver a presupuestos",
+      "month": "Mostrando {month}",
+      "categories": "Categorías incluidas",
+      "thresholds": "Umbrales de alerta",
+      "edit": "Editar presupuesto",
+      "delete": "Eliminar presupuesto",
+      "notFound": {
+        "title": "Presupuesto no encontrado",
+        "description": "Este presupuesto no existe o fue eliminado.",
+        "back": "Volver a presupuestos"
+      }
+    },
+    "form": {
+      "createTitle": "Nuevo presupuesto",
+      "editTitle": "Editar presupuesto",
+      "name": "Nombre",
+      "amount": "Monto mensual",
+      "currency": "Moneda",
+      "currencyReadOnly": "La moneda no se puede cambiar",
+      "categories": "Categorías",
+      "categoriesGroup": "Subcategorías de {parent}",
+      "categoryUnavailable": "Categoría no disponible",
+      "rollover": "Llevar lo que sobre al mes siguiente",
+      "thresholds": {
+        "label": "Umbrales de alerta",
+        "hint": "Números enteros de {min} a {max}, porcentaje usado del presupuesto",
+        "input": "Nuevo umbral",
+        "add": "Agregar umbral",
+        "remove": "Quitar umbral {percent}"
+      },
+      "editNote": "Los cambios se aplican desde el mes actual. Los meses anteriores no cambian.",
+      "errors": {
+        "nameRequired": "Ingresa un nombre para el presupuesto.",
+        "nameTooLong": "El nombre es demasiado largo.",
+        "amountInvalid": "Ingresa un monto mayor a cero.",
+        "categoriesRequired": "Elige al menos una categoría.",
+        "thresholdsRequired": "Deja al menos un umbral de alerta.",
+        "thresholdInvalid": "Ingresa un número entero dentro del rango permitido.",
+        "thresholdDuplicate": "Ese umbral ya está en la lista.",
+        "thresholdsTooMany": "Un presupuesto puede tener como máximo {max} umbrales."
+      },
+      "submit": "Guardar presupuesto",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "categoriesError": "No pudimos cargar tus categorías. Revisa tu conexión e inténtalo de nuevo.",
+      "categoriesRetry": "Reintentar"
+    },
+    "delete": {
+      "title": "¿Eliminar este presupuesto?",
+      "description": "Tus gastos pasados no cambian.",
+      "confirm": "Eliminar presupuesto",
+      "cancel": "Cancelar"
     }
   }
 }

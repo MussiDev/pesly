@@ -222,8 +222,14 @@ describe('random creates, edits and deletes on PostgreSQL', () => {
           description: `Expense ${op}`,
           splitMode: 'exact',
           shares: exactShares(amount),
-          activity: { action: 'expense_created', memberId: w.anaMember, createdAt: at },
+          activity: {
+            action: 'expense_created',
+            memberId: w.anaMember,
+            createdAt: at,
+            fromMovement: false,
+          },
           payerMovement: null,
+          adoptedMovement: null,
         });
         applyExpense(saved, 1n);
         liveExpenses.push(saved);

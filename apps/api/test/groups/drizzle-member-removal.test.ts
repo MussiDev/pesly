@@ -463,8 +463,14 @@ describe('removal against a concurrent expense', () => {
           { memberId: w.anaMember, amount: 50_000n, basisPoints: null },
           { memberId: w.beaMember, amount: 50_000n, basisPoints: null },
         ],
-        activity: { action: 'expense_created', memberId: w.beaMember, createdAt: NOW },
+        activity: {
+          action: 'expense_created',
+          memberId: w.beaMember,
+          createdAt: NOW,
+          fromMovement: false,
+        },
         payerMovement: null,
+        adoptedMovement: null,
       };
 
       const [removal, saved] = await Promise.allSettled([

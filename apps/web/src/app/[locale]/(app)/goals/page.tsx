@@ -1,8 +1,9 @@
-import { useTranslations } from 'next-intl';
-import { ComingSoon } from '@/features/shell/components/coming-soon';
+import { GoalsContainer } from '@/features/goals/list/goals-container';
 
 export default function GoalsPage() {
-  const t = useTranslations('app.nav');
-
-  return <ComingSoon title={t('goals')} />;
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 md:p-8">
+      <GoalsContainer />
+    </main>
+  );
 }

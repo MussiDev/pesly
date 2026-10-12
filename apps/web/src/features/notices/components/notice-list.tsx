@@ -2,7 +2,7 @@
 
 import type { Notice } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { formatCalendarDate } from '@/features/credit-cards/format-dates';
+import { formatCalendarDate, formatPeriod } from '@/features/credit-cards/format-dates';
 import { cn } from '@/lib/utils';
 
 export interface NoticeListProps {
@@ -11,10 +11,25 @@ export interface NoticeListProps {
   onOpen: (notice: Notice) => void;
 }
 
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function isCalendarDate(value: string): boolean {
+  return CALENDAR_DATE.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+}
+
 /** The notices, newest first, unread ones standing out. The text is always a plain text node. */
 export function NoticeList({ notices, onOpen }: NoticeListProps) {
   const t = useTranslations('notices');
   const locale = useLocale();
+
+  // A malformed date is shown as received instead of throwing from the formatter.
+  const caption = (notice: Notice): string => {
+    if (!isCalendarDate(notice.dueDate)) return t('dueOn', { date: notice.dueDate });
+    if (notice.kind === 'budget_alert') {
+      return t('alertMonth', { month: formatPeriod(notice.dueDate.slice(0, 7), locale) });
+    }
+    return t('dueOn', { date: formatCalendarDate(notice.dueDate, locale) });
+  };
 
   return (
     <ul aria-label={t('listLabel')} className="divide-y rounded-card bg-card px-4 shadow-xs">
@@ -31,9 +46,7 @@ export function NoticeList({ notices, onOpen }: NoticeListProps) {
               <span className={cn('text-body break-words', unread && 'font-medium')}>
                 {notice.text}
               </span>
-              <span className="text-caption text-muted-foreground">
-                {t('dueOn', { date: formatCalendarDate(notice.dueDate, locale) })}
-              </span>
+              <span className="text-caption text-muted-foreground">{caption(notice)}</span>
             </span>
           </>
         );

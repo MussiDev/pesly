@@ -1,8 +1,9 @@
-import { useTranslations } from 'next-intl';
-import { ComingSoon } from '@/features/shell/components/coming-soon';
+import { BudgetsContainer } from '@/features/budgets/list/budgets-container';
 
 export default function BudgetsPage() {
-  const t = useTranslations('app.nav');
-
-  return <ComingSoon title={t('budgets')} />;
+  return (
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-4 md:p-8">
+      <BudgetsContainer />
+    </main>
+  );
 }

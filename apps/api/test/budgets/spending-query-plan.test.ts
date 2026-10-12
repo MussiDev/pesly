@@ -99,7 +99,7 @@ describe('spending query plans (NFR-01)', () => {
         .map((node) => node['Relation Name']);
 
       expect(indexes).toContain('movements_owner_category_date_idx');
-      expect(indexes).toContain('group_expenses_payer_movement_idx');
+      expect(indexes).toContain('group_expenses_payer_movement_unique');
       expect(sequentialScans).not.toContain('group_expenses');
     },
     SEEDING_TIMEOUT_MS,

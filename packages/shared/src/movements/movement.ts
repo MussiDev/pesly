@@ -199,10 +199,25 @@ export const movementResponseSchema = z.object({
 });
 export type MovementResponse = z.infer<typeof movementResponseSchema>;
 
+/** The group expense a movement was sent to (or adopted by); `adopted` is true when it was adopted. */
+export const movementGroupLinkSchema = z.strictObject({
+  groupId: z.uuid(),
+  expenseId: z.uuid(),
+  adopted: z.boolean(),
+});
+export type MovementGroupLink = z.infer<typeof movementGroupLinkSchema>;
+
+export const movementDetailResponseSchema = movementResponseSchema.extend({
+  groupExpense: movementGroupLinkSchema.nullable(),
+});
+export type MovementDetailResponse = z.infer<typeof movementDetailResponseSchema>;
+
 export const listMovementsResponseSchema = z.object({
   items: z.array(movementResponseSchema),
   total: z.number().int().min(0),
   limit: z.number().int().min(1).max(LIST_MOVEMENTS_MAX_LIMIT),
   offset: z.number().int().min(0),
+  /** Links of the movements on this page, keyed by movement id; empty when none is linked. */
+  groupLinks: z.record(z.uuid(), movementGroupLinkSchema),
 });
 export type ListMovementsResponse = z.infer<typeof listMovementsResponseSchema>;

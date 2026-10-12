@@ -11,7 +11,7 @@ import { FormAlert } from '@/features/auth/components/form-alert';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link } from '@/i18n/navigation';
 import type { SyncFailure, SyncState } from '../sync-overlay';
-import { dayKey, formatDay, MovementRow } from './movement-row';
+import { dayKey, formatDay, MovementRow, type MovementGroupAction } from './movement-row';
 import { MovementsLoadStateView, type MovementsLoadState } from './movements-load-state';
 
 /** One movement with the names of the account and category already resolved. */
@@ -28,9 +28,13 @@ export interface MovementListItem {
   syncState?: SyncState;
   /** Why the server refused its change; present only when `syncState` is `failed`. */
   failure?: SyncFailure;
+  /** The send-to-group action, or the group the movement is already in; absent, neither shows. */
+  groupAction?: MovementGroupAction | undefined;
 }
 
 export interface MovementListProps {
+  /** The movement to mark and bring into view (a validated id); absent or unmatched, nothing. */
+  focusId?: string | undefined;
   items: readonly MovementListItem[];
   timeZone: string;
   hasMore: boolean;
@@ -126,6 +130,7 @@ function matchesQuery(item: MovementListItem, query: string): boolean {
 }
 
 export function MovementList({
+  focusId,
   items,
   timeZone,
   hasMore,
@@ -234,6 +239,8 @@ export function MovementList({
                     timeZone={timeZone}
                     syncState={item.syncState}
                     failure={item.failure}
+                    groupAction={item.groupAction}
+                    highlighted={focusId !== undefined && item.movement.id === focusId}
                     actions={
                       rowActions === undefined
                         ? undefined

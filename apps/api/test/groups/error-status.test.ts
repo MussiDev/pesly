@@ -95,3 +95,16 @@ describe('group record change error codes over HTTP', () => {
     expect(response.headers.allow).toBeUndefined();
   });
 });
+
+describe('send movement to group error codes over HTTP', () => {
+  it.each<[ErrorCode, number]>([
+    ['GROUP_MOVEMENT_NOT_EXPENSE', 400],
+    ['GROUP_MOVEMENT_ALREADY_SENT', 409],
+    ['MOVEMENT_LOCKED_BY_GROUP_EXPENSE', 409],
+    ['GROUP_MOVEMENT_CHANGED', 409],
+  ])('%s answers %i with its code in the body (AC-03, AC-21, AC-25)', async (code, status) => {
+    const response = await request(appThrowing(code)).get('/boom');
+    expect(response.status).toBe(status);
+    expect(response.body).toEqual({ code });
+  });
+});

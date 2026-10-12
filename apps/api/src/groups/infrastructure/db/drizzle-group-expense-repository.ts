@@ -1,3 +1,4 @@
+import { AUTOMATIC_SEND_CATEGORY_KEY, type AutomaticCategoryChange } from '@pesly/shared';
 import { and, desc, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import { ResourceNotFound } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
@@ -9,6 +10,7 @@ import type {
   ListPersonalSharesQuery,
   NewGroupExpense,
   PersonalSharesPageResult,
+  SavedExpense,
   UpdateGroupExpenseData,
   DeleteGroupExpenseData,
 } from '../../application/ports/group-expense-repository';
@@ -16,6 +18,8 @@ import type { PayerMovementRecorder } from '../../application/ports/payer-moveme
 import {
   ExpenseAmountNotPositive,
   GroupExpenseCategoryInvalid,
+  GroupMovementAlreadySent,
+  GroupMovementChanged,
   GroupSplitMemberInvalid,
   type DefaultSplit,
   type GroupExpense,
@@ -28,6 +32,7 @@ import {
   expenseChangedMembers,
   expenseSnapshot,
 } from '../../domain/group-change';
+import { ensureDefaultCategory, findEquivalentCategory } from './ensure-default-category';
 import { allActiveMembers, lockGroup } from './group-locks';
 import { decodeCursor, pageOf, type Cursor } from './keyset-cursor';
 import {
@@ -52,6 +57,7 @@ const MEMBER_KEYS: readonly (string | undefined)[] = [
 ];
 const CATEGORY_KEY = 'group_expenses_category_id_group_categories_id_fk';
 const AMOUNT_CHECK = 'group_expenses_amount_check';
+const MOVEMENT_LINK_UNIQUE = 'group_expenses_payer_movement_unique';
 
 const expenseColumns = {
   id: groupExpenses.id,
@@ -65,6 +71,7 @@ const expenseColumns = {
   description: groupExpenses.description,
   splitMode: groupExpenses.splitMode,
   payerMovementId: groupExpenses.payerMovementId,
+  adoptedMovement: groupExpenses.adoptedMovement,
   createdAt: groupExpenses.createdAt,
   version: groupExpenses.version,
 };
@@ -89,6 +96,10 @@ function mapWriteError(error: unknown): unknown {
   if (MEMBER_KEYS.includes(foreignKey)) return new GroupSplitMemberInvalid();
   if (foreignKey === CATEGORY_KEY) return new GroupExpenseCategoryInvalid();
   if (checkViolation(error) === AMOUNT_CHECK) return new ExpenseAmountNotPositive();
+  // A send that lost the race on the link: the unique index backs up the movement row lock.
+  if (violatedConstraint(error, '23505') === MOVEMENT_LINK_UNIQUE) {
+    return new GroupMovementAlreadySent();
+  }
   return error;
 }
 
@@ -143,7 +154,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     private readonly recorder: PayerMovementRecorder<Tx>,
   ) {}
 
-  async saveExpense(data: NewGroupExpense): Promise<GroupExpense> {
+  async saveExpense(data: NewGroupExpense): Promise<SavedExpense> {
     try {
       return await this.db.transaction(async (tx) => {
         // Group lock first, then the members, like the settlement path (spec D10): an expense
@@ -158,6 +169,44 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
         if (!(await allActiveMembers(tx, data.groupId, involved))) {
           throw new GroupSplitMemberInvalid();
         }
+        const adopted = data.adoptedMovement;
+        let categoryId = data.categoryId;
+        let autoCategory: AutomaticCategoryChange | null = null;
+        if (adopted !== null) {
+          // The movement row is locked after the group and the members and before any write, so
+          // concurrent sends of one movement queue here (spec 05i D2).
+          const movement = await this.recorder.lockForAdoption(
+            tx,
+            adopted.userId,
+            adopted.movementId,
+          );
+          if (movement === null) throw new ResourceNotFound();
+          if (
+            movement.amount !== adopted.expectedAmount ||
+            movement.occurredAt.getTime() !== adopted.expectedOccurredAt.getTime()
+          ) {
+            throw new GroupMovementChanged();
+          }
+          if (movement.linked) throw new GroupMovementAlreadySent();
+          // After every refusal check, so a refused send creates or restores nothing (D18).
+          if (categoryId === null) {
+            categoryId = await findEquivalentCategory(
+              tx,
+              data.groupId,
+              movement.categoryDefaultKey,
+            );
+          }
+          if (categoryId === null) {
+            const ensured = await ensureDefaultCategory(
+              tx,
+              data.groupId,
+              AUTOMATIC_SEND_CATEGORY_KEY,
+            );
+            categoryId = ensured.categoryId;
+            autoCategory = ensured.change;
+          }
+        }
+        if (categoryId === null) throw new GroupExpenseCategoryInvalid();
         const [row] = await tx
           .insert(groupExpenses)
           .values({
@@ -167,10 +216,12 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
             amount: data.amount,
             currency: data.currency,
             occurredAt: data.occurredAt,
-            categoryId: data.categoryId,
+            categoryId,
             description: data.description,
             splitMode: data.splitMode,
             createdAt: data.activity.createdAt,
+            payerMovementId: adopted?.movementId ?? null,
+            adoptedMovement: adopted !== null,
           })
           .returning(expenseColumns);
         if (!row) throw new Error('Inserting a group expense returned no row');
@@ -191,8 +242,10 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           action: data.activity.action,
           subjectId: row.id,
           createdAt: data.activity.createdAt,
+          fromMovement: data.activity.fromMovement,
+          autoCategory,
         });
-        let payerMovementId: string | null = null;
+        let payerMovementId = row.payerMovementId;
         if (data.payerMovement !== null) {
           payerMovementId = (await this.recorder.record(tx, data.payerMovement)).id;
           await tx
@@ -201,7 +254,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
             .where(eq(groupExpenses.id, row.id));
         }
         const shares = data.shares.map((share) => ({ ...share })).sort(byMember);
-        return toExpense({ ...row, payerMovementId }, shares);
+        return { ...toExpense({ ...row, payerMovementId }, shares), autoCategory };
       });
     } catch (error) {
       throw mapWriteError(error);
@@ -263,6 +316,8 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           action: data.activity.action,
           subjectId: stored.id,
           createdAt: data.activity.createdAt,
+          fromMovement: false,
+          autoCategory: null,
           before: expenseSnapshot(stored),
           after: data.activity.after,
         });
@@ -274,6 +329,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
             occurredAt: data.occurredAt,
             note: data.description,
             rateType: data.rateType,
+            keepNote: stored.adoptedMovement,
           });
         }
         return toExpense(
@@ -317,10 +373,13 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           action: data.activity.action,
           subjectId: stored.id,
           createdAt: data.activity.createdAt,
+          fromMovement: false,
+          autoCategory: null,
           before: expenseSnapshot(stored),
           after: null,
         });
-        if (stored.payerMovementId !== null) {
+        // An adopted expense never owned its movement: deleting it detaches (spec 05i D5).
+        if (stored.payerMovementId !== null && !stored.adoptedMovement) {
           await this.recorder.remove(tx, {
             userId: requirePayerUser(payerUserId),
             movementId: stored.payerMovementId,

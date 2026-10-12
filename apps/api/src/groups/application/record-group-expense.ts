@@ -84,8 +84,14 @@ export class RecordGroupExpense {
       description: data.description,
       splitMode: data.split.mode,
       shares,
-      activity: { action: 'expense_created', memberId: caller.id, createdAt: now },
+      activity: {
+        action: 'expense_created',
+        memberId: caller.id,
+        createdAt: now,
+        fromMovement: false,
+      },
       payerMovement,
+      adoptedMovement: null,
     });
   }
 

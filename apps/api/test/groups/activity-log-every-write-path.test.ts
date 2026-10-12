@@ -51,6 +51,8 @@ interface LogRow {
   created_at: Date;
   before: unknown;
   after: unknown;
+  from_movement: boolean;
+  auto_category: string | null;
 }
 
 async function logOf(groupId: string): Promise<LogRow[]> {
@@ -108,7 +110,7 @@ function newExpense(f: Fixture, withMovement: boolean, createdAt: Date): NewGrou
     description: 'Supermercado',
     splitMode: 'equal',
     shares: equalSplit(3_000_000n, w.memberIds).map((s) => ({ ...s, basisPoints: null })),
-    activity: { action: 'expense_created', memberId: w.anaMember, createdAt },
+    activity: { action: 'expense_created', memberId: w.anaMember, createdAt, fromMovement: false },
     payerMovement: withMovement
       ? {
           userId: w.userId,
@@ -120,6 +122,7 @@ function newExpense(f: Fixture, withMovement: boolean, createdAt: Date): NewGrou
           rateType: 'mep',
         }
       : null,
+    adoptedMovement: null,
   };
 }
 
@@ -258,6 +261,8 @@ interface WritePath {
   action: string;
   before: 'null' | 'set';
   after: 'null' | 'set';
+  /** The entry says the expense was created from an existing movement (spec 05i, FR-18). */
+  fromMovement?: boolean;
   /** Performs the write and returns the id of the record it touched. */
   run: (createdAt: Date) => Promise<string>;
 }
@@ -369,6 +374,33 @@ function writePaths(f: Fixture): WritePath[] {
         return saved.id;
       },
     },
+    {
+      name: 'send an existing movement to the group',
+      action: 'expense_created',
+      before: 'null',
+      after: 'null',
+      fromMovement: true,
+      run: async (at) => {
+        const movement = await connection.pool.query<{ id: string }>(
+          `insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, note, rate, rate_source)
+           values ($1, 'expense', $2, $3, 3000000, $4, 'Supermercado', 13000000, 'manual') returning id`,
+          [w.userId, f.accountId, f.personalCategoryId, new Date(NOW.getTime() - HOUR)],
+        );
+        const movementId = movement.rows[0]?.id ?? '';
+        const base = newExpense(f, false, at);
+        const sent = await expenses.saveExpense({
+          ...base,
+          activity: { ...base.activity, fromMovement: true },
+          adoptedMovement: {
+            userId: w.userId,
+            movementId,
+            expectedAmount: 3_000_000n,
+            expectedOccurredAt: new Date(NOW.getTime() - HOUR),
+          },
+        });
+        return sent.id;
+      },
+    },
   ];
 }
 
@@ -378,7 +410,7 @@ describe('every write path of expenses and settlements leaves one log row', () =
     const { w } = f;
     let previousCount = 0;
     const paths = writePaths(f);
-    expect(paths).toHaveLength(9);
+    expect(paths).toHaveLength(10);
 
     for (const path of paths) {
       const known = new Set((await logOf(w.groupId)).map((row) => row.id));
@@ -402,9 +434,11 @@ describe('every write path of expenses and settlements leaves one log row', () =
 
     const rows = await logOf(w.groupId);
     expect(rows.map((row) => row.action)).toEqual(paths.map((path) => path.action));
-    for (const row of rows) {
+    for (const [index, row] of rows.entries()) {
       expectNoJsonNumber(row.before, `${row.action}.before`);
       expectNoJsonNumber(row.after, `${row.action}.after`);
+      expect(row.from_movement, paths[index]?.name).toBe(paths[index]?.fromMovement === true);
+      expect(row.auto_category, row.action).toBeNull();
     }
   });
 

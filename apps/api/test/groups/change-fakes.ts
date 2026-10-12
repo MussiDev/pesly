@@ -46,6 +46,8 @@ export class InMemoryActivityLogReader implements ActivityLogReader {
       createdAt: row.createdAt,
       before: row.before,
       after: row.after,
+      fromMovement: false,
+      autoCategory: null,
     }));
     const nextCursor =
       all.length > query.limit && last !== undefined

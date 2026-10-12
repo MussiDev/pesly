@@ -140,7 +140,7 @@ function routes(
       category({ id: VIEJA_CATEGORY_ID, kind: 'expense', name: 'Vieja', archived: true }),
     ]),
     'GET /exchange-rates/latest': RATES,
-    [GET_MOVEMENT]: { status: 200, body: movement },
+    [GET_MOVEMENT]: { status: 200, body: { groupExpense: null, ...movement } },
     [PUT_MOVEMENT]: { status: 200, body: { ...movement, amount: '9000' } },
     ...overrides,
   };
@@ -326,7 +326,7 @@ describe('EditMovementContainer: loading failures', () => {
       routes(STORED, {
         [GET_MOVEMENT]: [
           { status: 500, body: { code: 'INTERNAL' } },
-          { status: 200, body: STORED },
+          { status: 200, body: { groupExpense: null, ...STORED } },
         ],
       }),
     );

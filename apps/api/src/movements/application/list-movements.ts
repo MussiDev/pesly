@@ -1,4 +1,9 @@
-import { AppError, LIST_MOVEMENTS_MAX_LIMIT, type MovementType } from '@pesly/shared';
+import {
+  AppError,
+  LIST_MOVEMENTS_MAX_LIMIT,
+  type MovementGroupLink,
+  type MovementType,
+} from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import type { Movement, MovementFilters } from '../domain/movement';
 import { localDayRange } from './local-day-range';
@@ -28,7 +33,11 @@ export class ListMovements {
   async execute(
     scope: AccessScope<'read'>,
     options: ListMovementsOptions,
-  ): Promise<{ items: Movement[]; total: number }> {
+  ): Promise<{
+    items: Movement[];
+    total: number;
+    groupLinks: Record<string, MovementGroupLink>;
+  }> {
     const { limit, offset, accountId, categoryId, type, tag, from, to } = options;
     if (
       !Number.isInteger(limit) ||
@@ -54,6 +63,11 @@ export class ListMovements {
       const { timeZone } = await this.deps.preferences.find(scope.userId);
       Object.assign(filters, localDayRange(from, to, timeZone));
     }
-    return this.deps.movements.list(scope, { limit, offset, filters });
+    const page = await this.deps.movements.list(scope, { limit, offset, filters });
+    const groupLinks = await this.deps.movements.groupLinks(
+      scope,
+      page.items.map((item) => item.id),
+    );
+    return { ...page, groupLinks };
   }
 }
