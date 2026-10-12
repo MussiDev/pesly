@@ -145,6 +145,8 @@ import {
   recurringPaymentResponseSchema,
   upcomingResponseSchema,
   netWorthResponseSchema,
+  expensesByCategoryResponseSchema,
+  incomeExpensesResponseSchema,
   listNoticesResponseSchema,
   markAllReadResponseSchema,
   noticeSchema,
@@ -154,6 +156,8 @@ import {
   type ConfirmOccurrence,
   type CreateRecurringPayment,
   type ListRecurringPaymentsResponse,
+  type ExpensesByCategoryResponse,
+  type IncomeExpensesResponse,
   type NetWorthResponse,
   type RecurringPaymentResponse,
   type UpcomingResponse,
@@ -524,6 +528,34 @@ export type ListMovementsParams = Partial<
   >
 >;
 
+/** Filters of the two flow reports; whatever is undefined is not sent. */
+export interface ReportFlowParams {
+  from?: string | undefined;
+  to?: string | undefined;
+  accountId?: string | undefined;
+  tag?: string | undefined;
+}
+
+/** Net worth takes the date range only. */
+export interface NetWorthParams {
+  from?: string | undefined;
+  to?: string | undefined;
+}
+
+/** `?key=value` for the defined keys, in the given order; empty when none is defined. */
+function reportQueryString(
+  params: ReportFlowParams | undefined,
+  keys: readonly (keyof ReportFlowParams)[],
+): string {
+  const query = new URLSearchParams();
+  for (const key of keys) {
+    const value = params?.[key];
+    if (value !== undefined) query.set(key, value);
+  }
+  const text = query.toString();
+  return text === '' ? '' : `?${text}`;
+}
+
 export type ListTagsParams = Pick<TagSuggestionsQuery, 'prefix'> &
   Partial<Pick<TagSuggestionsQuery, 'limit'>>;
 
@@ -609,8 +641,12 @@ export interface ApiClient {
   getUpcomingRecurring(): Promise<ApiResult<UpcomingResponse>>;
   /** The home dashboard read; sent with no query (spec DISC-001-09c FR-18). */
   getDashboard(): Promise<ApiResult<DashboardResponse>>;
-  /** Net worth series; no range, so the API answers its default 12 months ending today (D2). */
-  getNetWorthSeries(): Promise<ApiResult<NetWorthResponse>>;
+  /** Net worth series; with no query the API answers its default 12 months ending today. */
+  getNetWorthSeries(query?: NetWorthParams): Promise<ApiResult<NetWorthResponse>>;
+  /** Spending by category over a range; needs a connection. */
+  getExpensesByCategory(query: ReportFlowParams): Promise<ApiResult<ExpensesByCategoryResponse>>;
+  /** Income against expenses by month; needs a connection. */
+  getIncomeExpenses(query: ReportFlowParams): Promise<ApiResult<IncomeExpensesResponse>>;
   /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
   confirmOccurrence(occurrenceId: string, body: ConfirmOccurrence): Promise<ApiResult<undefined>>;
   skipOccurrence(occurrenceId: string): Promise<ApiResult<undefined>>;
@@ -1307,11 +1343,25 @@ export function createApiClient({
         response: dashboardResponseSchema,
         refreshOnUnauthenticated: true,
       }),
-    getNetWorthSeries: () =>
+    getNetWorthSeries: (query) =>
       request({
         method: 'GET',
-        path: '/reports/net-worth',
+        path: `/reports/net-worth${reportQueryString(query, ['from', 'to'])}`,
         response: netWorthResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getExpensesByCategory: (query) =>
+      request({
+        method: 'GET',
+        path: `/reports/expenses-by-category${reportQueryString(query, ['from', 'to', 'accountId', 'tag'])}`,
+        response: expensesByCategoryResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getIncomeExpenses: (query) =>
+      request({
+        method: 'GET',
+        path: `/reports/income-expenses${reportQueryString(query, ['from', 'to', 'accountId', 'tag'])}`,
+        response: incomeExpensesResponseSchema,
         refreshOnUnauthenticated: true,
       }),
     confirmOccurrence: (occurrenceId, body) =>
