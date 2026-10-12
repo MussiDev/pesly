@@ -428,8 +428,8 @@ export const SEEDED_EXPENSES = [
   '10,00',
 ] as const;
 export const SEEDED_TOTAL = '1.580,00';
-/** Whole-percent shares of those amounts: rounded down, with the leftover on the largest (D5). */
-export const SEEDED_SHARES = [35, 25, 18, 12, 6, 3, 1, 0] as const;
+/** Whole-percent shares of those amounts by the largest remainder method (D5): they add up to 100. */
+export const SEEDED_SHARES = [32, 25, 19, 13, 7, 3, 1, 0] as const;
 export const SEEDED_INCOME = '3000,00';
 
 function expenseCategories(): string[] {

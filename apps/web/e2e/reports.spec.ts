@@ -270,7 +270,7 @@ test.describe('real data', () => {
     }
 
     const shownShares = SEEDED_SHARES.reduce<number>((sum, share) => sum + share, 0);
-    expect(shownShares, 'the shares shown never exceed 100%').toBeLessThanOrEqual(100);
+    expect(shownShares, 'the shares shown add up to 100%').toBe(100);
     await expect(page.locator('figure[data-slot="donut-chart"] circle[data-segment]')).toHaveCount(
       6,
     );
