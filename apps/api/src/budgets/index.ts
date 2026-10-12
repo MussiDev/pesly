@@ -23,3 +23,7 @@ export * from './application/ports/budget-alert-store';
 export * from './application/evaluate-budget-alerts';
 export * from './infrastructure/budget-alert-listener';
 export * from './infrastructure/http/budget-routes';
+export { DrizzleBudgetVersionReader } from './infrastructure/db/drizzle-budget-version-reader';
+export { DrizzleSpendingReader } from './infrastructure/db/drizzle-spending-reader';
+export { SystemClock } from './infrastructure/clock/system-clock';
+export type { UserTimeZone as BudgetsUserTimeZone } from './application/ports/user-time-zone';
