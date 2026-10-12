@@ -147,9 +147,9 @@ describe('report routes', () => {
     await newTag(ana, 'vacations2026');
     await newTag(ana, 'café');
 
-    expect(
-      (await get(app, '/reports/income-expenses?tag=Vacations2026', ana.cookies)).status,
-    ).toBe(200);
+    expect((await get(app, '/reports/income-expenses?tag=Vacations2026', ana.cookies)).status).toBe(
+      200,
+    );
     expect(
       (await get(app, '/reports/expenses-by-category?tag=cafe%CC%81', ana.cookies)).status,
     ).toBe(200);
