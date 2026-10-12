@@ -52,6 +52,7 @@ const LATER_MIGRATIONS = [
   '0035_group_expense_payer_movement_idx',
   '0036_budget_alert_marks',
   '0037_group_expense_from_movement',
+  '0038_exchange_rate_history',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -61,6 +62,7 @@ const PRICE_TABLES = [
   'portfolio_value_snapshots',
 ];
 const TAG_TABLES = ['movement_tags', 'tags'];
+const RATE_HISTORY_TABLES = ['exchange_rate_history'];
 const CREDIT_CARD_TABLES = [
   'card_automatic_debits',
   'card_statement_import_lines',
@@ -74,6 +76,7 @@ const LATER_TABLES = [
   'movements',
   ...PRICE_TABLES,
   ...TAG_TABLES,
+  ...RATE_HISTORY_TABLES,
   ...CREDIT_CARD_TABLES,
   'recurring_occurrences',
   'recurring_payments',

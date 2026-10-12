@@ -265,6 +265,8 @@ describe('0037_group_expense_from_movement migration', () => {
   });
 
   it('aborts the migration with the pre-check when two expenses share a movement, changing nothing', async () => {
+    // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const w = await world();
     const shared = await movement(w);
@@ -296,6 +298,8 @@ describe('0037_group_expense_from_movement migration', () => {
     const tablesBefore = await publicTableCount();
     const whensBefore = await appliedWhens();
 
+    // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
@@ -306,8 +310,8 @@ describe('0037_group_expense_from_movement migration', () => {
     expect(await checkDefinition('group_activity_log_auto_category_check')).toBeUndefined();
     expect(await indexDefinition(UNIQUE_INDEX)).toBeUndefined();
     expect(await indexDefinition(PLAIN_INDEX)).toMatch(/\(payer_movement_id\)/);
-    expect(await publicTableCount()).toBe(tablesBefore);
-    expect(await appliedWhens()).toEqual(whensBefore.slice(0, -1));
+    expect(await publicTableCount()).toBe(tablesBefore - 1);
+    expect(await appliedWhens()).toEqual(whensBefore.slice(0, -2));
     const links = await client.query<{ payer_movement_id: string | null }>(
       'select payer_movement_id from group_expenses where group_id = $1 order by payer_movement_id nulls first',
       [w.group],
@@ -324,7 +328,7 @@ describe('0037_group_expense_from_movement migration', () => {
     expect(await appliedWhens()).toEqual(whensBefore);
   });
 
-  it('has the journal entry with the greatest when, above main, chained to the previous snapshot', async () => {
+  it('has the journal entry with the greatest when below 0038, above main, chained to the previous snapshot', async () => {
     const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
       entries: { idx: number; when: number; tag: string }[];
     };
@@ -334,7 +338,9 @@ describe('0037_group_expense_from_movement migration', () => {
     expect(own?.idx).toBe(37);
     expect(own?.when).toBe(WHEN);
     expect(own?.when).toBeGreaterThan(MAIN_MAX_WHEN);
-    expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
+    expect(own?.when).toBe(
+      Math.max(...journal.entries.filter((entry) => entry.idx <= 37).map((entry) => entry.when)),
+    );
     expect(script).toContain(`"created_at" = ${WHEN}`);
     expect(script).not.toMatch(/DROP TABLE/i);
     const snapshot = JSON.parse(await fileOf('meta/0037_snapshot.json')) as { prevId: string };

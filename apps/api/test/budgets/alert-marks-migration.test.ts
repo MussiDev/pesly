@@ -178,6 +178,8 @@ describe('0036_budget_alert_marks migration', () => {
               ($1, 'reminder', gen_random_uuid(), '2026-10-01', 'y')`,
       [userId],
     );
+    // 0037 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     const countBefore = await appliedMigrations();
 
     // 0037 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
@@ -195,7 +197,8 @@ describe('0036_budget_alert_marks migration', () => {
 
     expect(await tableExists('budget_alert_marks')).toBe(true);
     expect(await kindCheckDefinition()).toContain('budget_alert');
-    expect(await appliedMigrations()).toBe(countBefore);
+    // runMigrations also re-applies 0037, which was rolled back first.
+    expect(await appliedMigrations()).toBe(countBefore + 1);
   });
 
   it('has a rollback script that forgets exactly the journal when of its migration', async () => {
@@ -217,12 +220,9 @@ describe('0036_budget_alert_marks migration', () => {
 
     expect(own?.idx).toBe(36);
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
+    // 0037 and 0038 come after it, so it is the greatest among its own and the older ones.
     expect(own?.when).toBe(
-      Math.max(
-        ...journal.entries
-          .filter((entry) => entry.tag !== '0037_group_expense_from_movement')
-          .map((entry) => entry.when),
-      ),
+      Math.max(...journal.entries.filter((entry) => entry.idx <= 36).map((entry) => entry.when)),
     );
     const snapshot = JSON.parse(await fileOf('meta/0036_snapshot.json')) as { prevId: string };
     const previous = JSON.parse(await fileOf('meta/0035_snapshot.json')) as { id: string };

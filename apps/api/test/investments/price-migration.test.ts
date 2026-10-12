@@ -29,6 +29,7 @@ const NEWER_TAGS = [
   '0035_group_expense_payer_movement_idx',
   '0036_budget_alert_marks',
   '0037_group_expense_from_movement',
+  '0038_exchange_rate_history',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
