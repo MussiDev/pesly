@@ -237,7 +237,8 @@ describe('TopNav (AC-11, AC-12)', () => {
     const { container, onSignOut } = renderTop();
 
     const nav = within(navOf(container, 'top-nav'));
-    expect(nav.getByRole('switch', { name: es.theme.darkMode })).toBeDefined();
+    const group = within(nav.getByRole('radiogroup', { name: es.theme.label }));
+    expect(group.getByRole('radio', { name: es.theme.dark })).toBeDefined();
     await userEvent.setup().click(nav.getByRole('button', { name: es.auth.signOut.label }));
     expect(onSignOut).toHaveBeenCalledOnce();
   });
@@ -403,9 +404,25 @@ describe('MoreMenu (FR-07)', () => {
     expect(
       screen.getByRole('link', { name: en.app.nav.notificationSettings }).getAttribute('href'),
     ).toBe('/en/settings/notifications');
-    expect(screen.getByRole('switch', { name: en.theme.darkMode })).toBeDefined();
+    expect(
+      within(screen.getByRole('radiogroup', { name: en.theme.label })).getByRole('radio', {
+        name: en.theme.dark,
+      }),
+    ).toBeDefined();
     await userEvent.setup().click(screen.getByRole('button', { name: en.auth.signOut.label }));
     expect(onSignOut).toHaveBeenCalledOnce();
+  });
+
+  it('offers the theme only as the three-option control, with no separate "Dark mode" text', () => {
+    renderMore();
+
+    expect(screen.queryByText(/dark mode/i)).toBeNull();
+    const group = within(screen.getByRole('radiogroup', { name: en.theme.label }));
+    expect(group.getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual([
+      'light',
+      'dark',
+      'system',
+    ]);
   });
 
   it('disables sign out while it is in progress', () => {

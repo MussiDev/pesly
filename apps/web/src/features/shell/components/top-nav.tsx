@@ -24,7 +24,7 @@ export interface TopNavProps {
 }
 
 /**
- * The side menu from 900 px; below it the bottom bar and the More page take over. It keeps the
+ * The side menu from 1024 px; below it the bottom bar and the More page take over. It keeps the
  * `top-nav` slot name the shell tests and e2e flows already target.
  */
 export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
@@ -82,9 +82,13 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
       </div>
       <div className="flex-1" />
       <ul className="grid gap-0.5">{SETTINGS_ITEMS.map(destination)}</ul>
-      <div className="flex items-center justify-between gap-2 rounded-2xl bg-surface p-3">
-        <ThemeToggle />
-        <SignOutButton pending={signingOut} onSignOut={onSignOut} iconOnly />
+      <div data-slot="top-nav-footer" className="grid gap-2 rounded-2xl bg-surface p-3">
+        <div data-slot="top-nav-theme" className="min-w-0">
+          <ThemeToggle />
+        </div>
+        <div data-slot="top-nav-sign-out">
+          <SignOutButton pending={signingOut} onSignOut={onSignOut} />
+        </div>
       </div>
     </nav>
   );

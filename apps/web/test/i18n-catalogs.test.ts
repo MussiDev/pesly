@@ -437,45 +437,21 @@ describe('investments catalog (DISC-001-07a)', () => {
 
 describe('home catalog (FEAT-004 Block 7)', () => {
   it.each(LOCALES)(
-    'has the balance, recent movements, quick actions and empty copy in %s',
+    'has the quick actions copy the dashboard reuses, and no old home copy, in %s',
     (locale) => {
       const catalog = loadCatalog(locale);
 
-      for (const key of [
-        'tagline',
-        'balance.title',
-        'balance.available',
-        'balance.netWorth',
-        'balance.currencies.ARS',
-        'balance.currencies.USD',
-        'recent.title',
-        'recent.seeAll',
-        'recent.income',
-        'recent.expense',
-        'recent.unknownAccount',
-        'recent.unknownCategory',
-        'recent.empty.title',
-        'recent.empty.description',
-        'recent.empty.action',
-        'empty.title',
-        'empty.description',
-        'empty.action',
-      ]) {
-        expect(readString(catalog, `home.${key}`), `home.${key}`).toBeTruthy();
+      for (const key of ['label', 'expense', 'income', 'transfer', 'exchange']) {
+        expect(
+          readString(catalog, `home.quickActions.${key}`),
+          `home.quickActions.${key}`,
+        ).toBeTruthy();
+      }
+      for (const key of ['title', 'tagline', 'balance', 'recent', 'empty', 'month', 'pending']) {
+        expect((catalog.home as Catalog)[key], `home.${key} is gone`).toBeUndefined();
       }
     },
   );
-
-  it.each(LOCALES)('reuses the balance wording of the accounts headline in %s', (locale) => {
-    const catalog = loadCatalog(locale);
-
-    expect(readString(catalog, 'home.balance.available')).toBe(
-      readString(catalog, 'accounts.headline.available'),
-    );
-    expect(readString(catalog, 'home.balance.netWorth')).toBe(
-      readString(catalog, 'accounts.headline.netWorth'),
-    );
-  });
 });
 
 describe('app shell catalog (FEAT-004)', () => {
@@ -519,7 +495,7 @@ describe('product name in the web catalogs (FEAT-002)', () => {
     const catalog = loadCatalog(locale);
 
     expect(readString(catalog, 'metadata.title')).toBe('Pesly');
-    expect(readString(catalog, 'home.title')).toBe('Pesly');
+    expect(readString(catalog, 'app.brand')).toBe('Pesly');
   });
 
   it('installs the PWA as Pesly', () => {

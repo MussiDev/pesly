@@ -32,9 +32,9 @@
 
   --primary: oklch(0.38 0.12 265);
   --primary-foreground: oklch(0.985 0.004 265);
-  --success: oklch(0.5 0.13 150);
+  --success: oklch(0.46 0.12 150);
   --success-foreground: oklch(0.985 0.004 270);
-  --warning: oklch(0.52 0.12 65);
+  --warning: oklch(0.48 0.11 65);
   --warning-foreground: oklch(0.985 0.004 270);
   --destructive: oklch(0.5 0.19 27);
   --destructive-foreground: oklch(0.985 0.004 270);
@@ -150,7 +150,7 @@
   /* The diameter of a circular action: above the 44 px touch-target minimum. */
   --spacing-circle-action: 3.25rem;
   /* Below it the bottom bar serves; from it the side menu. */
-  --breakpoint-desk: 56.25rem;
+  --breakpoint-desk: 64rem;
 
   --radius-card: 1.5rem;
   --radius-pill: 9999px;
