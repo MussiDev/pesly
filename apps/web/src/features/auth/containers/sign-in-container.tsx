@@ -12,6 +12,7 @@ import {
   type RedirectErrorKey,
 } from '../form-errors';
 import { useGoogleStartUrl } from '../google-start-url';
+import { readReturnPath } from '../read-return-path';
 
 const MESSAGE_BY_SIGN_IN_ERROR: Record<SignInError, RedirectErrorKey> = {
   google_failed: 'googleFailed',
@@ -63,12 +64,19 @@ export function SignInContainer() {
       return;
     }
     if (result.data.status === 'second_factor_required') {
-      router.replace('/sign-in/second-factor');
+      const next = readReturnPath();
+      router.replace(
+        next === undefined
+          ? '/sign-in/second-factor'
+          : `/sign-in/second-factor?next=${encodeURIComponent(next)}`,
+      );
       return;
     }
     const { user } = result.data;
     // The app opens in the account's language (FR-11); unverified accounts go to verification.
-    router.replace(user.emailVerified ? '/' : '/check-your-email', { locale: user.language });
+    router.replace(user.emailVerified ? (readReturnPath() ?? '/') : '/check-your-email', {
+      locale: user.language,
+    });
   }
 
   return (

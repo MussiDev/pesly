@@ -44,7 +44,8 @@
       "goals": "Metas de ahorro",
       "settings": "Ajustes",
       "notices": "Avisos",
-      "plan": "Planificar"
+      "plan": "Planificar",
+      "reports": "Reportes"
     },
     "topBar": {
       "upToDate": "Al día",
@@ -2222,7 +2223,8 @@
       "usd": "En dólares",
       "conversionUnavailable": "Conversión no disponible: falta la cotización de algunos de tus saldos.",
       "holdingsWithoutPrice": "{count, plural, one {# tenencia no tiene precio y no se cuenta.} other {# tenencias no tienen precio y no se cuentan.}}",
-      "lastPointNote": "El último punto del gráfico puede diferir levemente de la cifra de arriba."
+      "lastPointNote": "El último punto del gráfico puede diferir levemente de la cifra de arriba.",
+      "viewReport": "Ver reporte"
     },
     "month": {
       "title": "Este mes",
@@ -2255,7 +2257,8 @@
     "categories": {
       "title": "Gastos por categoría",
       "empty": "No hay gastos este mes.",
-      "other": "Otra"
+      "other": "Otra",
+      "viewReport": "Ver reporte"
     },
     "budgets": {
       "title": "Presupuestos",
@@ -2305,6 +2308,106 @@
       "offline": "Estás sin conexión y no hay datos guardados para mostrar.",
       "outOfDate": "Estás sin conexión. Estas cifras pueden estar desactualizadas.",
       "retry": "Reintentar"
+    }
+  },
+  "reports": {
+    "title": "Reportes",
+    "tabs": {
+      "label": "Secciones de reportes",
+      "categories": "Gastos por categoría",
+      "incomeExpenses": "Ingresos vs gastos",
+      "netWorth": "Patrimonio neto"
+    },
+    "range": {
+      "label": "Rango de fechas",
+      "from": "Desde",
+      "to": "Hasta",
+      "apply": "Aplicar",
+      "custom": "Rango personalizado",
+      "presets": {
+        "thisMonth": "Este mes",
+        "last3": "Últimos 3 meses",
+        "last12": "Últimos 12 meses",
+        "last24": "Últimos 24 meses"
+      },
+      "resolved": "Mostrando del {from} al {to}",
+      "limit": "{months, plural, one {El rango puede abarcar hasta # mes.} other {El rango puede abarcar hasta # meses.}}",
+      "errors": {
+        "fromAfterTo": "La fecha de inicio no puede ser posterior a la fecha de fin.",
+        "tooLong": "{months, plural, one {El rango es demasiado largo: el límite es # mes.} other {El rango es demasiado largo: el límite es # meses.}}",
+        "toInFuture": "La fecha de fin no puede ser futura."
+      }
+    },
+    "filters": {
+      "toggle": "{count, plural, =0 {Filtros} one {Filtros (# activo)} other {Filtros (# activos)}}",
+      "account": "Cuenta",
+      "allAccounts": "Todas las cuentas",
+      "archivedAccount": "{name} (archivada)",
+      "unknownAccount": "Cuenta no disponible",
+      "tag": "Etiqueta",
+      "clear": "Quitar filtros"
+    },
+    "currency": {
+      "note": "Los importes están en {currency}, la moneda de visualización de tu perfil.",
+      "changeLink": "Cambiala en la configuración de tu perfil"
+    },
+    "notices": {
+      "unconverted": "Quedan afuera por no tener tipo de cambio: {shares, plural, one {# parte de grupo} other {# partes de grupo}} y {installments, plural, one {# cuota} other {# cuotas}}.",
+      "filtered": "Las cuotas de tarjeta y las partes de grupo no forman parte de un reporte filtrado por cuenta o etiqueta."
+    },
+    "states": {
+      "loading": "Cargando el reporte…",
+      "emptyTitle": "No hay movimientos en este rango",
+      "emptyDescription": "No hay nada para mostrar entre el {from} y el {to}.",
+      "widen": "Ampliar el rango",
+      "record": "Registrar un movimiento",
+      "errorTitle": "No se pudo cargar el reporte",
+      "errorDescription": "Algo salió mal de nuestro lado. Intentá de nuevo en un momento.",
+      "retry": "Reintentar",
+      "retrying": "Reintentando…",
+      "offlineTitle": "Los reportes necesitan conexión",
+      "offlineDescription": "Estás sin conexión. Volvé a conectarte para ver este reporte; las cifras no se guardan en este dispositivo.",
+      "offlineRetry": "Reintentar",
+      "filterGoneMessage": "La cuenta o la etiqueta por la que filtraste ya no existe.",
+      "filterGoneReload": "Quitar los filtros y recargar",
+      "badRangeMessage": "El rango de fechas no es válido. Revisá las fechas e intentá de nuevo."
+    },
+    "categories": {
+      "title": "Gastos por categoría",
+      "total": "Total de gastos",
+      "other": "Otras categorías",
+      "groupShares": "Partes de grupo",
+      "unnamed": "Categoría sin nombre",
+      "percent": "{percent}%",
+      "underOne": "<1%",
+      "chartName": "Gráfico de gastos por categoría",
+      "chartSummary": "Del {from} al {to}, total de gastos {total}.",
+      "listName": "Gastos por categoría"
+    },
+    "incomeExpenses": {
+      "title": "Ingresos y gastos",
+      "income": "Ingresos",
+      "expenses": "Gastos",
+      "net": "Resultado neto",
+      "chartName": "Gráfico de ingresos contra gastos por mes",
+      "chartSummary": "Del {from} al {to}, {months, plural, one {# mes} other {# meses}}.",
+      "listName": "Ingresos y gastos por mes"
+    },
+    "netWorth": {
+      "title": "Patrimonio neto",
+      "date": "Fecha",
+      "ars": "En pesos",
+      "usd": "En dólares",
+      "total": "Total",
+      "noRate": "No hay tipo de cambio para el cierre de este mes, así que no se puede calcular el total.",
+      "investmentsIncomplete": "Las inversiones de este mes no están contadas por completo.",
+      "conversionUnavailable": "Ningún mes pudo convertirse a tu moneda de visualización. Los pesos y los dólares se muestran por separado.",
+      "tooltip": "{date}: {value}",
+      "chartName": "Gráfico del patrimonio neto en el tiempo",
+      "chartSummary": "Del {from} al {to}, {points, plural, one {# punto} other {# puntos}}.",
+      "listName": "Patrimonio neto por fecha",
+      "selectedPoint": "Punto seleccionado: {date}",
+      "announce": "{date}, {value}"
     }
   }
 }

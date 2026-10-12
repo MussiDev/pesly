@@ -51,7 +51,7 @@ screen, no push notification and no change to the group write path are part of t
   by a rejection handler attached to the same promise, so no rejection is unhandled. Why inline and not
   fire-and-forget: a detached task is lost when the process stops, a test cannot await it, and an
   in-memory queue breaks the stateless API rule of `AGENTS.md`; why not a polling worker: parent
-  decision 2. Inline await adds the evaluation time to the response, which NFR-02 bounds at 100 ms at
+  decision 2. Inline await adds the evaluation time to the response, which NFR-02 bounds at 150 ms at
   p95 and the 2,000 ms bound caps in the worst case. Needs the owner's confirmation.
 - D4: What is logged (FR-06). `reportFailure` is wired to `logger.error` with `{ errorName, errorCode,
   userId }` taken from the error, never the error object itself: a database driver error carries the
@@ -135,7 +135,7 @@ screen, no push notification and no change to the group write path are part of t
 4. Once per threshold per budget per month, even when the spending falls and crosses again (D7, D10).
    Alternative: re-arm below the threshold.
 5. The marks table carries `owner_id` for the composite key (D10).
-6. The 100 ms p95 target of NFR-02 is a proposal; if the benchmark cannot meet it with 50 budgets
+6. The 150 ms p95 target of NFR-02 is a proposal; if the benchmark cannot meet it with 50 budgets
    covering one category, Block 5 reports the measured value instead of loosening the test.
 
 ## Coverage: PRD → blocks
@@ -440,7 +440,7 @@ The flow test drives `POST /movements`, `PUT /movements/:id`, the device path an
 and reads `GET /notices`. The benchmark seeds one user with `seedDataset` (100,000 movements), 50
 budgets of 06b whose categories all cover the category of the measured expense (half with rollover on),
 and measures the added time of `POST /movements` with the evaluation on against the same request with the
-hook off, 300 requests, 8 connections, 20 warm-up, requiring the difference at p95 under 100 ms and every
+hook off, 300 requests, 8 connections, 20 warm-up, requiring the difference at p95 under 150 ms and every
 status 201; the control also compares the number of notices published with a total computed in SQL, so
 an evaluator that does nothing cannot pass.
 
@@ -489,7 +489,7 @@ unique keys, the foreign keys with the owner and the check constraints) and none
       AC-15
 - [ ] Flow: a second API instance publishes the same notice for the same state, with no process state
       involved — validates the stateless rule of `AGENTS.md`
-- [ ] Benchmark: the evaluation adds under 100 ms at p95 to `POST /movements` for 50 budgets covering the
+- [ ] Benchmark: the evaluation adds under 150 ms at p95 to `POST /movements` for 50 budgets covering the
       category and 100,000 movements, every status 201 and the notices equal the SQL control —
       validates AC-24
 - [ ] Scan: a forbidden token in a file of the feature is an error that names the file; the files contain

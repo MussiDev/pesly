@@ -1,7 +1,8 @@
 'use client';
 
 import { useLocale } from 'next-intl';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { signInHref } from '@/lib/return-path';
 import { UnreadBadgeContainer } from '@/features/notices/containers/unread-badge-container';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
@@ -37,6 +38,11 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   const router = useRouter();
   // Outside Next.js (unit tests) there is no pathname; nothing is marked as current then.
   const pathname = usePathname() as string | null;
+  // Read through a ref so a navigation does not ask the API for the session again.
+  const pathRef = useRef(pathname);
+  useEffect(() => {
+    pathRef.current = pathname;
+  });
   const online = useOnlineStatus();
   const locale = useLocale();
   const [state, setState] = useState<ShellState>({ kind: 'loading' });
@@ -87,7 +93,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
     void api.getSession().then((result) => {
       if (!active) return;
       if (!result.ok) {
-        if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+        if (result.code === 'UNAUTHENTICATED') router.replace(signInHref(pathRef.current ?? ''));
         else if (result.code === 'NETWORK' && openFromPointer()) return;
         else setState({ kind: 'failed', error: result.messageKey });
         return;

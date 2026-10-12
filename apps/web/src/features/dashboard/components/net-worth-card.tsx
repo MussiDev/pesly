@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import { drawnPoints } from '../chart/chart-geometry';
@@ -35,8 +36,6 @@ export function NetWorthCard({
   const t = useTranslations('dashboard');
   // Amounts in another currency would be labeled with the wrong one, so that series is not shown.
   const showSeries = series.kind === 'ready' && series.currency === currency;
-  // The white card below the figures holds the notice and the chart; with neither it is left out.
-  const hasDetail = netWorth.holdingsWithoutPrice > 0 || series.kind === 'failed' || showSeries;
   const drawnCount = series.kind === 'ready' && showSeries ? drawnPoints(series.points).length : 0;
 
   return (
@@ -69,28 +68,32 @@ export function NetWorthCard({
           </div>
         </dl>
       </div>
-      {hasDetail ? (
-        <Card className="min-w-0">
-          <CardContent className="flex min-w-0 flex-col gap-4">
-            <NetWorthNotice count={netWorth.holdingsWithoutPrice} />
-            {series.kind === 'ready' ? (
-              showSeries ? (
-                <>
-                  <NetWorthChart locale={locale} currency={currency} points={series.points} />
-                  {drawnCount > 0 ? (
-                    <p className="text-caption text-muted-foreground">
-                      {t('netWorth.lastPointNote')}
-                    </p>
-                  ) : null}
-                  <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
-                </>
-              ) : null
-            ) : (
-              <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
-            )}
-          </CardContent>
-        </Card>
-      ) : null}
+      <Card className="min-w-0">
+        <CardContent className="flex min-w-0 flex-col gap-4">
+          <NetWorthNotice count={netWorth.holdingsWithoutPrice} />
+          {series.kind === 'ready' ? (
+            showSeries ? (
+              <>
+                <NetWorthChart locale={locale} currency={currency} points={series.points} />
+                {drawnCount > 0 ? (
+                  <p className="text-caption text-muted-foreground">
+                    {t('netWorth.lastPointNote')}
+                  </p>
+                ) : null}
+                <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
+              </>
+            ) : null
+          ) : (
+            <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
+          )}
+          <Link
+            href="/reports/net-worth"
+            className="inline-flex min-h-11 items-center self-start text-small font-medium text-primary underline-offset-4 hover:underline"
+          >
+            {t('netWorth.viewReport')}
+          </Link>
+        </CardContent>
+      </Card>
     </section>
   );
 }
