@@ -284,8 +284,12 @@
   }
 }
 
-/* The balance card background and its lift; a gradient cannot be a colour utility. */
+/*
+ * The balance card background and its lift; a gradient cannot be a colour utility. The solid colour
+ * under it is what shows if the gradient does not paint, and what a contrast check reads.
+ */
 @utility bg-hero {
+  background-color: var(--hero-from);
   background-image: var(--hero);
   box-shadow: var(--elevation-hero);
 }
