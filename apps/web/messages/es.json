@@ -1981,5 +1981,84 @@
       "percentage": "Porcentajes",
       "exact": "Montos exactos"
     }
+  },
+  "goals": {
+    "list": {
+      "title": "Metas de ahorro",
+      "description": "Reservá dinero para lo que importa y seguí cuánto te falta.",
+      "create": "Nueva meta",
+      "empty": {
+        "title": "Todavía no tenés metas de ahorro",
+        "description": "Creá una meta para empezar a seguir tu progreso.",
+        "action": "Crear una meta"
+      },
+      "retry": "Reintentar",
+      "error": "No pudimos cargar tus metas. Revisá tu conexión e intentá de nuevo."
+    },
+    "card": {
+      "progressOfTarget": "{saved} de {target}",
+      "percentage": "{percent, number, ::percent} ahorrado",
+      "monthlyNeeded": "Necesitás {amount} por mes",
+      "reached": "Meta alcanzada",
+      "overdue": "Pasó la fecha objetivo",
+      "targetDate": "Fecha objetivo: {date}",
+      "linkedToAccount": "Vinculada a {account}"
+    },
+    "detail": {
+      "title": "Meta",
+      "back": "Volver a las metas",
+      "entries": {
+        "title": "Movimientos",
+        "contribution": "Aporte",
+        "withdrawal": "Retiro",
+        "latestNote": "Solo se muestran los últimos {count} movimientos.",
+        "empty": "Todavía no hay movimientos.",
+        "loadMore": "Ver más"
+      },
+      "edit": "Editar meta",
+      "delete": "Eliminar meta",
+      "linkedNotice": "Esta meta sigue el saldo de su cuenta, por eso no se pueden registrar aportes ni retiros.",
+      "notFound": {
+        "title": "Meta no encontrada",
+        "description": "Esta meta no existe o fue eliminada.",
+        "back": "Volver a las metas"
+      }
+    },
+    "form": {
+      "createTitle": "Nueva meta",
+      "editTitle": "Editar meta",
+      "name": "Nombre",
+      "targetAmount": "Monto objetivo",
+      "currency": "Moneda",
+      "targetDate": "Fecha objetivo (opcional)",
+      "clearTargetDate": "Quitar fecha objetivo",
+      "account": "Vincular a una cuenta (opcional)",
+      "accountNone": "Sin cuenta",
+      "noAccounts": "No tenés cuentas en esta moneda para vincular.",
+      "errors": {
+        "nameRequired": "Ingresá un nombre para la meta.",
+        "nameTooLong": "El nombre es demasiado largo.",
+        "amountInvalid": "Ingresá un monto mayor a cero.",
+        "dateInvalid": "Ingresá una fecha válida."
+      },
+      "submit": "Guardar meta",
+      "cancel": "Cancelar",
+      "saving": "Guardando..."
+    },
+    "entries": {
+      "contributionTitle": "Agregar un aporte",
+      "withdrawalTitle": "Retirar de esta meta",
+      "amount": "Monto",
+      "submitContribution": "Agregar aporte",
+      "submitWithdrawal": "Retirar",
+      "recorded": "Movimiento registrado.",
+      "errors": { "amountInvalid": "Ingresá un monto mayor a cero." }
+    },
+    "delete": {
+      "title": "¿Eliminar esta meta?",
+      "description": "Se eliminarán sus movimientos. No cambia el saldo de ninguna cuenta.",
+      "confirm": "Eliminar meta",
+      "cancel": "Cancelar"
+    }
   }
 }
