@@ -15,7 +15,8 @@
 | `drizzle-movement-repository.ts` edit lock behind `PUT /movements/:id` | Block 5 (`apps/api/src/movements/infrastructure/db/drizzle-movement-repository.ts`; also the queued edits the sync pass replays through it) |
 | `drizzle-payer-movement-recorder.ts` (adoption lock, propagation, detach on delete) | Block 4 (`apps/api/src/groups/infrastructure/movements/drizzle-payer-movement-recorder.ts`) |
 | `GET /movements/:id` detail answer and `GET /movements` list `groupLinks` | Block 5 |
-| Activity log marker `group_activity_log.from_movement` | Blocks 2, 4, 11 (migration 0036 and the activity presenter) |
+| Activity log markers `group_activity_log.from_movement` and `auto_category` | Blocks 2, 4, 11 (migration 0036 and the activity presenter) |
+| Automatic category resolver `ensure-default-category.ts`, called inside the send transaction | Blocks 15, 4 (`apps/api/src/groups/infrastructure/db/ensure-default-category.ts`; D18) |
 | Web: `api-client.ts`, `features/movements/send-to-group/*` and `edit-movement-container.tsx` | Blocks 7, 8, 9, 10 |
 | Web: movements list send icon, marker and `focus` query (`movements-container.tsx`) | Block 12 |
 | Web: home recent-movement links (`recent-movements.tsx`) | Block 13 |
@@ -39,6 +40,9 @@
 - Address bar → movements list: the `focus` query value is untrusted input typed or pasted by anyone (a
   shared or crafted link). It is validated as a uuid, compared only with ids of rows already loaded under the
   caller's own scope, never sent to the API and never rendered, so it can neither read nor reveal anything.
+- Member → group category table: a send with no category makes the server create or restore the group's
+  "Other expenses" default on behalf of a caller who may not be an admin. The key, icon and color are
+  server constants and nothing about the category comes from the request; the caller only needs membership.
 - Error body → client: refusals travel as a code only; the client turns a code into catalog text.
 
 ## STRIDE analysis
@@ -63,7 +67,9 @@
   the first 409 after reading one row.
 - **Elevation of Privilege:** any active member may send their own movement into the group (the same right as
   recording an expense there); a non-member or a former member gets 404 from `GroupAccess.member`; the route
-  grants nothing on the group beyond creating the caller's own expense.
+  grants nothing on the group beyond creating the caller's own expense and, when no category is named, the
+  one automatic default category (see the resolver section below); `create-group-category.ts` and
+  `update-group-category.ts` keep requiring the admin role.
 
 ### `drizzle-group-expense-repository.ts` and the unique index `group_expenses_payer_movement_unique`
 - **Spoofing:** the movement is locked under the payer's owner scope, so a movement of another user is not
@@ -136,17 +142,45 @@
 - **Elevation of Privilege:** the link grants no access to the group; every group read still checks
   membership.
 
-### Activity log marker `group_activity_log.from_movement`
-- **Spoofing:** the marker is set by the server in the creation transaction, never by the request; no body
-  field can set it.
-- **Tampering:** a check constraint allows it only on `expense_created`, and the immutability trigger refuses
-  update and delete of any row, so the marker cannot be added or removed afterwards.
+### Automatic category resolver `ensure-default-category.ts`, called inside the send transaction
+- **Spoofing:** the group id is the one `GroupAccess.member` authorised for the session user; the resolver
+  takes no user, member or role from the request, so nobody can create a category in a group they are not an
+  active member of.
+- **Tampering:** the category's default key, icon and color come from the shared `DEFAULT_CATEGORIES`
+  entry `other-expenses` and its name is stored as null; the strict body rejects `categoryName`, `categoryKey`,
+  `icon` and `color` (FR-19), so a member cannot choose, rename or style the category through the send. A
+  category renamed by an admin keeps its key and is used as is, never overwritten. Only `archived_at` of that
+  one default row is ever updated.
+- **Repudiation:** the creation entry written in the same transaction carries `auto_category` `created` or
+  `restored` and the caller's member id and server time; the log is immutable (trigger), so an admin who
+  finds the category back can see who caused it and when, and a member cannot deny it.
+- **Information Disclosure:** the answer adds only `autoCategory` (`created`, `restored` or null) to a
+  response the caller already receives; the resolver returns no row of another group and no name; refusals still
+  carry a code only.
+- **Denial of Service:** concurrent sends to a group without the category converge on one row through the
+  unique partial index `(group_id, default_key)` and `ON CONFLICT DO NOTHING`, then a re-read: at most one
+  row can exist per group, so the table cannot be flooded through the send (a group has at most one such row,
+  and the action cannot create any other); the work is one indexed read and at most one insert or update, inside
+  the transaction that already holds the movement lock. A refused or failed send rolls the creation back.
+- **Elevation of Privilege:** a member without the admin role causes a category insert or an un-archive,
+  which the category routes reserve to admins. It is bounded by design: one fixed default key per group, no
+  user-supplied value, the same row the group is created with, and no other permission changes; an admin who
+  archived it on purpose can archive it again and the restoration is visible in the log. Decision awaiting the
+  owner: restore an archived category (current proposal) or fall back to the first active one (no write to an
+  admin's choice).
+
+### Activity log markers `group_activity_log.from_movement` and `auto_category`
+- **Spoofing:** the markers are set by the server in the creation transaction, never by the request; no body
+  field can set them.
+- **Tampering:** check constraints allow `from_movement` only on `expense_created` and `auto_category` only
+  with `from_movement` on a creation (values `created` or `restored`), and the immutability trigger refuses
+  update and delete of any row, so the markers cannot be added or removed afterwards.
 - **Repudiation:** the entry shows that the expense came from an existing movement, who created it and when,
   so a member cannot later claim the expense was typed in the group.
-- **Information Disclosure:** the marker is a boolean; the entry carries no movement id, account name, note or
+- **Information Disclosure:** the markers are a boolean and a two-value enum; the entry carries no movement id, account name, note or
   amount of the movement beyond the group expense's own fields (AC-18), so other members learn only that the
   expense was created from a movement.
-- **Denial of Service:** one boolean column on an append-only table; no new query or index.
+- **Denial of Service:** one boolean and one short text column on an append-only table; no new query or index.
 - **Elevation of Privilege:** not applicable; the marker grants and gates nothing.
 
 ### Web: `api-client.ts`, `features/movements/send-to-group/*` and `edit-movement-container.tsx`
@@ -202,7 +236,7 @@
 |---|---|---|---|
 | Movement amount, date, account, note, tags and rate that the send adopts | financial | PostgreSQL, managed encryption at rest; never copied by a send (0 new movement rows) | HTTPS only, behind the session cookie |
 | Group expense, shares and member ids created from a movement | financial | PostgreSQL, managed encryption at rest | HTTPS only |
-| Activity log entry with `from_movement` and the member and time | financial | PostgreSQL, managed encryption at rest; immutable by trigger | HTTPS only |
+| Activity log entry with `from_movement`, `auto_category` and the member and time | financial | PostgreSQL, managed encryption at rest; immutable by trigger | HTTPS only |
 | Group link of a movement (`groupId`, `expenseId`, `adopted`), in the detail and the list `groupLinks` | public | PostgreSQL, managed encryption at rest; ids only | HTTPS only |
 | `focus` query value (a movement id in the address) | public | not stored; lives in the address bar and browser history | HTTPS only; never sent to the API |
 | Error codes such as `GROUP_MOVEMENT_ALREADY_SENT` | public | not stored; a rejected queued edit keeps the code (at most 64 characters) in the user's own device database, deleted on sign-out | HTTPS only |
@@ -226,7 +260,17 @@
 | R-13 | Markup or script in a group description, group name or note runs in another member's page through the lists or the activity page | T | Medium | High | Every description, name and note is rendered as React text with no HTML injection; the new marker is a boolean and the catalog text is static; the list marker "In group X" renders the name as React text (Blocks 9, 10, 11, 12) |
 | R-14 | A float slips into money on the way (note derivation, split, display) | T | Medium | High | The amount is the movement's `bigint`, shares go through the shared allocation helper, a test over 1,000 random amounts proves the shares add up, and a scan rejects float conversions in the new files (Blocks 3, 8, 12) |
 | R-16 | The `focus` query value of a crafted or shared link injects markup or a selector, probes whether a movement id exists, or breaks the list | T | Medium | Low | Validated as a uuid, compared in code with loaded ids only, never rendered, used in a selector, stored or sent; an unknown or malformed value shows the list with no highlight and no error, so there is no oracle; tests with `abc`, a markup string and an unknown uuid (Block 12, Block 14) |
+| R-17 | A member who is not an admin creates or un-archives a group category through the send (elevation of privilege) | E | Medium | Medium | The resolver is a system action limited to one constant default key per group, with its default icon and color and a null name; the caller needs membership only, nothing about the category comes from the request (strict body), so no custom category, name or style can be created; category routes keep `access.admin`; tests with a non-admin member and with a body naming a name or key (Blocks 1, 6, 15) |
+| R-18 | The category's name, key, icon or color is tampered with through the send, or its name squatted (tampering) | T | Medium | Medium | The body rejects `categoryName`, `categoryKey`, `icon` and `color`; the row is written with the constants of `DEFAULT_CATEGORIES` and `name` null; an admin's rename of the default is never overwritten; test asserts the stored values (Blocks 1, 6, 15) |
+| R-19 | Concurrent sends to a group without the category create duplicate rows or exhaust locks (DoS, race) | D | Medium | Medium | The unique partial index `(group_id, default_key)` with `ON CONFLICT DO NOTHING` and a re-read leaves exactly 1 row; one indexed read and at most one write inside the existing transaction; a test runs 20 concurrent sends of 20 movements and counts 1 category row and 20 expenses (Blocks 4, 15) |
+| R-20 | The automatic creation or restoration of a category cannot be traced to who caused it (repudiation) | R | Medium | Medium | The creation entry of the immutable log records `auto_category` `created` or `restored` with the caller's member id and the server time, in the same transaction; the activity page shows it as text (Blocks 2, 4, 11) |
 | R-15 | A web bundle cached before the deploy cannot read the activity entry with the new required field | D | Medium | Low | The page shows the generic failure with retry and the service worker update loads the new bundle; accepted as a short transitional effect and listed for the owner in the spec (Block 11) |
+
+## Decision Log
+- 2026-10-11: Owner decision: the send keeps the group category automatic and the system creates the group's
+  "Other expenses" category when it is missing. The threat entries for the resolver (R-17 to R-20) were added
+  for it. Proposed by the model, awaiting the owner: an archived category is restored (alternative: fall back
+  to the first active category, which never changes an admin's choice).
 
 ## Supply chain
 No new runtime dependency is added (spec D13): the send reuses the existing Express route stack, Zod schemas of

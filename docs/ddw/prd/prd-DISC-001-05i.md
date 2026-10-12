@@ -5,7 +5,7 @@
 | Ticket | DISC-001-05i |
 | Tracker | none |
 | Date | 2026-10-11 |
-| PRD loops | 1 |
+| PRD loops | 2 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -18,7 +18,9 @@ again in the group, retyping amount, date and account, and getting a second, dif
 
 This ticket adds the reverse path: a "Send to group" icon action on each eligible row of the movements list
 (next to edit and delete). The person picks the group (one tap) and confirms: the category and the split
-start preselected, so the whole send takes at most 3 taps, and the person can change the split first. The
+start preselected (the category is automatic: the server creates or restores the group's "Other expenses"
+category when it is missing or archived), so the whole send takes at most 3 taps, and the person can change
+the split first. The
 group expense is created adopting the movement
 as the payer's account movement: no second movement exists, the account balance does not change, and the
 movement keeps its own personal category, note, tags and frozen rate. As with every group expense, only the
@@ -52,6 +54,11 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - Movements that are not expenses (income, transfers, currency exchanges) cannot be sent. Card installments
   are not movements, and card statement payments and automatic debits are transfers, so they are excluded by
   the type rule. A movement made by a recurring payment or a device is an ordinary expense and may be sent.
+- Groups are created with the default top-level expense categories seeded (`defaultKey` set, among them
+  `other-expenses`, icon `ellipsis`, color `slate`), and the table has a unique partial index on
+  `(group_id, default_key)`. Creating or editing a category is admin-only and categories can be archived,
+  never deleted; the expense use cases refuse an archived category. A group can therefore lack a usable
+  "Other expenses" category (an admin archived it, or the group predates the seeding).
 - The group currencies are ARS and USD per expense, so the expense takes the account's currency; there is no
   currency mismatch to refuse.
 
@@ -70,8 +77,8 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   server already holds and that is not linked to a group expense; a row whose movement is already linked
   shows an "In group X" marker instead of the action.
 - FR-03: The system must show on the send screen the user's groups, let one tap choose one (preselecting it
-  when the person has exactly one), and preselect the group's category "Other expenses" (the first active
-  category when that one is archived or missing) and a description that starts from the movement's note,
+  when the person has exactly one), and preselect the group's category "Other expenses" as the automatic
+  category (FR-18) and a description that starts from the movement's note,
   with the amount, currency and date taken from the movement and shown but not editable.
 - FR-04: The system must preselect the split as equal among all active members once a group is chosen, with
   the person as the payer, and let the person open the same split editor as the group expense form
@@ -105,6 +112,15 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   movements list scrolled to that movement and highlighting it, where the same row actions exist.
 - FR-17: The system must show the movements list normally, with no highlight and no error, when the movement
   to focus is not found among the rows or its id is not a valid id.
+- FR-18: The system must, when a send names no category, resolve the group's "Other expenses" default
+  category inside the same transaction as the send: use it when it is active, restore it when it is archived,
+  and create it with its default key, icon and color when it is missing, so a send never fails for lack of a
+  category and a refused send leaves the category untouched.
+- FR-19: The system must let any member of the group send (the automatic category needs no admin role), and
+  must take the category's key, name, icon and color only from the server's defaults, never from the request.
+- FR-20: The system must record, on the creation entry of the activity log and attributed to the sender, that
+  the category was created or restored automatically, answer the send with that fact, and show the person a
+  one-line notice in Spanish and English.
 
 ## Non-Functional Requirements
 - NFR-01: The send screen, the movements list rows with the new icon and marker, and the home recent rows
@@ -128,6 +144,9 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - NFR-08: From the movements list to a recorded send must take at most 3 taps with the default split (the
   icon, the group, the confirmation; 2 taps when the person has one group), verified by an end-to-end test
   that counts the interactions.
+- NFR-10: When 20 different movements are sent at the same time to a group that has no "Other expenses"
+  category, the group must end with exactly 1 such category row and 20 expenses that use it, verified by an
+  integration test against PostgreSQL.
 - NFR-09: The home screen must make 0 more API requests than today, and the movements list at most 1 more
   (the person's groups, only when a loaded row is linked to a group expense), verified by tests that count
   the calls; opening the list with a `focus` id must cost no request beyond opening it without one.
@@ -149,12 +168,11 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - AC-06 (FR-03): WHEN the person taps the icon, THE system SHALL open the send screen of that movement
   showing its amount, currency and date as text and the groups the person belongs to, one tap choosing one.
 - AC-07 (FR-03): WHEN the person chooses a group, THE system SHALL list that group's categories with "Other
-  expenses" chosen (the first active category when it is archived or missing) and prefill the description
-  with the movement's note, cut to the 200 characters a group description allows.
+  expenses" chosen as the automatic category (also when the group has none or has it archived) and prefill
+  the description with the movement's note, cut to the 200 characters a group description allows.
 - AC-08 (FR-03): IF the person belongs to no group, THEN THE system SHALL say so and link to the groups
   list.
-- AC-09 (FR-03): IF the description is empty or the person clears the category, THEN THE system SHALL show a
-  field error and not send.
+- AC-09 (FR-03): IF the description is empty, THEN THE system SHALL show a field error and not send.
 - AC-10 (FR-04): WHEN the person opens the split editor and chooses equal, percentage or exact, THE system
   SHALL show the same split fields as the group expense form.
 - AC-11 (FR-04): IF the percentages do not add up to 100 or the exact amounts do not add up to the
@@ -174,7 +192,7 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   with the member, the date and time and a marker that it came from a movement.
 - AC-18 (FR-07): WHEN a member reads that entry, THE system SHALL show that the expense was created from a
   movement, with no reference to the movement's account.
-- AC-19 (FR-08): IF the category does not belong to the group or is archived, THEN THE system SHALL refuse
+- AC-19 (FR-08): IF a category sent in the request does not belong to the group or is archived, THEN THE system SHALL refuse
   the send and say that the category is not valid for the group.
 - AC-20 (FR-08): IF the split names a person who is not a member of the group, THEN THE system SHALL refuse
   the send and say that a split member is not valid.
@@ -232,6 +250,28 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - AC-44 (FR-17): IF the `focus` value is not a valid id, THEN THE system SHALL ignore it and show the list
   without highlight and without an error.
 
+- AC-45 (FR-18): WHEN a send names no category and the group has no "Other expenses" category, THE system
+  SHALL create it with its default key, icon and color, use it for the expense and answer that it was
+  created.
+- AC-46 (FR-18): WHEN a send names no category and the group's "Other expenses" category is archived, THE
+  system SHALL restore it, use it for the expense and answer that it was restored.
+- AC-47 (FR-18): WHEN a send names no category and the group's "Other expenses" category is active, THE
+  system SHALL use it, create and restore nothing and answer that nothing was changed.
+- AC-48 (FR-18): IF two sends reach a group without the category at the same time, THEN THE system SHALL
+  leave exactly one "Other expenses" category row and both expenses SHALL use it.
+- AC-49 (FR-18): IF a send is refused for any reason, THEN THE system SHALL leave the group's categories as
+  they were, so no category is created or restored by a refused send.
+- AC-50 (FR-19): WHEN a member who is not an admin of the group sends a movement to a group without the
+  category, THE system SHALL accept the send and create the category.
+- AC-51 (FR-19): IF the request carries a category name, icon, color or key, THEN THE system SHALL refuse it
+  as invalid, and the created category SHALL have the default key, the default icon and color and no custom
+  name.
+- AC-52 (FR-20): WHEN the category is created or restored by a send, THE system SHALL add to the creation
+  entry of the activity log a marker of that action next to the sender and the time, and show it to
+  members as text.
+- AC-53 (FR-20): WHEN the send answers that the category was created or restored, THE system SHALL show
+  the person a one-line notice in Spanish or English, with no amount in it.
+
 ## Out of Scope
 - Income, transfers and currency exchanges: only expense movements are sent.
 - Sending to a group where another member paid: the person is always the payer, the same rule as an
@@ -242,7 +282,9 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - Offline use: group screens are online only (PRD 05 decision), so the action is not queued.
 - Turning a group expense back into a personal-only movement beyond the detach on deletion.
 - Choosing the group category from the movement's personal category: the send screen preselects the group's
-  "Other expenses" and the person can change it.
+  "Other expenses" (automatic) and the person can change it.
+- Letting the sender name, rename or style the automatic category, and a separate category entry in the
+  activity log: the creation entry carries the fact.
 - A movement detail screen: the list row carries the action, and the edit screen only shows the notice.
 - Finding a focused movement beyond the first page of the list: the list then shows without highlight.
 - Changing the currency, the account or the payer of the expense: they come from the movement.
@@ -266,12 +308,20 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - **The default category or split is wrong for the person and they send without looking** → both are shown
   on the screen before the confirm button, the description and the split summary are visible text, and the
   split editor is one tap away (FR-03, FR-04).
+- **A member creates categories without being an admin through the send** -> the system action is limited
+  to one fixed default key, with its default icon and color and no name taken from the request; the
+  unique index makes it idempotent (FR-19, AC-50, AC-51).
+- **An admin archived "Other expenses" on purpose and sends restore it** -> stated as a proposed decision
+  (Decision Log) with the fallback to the first active category; the admin can archive it again, and the
+  log entry shows the restoration (FR-18, FR-20).
 - **The `focus` value of the address is hostile or malformed** → it is validated as a uuid, never rendered,
   and used only to find a loaded row (FR-17, AC-44).
 - **A float slips into money** → amounts stay integers in minor units and go through the shared helpers
   (NFR-05).
 
 ## Dependencies
+- DISC-001-05a (groups and their categories) — the default categories seeded at group creation, their unique
+  `(group, default key)` index and the archive rule.
 - DISC-001-05b (group expenses and splits) — the expense, its shares, the payer movement link and the
   activity entry that this ticket reuses.
 - DISC-001-05d (editing rules and activity log) — the edit and delete behaviour that this ticket changes for
@@ -321,3 +371,19 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   were rewritten; FR-15 to FR-17, NFR-08, NFR-09 and AC-35 to AC-44 were added; the five earlier owner
   decisions stand. Assumption to confirm: the preselected group category is "Other expenses" (needed to meet
   3 taps; deriving it from the movement's own category stays out of scope).
+- 2026-10-11: Owner decision (resolves the assumption above): the send-to-group flow keeps the group category
+  automatic, with no category step (3 taps), and when the group has no usable "Other expenses" category the
+  system creates it for the group. Verified in code: the key is `other-expenses` (icon `ellipsis`, color
+  `slate`); group categories are created from the defaults at group creation; the unique partial index on
+  `(group_id, default_key)` makes creation idempotent; creating and editing categories is admin-only and
+  expense use cases refuse archived categories. Rule: inside the send's transaction the server resolves the
+  category; missing, it inserts it with the default key, icon and color (a concurrent insert is absorbed by
+  the index); archived, it un-archives it. It is a system action that needs membership only, since the
+  category is never user-supplied (fixed key, no name input: no privilege escalation, no name squatting). The
+  log has no category actions, so the fact travels on the expense creation entry (smaller change than new
+  actions). FR-18 to FR-20, NFR-10 and AC-45 to AC-53 were added; FR-03, FR-08, AC-07, AC-09 and AC-19 were
+  adjusted.
+- 2026-10-11: Proposed by the model, awaiting the owner: when the category exists but is archived, the send
+  restores it (an admin who archived it on purpose can archive it again, and the log shows the restoration).
+  Alternative: do not touch an archived category and fall back to the first active category (a send then
+  fails only when the group has no active category, which cannot be fixed without an admin).
