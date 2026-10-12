@@ -3,9 +3,11 @@ import { sql, type SQL } from 'drizzle-orm';
 import {
   bigint,
   check,
+  date,
   index,
   integer,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -50,6 +52,33 @@ export const exchangeRates = pgTable(
     check('exchange_rates_rate_type_check', oneOf(table.rateType, RATE_TYPES)),
     check('exchange_rates_buy_range_check', sql`${table.buy} between 1 and ${RATE_MAX_LITERAL}`),
     check('exchange_rates_sell_range_check', sql`${table.sell} between 1 and ${RATE_MAX_LITERAL}`),
+  ],
+);
+
+/**
+ * One row per rate type and Argentina calendar day, the last values of the day winning. Feeds the
+ * month-end conversion of the net worth report. No foreign key: it outlives any one stored rate.
+ */
+export const exchangeRateHistory = pgTable(
+  'exchange_rate_history',
+  {
+    rateType: text('rate_type', { enum: RATE_TYPES }).notNull(),
+    rateDate: date('rate_date', { mode: 'string' }).notNull(),
+    buy: bigint('buy', { mode: 'bigint' }).notNull(),
+    sell: bigint('sell', { mode: 'bigint' }).notNull(),
+    recordedAt: timestamptz('recorded_at').notNull(),
+  },
+  (table) => [
+    primaryKey({ name: 'exchange_rate_history_pkey', columns: [table.rateType, table.rateDate] }),
+    check('exchange_rate_history_rate_type_check', oneOf(table.rateType, RATE_TYPES)),
+    check(
+      'exchange_rate_history_buy_range_check',
+      sql`${table.buy} between 1 and ${RATE_MAX_LITERAL}`,
+    ),
+    check(
+      'exchange_rate_history_sell_range_check',
+      sql`${table.sell} between 1 and ${RATE_MAX_LITERAL}`,
+    ),
   ],
 );
 

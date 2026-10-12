@@ -50,3 +50,5 @@ export * from './groups/conflict';
 export * from './budgets/budget';
 export * from './budgets/spending';
 export * from './goals/goal';
+export * from './reports/report-range';
+export * from './reports/report';
