@@ -196,6 +196,32 @@ export const groupExpenseResponseSchema = z.object({
 
 export type GroupExpenseResponse = z.infer<typeof groupExpenseResponseSchema>;
 
+/** Key of the default category a send uses when the request names none (spec D18). */
+export const AUTOMATIC_SEND_CATEGORY_KEY = 'other-expenses';
+
+/** Whether sending created the automatic category or restored an archived one. */
+export const automaticCategoryChangeSchema = z.enum(['created', 'restored']);
+export type AutomaticCategoryChange = z.infer<typeof automaticCategoryChangeSchema>;
+
+/**
+ * Sends an existing movement to a group as an expense: amount, currency, date and payer come from the
+ * movement, so any other key (including a category name, key, icon or color) is invalid.
+ */
+export const sendMovementToGroupRequestSchema = z.strictObject({
+  movementId: z.uuid(),
+  categoryId: z.uuid().optional(),
+  description: groupExpenseDescriptionSchema.optional(),
+  split: splitSchema,
+});
+
+export type SendMovementToGroupRequest = z.infer<typeof sendMovementToGroupRequestSchema>;
+
+export const sendMovementToGroupResponseSchema = groupExpenseResponseSchema.extend({
+  autoCategory: automaticCategoryChangeSchema.nullable(),
+});
+
+export type SendMovementToGroupResponse = z.infer<typeof sendMovementToGroupResponseSchema>;
+
 export const groupExpensePageSchema = z.object({
   items: z.array(groupExpenseResponseSchema),
   nextCursor: z.string().nullable(),

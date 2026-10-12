@@ -45,6 +45,8 @@ const entry = {
   createdAt: NOW,
   before: expenseSnapshot,
   after: { ...expenseSnapshot, amount: '40000' },
+  fromMovement: false,
+  autoCategory: null,
 };
 
 const okEntry = (input: unknown) => activityEntrySchema.safeParse(input).success;
@@ -125,6 +127,19 @@ describe('activityEntrySchema (AC-08, AC-09, AC-10)', () => {
     const withoutAfter: Record<string, unknown> = { ...entry };
     delete withoutAfter.after;
     expect(okEntry(withoutAfter)).toBe(false);
+  });
+
+  it('requires fromMovement and a nullable autoCategory', () => {
+    expect(okEntry({ ...entry, fromMovement: true, autoCategory: 'created' })).toBe(true);
+    expect(okEntry({ ...entry, autoCategory: 'restored' })).toBe(true);
+    const noFrom: Record<string, unknown> = { ...entry };
+    delete noFrom.fromMovement;
+    expect(okEntry(noFrom)).toBe(false);
+    const noAuto: Record<string, unknown> = { ...entry };
+    delete noAuto.autoCategory;
+    expect(okEntry(noAuto)).toBe(false);
+    expect(okEntry({ ...entry, fromMovement: 'yes' })).toBe(false);
+    expect(okEntry({ ...entry, autoCategory: 'other' })).toBe(false);
   });
 
   it('parses a page with a cursor and with none', () => {
