@@ -197,3 +197,4 @@ a per-group month stays small; PLAN confirms it with the 5,000-expense benchmark
   no dependency. Proposed by the model, awaiting the owner's acceptance.
 - 2026-10-11: Period is one calendar month at a time, in the user's time zone; custom ranges stay out of
   scope. Proposed by the model, awaiting the owner's acceptance.
+- 2026-10-11: Open question 1 resolved by the owner: the reading is right (a category on each group expense plus a spending-by-category summary). Questions 2 and 3 keep the recommendation (a section of the expenses page, one calendar month at a time) and are decided at PLAN.
