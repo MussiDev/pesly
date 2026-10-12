@@ -27,10 +27,22 @@ async function pushManager(): Promise<PushManager> {
   return (await navigator.serviceWorker.ready).pushManager;
 }
 
+/**
+ * The push manager of the worker registered for this page, or `null` without one. `ready` never
+ * settles when no worker is registered (a blocked or failed registration), and reading or removing
+ * a subscription must not wait for that: the sign-out goes through here.
+ */
+async function registeredPushManager(): Promise<PushManager | null> {
+  const registration = await navigator.serviceWorker.getRegistration();
+  return registration?.pushManager ?? null;
+}
+
 /** The browser's current subscription, or `null` when there is none (or it cannot be read). */
 export async function readSubscription(): Promise<BrowserPushSubscription | null> {
   try {
-    const subscription = await (await pushManager()).getSubscription();
+    const manager = await registeredPushManager();
+    if (manager === null) return null;
+    const subscription = await manager.getSubscription();
     return subscription === null ? null : toBody(subscription);
   } catch {
     return null;
@@ -59,7 +71,9 @@ export async function subscribe(publicKey: string): Promise<SubscribeResult> {
 /** `true` when no subscription remains in the browser. */
 export async function unsubscribe(): Promise<boolean> {
   try {
-    const subscription = await (await pushManager()).getSubscription();
+    const manager = await registeredPushManager();
+    if (manager === null) return true;
+    const subscription = await manager.getSubscription();
     return subscription === null ? true : await subscription.unsubscribe();
   } catch {
     return false;

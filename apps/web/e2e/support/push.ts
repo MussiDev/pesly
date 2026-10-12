@@ -35,7 +35,7 @@ const ASKS_KEY = 'e2e-push-permission-asks';
 
 /**
  * Replaces what the browser offers for push before any page script runs: the service worker's
- * `ready` registration gets a push manager, and `Notification` answers a permission request with
+ * registration (`ready` and `getRegistration()`) gets a push manager, and `Notification` answers a permission request with
  * "granted". The state lives in `localStorage`, so it survives a reload as a real subscription
  * does. Everything else of `navigator.serviceWorker` stays the real one.
  */
@@ -79,12 +79,15 @@ export async function installFakePush(page: Page, subscription: FakeBrowserSubsc
         },
       });
       const real = navigator.serviceWorker;
-      const ready = Promise.resolve({ pushManager });
+      const registration = { pushManager };
+      const ready = Promise.resolve(registration);
+      const getRegistration = () => Promise.resolve(registration);
       Object.defineProperty(navigator, 'serviceWorker', {
         configurable: true,
         value: new Proxy(real, {
           get(target, property) {
             if (property === 'ready') return ready;
+            if (property === 'getRegistration') return getRegistration;
             const value: unknown = Reflect.get(target, property, target);
             return typeof value === 'function'
               ? (value as (...args: unknown[]) => unknown).bind(target)
