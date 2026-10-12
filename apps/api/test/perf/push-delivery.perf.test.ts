@@ -50,5 +50,6 @@ describe('push delivery pass (NFR-02)', () => {
 
     expect(provider.sent).toHaveLength(DELIVERIES);
     expect(elapsed).toBeLessThan(MAX_PASS_MS);
-  });
+    // Above the 60 s budget, so a slow pass fails on the assertion and not on the default 5 s.
+  }, 120_000);
 });
