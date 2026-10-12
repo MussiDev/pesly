@@ -35,6 +35,7 @@ const ALL_TABLES = [
   'crypto_price_usage',
   'deletion_grants',
   'email_outbox',
+  'exchange_rate_history',
   'exchange_rate_refresh_failures',
   'exchange_rate_sync',
   'exchange_rates',
