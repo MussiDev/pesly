@@ -126,3 +126,22 @@ describe('a full job run leaves no secret in any log line', () => {
     expect(JSON.stringify(line)).toContain('403');
   });
 });
+
+describe('logger redaction of pushUrl', () => {
+  it('redacts pushUrl at the top level and nested', () => {
+    const raw: string[] = [];
+    const logger = createLogger({
+      level: 'info',
+      destination: { write: (c: string) => void raw.push(c) },
+    });
+    const secret = 'https://fcm.googleapis.com/fcm/send/SECRET-VALUE-123';
+    logger.info({ pushUrl: secret }, 'a');
+    logger.info({ target: { pushUrl: secret } }, 'b');
+    logger.info({ message: { target: { pushUrl: secret } } }, 'c');
+    expect(raw).toHaveLength(3);
+    for (const line of raw) {
+      expect(line).not.toContain('SECRET-VALUE-123');
+      expect(line).toContain('[REDACTED]');
+    }
+  });
+});

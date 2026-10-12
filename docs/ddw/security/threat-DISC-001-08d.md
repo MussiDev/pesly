@@ -275,6 +275,7 @@
 | R-12 | Delivery rows and subscriptions pile up | D | L | L | Finished deliveries are purged 7 days after their last update, a subscription reported gone is deleted at the first 404 or 410, rows cascade with the user |
 | R-13 | A forged or malformed push, or a hostile link, makes the service worker open another site or fail | S | L | M | Payload parsed and validated with the shared schema, a generic notification for bad data, links opened only when they are same-origin paths, permission asked only after an explicit tap; tests AC-42, AC-45, AC-47 |
 | R-14 | The migration blocks or loses data | T | L | M | Additive change only, a rollback that runs twice, a migration test on a fresh database, number re-checked against 09b and 09c at merge; test of Block 2 |
+| R-15 | A signed-out user keeps receiving their notices on a shared device: the push subscription outlives the session on the server and in the browser | I | M | M | Mitigated: sign-out removes the subscription first, best effort and while the session is still valid (`POST /push/subscriptions/unsubscribe`, then the browser `unsubscribe()`); it never asks for permission and a failure, an unsupported browser or no subscription never blocks the sign-out; tests in `sign-out-push.test.tsx` |
 
 ## Accepted risks
 ### Request volume of subscription spam by many verified accounts (R-09)

@@ -1,11 +1,7 @@
-import { pushNoticesLink, type PushPayload } from '@pesly/shared';
+import { pushNoticesLink, PUSH_PAYLOAD_MAX_BYTES, type PushPayload } from '@pesly/shared';
 
 export type PushNoticeKind =
-  | 'reminder'
-  | 'recorded'
-  | 'not_recorded'
-  | 'card_statement_due'
-  | 'budget_alert';
+  'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due' | 'budget_alert';
 
 export interface RenderPushPayloadInput {
   noticeId: string;
@@ -15,8 +11,6 @@ export interface RenderPushPayloadInput {
   /** `YYYY-MM-DD` */
   dueDate: string;
 }
-
-export const PUSH_PAYLOAD_MAX_BYTES = 3000;
 
 const STATEMENT_TEXT = {
   en: (day: string) => `A card statement is due on ${day}`,

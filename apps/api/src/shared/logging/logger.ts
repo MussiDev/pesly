@@ -39,6 +39,7 @@ const SECRET_KEYS = [
   // Web Push (DISC-001-08d): the push URL is a capability, the keys and the auth secret decrypt
   // what is sent to the device, and the VAPID private key signs as the server.
   'endpoint',
+  'pushUrl',
   'p256dh',
   'authSecret',
   'vapidPrivateKey',

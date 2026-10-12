@@ -17,14 +17,15 @@ export class DrizzlePushSubscriptionRepository implements PushSubscriptionReposi
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${userId}, 0))`);
       const [row] = await tx
         .insert(pushSubscriptions)
-        .values({ userId, ...subscription })
+        // clock_timestamp(), not now(): a store that waited on the lock above must rank newest.
+        .values({ userId, ...subscription, updatedAt: sql`clock_timestamp()` })
         .onConflictDoUpdate({
           target: pushSubscriptions.endpoint,
           set: {
             userId,
             p256dh: subscription.p256dh,
             auth: subscription.auth,
-            updatedAt: sql`now()`,
+            updatedAt: sql`clock_timestamp()`,
           },
         })
         .returning({ id: pushSubscriptions.id });

@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { PUSH_MAX_ATTEMPTS as MAX_ATTEMPTS } from '@pesly/shared';
 import type { Database } from '../../../shared/db/client';
 import type {
   DueDelivery,
@@ -7,7 +8,6 @@ import type {
 } from '../../application/ports/push-delivery-queue';
 
 export const LEASE_SECONDS = 120;
-export const MAX_ATTEMPTS = 5;
 const FINAL_STATUSES: readonly string[] = ['sent', 'failed', 'skipped'];
 
 interface ClaimedRow extends Record<string, unknown> {
@@ -18,6 +18,7 @@ interface ClaimedRow extends Record<string, unknown> {
   text: string;
   due_date: string;
   read_at: Date | null;
+  notice_created_at: Date | string;
   notice_owner_id: string;
   language: 'es' | 'en';
   subscription_id: string;
@@ -58,7 +59,7 @@ export class DrizzlePushDeliveryQueue implements PushDeliveryQueue {
         returning d.id, d.attempts, d.notice_id, d.subscription_id, d.next_attempt_at
       )
       select c.id, c.attempts, c.notice_id, n.kind, n.text, n.due_date::text as due_date,
-             n.read_at, n.owner_id as notice_owner_id, u.language,
+             n.read_at, n.created_at as notice_created_at, n.owner_id as notice_owner_id, u.language,
              c.subscription_id, s.user_id as subscription_owner_id, s.endpoint, s.p256dh, s.auth
       from claimed c
       join notices n on n.id = c.notice_id
@@ -74,6 +75,7 @@ export class DrizzlePushDeliveryQueue implements PushDeliveryQueue {
       noticeText: row.text,
       dueDate: row.due_date,
       readAt: row.read_at,
+      noticeCreatedAt: new Date(row.notice_created_at),
       noticeOwnerId: row.notice_owner_id,
       ownerLanguage: row.language,
       subscriptionId: row.subscription_id,
@@ -82,6 +84,19 @@ export class DrizzlePushDeliveryQueue implements PushDeliveryQueue {
       p256dh: row.p256dh,
       auth: row.auth,
     }));
+  }
+
+  async confirmOwnership(row: DueDelivery, now: Date): Promise<boolean> {
+    const at = now.toISOString();
+    const result = await this.db.execute(sql`
+      update push_deliveries d
+      set lease_until = ${at}::timestamptz + make_interval(secs => ${LEASE_SECONDS}),
+          updated_at = ${at}::timestamptz
+      from push_subscriptions s, notices n
+      where d.id = ${row.id}::uuid and d.status = 'pending'
+        and s.id = d.subscription_id and n.id = d.notice_id
+        and s.user_id = n.owner_id and s.endpoint = ${row.pushUrl}`);
+    return (result.rowCount ?? 0) > 0;
   }
 
   async mark(id: string, status: PushDeliveryFinalStatus, now: Date): Promise<boolean> {

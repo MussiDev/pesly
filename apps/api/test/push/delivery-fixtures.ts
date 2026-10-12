@@ -54,7 +54,7 @@ export async function subscribe(
 export async function notice(
   connection: DatabaseConnection,
   ownerId: string,
-  options: { kind?: string; read?: boolean; text?: string } = {},
+  options: { kind?: string; read?: boolean; text?: string; ageMs?: number } = {},
 ): Promise<string> {
   const result = await connection.pool.query<{ id: string }>(
     `insert into notices (owner_id, kind, payment_id, due_date, text, created_at, read_at)
@@ -63,7 +63,7 @@ export async function notice(
       ownerId,
       options.kind ?? 'reminder',
       options.text ?? 'Luz vence manana',
-      new Date(NOW.getTime() - 3_600_000),
+      new Date(NOW.getTime() - (options.ageMs ?? 3_600_000)),
       options.read ? NOW : null,
     ],
   );

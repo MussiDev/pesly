@@ -1,3 +1,4 @@
+import { PUSH_MAX_ATTEMPTS as MAX_ATTEMPTS, PUSH_TTL_SECONDS } from '@pesly/shared';
 import { renderPushPayload, type PushNoticeKind } from '../domain/push-payload';
 import { processSendLimiter, type Limiter } from './limit-concurrency';
 import type { Clock } from './ports/clock';
@@ -5,8 +6,7 @@ import type { DueDelivery, PushDeliveryQueue } from './ports/push-delivery-queue
 import type { PushOutcome, PushProvider } from './ports/push-provider';
 
 export const DELIVERY_BATCH_SIZE = 100;
-export const PUSH_TTL_SECONDS = 21_600;
-const MAX_ATTEMPTS = 5;
+const STALE_AFTER_MS = 24 * 3_600_000;
 const MAX_WAIT_SECONDS = 900;
 const BASE_WAIT_SECONDS = 30;
 
@@ -69,8 +69,15 @@ export class DeliverDuePushes {
     if (
       row.readAt !== null ||
       row.noticeKind === 'budget_alert' ||
-      row.subscriptionOwnerId !== row.noticeOwnerId
+      row.subscriptionOwnerId !== row.noticeOwnerId ||
+      clock.now().getTime() - row.noticeCreatedAt.getTime() > STALE_AFTER_MS
     ) {
+      await queue.mark(row.id, 'skipped', clock.now());
+      return;
+    }
+
+    // The claim's snapshot may be stale: re-check ownership atomically right before sending.
+    if (!(await queue.confirmOwnership(row, clock.now()))) {
       await queue.mark(row.id, 'skipped', clock.now());
       return;
     }
