@@ -27,6 +27,19 @@ export function ActivityEntryRow({ entry }: { entry: ActivityEntryData }) {
         <Badge variant="info">{t(`kinds.${entry.kind}`)}</Badge>
       </div>
       <span className="text-small text-muted-foreground">{entry.date}</span>
+      {entry.action === 'expense_created' && entry.fromMovement ? (
+        <span className="text-small">{t('fromMovement')}</span>
+      ) : null}
+      {entry.autoCategory !== null ? (
+        <span className="text-small break-words">
+          <span className="font-semibold">{entry.memberName}</span>{' '}
+          <span>
+            {entry.autoCategory === 'created'
+              ? t('autoCategoryCreated')
+              : t('autoCategoryRestored')}
+          </span>
+        </span>
+      ) : null}
       {entry.details.length > 0 ? (
         <dl className="grid gap-1 text-small">
           {entry.details.map((detail) => (

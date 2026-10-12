@@ -383,8 +383,9 @@ describe('stale consolidated settlements under concurrency', () => {
         description: 'Cena',
         splitMode: 'equal',
         shares: equalSplit(1_000n, [a, b]).map((s) => ({ ...s, basisPoints: null })),
-        activity: { action: 'expense_created', memberId: a, createdAt: NOW },
+        activity: { action: 'expense_created', memberId: a, createdAt: NOW, fromMovement: false },
         payerMovement: null,
+        adoptedMovement: null,
       });
       expect(await pending(save)).toBe(true);
       await client.query('commit');
@@ -410,8 +411,14 @@ describe('expense write rechecks the members', () => {
       description: 'Cena',
       splitMode: 'equal' as const,
       shares: equalSplit(3_000n, members).map((s) => ({ ...s, basisPoints: null })),
-      activity: { action: 'expense_created' as const, memberId: w.anaMember, createdAt: NOW },
+      activity: {
+        action: 'expense_created' as const,
+        memberId: w.anaMember,
+        createdAt: NOW,
+        fromMovement: false,
+      },
       payerMovement: null,
+      adoptedMovement: null,
     };
   }
 

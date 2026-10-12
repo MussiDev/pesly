@@ -30,6 +30,8 @@ export interface GroupExpense {
   splitMode: GroupSplitMode;
   /** Null when the payer is a ghost or another member, or after the movement was erased. */
   payerMovementId: string | null;
+  /** True when the expense adopted an existing movement instead of recording one (spec 05i D5). */
+  adoptedMovement: boolean;
   createdAt: Date;
   /** Starts at 1 and grows by 1 with every change (spec 04e D1). */
   version: number;
@@ -63,6 +65,27 @@ export class GroupSplitMemberInvalid extends AppError {
 export class GroupExpenseCategoryInvalid extends AppError {
   constructor() {
     super('GROUP_EXPENSE_CATEGORY_INVALID');
+  }
+}
+
+/** Only an expense movement can be sent to a group (400, spec 05i D9). */
+export class GroupMovementNotExpense extends AppError {
+  constructor() {
+    super('GROUP_MOVEMENT_NOT_EXPENSE');
+  }
+}
+
+/** The movement is already linked to a group expense (409, spec 05i D9). */
+export class GroupMovementAlreadySent extends AppError {
+  constructor() {
+    super('GROUP_MOVEMENT_ALREADY_SENT');
+  }
+}
+
+/** The movement's amount or date changed between the preview and the lock (409, spec 05i D9). */
+export class GroupMovementChanged extends AppError {
+  constructor() {
+    super('GROUP_MOVEMENT_CHANGED');
   }
 }
 

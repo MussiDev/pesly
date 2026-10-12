@@ -7,7 +7,7 @@ import {
   type EditMovementInput,
 } from './build-new-movement';
 import type { ExpenseSavedHook } from './ports/expense-saved-listener';
-import type { MovementRepository } from './ports/movement-repository';
+import type { MovementRepository, UpdateMovementOptions } from './ports/movement-repository';
 
 export interface UpdateMovementDependencies extends BuildMovementDependencies {
   movements: MovementRepository;
@@ -27,13 +27,16 @@ export class UpdateMovement {
     scope: AccessScope<'write'>,
     id: string,
     input: EditMovementInput,
+    options?: UpdateMovementOptions,
   ): Promise<Movement> {
     const existing = notFoundUnlessAllowed(await this.deps.movements.findById(scope, id));
     if (existing.type !== input.type) throw new MovementTypeImmutable();
 
     const data = await buildNewMovement(this.deps, scope, input, existing);
     // `null`: the movement vanished between the read and the write.
-    const movement = notFoundUnlessAllowed(await this.deps.movements.update(scope, id, data));
+    const movement = notFoundUnlessAllowed(
+      await this.deps.movements.update(scope, id, data, options),
+    );
     if (movement.type === 'expense') {
       await this.deps.expenseSaved?.run(scope, {
         categoryId: movement.categoryId,

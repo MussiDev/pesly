@@ -23,6 +23,7 @@
     "recent": {
       "title": "Latest movements",
       "seeAll": "View all",
+      "openInMovements": "Open in movements",
       "income": "Income",
       "expense": "Expense",
       "transfer": "Transfer",
@@ -413,6 +414,10 @@
     "goalProgressTooLarge": "This contribution would make the saved amount larger than the supported maximum.",
     "goalLimitReached": "You have reached the limit of 100 savings goals. Delete one to create another.",
     "accountLinkedToGoal": "This account is linked to a savings goal, so it cannot be deleted. Delete the goal first, or archive the account.",
+    "groupMovementNotExpense": "Only expenses can be sent to a group.",
+    "groupMovementAlreadySent": "This movement was already sent to a group.",
+    "groupMovementChanged": "The movement changed while you were sending it. Review it and try again.",
+    "movementLockedByGroupExpense": "This movement is linked to a group expense. Edit the expense from the group.",
     "offlineNoCopy": "Open this screen once while you are online so it can work without a connection.",
     "offlineSaveFailed": "We could not save this movement on your device. Check that it has free space and try again.",
     "totpCodeFormat": "Enter the 6 digits of the code.",
@@ -715,6 +720,27 @@
   },
   "movements": {
     "title": "Movements",
+    "sendToGroup": {
+      "title": "Send to a group",
+      "summary": "{amount} on {date}",
+      "chooseGroup": "Choose a group",
+      "category": "Group category",
+      "automaticCategory": "Automatic (the movement's own category, or \"Other expenses\")",
+      "defaultDescription": "Expense",
+      "description": "Description",
+      "splitSummary": "Equal among {count} members: {each} each",
+      "changeSplit": "Change split",
+      "confirm": "Send to group",
+      "confirmPending": "Sending...",
+      "offline": "Sending to a group needs a connection",
+      "notFound": "Movement not found or not synced yet",
+      "alreadySent": "This movement was already sent to a group",
+      "noGroups": "You do not belong to any group yet",
+      "goToGroups": "Go to groups",
+      "categoryCreated": "We created the Other expenses category in this group",
+      "categoryRestored": "We restored the Other expenses category in this group",
+      "viewExpenses": "View group expenses"
+    },
     "keypad": {
       "label": "Number keypad",
       "decimal": "Decimal point",
@@ -737,7 +763,11 @@
       "synced": "Synced",
       "failed": "Not synced",
       "offlineNotice": "You are offline: showing your 100 most recent movements. Filters are off until you reconnect.",
+      "inGroup": "In group {name}",
+      "inGroupUnknown": "In a group",
+      "highlighted": "Selected movement",
       "actions": {
+        "sendToGroup": "Send to group",
         "edit": "Edit",
         "delete": "Delete",
         "confirmDelete": "Delete this movement? Your balances will update.",
@@ -773,7 +803,10 @@
       "title": "Edit movement",
       "description": "Change what you need. Your balances update on their own.",
       "notFound": "This movement does not exist or is no longer there.",
-      "notAvailableOffline": "This movement is not available without a connection. Try again when you are back online."
+      "notAvailableOffline": "This movement is not available without a connection. Try again when you are back online.",
+      "groupNotice": "This movement belongs to an expense in {group}",
+      "groupNoticeUnknown": "This movement belongs to a group expense",
+      "lockedFields": "Amount, account and date are locked; change them from the group expense"
     },
     "fields": {
       "type": "Type",
@@ -1736,6 +1769,9 @@
       "neutralCategory": "Unknown category",
       "before": "Before",
       "after": "After",
+      "fromMovement": "Created from a movement",
+      "autoCategoryCreated": "Created the default category automatically",
+      "autoCategoryRestored": "Restored the default category automatically",
       "actions": {
         "expense_created": "added an expense",
         "expense_updated": "edited an expense",

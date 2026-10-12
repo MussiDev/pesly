@@ -95,6 +95,19 @@ describe('UpdateMovement', () => {
     expect(movements.rows.find((row) => row.id === stored.id)?.amount).toBe(4200n);
   });
 
+  it('passes the repository options through and leaves the lock on by default (spec 05i D3)', async () => {
+    const { accountId, categoryId, stored } = setup();
+    const scope = await writeScopeFor(ALICE);
+
+    await update.execute(scope, stored.id, edit(accountId, categoryId));
+    await update.execute(scope, stored.id, edit(accountId, categoryId), { bypassGroupLock: true });
+
+    expect(movements.updateCalls.map((call) => call.options)).toEqual([
+      undefined,
+      { bypassGroupLock: true },
+    ]);
+  });
+
   it('keeps the frozen rate of an old expense even when the stored rates changed since (AC-01)', async () => {
     const { accountId, categoryId, stored } = setup();
     rates.sells.set('blue', 99_000_000n);

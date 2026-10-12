@@ -4,6 +4,7 @@ import { minorUnitsStringSchema } from '../money';
 import {
   GROUP_EXPENSES_PAGE_SIZE_DEFAULT,
   GROUP_EXPENSES_PAGE_SIZE_MAX,
+  automaticCategoryChangeSchema,
   groupExpenseDescriptionSchema,
   groupSplitModeSchema,
 } from './expense';
@@ -68,6 +69,8 @@ export const activityEntrySchema = z.strictObject({
   createdAt: z.iso.datetime(),
   before: snapshotSchema.nullable(),
   after: snapshotSchema.nullable(),
+  fromMovement: z.boolean(),
+  autoCategory: automaticCategoryChangeSchema.nullable(),
 });
 
 export type ActivityEntry = z.infer<typeof activityEntrySchema>;

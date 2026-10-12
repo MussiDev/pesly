@@ -4,11 +4,13 @@ import type {
   AccountResponse,
   CategoryLanguage,
   CategoryResponse,
+  MovementGroupLink,
   MovementResponse,
 } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { z } from 'zod';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { categoryLabel, compareCategories } from '@/features/categories/category-display';
 import { useRouter } from '@/i18n/navigation';
@@ -33,6 +35,7 @@ import {
   type FilterCategoryOption,
 } from '../components/movement-filters';
 import { MovementList, type MovementListItem } from '../components/movement-list';
+import type { MovementGroupAction } from '../components/movement-row';
 import {
   MovementsLoadStateView,
   type MovementsLoadState,
@@ -45,11 +48,18 @@ import {
   serializeFilters,
   type MovementFilterValues,
 } from '../movement-filters-state';
+import { canOfferSendToGroup } from '../send-to-group/eligibility';
 import { overlayQueue } from '../sync-overlay';
 import { TagInputContainer } from './tag-input-container';
 
 /** The API's largest page; also the size of each "show more" step. */
 const PAGE_SIZE = 100;
+
+/** `focus` is only ever compared with loaded ids: anything that is not an id is ignored. */
+const focusIdSchema = z.uuid();
+
+/** Where the person's groups stand: asked once, and only when a loaded movement is linked. */
+type GroupNames = ReadonlyMap<string, string>;
 
 /** Profile, accounts and categories: loaded once, apart from the filtered list. */
 interface ReferenceData {
@@ -66,6 +76,8 @@ interface ReadyList {
   kind: 'ready';
   movements: MovementResponse[];
   total: number;
+  /** The group links of the loaded movements, by movement id; empty for the device copy. */
+  groupLinks: Readonly<Record<string, MovementGroupLink>>;
   /** The filters this page was loaded with: "show more" keeps asking with these. */
   filtersKey: string;
   /** The movements come from the copy kept on the device, not from the API. */
@@ -343,7 +355,9 @@ export function MovementsContainer() {
       // No request. The cleanup of the previous run already discarded any answer in flight, so a
       // list that was still loading settles on "no matches" instead of waiting forever.
       setList((current) =>
-        current.kind === 'ready' ? current : { kind: 'ready', movements: [], total: 0, filtersKey },
+        current.kind === 'ready'
+          ? current
+          : { kind: 'ready', movements: [], total: 0, groupLinks: {}, filtersKey },
       );
       return;
     }
@@ -361,6 +375,7 @@ export function MovementsContainer() {
           kind: 'ready',
           movements: saved,
           total: saved.length,
+          groupLinks: {},
           filtersKey,
           fromCopy: true,
         });
@@ -380,6 +395,7 @@ export function MovementsContainer() {
           kind: 'ready',
           movements: first.data.items,
           total: first.data.total,
+          groupLinks: first.data.groupLinks,
           filtersKey,
         });
         // Only the newest page of an unfiltered list is the copy to keep.
@@ -471,6 +487,7 @@ export function MovementsContainer() {
                   (item) => !latest.movements.some((shown) => shown.id === item.id),
                 ),
               ],
+              groupLinks: { ...latest.groupLinks, ...next.groupLinks },
               // An empty page on a stale total ends the paging instead of looping on it.
               total: next.items.length === 0 ? latest.movements.length : next.total,
             }
@@ -482,6 +499,41 @@ export function MovementsContainer() {
       setMoreError(result.messageKey);
     }
   }
+
+  // The person's groups name the markers; one request, online, and only when a row is linked.
+  const [groupNames, setGroupNames] = useState<GroupNames>(new Map());
+  const groupsRequested = useRef(false);
+  const hasLinks =
+    online &&
+    list.kind === 'ready' &&
+    list.fromCopy !== true &&
+    Object.keys(list.groupLinks).length > 0;
+  useEffect(() => {
+    if (!hasLinks || groupsRequested.current) return;
+    groupsRequested.current = true;
+    void api.listGroups().then((result) => {
+      // A failure leaves the markers neutral; the list is never blocked by it.
+      if (result.ok) setGroupNames(new Map(result.data.map((group) => [group.id, group.name])));
+    });
+  }, [api, hasLinks]);
+
+  // A link from the home screen brings its movement into view, once per movement id.
+  const focusParam = searchParams.get('focus');
+  const focusId =
+    focusParam !== null && focusIdSchema.safeParse(focusParam).success ? focusParam : undefined;
+  const focusedId = useRef<string | undefined>(undefined);
+  const listSettled = list.kind === 'ready' && reference.kind === 'ready';
+  useEffect(() => {
+    if (focusId === undefined || !listSettled || focusedId.current === focusId) return;
+    const row = document.getElementById(`movement-row-${focusId}`);
+    if (row === null) return;
+    focusedId.current = focusId;
+    const reduced =
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    row.scrollIntoView({ block: 'center', behavior: reduced ? 'auto' : 'smooth' });
+    row.focus({ preventScroll: true });
+  }, [focusId, listSettled, list]);
 
   const referenceData = reference.kind === 'ready' ? reference.data : undefined;
   const accountChoices = useMemo(
@@ -514,6 +566,7 @@ export function MovementsContainer() {
   }
 
   const viewingCopy = list.kind === 'ready' && list.fromCopy === true;
+  const groupLinks = list.kind === 'ready' ? list.groupLinks : {};
   const lookups = {
     accounts: indexById(reference.data.accounts),
     categories: indexById(reference.data.categories),
@@ -537,8 +590,22 @@ export function MovementsContainer() {
             movement.destinationAccountId === null
               ? undefined
               : lookups.accounts.get(movement.destinationAccountId);
+          const link = viewingCopy ? undefined : (groupLinks[movement.id] ?? undefined);
+          const groupAction: MovementGroupAction | undefined =
+            link !== undefined
+              ? { kind: 'linked', groupName: groupNames.get(link.groupId) }
+              : canOfferSendToGroup({
+                    movement,
+                    groupExpense: null,
+                    queued: syncState === 'pending' || syncState === 'failed',
+                    online,
+                    deviceCopy: viewingCopy,
+                  })
+                ? { kind: 'send' }
+                : undefined;
           return {
             movement,
+            ...(groupAction === undefined ? {} : { groupAction }),
             destinationAccountName: destination?.name,
             destinationCurrency: destination?.currency,
             accountName: account?.name,
@@ -554,6 +621,7 @@ export function MovementsContainer() {
 
   return (
     <MovementList
+      focusId={focusId}
       items={items}
       timeZone={reference.data.timeZone}
       hasMore={list.kind === 'ready' && list.movements.length < list.total}

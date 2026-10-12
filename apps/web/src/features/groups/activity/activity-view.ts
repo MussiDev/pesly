@@ -34,6 +34,8 @@ export interface ActivityRowView {
   memberName: string;
   createdAt: string;
   details: ActivityDetail[];
+  fromMovement: boolean;
+  autoCategory: ActivityEntry['autoCategory'];
 }
 
 /** `raw` is what the diff compares, so two different unknown ids still count as a change. */
@@ -134,6 +136,8 @@ export function buildActivityView(
     memberName: memberName(entry.memberId),
     createdAt: entry.createdAt,
     details: detailsOf(entry),
+    fromMovement: entry.fromMovement,
+    autoCategory: entry.autoCategory,
   }));
 }
 

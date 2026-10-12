@@ -23,6 +23,7 @@
     "recent": {
       "title": "Últimos movimientos",
       "seeAll": "Ver todos",
+      "openInMovements": "Abrir en movimientos",
       "income": "Ingreso",
       "expense": "Gasto",
       "transfer": "Transferencia",
@@ -413,6 +414,10 @@
     "goalProgressTooLarge": "Este aporte haría que el monto ahorrado supere el máximo permitido.",
     "goalLimitReached": "Llegaste al límite de 100 metas de ahorro. Eliminá una para crear otra.",
     "accountLinkedToGoal": "Esta cuenta está vinculada a una meta de ahorro, por eso no se puede eliminar. Eliminá la meta primero o archivá la cuenta.",
+    "groupMovementNotExpense": "Solo los gastos se pueden enviar a un grupo.",
+    "groupMovementAlreadySent": "Este movimiento ya se envió a un grupo.",
+    "groupMovementChanged": "El movimiento cambió mientras lo enviabas. Revisalo y volvé a intentar.",
+    "movementLockedByGroupExpense": "Este movimiento está vinculado a un gasto de grupo. Editá el gasto desde el grupo.",
     "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
     "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
     "totpCodeFormat": "Ingresa los 6 dígitos del código.",
@@ -715,6 +720,27 @@
   },
   "movements": {
     "title": "Movimientos",
+    "sendToGroup": {
+      "title": "Enviar a un grupo",
+      "summary": "{amount} el {date}",
+      "chooseGroup": "Elige un grupo",
+      "category": "Categoría del grupo",
+      "automaticCategory": "Automática (la misma categoría del movimiento u \"Otros gastos\")",
+      "defaultDescription": "Gasto",
+      "description": "Descripción",
+      "splitSummary": "En partes iguales entre {count} miembros: {each} cada uno",
+      "changeSplit": "Cambiar el reparto",
+      "confirm": "Enviar al grupo",
+      "confirmPending": "Enviando...",
+      "offline": "Enviar a un grupo requiere conexión",
+      "notFound": "No encontramos el movimiento o todavía no se sincronizó",
+      "alreadySent": "Este movimiento ya se envió a un grupo",
+      "noGroups": "Todavía no perteneces a ningún grupo",
+      "goToGroups": "Ir a grupos",
+      "categoryCreated": "Creamos la categoría Otros gastos en este grupo",
+      "categoryRestored": "Restauramos la categoría Otros gastos en este grupo",
+      "viewExpenses": "Ver gastos del grupo"
+    },
     "keypad": {
       "label": "Teclado numérico",
       "decimal": "Coma decimal",
@@ -737,7 +763,11 @@
       "synced": "Sincronizado",
       "failed": "No sincronizado",
       "offlineNotice": "Estás sin conexión: se muestran tus 100 movimientos más recientes. Los filtros vuelven al reconectar.",
+      "inGroup": "En el grupo {name}",
+      "inGroupUnknown": "En un grupo",
+      "highlighted": "Movimiento seleccionado",
       "actions": {
+        "sendToGroup": "Enviar a un grupo",
         "edit": "Editar",
         "delete": "Eliminar",
         "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
@@ -773,7 +803,10 @@
       "title": "Editar movimiento",
       "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
       "notFound": "Este movimiento no existe o ya no está.",
-      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión."
+      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión.",
+      "groupNotice": "Este movimiento pertenece a un gasto de {group}",
+      "groupNoticeUnknown": "Este movimiento pertenece a un gasto de grupo",
+      "lockedFields": "El monto, la cuenta y la fecha están bloqueados; cámbialos desde el gasto del grupo"
     },
     "fields": {
       "type": "Tipo",
@@ -1742,6 +1775,9 @@
       "neutralCategory": "Categoría desconocida",
       "before": "Antes",
       "after": "Después",
+      "fromMovement": "Creado a partir de un movimiento",
+      "autoCategoryCreated": "creó la categoría por defecto automáticamente",
+      "autoCategoryRestored": "restauró la categoría por defecto automáticamente",
       "actions": {
         "expense_created": "agregó un gasto",
         "expense_updated": "editó un gasto",

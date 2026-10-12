@@ -2,6 +2,7 @@ import {
   createMovementRequestSchema,
   listMovementsQuerySchema,
   listMovementsResponseSchema,
+  movementDetailResponseSchema,
   movementIdParamsSchema,
   movementResponseSchema,
   updateMovementRequestSchema,
@@ -48,7 +49,7 @@ import { DrizzleMovementWriteLimiter } from '../db/drizzle-movement-write-limite
 import { DrizzleRateLookup } from '../db/drizzle-rate-lookup';
 import { DrizzleUserPreferences } from '../db/drizzle-user-preferences';
 import { SystemClock } from '../system-clock';
-import { presentMovement, presentMovementList } from './movement-presenter';
+import { presentMovement, presentMovementDetail, presentMovementList } from './movement-presenter';
 
 export interface MovementRoutesOptions {
   db: Database;
@@ -254,10 +255,10 @@ export function createMovementRoutes({
     router.get(
       '/movements/:id',
       validate(
-        { params: movementIdParamsSchema, response: movementResponseSchema },
+        { params: movementIdParamsSchema, response: movementDetailResponseSchema },
         async ({ params }, { res, auth }) => {
           const scope = await scopeOf(policy, auth, 'read');
-          res.json(presentMovement(await getMovement.execute(scope, params.id)));
+          res.json(presentMovementDetail(await getMovement.execute(scope, params.id)));
         },
       ),
     );

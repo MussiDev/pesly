@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { AccountCurrency, CategoryKind, RateType } from '@pesly/shared';
+import type { AccountCurrency, CategoryKind, MovementGroupLink, RateType } from '@pesly/shared';
 import type {
   CategorizedMovement,
   Movement,
@@ -9,6 +9,7 @@ import { DuplicateMovementId } from '../../src/movements/domain/errors';
 import type { Clock } from '../../src/movements/application/ports/clock';
 import type {
   MovementRepository,
+  UpdateMovementOptions,
   NewMovement,
 } from '../../src/movements/application/ports/movement-repository';
 import type {
@@ -117,16 +118,40 @@ export class InMemoryMovementRepository implements MovementRepository {
   updateError: Error | null = null;
   /** When set, `delete` throws it. */
   deleteError: Error | null = null;
-  readonly updateCalls: { scope: AccessScope; id: string; data: NewMovement }[] = [];
+  readonly updateCalls: {
+    scope: AccessScope;
+    id: string;
+    data: NewMovement;
+    options: UpdateMovementOptions | undefined;
+  }[] = [];
+  /** Links `groupLinks` answers, by movement id, for the owner that holds them. */
+  readonly links = new Map<string, MovementGroupLink>();
+  readonly groupLinksCalls: (readonly string[])[] = [];
+
+  async groupLinks(
+    scope: AccessScope,
+    ids: readonly string[],
+  ): Promise<Record<string, MovementGroupLink>> {
+    await Promise.resolve();
+    this.groupLinksCalls.push(ids);
+    const answer: Record<string, MovementGroupLink> = {};
+    for (const id of ids) {
+      const link = this.links.get(id);
+      const owned = this.rows.some((row) => row.id === id && row.ownerId === scope.userId);
+      if (link && owned) answer[id] = link;
+    }
+    return answer;
+  }
   readonly deleteCalls: { scope: AccessScope; id: string }[] = [];
 
   async update(
     scope: AccessScope<'write'>,
     id: string,
     data: NewMovement,
+    options?: UpdateMovementOptions,
   ): Promise<Movement | null> {
     await Promise.resolve();
-    this.updateCalls.push({ scope, id, data });
+    this.updateCalls.push({ scope, id, data, options });
     if (this.updateError) throw this.updateError;
     const index = this.rows.findIndex(
       (row) => row.id === id && row.ownerId === scope.userId && row.type === data.type,

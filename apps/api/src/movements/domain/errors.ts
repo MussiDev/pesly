@@ -87,3 +87,13 @@ export class DuplicateMovementId extends Error {
     this.name = 'DuplicateMovementId';
   }
 }
+
+/**
+ * The movement was adopted by a group expense (spec 05i D3): its amount, account and date follow
+ * the expense and cannot be edited on their own.
+ */
+export class MovementLockedByGroupExpense extends AppError {
+  constructor() {
+    super('MOVEMENT_LOCKED_BY_GROUP_EXPENSE');
+  }
+}

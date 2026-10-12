@@ -1,13 +1,18 @@
 import { and, asc, count, eq, inArray, sql } from 'drizzle-orm';
-import type { MovementRepository } from '../../application/ports/movement-repository';
+import type { MovementGroupLink } from '@pesly/shared';
+import type {
+  MovementRepository,
+  UpdateMovementOptions,
+} from '../../application/ports/movement-repository';
 import type { Movement, MovementFilters, NewMovement } from '../../domain/movement';
-import { DuplicateMovementId } from '../../domain/errors';
+import { DuplicateMovementId, MovementLockedByGroupExpense } from '../../domain/errors';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import { ResourceNotFound } from '../../../shared/access/not-found-unless-allowed';
 import type { Database } from '../../../shared/db/client';
 import { violatedConstraint } from '../../../shared/db/pg-errors';
 import { movementConditions } from './drizzle-movement-filters';
+import { groupExpenses } from './foreign-relations';
 import { movements } from './schema';
 import { movementTags, tags } from './tags-schema';
 
@@ -273,10 +278,44 @@ export class DrizzleMovementRepository implements MovementRepository {
     scope: AccessScope<'write'>,
     id: string,
     data: NewMovement,
+    options: UpdateMovementOptions = {},
   ): Promise<Movement | null> {
     const note = data.note === null || data.note.trim() === '' ? null : data.note;
     try {
       return await this.db.transaction(async (tx) => {
+        // The row lock and the adoption check share this transaction, so a send that adopts the
+        // movement either finishes before the check or waits for this edit (spec 05i D3).
+        const [current] = await tx
+          .select({
+            amount: movements.amount,
+            accountId: movements.accountId,
+            occurredAt: movements.occurredAt,
+          })
+          .from(movements)
+          .where(
+            and(
+              eq(movements.id, id),
+              eq(movements.type, data.type),
+              scopedTo(scope, { owner: movements.ownerId }),
+            ),
+          )
+          .for('update');
+        if (!current) return null;
+        if (
+          options.bypassGroupLock !== true &&
+          (current.amount !== data.amount ||
+            current.accountId !== data.accountId ||
+            current.occurredAt.getTime() !== data.occurredAt.getTime())
+        ) {
+          const [adopted] = await tx
+            .select({ id: groupExpenses.id })
+            .from(groupExpenses)
+            .where(
+              and(eq(groupExpenses.payerMovementId, id), eq(groupExpenses.adoptedMovement, true)),
+            )
+            .limit(1);
+          if (adopted) throw new MovementLockedByGroupExpense();
+        }
         const [row] = await tx
           .update(movements)
           // Same fields as insert, picked one by one; the type is part of the match, never set.
@@ -342,6 +381,32 @@ export class DrizzleMovementRepository implements MovementRepository {
       items: rows.map((row) => toMovement(row, tagsByMovement.get(row.id))),
       total: totalRow?.total ?? 0,
     };
+  }
+
+  async groupLinks(
+    scope: AccessScope,
+    ids: readonly string[],
+  ): Promise<Record<string, MovementGroupLink>> {
+    const links: Record<string, MovementGroupLink> = {};
+    if (ids.length === 0) return links;
+    const rows = await this.db
+      .select({
+        movementId: movements.id,
+        groupId: groupExpenses.groupId,
+        expenseId: groupExpenses.id,
+        adopted: groupExpenses.adoptedMovement,
+      })
+      .from(groupExpenses)
+      .innerJoin(movements, eq(movements.id, groupExpenses.payerMovementId))
+      .where(and(inArray(movements.id, [...ids]), scopedTo(scope, { owner: movements.ownerId })));
+    for (const row of rows) {
+      links[row.movementId] = {
+        groupId: row.groupId,
+        expenseId: row.expenseId,
+        adopted: row.adopted,
+      };
+    }
+    return links;
   }
 
   async findById(scope: AccessScope, id: string): Promise<Movement | null> {

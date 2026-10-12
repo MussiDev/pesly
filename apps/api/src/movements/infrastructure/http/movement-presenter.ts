@@ -1,6 +1,8 @@
 import {
   formatMinorUnitsString,
   type ListMovementsResponse,
+  type MovementDetailResponse,
+  type MovementGroupLink,
   type MovementResponse,
 } from '@pesly/shared';
 import type { Movement } from '../../domain/movement';
@@ -54,7 +56,7 @@ export function presentMovement(movement: Movement): MovementResponse {
 }
 
 export function presentMovementList(
-  list: { items: Movement[]; total: number },
+  list: { items: Movement[]; total: number; groupLinks: Record<string, MovementGroupLink> },
   page: { limit: number; offset: number },
 ): ListMovementsResponse {
   return {
@@ -62,5 +64,13 @@ export function presentMovementList(
     total: list.total,
     limit: page.limit,
     offset: page.offset,
+    groupLinks: list.groupLinks,
   };
+}
+
+export function presentMovementDetail(detail: {
+  movement: Movement;
+  groupExpense: MovementGroupLink | null;
+}): MovementDetailResponse {
+  return { ...presentMovement(detail.movement), groupExpense: detail.groupExpense };
 }

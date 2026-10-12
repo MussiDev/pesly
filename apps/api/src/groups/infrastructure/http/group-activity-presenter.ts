@@ -18,6 +18,8 @@ export function presentActivityEntry(entry: ActivityLogEntry): ActivityEntry {
     createdAt: entry.createdAt.toISOString(),
     before: entry.before,
     after: entry.after,
+    fromMovement: entry.fromMovement,
+    autoCategory: entry.autoCategory,
   };
 }
 
