@@ -23,6 +23,7 @@
     "recent": {
       "title": "Latest movements",
       "seeAll": "View all",
+      "openInMovements": "Open in movements",
       "income": "Income",
       "expense": "Expense",
       "transfer": "Transfer",

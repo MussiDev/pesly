@@ -23,6 +23,7 @@
     "recent": {
       "title": "Últimos movimientos",
       "seeAll": "Ver todos",
+      "openInMovements": "Abrir en movimientos",
       "income": "Ingreso",
       "expense": "Gasto",
       "transfer": "Transferencia",
