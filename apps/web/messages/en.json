@@ -30,6 +30,7 @@
       "home": "Home",
       "accounts": "Accounts",
       "security": "Security",
+      "notificationSettings": "Notifications",
       "profile": "Profile",
       "categories": "Categories",
       "movements": "Movements",
@@ -967,6 +968,48 @@
       "violet": "Violet",
       "pink": "Pink",
       "slate": "Slate"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "subtitle": "Choose whether this device alerts you when a notice arrives.",
+    "card": {
+      "title": "Push notifications on this device",
+      "description": "We send a short alert, without amounts or account names. Each device is turned on or off on its own."
+    },
+    "status": {
+      "label": "Status",
+      "on": "On",
+      "off": "Off"
+    },
+    "actions": {
+      "enable": "Enable notifications",
+      "enabling": "Turning on…",
+      "disable": "Disable notifications",
+      "disabling": "Turning off…"
+    },
+    "offline": "You need a connection to change notifications.",
+    "blocked": {
+      "title": "Notifications are blocked",
+      "help": "This browser blocks notifications for Pesly. Allow them in the site settings of your browser, then reload this page."
+    },
+    "unsupported": {
+      "title": "This browser cannot receive notifications",
+      "description": "This browser cannot receive push notifications. Try Chrome, Edge, Firefox or Safari on a recent version."
+    },
+    "unavailable": {
+      "title": "Notifications are not available",
+      "description": "Push notifications are not available right now. Try again later."
+    },
+    "install": {
+      "title": "Add Pesly to your Home Screen first",
+      "description": "On iPhone and iPad, notifications only work from the Home Screen. Tap Share, choose Add to Home Screen, open Pesly from there and come back to this page."
+    },
+    "errors": {
+      "config": "We could not load the notification settings. Check your connection and try again.",
+      "enable": "We could not turn on notifications. Try again.",
+      "disable": "We could not turn off notifications. They are still on. Try again.",
+      "sync": "We could not update this device. Notifications are still on. Try again."
     }
   },
   "security": {

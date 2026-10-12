@@ -44,6 +44,12 @@ describe('notices schema introspection (NFR-04)', () => {
       { column_name: 'owner_id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
       { column_name: 'payment_id', data_type: 'uuid', is_nullable: 'NO', column_default: null },
       {
+        column_name: 'push_handled_at',
+        data_type: 'timestamp with time zone',
+        is_nullable: 'YES',
+        column_default: null,
+      },
+      {
         column_name: 'read_at',
         data_type: 'timestamp with time zone',
         is_nullable: 'YES',

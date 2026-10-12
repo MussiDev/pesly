@@ -10,6 +10,7 @@ const INDEX = 'group_expenses_payer_movement_idx';
 const PREVIOUS_MAX_WHEN = 1791780000000;
 const MIDDLE_WHEN = 1791810000000;
 const NEWEST_WHEN = 1791820000000;
+const PUSH_WHEN = 1791830000000;
 const UNIQUE_INDEX = 'group_expenses_payer_movement_unique';
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -87,6 +88,7 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
 
   it('is reverted by its idempotent rollback, which removes only the index and its journal row, and re-applies', async () => {
     // 0038, 0037 and 0036 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
@@ -104,12 +106,19 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
 
     await runMigrations(throwawayUrl);
 
-    // The replay also re-applies 0036, 0037 and 0038, and 0037 supersedes the index with its unique one.
+    // The replay also re-applies 0036, 0037, 0038 and 0039, and 0037 supersedes the index with its unique one.
     expect(await indexDefinition(UNIQUE_INDEX)).toBeDefined();
-    expect(await appliedWhens()).toEqual([...whensBefore, NEWER_WHEN, MIDDLE_WHEN, NEWEST_WHEN]);
+    expect(await appliedWhens()).toEqual([
+      ...whensBefore,
+      NEWER_WHEN,
+      MIDDLE_WHEN,
+      NEWEST_WHEN,
+      PUSH_WHEN,
+    ]);
   });
 
   it('applies on top of the previous schema when it already holds group data', async () => {
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));

@@ -1,3 +1,4 @@
+import { createECDH } from 'node:crypto';
 import { z } from 'zod';
 
 /** Sender for local transports (console, Mailpit) when EMAIL_FROM is unset. */
@@ -66,13 +67,51 @@ const coingeckoKeySchema = z.preprocess(
     .optional(),
 );
 
+const BASE64URL = /^[A-Za-z0-9_-]+$/;
+const VAPID_PUBLIC_CHARS = 87;
+const VAPID_PRIVATE_CHARS = 43;
+const VAPID_SUBJECT_MAX = 255;
+
+/** Base64url of an uncompressed P-256 point: 65 bytes, the first one 0x04. */
+const vapidPublicKeySchema = z
+  .string()
+  .refine(
+    (value) =>
+      value.length === VAPID_PUBLIC_CHARS &&
+      BASE64URL.test(value) &&
+      Buffer.from(value, 'base64url')[0] === 0x04,
+    'must be base64url of a 65 byte uncompressed P-256 point',
+  );
+
+/** Base64url of a 32 byte P-256 private scalar. */
+const vapidPrivateKeySchema = z
+  .string()
+  .refine(
+    (value) => value.length === VAPID_PRIVATE_CHARS && BASE64URL.test(value),
+    'must be base64url of 32 bytes',
+  );
+
+const vapidSubjectSchema = z
+  .string()
+  .max(VAPID_SUBJECT_MAX)
+  .refine(
+    (value) =>
+      /^\S+$/.test(value) &&
+      (/^mailto:[^@]+@[^@]+$/.test(value) ||
+        (URL.canParse(value) &&
+          new URL(value).protocol === 'https:' &&
+          new URL(value).hostname !== '')),
+    'must be a mailto: address or an https URL on one line',
+  );
+
 type Issue = { path: string[]; message: string };
 
 /**
- * The settings the email worker reads. The worker parses only these, so a setting the API alone
- * needs (its JWT secret, the Google client) can neither stop the worker nor be handed to it.
+ * The settings shared by the API and the email worker. The worker parses only these (plus its own
+ * below), so a setting the API alone needs (its JWT secret, the Google client) can neither stop the
+ * worker nor be handed to it.
  */
-const workerFields = {
+const commonFields = {
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   DATABASE_URL: z.url(),
@@ -102,7 +141,36 @@ const workerFields = {
     .max(254)
     .regex(/^[^\r\n]+$/, 'must be a single line')
     .optional(),
+  /** Which adapter delivers pushes; `fake` is for local runs and e2e only. */
+  PUSH_PROVIDER: z.enum(['webpush', 'fake']).default('fake'),
+  /** Public half of the VAPID key pair; the API serves it to browsers, the worker checks the pair. */
+  VAPID_PUBLIC_KEY: optionalSetting(vapidPublicKeySchema),
 };
+
+/** Read by the worker only, so the API never parses, receives or logs them. */
+const workerOnlyFields = {
+  VAPID_PRIVATE_KEY: optionalSetting(vapidPrivateKeySchema),
+  VAPID_SUBJECT: optionalSetting(vapidSubjectSchema),
+  /** Seconds between passes of the push job; an integer from 1 to 60. */
+  PUSH_JOB_INTERVAL_SECONDS: z
+    .string()
+    .regex(/^\d+$/, 'must be an integer')
+    .transform(Number)
+    .pipe(z.number().int().min(1).max(60))
+    .default(10),
+};
+
+const workerFields = { ...commonFields, ...workerOnlyFields };
+
+interface RawPushEnv {
+  PUSH_PROVIDER: string;
+  VAPID_PUBLIC_KEY?: string | undefined;
+}
+
+interface RawWorkerPushEnv extends RawPushEnv {
+  VAPID_PRIVATE_KEY?: string | undefined;
+  VAPID_SUBJECT?: string | undefined;
+}
 
 interface RawWorkerEnv {
   NODE_ENV: string;
@@ -117,7 +185,7 @@ interface RawWorkerEnv {
   RECURRING_JOB_INTERVAL_SECONDS: number;
 }
 
-interface RawEnv extends RawWorkerEnv {
+interface RawEnv extends RawWorkerEnv, RawPushEnv {
   JWT_SECRET: string;
   BREACH_CHECKER: string;
   WEB_ORIGIN: string;
@@ -183,6 +251,50 @@ function workerProductionIssues(env: RawWorkerEnv): Issue[] {
   return [...issues, ...httpsIssue('WEB_BASE_URL', env.WEB_BASE_URL)];
 }
 
+/** Production rules on the push settings both processes read: the real provider and a public key. */
+function pushProductionIssues(env: RawPushEnv): Issue[] {
+  const issues: Issue[] = [];
+  if (env.PUSH_PROVIDER !== 'webpush') {
+    issues.push({ path: ['PUSH_PROVIDER'], message: 'must be webpush in production' });
+  }
+  if (!env.VAPID_PUBLIC_KEY) {
+    issues.push({ path: ['VAPID_PUBLIC_KEY'], message: 'required in production' });
+  }
+  return issues;
+}
+
+/** True when the private scalar derives exactly the configured public point. */
+function derivesPublicKey(privateKey: string, publicKey: string): boolean {
+  try {
+    const ecdh = createECDH('prime256v1');
+    ecdh.setPrivateKey(Buffer.from(privateKey, 'base64url'));
+    return ecdh.getPublicKey().toString('base64url') === publicKey;
+  } catch {
+    // A scalar outside the curve order is rejected by OpenSSL: the pair does not match.
+    return false;
+  }
+}
+
+/** Rules on the settings only the worker holds, for the webpush provider (always in production). */
+function workerPushIssues(env: RawWorkerPushEnv): Issue[] {
+  if (env.PUSH_PROVIDER !== 'webpush') return [];
+  const issues: Issue[] = [];
+  for (const name of ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const) {
+    if (!env[name]) issues.push({ path: [name], message: 'required when PUSH_PROVIDER=webpush' });
+  }
+  if (
+    env.VAPID_PRIVATE_KEY &&
+    env.VAPID_PUBLIC_KEY &&
+    !derivesPublicKey(env.VAPID_PRIVATE_KEY, env.VAPID_PUBLIC_KEY)
+  ) {
+    issues.push({
+      path: ['VAPID_PRIVATE_KEY'],
+      message: 'must derive the configured VAPID_PUBLIC_KEY',
+    });
+  }
+  return issues;
+}
+
 /** Settings that are fine locally but unsafe in production: fakes, plain http, no proxy trust. */
 function productionIssues(env: RawEnv): Issue[] {
   const issues: Issue[] = [];
@@ -216,7 +328,8 @@ function productionIssues(env: RawEnv): Issue[] {
 
 const envSchema = z
   .object({
-    ...workerFields,
+    // The worker-only push settings are left out: the API never parses them and ignores stray values.
+    ...commonFields,
     PORT: z.coerce.number().int().min(1).max(65535).default(4000),
     JWT_SECRET: jwtSecretSchema,
     WEB_ORIGIN: z.url(),
@@ -246,7 +359,9 @@ const envSchema = z
       });
     }
     if (env.NODE_ENV === 'production') {
-      for (const issue of productionIssues(env)) ctx.addIssue({ code: 'custom', ...issue });
+      for (const issue of [...productionIssues(env), ...pushProductionIssues(env)]) {
+        ctx.addIssue({ code: 'custom', ...issue });
+      }
     }
   })
   .transform((env) => ({
@@ -261,8 +376,11 @@ const workerEnvSchema = z
   .object(workerFields)
   .superRefine((env, ctx) => {
     for (const issue of emailIssues(env)) ctx.addIssue({ code: 'custom', ...issue });
+    for (const issue of workerPushIssues(env)) ctx.addIssue({ code: 'custom', ...issue });
     if (env.NODE_ENV === 'production') {
-      for (const issue of workerProductionIssues(env)) ctx.addIssue({ code: 'custom', ...issue });
+      for (const issue of [...workerProductionIssues(env), ...pushProductionIssues(env)]) {
+        ctx.addIssue({ code: 'custom', ...issue });
+      }
     }
   })
   .transform((env) => ({

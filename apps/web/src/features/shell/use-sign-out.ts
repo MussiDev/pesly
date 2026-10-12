@@ -3,12 +3,28 @@
 import { useState } from 'react';
 import { clearDashboardMemory } from '@/features/dashboard/containers/dashboard-session-cache';
 import { useRouter } from '@/i18n/navigation';
-import { type ApiErrorKey } from '@/lib/api-client';
+import { type ApiClient, type ApiErrorKey } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { readQueueCounts } from '@/lib/local-store/device-copy';
 import { readSessionPointer } from '@/lib/local-store/session-pointer';
 import { wipeLocalData } from '@/lib/local-store/wipe';
+import { readSubscription, unsubscribe } from '@/lib/push/push-client';
 import { cancelSyncRetry } from '@/lib/sync/sync-queue';
+
+/**
+ * Best effort, while the session is still valid: a shared device must not keep delivering this
+ * user's notices after sign-out. Never asks for permission and never blocks the sign-out.
+ */
+async function removeDevicePush(api: ApiClient): Promise<void> {
+  try {
+    const current = await readSubscription();
+    if (current === null) return;
+    await api.removePushSubscription({ endpoint: current.endpoint });
+    await unsubscribe();
+  } catch {
+    // Push is optional; the sign-out goes on.
+  }
+}
 
 /**
  * The sign-out flow shared by the shell and the More page. Changes not yet on the server are lost
@@ -27,6 +43,7 @@ export function useSignOut() {
     setSigningOut(true);
     setSignOutError(undefined);
     cancelSyncRetry();
+    await removeDevicePush(api);
     const result = await api.signOut();
     if (result.ok) {
       const userId = readSessionPointer()?.userId;

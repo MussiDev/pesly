@@ -1,0 +1,14 @@
+[WebServer] $ tsx --env-file-if-exists=../../.env src/server.ts
+[WebServer] ../../.env not found. Continuing without it.
+[WebServer] ../../.env not found. Continuing without it.
+[WebServer] $ tsx --env-file-if-exists=../../.env src/worker.ts
+[WebServer] ../../.env not found. Continuing without it.
+[WebServer] ../../.env not found. Continuing without it.
+[WebServer] $ next dev --port 3000
+
+Running 2 tests using 1 worker
+
+  ok 1 [chromium] › apps\web\e2e\push-notifications.spec.ts:24:1 › enabling stores one subscription, reopening the screen shows it on and re-registers it, disabling removes it (AC-47, AC-48, AC-51, AC-57) (5.4s)
+  ok 2 [chromium] › apps\web\e2e\push-notifications.spec.ts:61:1 › a subscription from an unknown push service ends in an error state and stores nothing (AC-50) (2.0s)
+
+  2 passed (20.3s)

@@ -32,6 +32,9 @@ export const productionOverrides: Record<string, string> = {
   // The test source defaults to the fake provider, which production refuses.
   RATE_PROVIDER: 'dolarapi',
   PRICE_PROVIDER: 'coingecko',
+  PUSH_PROVIDER: 'webpush',
+  VAPID_PUBLIC_KEY:
+    'BIb54nj4rQhdyWAbVhqO8fnuXtV63GEWGtoFlOX9_N_MOKRx8p2uZBAmtlZQTxmI97il3n5xo37qQi_-k7_drfc',
 };
 
 export function testEnvSource(

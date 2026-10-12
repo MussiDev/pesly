@@ -179,6 +179,7 @@ describe('0036_budget_alert_marks migration', () => {
       [userId],
     );
     // 0037 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     const countBefore = await appliedMigrations();
 
@@ -197,8 +198,8 @@ describe('0036_budget_alert_marks migration', () => {
 
     expect(await tableExists('budget_alert_marks')).toBe(true);
     expect(await kindCheckDefinition()).toContain('budget_alert');
-    // runMigrations also re-applies 0037, which was rolled back first.
-    expect(await appliedMigrations()).toBe(countBefore + 1);
+    // runMigrations also re-applies 0037, 0038 and 0039, which were rolled back first.
+    expect(await appliedMigrations()).toBe(countBefore + 2);
   });
 
   it('has a rollback script that forgets exactly the journal when of its migration', async () => {

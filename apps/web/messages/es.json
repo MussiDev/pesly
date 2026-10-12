@@ -30,6 +30,7 @@
       "home": "Inicio",
       "accounts": "Cuentas",
       "security": "Seguridad",
+      "notificationSettings": "Notificaciones",
       "profile": "Perfil",
       "categories": "Categorías",
       "movements": "Movimientos",
@@ -967,6 +968,48 @@
       "violet": "Violeta",
       "pink": "Rosa",
       "slate": "Gris pizarra"
+    }
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "subtitle": "Elegí si este dispositivo te avisa cuando llega un aviso.",
+    "card": {
+      "title": "Notificaciones push en este dispositivo",
+      "description": "Enviamos una alerta breve, sin montos ni nombres de cuentas. Cada dispositivo se activa o desactiva por separado."
+    },
+    "status": {
+      "label": "Estado",
+      "on": "Activadas",
+      "off": "Desactivadas"
+    },
+    "actions": {
+      "enable": "Activar notificaciones",
+      "enabling": "Activando…",
+      "disable": "Desactivar notificaciones",
+      "disabling": "Desactivando…"
+    },
+    "offline": "Necesitás conexión para cambiar las notificaciones.",
+    "blocked": {
+      "title": "Las notificaciones están bloqueadas",
+      "help": "Este navegador bloquea las notificaciones de Pesly. Permitilas en la configuración del sitio de tu navegador y volvé a cargar esta página."
+    },
+    "unsupported": {
+      "title": "Este navegador no puede recibir notificaciones",
+      "description": "Este navegador no puede recibir notificaciones push. Probá con una versión reciente de Chrome, Edge, Firefox o Safari."
+    },
+    "unavailable": {
+      "title": "Las notificaciones no están disponibles",
+      "description": "Las notificaciones push no están disponibles por ahora. Probá de nuevo más tarde."
+    },
+    "install": {
+      "title": "Primero agregá Pesly a tu pantalla de inicio",
+      "description": "En iPhone y iPad las notificaciones solo funcionan desde la pantalla de inicio. Tocá Compartir, elegí Agregar a pantalla de inicio, abrí Pesly desde ahí y volvé a esta página."
+    },
+    "errors": {
+      "config": "No pudimos cargar la configuración de notificaciones. Revisá tu conexión e intentá de nuevo.",
+      "enable": "No pudimos activar las notificaciones. Intentá de nuevo.",
+      "disable": "No pudimos desactivar las notificaciones. Siguen activadas. Intentá de nuevo.",
+      "sync": "No pudimos actualizar este dispositivo. Las notificaciones siguen activadas. Intentá de nuevo."
     }
   },
   "security": {

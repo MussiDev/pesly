@@ -126,6 +126,7 @@ const noticeKinds = async (owner: string): Promise<string[]> =>
 
 describe('0032_card_statement_reminders migration', () => {
   it('gives existing cards 3 after a rollback re-apply, and a new card without the field 3 (AC-01)', async () => {
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
@@ -182,6 +183,7 @@ describe('0032_card_statement_reminders migration', () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
@@ -194,7 +196,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await cardColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticeKinds(owner)).toEqual(['not_recorded', 'recorded', 'reminder']);
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBe('23514');
-    expect(await appliedMigrations()).toBe(countBefore - 7);
+    expect(await appliedMigrations()).toBe(countBefore - 8);
 
     await runMigrations(throwawayUrl);
 
@@ -224,6 +226,7 @@ describe('0032_card_statement_reminders migration', () => {
                 '0036_budget_alert_marks',
                 '0037_group_expense_from_movement',
                 '0038_exchange_rate_history',
+                '0039_push_notifications',
               ].includes(entry.tag),
           )
           .map((entry) => entry.when),

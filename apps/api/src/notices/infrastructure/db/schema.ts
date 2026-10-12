@@ -25,6 +25,8 @@ export const notices = pgTable(
     text: text('text').notNull(),
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     readAt: timestamptz('read_at'),
+    /** Set once the push job has fanned the notice out, or at the migration for older notices (DISC-001-08d). */
+    pushHandledAt: timestamptz('push_handled_at'),
   },
   (table) => [
     check(
@@ -37,5 +39,8 @@ export const notices = pgTable(
     index('notices_owner_unread_idx')
       .on(table.ownerId)
       .where(sql`${table.readAt} is null`),
+    index('notices_push_unhandled_idx')
+      .on(table.createdAt)
+      .where(sql`${table.pushHandledAt} is null`),
   ],
 );

@@ -266,6 +266,7 @@ describe('0037_group_expense_from_movement migration', () => {
 
   it('aborts the migration with the pre-check when two expenses share a movement, changing nothing', async () => {
     // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const w = await world();
@@ -299,6 +300,7 @@ describe('0037_group_expense_from_movement migration', () => {
     const whensBefore = await appliedWhens();
 
     // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -310,8 +312,8 @@ describe('0037_group_expense_from_movement migration', () => {
     expect(await checkDefinition('group_activity_log_auto_category_check')).toBeUndefined();
     expect(await indexDefinition(UNIQUE_INDEX)).toBeUndefined();
     expect(await indexDefinition(PLAIN_INDEX)).toMatch(/\(payer_movement_id\)/);
-    expect(await publicTableCount()).toBe(tablesBefore - 1);
-    expect(await appliedWhens()).toEqual(whensBefore.slice(0, -2));
+    expect(await publicTableCount()).toBe(tablesBefore - 3);
+    expect(await appliedWhens()).toEqual(whensBefore.slice(0, -3));
     const links = await client.query<{ payer_movement_id: string | null }>(
       'select payer_movement_id from group_expenses where group_id = $1 order by payer_movement_id nulls first',
       [w.group],
