@@ -1329,6 +1329,7 @@
     "linkLabel": "Notices, {count} unread",
     "overflow": "{max}+",
     "dueOn": "Due {date}",
+    "alertMonth": "Budget alert for {month}",
     "listLabel": "Your notices",
     "errors": {
       "load": "We could not load your notices. Check your connection and try again.",
@@ -2010,6 +2011,172 @@
       "equal": "Equal split",
       "percentage": "Percentages",
       "exact": "Exact amounts"
+    }
+  },
+  "goals": {
+    "list": {
+      "title": "Savings goals",
+      "description": "Set aside money for what matters and track how close you are.",
+      "create": "New goal",
+      "empty": {
+        "title": "No savings goals yet",
+        "description": "Create a goal to start tracking your progress.",
+        "action": "Create a goal"
+      },
+      "retry": "Try again",
+      "error": "We could not load your goals. Check your connection and try again."
+    },
+    "card": {
+      "progressOfTarget": "{saved} of {target}",
+      "percentage": "{percent, number, ::percent} saved",
+      "monthlyNeeded": "{amount} per month needed",
+      "reached": "Goal reached",
+      "overdue": "Target date passed",
+      "targetDate": "Target date: {date}",
+      "linkedToAccount": "Linked to {account}"
+    },
+    "detail": {
+      "title": "Goal",
+      "back": "Back to goals",
+      "entries": {
+        "title": "Entries",
+        "contribution": "Contribution",
+        "withdrawal": "Withdrawal",
+        "latestNote": "Only the latest {count} entries are shown.",
+        "empty": "No entries yet.",
+        "loadMore": "Load more"
+      },
+      "edit": "Edit goal",
+      "delete": "Delete goal",
+      "linkedNotice": "This goal follows the balance of its account, so you cannot record contributions or withdrawals on it.",
+      "notFound": {
+        "title": "Goal not found",
+        "description": "This goal does not exist or was deleted.",
+        "back": "Back to goals"
+      }
+    },
+    "form": {
+      "createTitle": "New goal",
+      "editTitle": "Edit goal",
+      "name": "Name",
+      "targetAmount": "Target amount",
+      "currency": "Currency",
+      "targetDate": "Target date (optional)",
+      "clearTargetDate": "Clear target date",
+      "account": "Link to an account (optional)",
+      "accountNone": "No account",
+      "accountLinked": "Linked to an account",
+      "noAccounts": "You have no accounts in this currency to link.",
+      "errors": {
+        "nameRequired": "Enter a name for the goal.",
+        "nameTooLong": "The name is too long.",
+        "amountInvalid": "Enter an amount greater than zero.",
+        "dateInvalid": "Enter a valid date.",
+        "accountRequired": "Choose an account to link."
+      },
+      "submit": "Save goal",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "entries": {
+      "contributionTitle": "Add a contribution",
+      "withdrawalTitle": "Withdraw from this goal",
+      "amount": "Amount",
+      "submitContribution": "Add contribution",
+      "submitWithdrawal": "Withdraw",
+      "recorded": "Entry recorded.",
+      "errors": { "amountInvalid": "Enter an amount greater than zero." }
+    },
+    "delete": {
+      "title": "Delete this goal?",
+      "description": "Its entries will be removed. No account balance changes.",
+      "confirm": "Delete goal",
+      "cancel": "Cancel"
+    }
+  },
+  "budgets": {
+    "list": {
+      "title": "Budgets",
+      "description": "Set a monthly limit for your spending and see how much is left.",
+      "create": "New budget",
+      "empty": {
+        "title": "No budgets yet",
+        "description": "Create a budget to keep your spending under control.",
+        "action": "Create a budget"
+      },
+      "retry": "Try again",
+      "error": "We could not load your budgets. Check your connection and try again.",
+      "month": {
+        "label": "Month",
+        "previous": "Previous month",
+        "next": "Next month",
+        "current": "Current month"
+      }
+    },
+    "card": {
+      "spentOfAvailable": "{spent} of {available}",
+      "remaining": "{amount} left",
+      "overBudget": "Over budget by {amount}",
+      "percentage": "{percent, number, ::percent} used",
+      "rollover": "Includes {amount} carried over",
+      "thresholds": "Alerts",
+      "marker": "Alert at {percent, number, ::percent}",
+      "unconvertedShares": "{count, plural, one {# group share could not be converted and is not counted} other {# group shares could not be converted and are not counted}}"
+    },
+    "detail": {
+      "title": "Budget",
+      "back": "Back to budgets",
+      "month": "Showing {month}",
+      "categories": "Covered categories",
+      "thresholds": "Alert thresholds",
+      "edit": "Edit budget",
+      "delete": "Delete budget",
+      "notFound": {
+        "title": "Budget not found",
+        "description": "This budget does not exist or was deleted.",
+        "back": "Back to budgets"
+      }
+    },
+    "form": {
+      "createTitle": "New budget",
+      "editTitle": "Edit budget",
+      "name": "Name",
+      "amount": "Monthly amount",
+      "currency": "Currency",
+      "currencyReadOnly": "The currency cannot be changed",
+      "categories": "Categories",
+      "categoriesGroup": "Subcategories of {parent}",
+      "categoryUnavailable": "Unavailable category",
+      "rollover": "Carry unused money to the next month",
+      "thresholds": {
+        "label": "Alert thresholds",
+        "hint": "Whole numbers from {min} to {max}, percent of the budget used",
+        "input": "New threshold",
+        "add": "Add threshold",
+        "remove": "Remove threshold {percent}"
+      },
+      "editNote": "Changes apply from the current month. Past months are not affected.",
+      "errors": {
+        "nameRequired": "Enter a name for the budget.",
+        "nameTooLong": "The name is too long.",
+        "amountInvalid": "Enter an amount greater than zero.",
+        "categoriesRequired": "Choose at least one category.",
+        "thresholdsRequired": "Keep at least one alert threshold.",
+        "thresholdInvalid": "Enter a whole number within the allowed range.",
+        "thresholdDuplicate": "That threshold is already in the list.",
+        "thresholdsTooMany": "A budget can have at most {max} thresholds."
+      },
+      "submit": "Save budget",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "categoriesError": "We could not load your categories. Check your connection and try again.",
+      "categoriesRetry": "Try again"
+    },
+    "delete": {
+      "title": "Delete this budget?",
+      "description": "Your past spending is not affected.",
+      "confirm": "Delete budget",
+      "cancel": "Cancel"
     }
   }
 }

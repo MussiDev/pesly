@@ -142,6 +142,69 @@ describe('NoticeList', () => {
     expect(onOpen.mock.calls[0]?.[0]).toMatchObject({ id: id(1), kind: 'budget_alert' });
   });
 
+  it.each([
+    ['en', 'Budget alert for October 2026', 'Due'],
+    ['es', 'Alerta de presupuesto de octubre de 2026', 'Vence'],
+  ] as const)(
+    'shows the month of a budget alert and no due label in %s (AC-26, AC-30)',
+    (locale, caption, dueWord) => {
+      renderApp(
+        <NoticeList
+          notices={[
+            notice(1, { kind: 'budget_alert', text: 'Outings reached 80%', dueDate: '2026-10-01' }),
+          ]}
+          onOpen={() => undefined}
+        />,
+        { locale },
+      );
+
+      expect(screen.getByText('Outings reached 80%')).toBeTruthy();
+      expect(screen.getByText(caption)).toBeTruthy();
+      expect(screen.queryByText(new RegExp(dueWord))).toBeNull();
+    },
+  );
+
+  it('keeps "Due {date}" for a notice of another kind (AC-26)', () => {
+    renderApp(<NoticeList notices={[notice(1)]} onOpen={() => undefined} />, { locale: 'en' });
+
+    expect(screen.getByText(/^Due .*Oct/)).toBeTruthy();
+    expect(screen.queryByText(/Budget alert for/)).toBeNull();
+  });
+
+  it('keeps unread and read budget alerts interactive and read-only (AC-26)', () => {
+    renderApp(
+      <NoticeList
+        notices={[
+          notice(2, { kind: 'budget_alert', text: 'Unread alert' }),
+          notice(1, { kind: 'budget_alert', text: 'Read alert', readAt: READ_AT }),
+        ]}
+        onOpen={() => undefined}
+      />,
+      { locale: 'en' },
+    );
+
+    expect(screen.getByRole('button', { name: /Unread alert/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Read alert/ })).toBeNull();
+    expect(screen.getAllByText('Budget alert for October 2026')).toHaveLength(2);
+  });
+
+  it.each(['not-a-date', '', '2026-13-45', '2026-10'])(
+    'falls back to the due caption for a budget alert with due date %j without throwing',
+    (dueDate) => {
+      renderApp(
+        <NoticeList
+          notices={[notice(1, { kind: 'budget_alert', text: 'Alert text', dueDate })]}
+          onOpen={() => undefined}
+        />,
+        { locale: 'en' },
+      );
+
+      expect(screen.getByText('Alert text')).toBeTruthy();
+      expect(screen.getByText(/^Due/)).toBeTruthy();
+      expect(screen.queryByText(/Budget alert for/)).toBeNull();
+    },
+  );
+
   it('formats the due date with the locale, not a fixed format', () => {
     renderApp(<NoticeList notices={[notice(1)]} onOpen={() => undefined} />, { locale: 'en' });
 
