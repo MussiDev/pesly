@@ -1,9 +1,9 @@
-import type { DashboardView, SeriesPointView } from '../dashboard-view';
+import type { DashboardView, SeriesView } from '../dashboard-view';
 
 export interface RememberedDashboard {
   view: DashboardView;
   /** Null when the series request had failed at the time. */
-  points: SeriesPointView[] | null;
+  points: SeriesView | null;
 }
 
 // The last successful answers of this session (D6). A module variable: it lives as long as the page

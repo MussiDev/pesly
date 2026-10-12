@@ -502,7 +502,7 @@ describe('skeleton and screen share one layout (AC-33)', () => {
       <DashboardScreen
         locale="es"
         view={view}
-        series={{ kind: 'ready', points: [] }}
+        series={{ kind: 'ready', currency: 'ARS', points: [] }}
         attention={[
           { source: 'queue', key: 'q', href: '/movements', kind: 'failedMovements', count: 1 },
         ]}

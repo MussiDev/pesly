@@ -31,7 +31,7 @@ function renderScreen(leftOutCount: number) {
     <DashboardScreen
       locale="en"
       view={view(leftOutCount)}
-      series={{ kind: 'ready', points: [] }}
+      series={{ kind: 'ready', currency: 'ARS', points: [] }}
       attention={[]}
     />,
     { locale: 'en' },

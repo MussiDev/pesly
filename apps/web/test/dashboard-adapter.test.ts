@@ -240,10 +240,16 @@ describe('toSeriesView', () => {
         },
       ],
     });
-    expect(points).toEqual([
+    expect(points.points).toEqual([
       { date: '2026-01-31', ars: 1n, usd: 2n, total: 3n, reason: null },
       { date: '2026-02-28', ars: 4n, usd: 5n, total: null, reason: 'no_rate' },
     ]);
+  });
+
+  it('keeps the currency the series was requested in', () => {
+    const base = { from: '2026-01-31', to: '2026-01-31', points: [] };
+    expect(toSeriesView({ ...base, currency: 'USD' }).currency).toBe('USD');
+    expect(toSeriesView({ ...base, currency: 'ARS' }).currency).toBe('ARS');
   });
 });
 

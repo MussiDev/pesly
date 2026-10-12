@@ -5,7 +5,7 @@ import type {
   DashboardResponse,
   DashboardUpcoming,
 } from '@/lib/dashboard-contract';
-import type { CategoryView, DashboardView, SeriesPointView, UpcomingView } from '../dashboard-view';
+import type { CategoryView, DashboardView, SeriesView, UpcomingView } from '../dashboard-view';
 
 // The only reader of raw 09b fields (spec D1). Every amount string was already proven to be an
 // integer string by the parser, so `BigInt(text)` cannot throw here.
@@ -112,12 +112,15 @@ export function toDashboardView(raw: DashboardResponse, options: AdapterOptions)
 }
 
 /** Points with a null total are kept: the points list shows their ARS and USD parts. */
-export function toSeriesView(series: NetWorthResponse): SeriesPointView[] {
-  return series.points.map((point) => ({
-    date: point.date,
-    ars: BigInt(point.ars),
-    usd: BigInt(point.usd),
-    total: point.total === null ? null : BigInt(point.total),
-    reason: point.reason,
-  }));
+export function toSeriesView(series: NetWorthResponse): SeriesView {
+  return {
+    currency: series.currency,
+    points: series.points.map((point) => ({
+      date: point.date,
+      ars: BigInt(point.ars),
+      usd: BigInt(point.usd),
+      total: point.total === null ? null : BigInt(point.total),
+      reason: point.reason,
+    })),
+  };
 }

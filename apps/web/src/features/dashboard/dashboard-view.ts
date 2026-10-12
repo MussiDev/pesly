@@ -81,6 +81,12 @@ export interface SeriesPointView {
   reason: 'no_rate' | null;
 }
 
+/** The series with the currency its totals were converted to, which may differ from the dashboard's. */
+export interface SeriesView {
+  currency: Currency;
+  points: SeriesPointView[];
+}
+
 export interface DashboardView {
   currency: Currency;
   netWorth: NetWorthView;

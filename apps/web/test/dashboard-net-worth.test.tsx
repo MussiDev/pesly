@@ -40,7 +40,11 @@ function series(count: number, total: (index: number) => bigint | null): SeriesP
   });
 }
 
-const ready = (points: SeriesPointView[]): SeriesProp => ({ kind: 'ready', points });
+const ready = (points: SeriesPointView[], currency: 'ARS' | 'USD' = 'ARS'): SeriesProp => ({
+  kind: 'ready',
+  currency,
+  points,
+});
 
 function renderCard(
   props: { netWorth?: NetWorthView; series?: SeriesProp; currency?: 'ARS' | 'USD' } = {},
@@ -107,13 +111,31 @@ describe('NetWorthCard figures', () => {
     renderCard({
       currency: 'USD',
       netWorth: netWorth({ total: 250_000n }),
-      series: ready(series(3, (i) => BigInt(i + 1) * 10_000n)),
+      series: ready(
+        series(3, (i) => BigInt(i + 1) * 10_000n),
+        'USD',
+      ),
     });
     expect(screen.getByText(hasText('2,500.00 USD'))).toBeDefined();
     fireEvent.keyDown(screen.getByRole('slider'), { key: 'End' });
     expect(flat(screen.getByRole('slider').getAttribute('aria-valuetext') ?? '')).toContain(
       '300.00 USD',
     );
+  });
+
+  it('hides the chart and the points list when the series currency differs from the display one', () => {
+    const { container } = renderCard({
+      currency: 'ARS',
+      series: ready(
+        series(3, (i) => BigInt(i + 1) * 10_000n),
+        'USD',
+      ),
+    });
+    expect(screen.getByText(hasText('1,420,000.00 ARS'))).toBeDefined();
+    expect(container.querySelectorAll('circle')).toHaveLength(0);
+    expect(screen.queryByRole('slider')).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByText(CATALOGS.en.dashboard.netWorth.lastPointNote)).toBeNull();
   });
 
   it('says the last point may differ from the figure above', () => {

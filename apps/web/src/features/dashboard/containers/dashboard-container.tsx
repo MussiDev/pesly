@@ -15,14 +15,14 @@ import { useQueueAttention } from '../attention/use-queue-attention';
 import { DashboardFrame, DashboardScreen } from '../components/dashboard-screen';
 import { DashboardSkeleton } from '../components/dashboard-skeleton';
 import { toDashboardView, toSeriesView } from '../contract/dashboard-adapter';
-import type { DashboardView, SeriesPointView } from '../dashboard-view';
+import type { DashboardView, SeriesView } from '../dashboard-view';
 import {
   clearDashboardMemory,
   recallDashboard,
   rememberDashboard,
 } from './dashboard-session-cache';
 
-type SeriesData = SeriesPointView[] | null;
+type SeriesData = SeriesView | null;
 
 type DashboardState =
   | { kind: 'loading' }
@@ -170,7 +170,7 @@ export function DashboardContainer() {
         series={
           state.points === null
             ? { kind: 'failed', retrying: state.seriesRetrying, onRetry: retrySeries }
-            : { kind: 'ready', points: state.points }
+            : { kind: 'ready', currency: state.points.currency, points: state.points.points }
         }
         attention={attention}
       />

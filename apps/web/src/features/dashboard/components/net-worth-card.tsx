@@ -13,7 +13,7 @@ import type { Currency, NetWorthView, SeriesPointView } from '../dashboard-view'
 import { NetWorthNotice } from './net-worth-notice';
 
 export type SeriesState =
-  | { kind: 'ready'; points: SeriesPointView[] }
+  | { kind: 'ready'; currency: Currency; points: SeriesPointView[] }
   | { kind: 'failed'; retrying: boolean; onRetry: () => void };
 
 /** The net worth figure of record, its ARS and USD parts and the chart (or its retry). */
@@ -29,7 +29,9 @@ export function NetWorthCard({
   series: SeriesState;
 }) {
   const t = useTranslations('dashboard');
-  const drawnCount = series.kind === 'ready' ? drawnPoints(series.points).length : 0;
+  // Amounts in another currency would be labeled with the wrong one, so that series is not shown.
+  const showSeries = series.kind === 'ready' && series.currency === currency;
+  const drawnCount = series.kind === 'ready' && showSeries ? drawnPoints(series.points).length : 0;
 
   return (
     <Card className="min-w-0" aria-labelledby="net-worth-title" role="region">
@@ -59,13 +61,15 @@ export function NetWorthCard({
         </dl>
         <NetWorthNotice count={netWorth.holdingsWithoutPrice} />
         {series.kind === 'ready' ? (
-          <>
-            <NetWorthChart locale={locale} currency={currency} points={series.points} />
-            {drawnCount > 0 ? (
-              <p className="text-caption text-muted-foreground">{t('netWorth.lastPointNote')}</p>
-            ) : null}
-            <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
-          </>
+          showSeries ? (
+            <>
+              <NetWorthChart locale={locale} currency={currency} points={series.points} />
+              {drawnCount > 0 ? (
+                <p className="text-caption text-muted-foreground">{t('netWorth.lastPointNote')}</p>
+              ) : null}
+              <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
+            </>
+          ) : null
         ) : (
           <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
         )}
