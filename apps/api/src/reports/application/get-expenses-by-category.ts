@@ -1,4 +1,4 @@
-import type { ExpensesByCategoryResponse, ReportFlowQuery } from '@pesly/shared';
+import { addMonths, type ExpensesByCategoryResponse, type ReportFlowQuery } from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import { addToCategory, orderCategoryTotals } from '../domain/category-totals';
 import { convertRows, installmentMonthOf, matchShareCategory } from '../domain/flows';
@@ -13,12 +13,6 @@ const MAX_MONTHS = 24;
 const DEFAULT_MONTHS = 1;
 /** A statement is due at most this many months after its period, and not before it. */
 const PERIOD_MARGIN = 2;
-
-function shiftMonth(month: string, delta: number): string {
-  const [year = 0, number = 1] = month.split('-').map(Number);
-  const index = year * 12 + (number - 1) + delta;
-  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, '0')}`;
-}
 
 export class GetExpensesByCategory {
   constructor(private readonly deps: GetExpensesByCategoryDependencies) {}
@@ -46,8 +40,8 @@ export class GetExpensesByCategory {
           flows.shareRows(scope, window),
           flows.installmentRows(
             scope,
-            shiftMonth(context.range.from.slice(0, 7), -PERIOD_MARGIN),
-            shiftMonth(context.range.to.slice(0, 7), PERIOD_MARGIN),
+            addMonths(context.range.from.slice(0, 7), -PERIOD_MARGIN),
+            addMonths(context.range.to.slice(0, 7), PERIOD_MARGIN),
           ),
         ]);
     const byId = new Map(known.map((category) => [category.id, category]));

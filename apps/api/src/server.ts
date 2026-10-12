@@ -30,6 +30,7 @@ import {
 } from './movements';
 import { createNoticesRoutes, renderBudgetAlertText } from './notices';
 import { createRecurringRoutes, eraseUserRecurring } from './recurring';
+import { createReportRoutes } from './reports';
 import { parseEnv } from './shared/config/env';
 import { createDatabase } from './shared/db/client';
 import { createLogger } from './shared/logging/logger';
@@ -102,6 +103,7 @@ const app = createApp({
       logger,
       expenses: createRecurringExpenseRecorder(db, logger, { expenseSaved }),
     }),
+    createReportRoutes({ db, logger }),
     createTagRoutes({ db }),
   ],
 });
