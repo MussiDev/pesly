@@ -90,6 +90,7 @@ const SEMANTIC_TOKENS = [
   'expense',
   'hero-from',
   'hero-to',
+  'hero-glow',
   'hero-foreground',
   'hero-muted',
   'logo-surface',
@@ -147,6 +148,8 @@ const TEXT_PAIRS: [string, string][] = [
   ['hero-foreground', 'hero-to'],
   ['hero-muted', 'hero-from'],
   ['hero-muted', 'hero-to'],
+  ['hero-foreground', 'hero-glow'],
+  ['hero-muted', 'hero-glow'],
 ];
 
 /** Control borders, focus rings, category icons: 3:1 (WCAG 1.4.11). */

@@ -53,6 +53,7 @@ const COLOR_TOKENS = [
   ['expense', 'bg-expense'],
   ['hero-from', 'bg-hero-from'],
   ['hero-to', 'bg-hero-to'],
+  ['hero-glow', 'bg-hero-glow'],
   ['logo-surface', 'bg-logo-surface'],
   ['chart-1', 'bg-chart-1'],
   ['chart-2', 'bg-chart-2'],

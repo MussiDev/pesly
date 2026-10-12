@@ -3,6 +3,7 @@
 import { Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { buttonVariants } from '@/components/ui/button';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
@@ -58,12 +59,7 @@ export function TopNav({ currentPath, signingOut, onSignOut }: TopNavProps) {
       className="sticky top-0 hidden h-dvh w-66 shrink-0 flex-col gap-5 overflow-y-auto border-r bg-card px-4 py-5 desk:flex"
     >
       <p className="flex items-center gap-2.5 px-2 py-1 text-heading font-bold tracking-tight">
-        <span
-          aria-hidden
-          className="inline-flex size-8 items-center justify-center rounded-lg bg-primary text-body font-bold text-primary-foreground"
-        >
-          {t('brand').charAt(0)}
-        </span>
+        <BrandMark className="size-8" />
         {t('brand')}
       </p>
       <Link

@@ -89,7 +89,7 @@ describe('auth layout', () => {
     expect(card?.contains(wordmark)).toBe(false);
   });
 
-  it('shows a navy brand mark with the initial next to the wordmark (AC-34)', () => {
+  it('shows a navy brand mark next to the wordmark (AC-34)', () => {
     renderApp(
       <AuthLayout>
         <p>child</p>
@@ -97,9 +97,9 @@ describe('auth layout', () => {
     );
 
     const mark = document.querySelector('[data-slot="brand-mark"]');
-    expect(mark?.textContent).toBe(es.app.brand.charAt(0));
-    expect(mark?.className).toMatch(/rounded-xl/);
-    expect(mark?.className).toMatch(/bg-primary/);
+    expect(mark?.tagName.toLowerCase()).toBe('svg');
+    expect(mark?.getAttribute('aria-hidden')).toBe('true');
+    expect(mark?.querySelector('.fill-primary')).not.toBeNull();
   });
 
   it('takes the wordmark from the catalog in both languages', () => {
