@@ -81,7 +81,10 @@
     "storageWarning": "Your browser may delete the data saved on this device when it runs low on space. Keep some storage free and reconnect often so nothing is lost.",
     "sync": {
       "waiting": "{count, plural, one {# change waiting to sync} other {# changes waiting to sync}}",
-      "failed": "{count, plural, one {# change failed to sync} other {# changes failed to sync}}"
+      "failed": "{count, plural, one {# change failed to sync} other {# changes failed to sync}}",
+      "groupWaiting": "{count, plural, one {# group change waiting to sync} other {# group changes waiting to sync}}",
+      "groupFailed": "{count, plural, one {# group change failed to sync} other {# group changes failed to sync}}",
+      "groupConflict": "{count, plural, one {# group change in conflict} other {# group changes in conflict}}"
     },
     "nav": {
       "label": "Main navigation",
@@ -1300,6 +1303,168 @@
     }
   },
   "groups": {
+    "balances": {
+      "description": "Who owes whom in this group, one currency at a time.",
+      "recordPayment": "Record a payment",
+      "historyLink": "Payment history",
+      "consolidateLink": "Settle together",
+      "sectionLabel": "Balances in {currency}",
+      "you": "You",
+      "owes": "Owes",
+      "owed": "Is owed",
+      "even": "Even",
+      "settled": "All settled. Nobody owes anything in this currency.",
+      "suggestedTitle": "Suggested payments",
+      "payment": "{payer} pays {payee} {amount}",
+      "record": "Record",
+      "reloadFailed": "The payment was recorded, but we could not refresh the balances.",
+      "notFound": {
+        "title": "Group not found",
+        "description": "This group does not exist or you are not a member of it.",
+        "back": "Back to groups"
+      }
+    },
+    "edit": {
+      "common": {
+        "unavailable": "Changes cannot be saved on this device right now. Try again in a moment.",
+        "sync": {
+          "pending": "Waiting to sync",
+          "failed": "Not saved",
+          "conflict": "Needs your decision"
+        },
+        "actions": {
+          "edit": "Edit",
+          "delete": "Delete",
+          "retry": "Try again",
+          "discard": "Discard change",
+          "resolve": "Resolve"
+        },
+        "deleteConfirm": {
+          "title": "Delete this record?",
+          "description": "It is removed from the group once the change syncs.",
+          "confirm": "Yes, delete",
+          "cancel": "Cancel",
+          "working": "Deleting..."
+        },
+        "failedPanel": {
+          "title": "This change was not saved"
+        }
+      },
+      "expense": {
+        "title": "Edit expense",
+        "submit": "Save changes",
+        "pending": "Saving...",
+        "back": "Back to expenses",
+        "notFound": {
+          "title": "We could not find this expense",
+          "description": "It may have been deleted, or it is not part of one of your groups."
+        },
+        "notAllowed": {
+          "title": "You cannot change this expense",
+          "description": "Only the person who recorded it, or a group admin, can edit or delete it."
+        },
+        "queuedDelete": {
+          "title": "This expense is waiting to be deleted",
+          "description": "The deletion will be sent as soon as you are online. You can discard it from the list."
+        }
+      },
+      "settlement": {
+        "title": "Edit payment",
+        "description": "Only the amount and the date can be changed.",
+        "back": "Back to settlements",
+        "fields": {
+          "from": "Who paid",
+          "to": "Who received",
+          "currency": "Currency",
+          "amount": "Amount",
+          "occurredAt": "Date",
+          "account": "Account"
+        },
+        "account": {
+          "recorded": "Recorded against an account",
+          "none": "No account"
+        },
+        "submit": "Save changes",
+        "pending": "Saving...",
+        "cancel": "Cancel",
+        "notAllowed": {
+          "title": "You cannot change this payment",
+          "description": "Only the person who recorded it, or a group admin, can edit or delete it."
+        },
+        "deleting": {
+          "title": "This payment is being deleted",
+          "description": "The deletion is waiting to sync. You can discard it from the settlements list."
+        },
+        "notFound": {
+          "title": "Payment not found",
+          "description": "This payment does not exist or you are not a member of its group."
+        },
+        "deleteOnly": {
+          "title": "This payment can only be deleted",
+          "description": "A combined payment cannot be edited. You can delete it and record it again."
+        },
+        "errors": {
+          "nothingChanged": "Change the amount or the date before saving."
+        }
+      }
+    },
+    "consolidate": {
+      "title": "Settle together",
+      "description": "Net what two people owe each other in both currencies into one payment.",
+      "back": "Back to balances",
+      "choose": "Choose a person",
+      "fields": {
+        "memberA": "First person",
+        "memberB": "Second person",
+        "currency": "Settle in",
+        "rate": "Exchange rate (ARS per USD)"
+      },
+      "legs": {
+        "title": "What they owe each other",
+        "pays": "{payer} pays {payee} {amount}",
+        "none": "No balance in {currency}"
+      },
+      "rate": {
+        "type": "Default rate type: {type}",
+        "missing": "There is no stored rate: enter one to continue."
+      },
+      "cash": {
+        "label": "Cash that changes hands",
+        "unknown": "Enter a valid rate to see the cash amount."
+      },
+      "nothing": "Nothing to consolidate: both currencies need a balance between these two people.",
+      "record": "Record payment",
+      "recording": "Recording…",
+      "stale": "The balances changed while you were reviewing. Check the new amounts and confirm again.",
+      "done": {
+        "title": "Payment recorded",
+        "summary": "{payer} paid {payee} {amount}."
+      },
+      "errors": {
+        "memberRequired": "Choose a current member of the group.",
+        "sameMember": "Choose two different people.",
+        "currencyInvalid": "Choose ARS or USD.",
+        "dateInvalid": "The date is not valid.",
+        "dateSkipped": "That time does not exist in your time zone.",
+        "dateInFuture": "The date cannot be in the future.",
+        "rateRequired": "Enter the exchange rate: there is no stored rate to use.",
+        "rateInvalid": "Enter a rate greater than 0, with up to 4 decimals.",
+        "nothingToConsolidate": "Nothing to consolidate: both currencies need a balance between these two people.",
+        "legsInvalid": "These balances cannot be recorded as one payment. Reload and try again.",
+        "cashOutOfRange": "With this rate the amount is too large. Check the rate."
+      }
+    },
+    "settlements": {
+      "title": "Settlements",
+      "back": "Back to group",
+      "parties": "{payer} paid {payee}",
+      "consolidated": "Consolidated",
+      "loadMore": "Load more",
+      "loadMoreFailed": "Could not load more settlements.",
+      "emptyTitle": "No settlements yet",
+      "emptyDescription": "Payments between members will show up here once they are recorded.",
+      "emptyAction": "Go to balances"
+    },
     "shares": {
       "title": "My shares",
       "description": "Your part of the group expenses, per currency.",
@@ -1525,6 +1690,79 @@
       "pending": "Creating…",
       "actions": { "restore": "Restore" }
     },
+    "settlement": {
+      "title": "Record a payment",
+      "fields": {
+        "from": "Who pays",
+        "to": "Who receives",
+        "currency": "Currency",
+        "amount": "Amount",
+        "occurredAt": "Date",
+        "account": "Your account"
+      },
+      "memberPlaceholder": "Choose a member",
+      "summary": "{payer} pays {payee} {amount}",
+      "summaryIncomplete": "Choose who pays, who receives and the amount.",
+      "accountNone": "None",
+      "accountHint": "Optional. The payment is also recorded in this account.",
+      "accountsLoading": "Loading your accounts…",
+      "accountsFailed": "Could not load your accounts. You can still record the payment without one.",
+      "accountsRetry": "Try again",
+      "submit": "Record payment",
+      "pending": "Recording…",
+      "cancel": "Cancel",
+      "notFound": "This group does not exist or you are not a member of it.",
+      "errors": {
+        "memberRequired": "Choose a member.",
+        "sameMember": "The two people must be different.",
+        "currencyInvalid": "Choose a currency.",
+        "amountInvalid": "Enter a valid amount, with up to two decimals.",
+        "amountNotPositive": "The amount must be greater than zero.",
+        "amountOutOfRange": "The amount is too large.",
+        "dateInvalid": "Enter a valid date and time.",
+        "dateSkipped": "That time does not exist in your time zone. Choose another.",
+        "dateInFuture": "The date cannot be in the future.",
+        "accountInvalid": "Choose one of your accounts in this currency, or none."
+      }
+    },
+    "activity": {
+      "title": "Activity",
+      "back": "Back to group",
+      "emptyTitle": "No activity yet",
+      "emptyDescription": "Changes to expenses and settlements will show up here.",
+      "loadMore": "Load more",
+      "loadMoreFailed": "Could not load more activity.",
+      "neutralCategory": "Unknown category",
+      "before": "Before",
+      "after": "After",
+      "actions": {
+        "expense_created": "added an expense",
+        "expense_updated": "edited an expense",
+        "expense_deleted": "deleted an expense",
+        "settlement_created": "recorded a settlement",
+        "settlement_updated": "edited a settlement",
+        "settlement_deleted": "deleted a settlement"
+      },
+      "kinds": { "expense": "Expense", "settlement": "Settlement" },
+      "splitModes": {
+        "equal": "Equal split",
+        "percentage": "Percentages",
+        "exact": "Exact amounts"
+      },
+      "fields": {
+        "amount": "Amount",
+        "currency": "Currency",
+        "date": "Date",
+        "category": "Category",
+        "description": "Description",
+        "splitMode": "Split",
+        "payer": "Paid by",
+        "shares": "Shares",
+        "from": "From",
+        "to": "To",
+        "legs": "Amounts"
+      }
+    },
     "detail": {
       "defaultRate": "Default exchange rate: {rateType}",
       "membersTitle": "Members",
@@ -1533,6 +1771,15 @@
       "ghost": "No account yet",
       "unnamed": "Unnamed member",
       "categoriesLink": "Group categories",
+      "activityLink": "Activity",
+      "balancesLink": "Balances",
+      "ownBalance": {
+        "title": "Your balance",
+        "owes": "You owe {amount}",
+        "owed": "You are owed {amount}",
+        "even": "You are settled up in {currency}",
+        "unavailable": "Your balance is not available right now."
+      },
       "expensesLink": "Expenses",
       "addExpenseLink": "Add expense",
       "defaultSplitLink": "Default split",

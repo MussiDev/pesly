@@ -81,7 +81,10 @@
     "storageWarning": "Tu navegador puede borrar los datos guardados en este dispositivo si se queda sin espacio. Deja algo de almacenamiento libre y reconéctate seguido para no perder nada.",
     "sync": {
       "waiting": "{count, plural, one {# cambio esperando sincronizarse} other {# cambios esperando sincronizarse}}",
-      "failed": "{count, plural, one {# cambio no se sincronizó} other {# cambios no se sincronizaron}}"
+      "failed": "{count, plural, one {# cambio no se sincronizó} other {# cambios no se sincronizaron}}",
+      "groupWaiting": "{count, plural, one {# cambio de grupo esperando sincronizarse} other {# cambios de grupo esperando sincronizarse}}",
+      "groupFailed": "{count, plural, one {# cambio de grupo no se sincronizó} other {# cambios de grupo no se sincronizaron}}",
+      "groupConflict": "{count, plural, one {# cambio de grupo en conflicto} other {# cambios de grupo en conflicto}}"
     },
     "nav": {
       "label": "Navegación principal",
@@ -1300,6 +1303,168 @@
     }
   },
   "groups": {
+    "balances": {
+      "description": "Quién le debe a quién en este grupo, una moneda a la vez.",
+      "recordPayment": "Registrar un pago",
+      "historyLink": "Historial de pagos",
+      "consolidateLink": "Saldar en conjunto",
+      "sectionLabel": "Saldos en {currency}",
+      "you": "Vos",
+      "owes": "Debe",
+      "owed": "Le deben",
+      "even": "Al día",
+      "settled": "Todo saldado. Nadie debe nada en esta moneda.",
+      "suggestedTitle": "Pagos sugeridos",
+      "payment": "{payer} le paga a {payee} {amount}",
+      "record": "Registrar",
+      "reloadFailed": "El pago se registró, pero no pudimos actualizar los saldos.",
+      "notFound": {
+        "title": "Grupo no encontrado",
+        "description": "Este grupo no existe o no sos miembro.",
+        "back": "Volver a grupos"
+      }
+    },
+    "edit": {
+      "common": {
+        "unavailable": "Por ahora no se pueden guardar cambios en este dispositivo. Probá de nuevo en un momento.",
+        "sync": {
+          "pending": "Esperando sincronizar",
+          "failed": "No se guardó",
+          "conflict": "Necesita tu decisión"
+        },
+        "actions": {
+          "edit": "Editar",
+          "delete": "Eliminar",
+          "retry": "Reintentar",
+          "discard": "Descartar cambio",
+          "resolve": "Resolver"
+        },
+        "deleteConfirm": {
+          "title": "¿Eliminar este registro?",
+          "description": "Se quita del grupo cuando el cambio se sincronice.",
+          "confirm": "Sí, eliminar",
+          "cancel": "Cancelar",
+          "working": "Eliminando..."
+        },
+        "failedPanel": {
+          "title": "Este cambio no se guardó"
+        }
+      },
+      "expense": {
+        "title": "Editar gasto",
+        "submit": "Guardar cambios",
+        "pending": "Guardando...",
+        "back": "Volver a los gastos",
+        "notFound": {
+          "title": "No encontramos este gasto",
+          "description": "Puede que se haya eliminado o que no sea de uno de tus grupos."
+        },
+        "notAllowed": {
+          "title": "No puedes cambiar este gasto",
+          "description": "Solo quien lo registró o un administrador del grupo puede editarlo o eliminarlo."
+        },
+        "queuedDelete": {
+          "title": "Este gasto está esperando para eliminarse",
+          "description": "La eliminación se enviará apenas tengas conexión. Puedes descartarla desde la lista."
+        }
+      },
+      "settlement": {
+        "title": "Editar pago",
+        "description": "Solo se pueden cambiar el importe y la fecha.",
+        "back": "Volver a los pagos",
+        "fields": {
+          "from": "Quién pagó",
+          "to": "Quién recibió",
+          "currency": "Moneda",
+          "amount": "Importe",
+          "occurredAt": "Fecha",
+          "account": "Cuenta"
+        },
+        "account": {
+          "recorded": "Registrado en una cuenta",
+          "none": "Sin cuenta"
+        },
+        "submit": "Guardar cambios",
+        "pending": "Guardando...",
+        "cancel": "Cancelar",
+        "notAllowed": {
+          "title": "No podés modificar este pago",
+          "description": "Solo quien lo registró, o un administrador del grupo, puede editarlo o eliminarlo."
+        },
+        "deleting": {
+          "title": "Este pago se está eliminando",
+          "description": "La eliminación está esperando para sincronizarse. Podés descartarla desde la lista de pagos."
+        },
+        "notFound": {
+          "title": "Pago no encontrado",
+          "description": "Este pago no existe o no sos miembro de su grupo."
+        },
+        "deleteOnly": {
+          "title": "Este pago solo se puede eliminar",
+          "description": "Un pago combinado no se puede editar. Podés eliminarlo y registrarlo de nuevo."
+        },
+        "errors": {
+          "nothingChanged": "Cambiá el importe o la fecha antes de guardar."
+        }
+      }
+    },
+    "consolidate": {
+      "title": "Saldar en conjunto",
+      "description": "Unifica en un solo pago lo que dos personas se deben en ambas monedas.",
+      "back": "Volver a saldos",
+      "choose": "Elegí una persona",
+      "fields": {
+        "memberA": "Primera persona",
+        "memberB": "Segunda persona",
+        "currency": "Saldar en",
+        "rate": "Cotización (ARS por USD)"
+      },
+      "legs": {
+        "title": "Lo que se deben",
+        "pays": "{payer} le paga a {payee} {amount}",
+        "none": "Sin saldo en {currency}"
+      },
+      "rate": {
+        "type": "Tipo de cotización por defecto: {type}",
+        "missing": "No hay una cotización guardada: ingresá una para continuar."
+      },
+      "cash": {
+        "label": "Efectivo que cambia de manos",
+        "unknown": "Ingresá una cotización válida para ver el monto en efectivo."
+      },
+      "nothing": "No hay nada para unificar: ambas monedas necesitan un saldo entre estas dos personas.",
+      "record": "Registrar pago",
+      "recording": "Registrando…",
+      "stale": "Los saldos cambiaron mientras revisabas. Revisá los nuevos montos y confirmá de nuevo.",
+      "done": {
+        "title": "Pago registrado",
+        "summary": "{payer} le pagó a {payee} {amount}."
+      },
+      "errors": {
+        "memberRequired": "Elegí un miembro actual del grupo.",
+        "sameMember": "Elegí dos personas distintas.",
+        "currencyInvalid": "Elegí ARS o USD.",
+        "dateInvalid": "La fecha no es válida.",
+        "dateSkipped": "Esa hora no existe en tu zona horaria.",
+        "dateInFuture": "La fecha no puede ser futura.",
+        "rateRequired": "Ingresá la cotización: no hay una guardada para usar.",
+        "rateInvalid": "Ingresá una cotización mayor a 0, con hasta 4 decimales.",
+        "nothingToConsolidate": "No hay nada para unificar: ambas monedas necesitan un saldo entre estas dos personas.",
+        "legsInvalid": "Estos saldos no se pueden registrar como un solo pago. Recargá e intentá de nuevo.",
+        "cashOutOfRange": "Con esta cotización el monto es demasiado grande. Revisá la cotización."
+      }
+    },
+    "settlements": {
+      "title": "Pagos entre miembros",
+      "back": "Volver al grupo",
+      "parties": "{payer} le pagó a {payee}",
+      "consolidated": "Consolidado",
+      "loadMore": "Cargar más",
+      "loadMoreFailed": "No se pudieron cargar más pagos.",
+      "emptyTitle": "Todavía no hay pagos",
+      "emptyDescription": "Los pagos entre miembros aparecerán acá cuando se registren.",
+      "emptyAction": "Ir a los saldos"
+    },
     "shares": {
       "title": "Mis partes",
       "description": "Tu parte de los gastos de grupo, por moneda.",
@@ -1531,6 +1696,79 @@
       "pending": "Creando…",
       "actions": { "restore": "Restaurar" }
     },
+    "settlement": {
+      "title": "Registrar un pago",
+      "fields": {
+        "from": "Quién paga",
+        "to": "Quién recibe",
+        "currency": "Moneda",
+        "amount": "Monto",
+        "occurredAt": "Fecha",
+        "account": "Tu cuenta"
+      },
+      "memberPlaceholder": "Elegí un miembro",
+      "summary": "{payer} paga a {payee} {amount}",
+      "summaryIncomplete": "Elegí quién paga, quién recibe y el monto.",
+      "accountNone": "Ninguna",
+      "accountHint": "Opcional. El pago también se registra en esta cuenta.",
+      "accountsLoading": "Cargando tus cuentas…",
+      "accountsFailed": "No pudimos cargar tus cuentas. Igual podés registrar el pago sin una.",
+      "accountsRetry": "Reintentar",
+      "submit": "Registrar pago",
+      "pending": "Registrando…",
+      "cancel": "Cancelar",
+      "notFound": "Este grupo no existe o no sos miembro.",
+      "errors": {
+        "memberRequired": "Elegí un miembro.",
+        "sameMember": "Las dos personas deben ser distintas.",
+        "currencyInvalid": "Elegí una moneda.",
+        "amountInvalid": "Ingresá un monto válido, con hasta dos decimales.",
+        "amountNotPositive": "El monto debe ser mayor que cero.",
+        "amountOutOfRange": "El monto es demasiado grande.",
+        "dateInvalid": "Ingresá una fecha y hora válidas.",
+        "dateSkipped": "Esa hora no existe en tu zona horaria. Elegí otra.",
+        "dateInFuture": "La fecha no puede ser futura.",
+        "accountInvalid": "Elegí una de tus cuentas en esta moneda, o ninguna."
+      }
+    },
+    "activity": {
+      "title": "Actividad",
+      "back": "Volver al grupo",
+      "emptyTitle": "Todavía no hay actividad",
+      "emptyDescription": "Los cambios en gastos y pagos aparecerán acá.",
+      "loadMore": "Cargar más",
+      "loadMoreFailed": "No se pudo cargar más actividad.",
+      "neutralCategory": "Categoría desconocida",
+      "before": "Antes",
+      "after": "Después",
+      "actions": {
+        "expense_created": "agregó un gasto",
+        "expense_updated": "editó un gasto",
+        "expense_deleted": "eliminó un gasto",
+        "settlement_created": "registró un pago",
+        "settlement_updated": "editó un pago",
+        "settlement_deleted": "eliminó un pago"
+      },
+      "kinds": { "expense": "Gasto", "settlement": "Pago" },
+      "splitModes": {
+        "equal": "División igualitaria",
+        "percentage": "Porcentajes",
+        "exact": "Montos exactos"
+      },
+      "fields": {
+        "amount": "Monto",
+        "currency": "Moneda",
+        "date": "Fecha",
+        "category": "Categoría",
+        "description": "Descripción",
+        "splitMode": "División",
+        "payer": "Pagó",
+        "shares": "Partes",
+        "from": "De",
+        "to": "Para",
+        "legs": "Montos"
+      }
+    },
     "detail": {
       "defaultRate": "Cotización por defecto: {rateType}",
       "membersTitle": "Miembros",
@@ -1539,6 +1777,15 @@
       "ghost": "Aún sin cuenta",
       "unnamed": "Miembro sin nombre",
       "categoriesLink": "Categorías del grupo",
+      "activityLink": "Actividad",
+      "balancesLink": "Saldos",
+      "ownBalance": {
+        "title": "Tu saldo",
+        "owes": "Debes {amount}",
+        "owed": "Te deben {amount}",
+        "even": "Estás al día en {currency}",
+        "unavailable": "Tu saldo no está disponible en este momento."
+      },
       "expensesLink": "Gastos",
       "addExpenseLink": "Agregar gasto",
       "defaultSplitLink": "División por defecto",

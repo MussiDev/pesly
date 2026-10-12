@@ -236,7 +236,9 @@ describe('member without an account', () => {
 
     expect(await screen.findByText(en.errors.groupMemberLimitReached)).toBeTruthy();
     expect(screen.queryByText('Dario', { selector: 'span' })).toBeNull();
-    expect(calls.filter((call) => call.method === 'GET')).toHaveLength(1);
+    expect(
+      calls.filter((call) => call.method === 'GET' && call.path === `/groups/${GROUP_ID}`),
+    ).toHaveLength(1);
   });
 
   it('shows the API message for a 403', async () => {
