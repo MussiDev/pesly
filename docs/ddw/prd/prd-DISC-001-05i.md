@@ -5,7 +5,7 @@
 | Ticket | DISC-001-05i |
 | Tracker | none |
 | Date | 2026-10-11 |
-| PRD loops | 0 |
+| PRD loops | 1 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -16,13 +16,22 @@ same transaction and stores its id in `group_expenses.payer_movement_id`. A pers
 personal expense that belongs to a group has only one way out: delete the movement and record the expense
 again in the group, retyping amount, date and account, and getting a second, different movement.
 
-This ticket adds the reverse path: a "Send to group" action on an existing personal expense. The person
-picks the group, the group category and the split, and the group expense is created adopting the movement
+This ticket adds the reverse path: a "Send to group" icon action on each eligible row of the movements list
+(next to edit and delete). The person picks the group (one tap) and confirms: the category and the split
+start preselected, so the whole send takes at most 3 taps, and the person can change the split first. The
+group expense is created adopting the movement
 as the payer's account movement: no second movement exists, the account balance does not change, and the
 movement keeps its own personal category, note, tags and frozen rate. As with every group expense, only the
 person's share counts as their personal expense and the rest is a receivable (05b FR-08).
 
 Findings in the code that shape the requirements (investigated 2026-10-11):
+- There is no movement detail screen. The edit screen (`/movements/edit?id=`) is a form, and the rows of
+  the home screen's recent movements (`recent-movements.tsx`) are not clickable. Row actions exist only on
+  the rows of the movements list (`movement-row.tsx`: an edit link and a delete button, both icon actions
+  with the movement title in their accessible name), so "Send to group" is one more icon there, and the
+  home rows need a link to reach the list row.
+- The movements list loads 100 movements per page and its rows carry no group link (the list answer holds
+  only the movements), so the spec must tell the list which rows are already linked to a group expense.
 - `POST /groups/:id/expenses` always records the payer movement itself (`PayerMovementRecorder.record`); no
   path links an existing movement, so one new endpoint is needed (name and shape left to the spec).
 - The link is `group_expenses.payer_movement_id` (`on delete set null`) with a plain, non-unique partial
@@ -54,15 +63,19 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - Deleting the group expense later never destroys the person's own movement.
 
 ## Functional Requirements
-- FR-01: The system must show a "Send to group" action on an eligible personal expense, only while the
-  device is online.
+- FR-01: The system must show a "Send to group" icon action on each eligible row of the movements list, next
+  to edit and delete and only while the device is online; it opens the send screen of that movement. The
+  action must not live in the edit screen.
 - FR-02: The system must treat as eligible only an expense movement on the user's own account that the
-  server already holds and that is not linked to a group expense.
-- FR-03: The system must let the person choose one of their groups, one of its categories and the
-  description, which starts from the movement's note, with the amount, currency and date taken from the
-  movement and shown but not editable.
-- FR-04: The system must let the person choose the split (equal, percentage or exact) with the same split
-  editor and the group's default split as the group expense form, with the person as the payer.
+  server already holds and that is not linked to a group expense; a row whose movement is already linked
+  shows an "In group X" marker instead of the action.
+- FR-03: The system must show on the send screen the user's groups, let one tap choose one (preselecting it
+  when the person has exactly one), and preselect the group's category "Other expenses" (the first active
+  category when that one is archived or missing) and a description that starts from the movement's note,
+  with the amount, currency and date taken from the movement and shown but not editable.
+- FR-04: The system must preselect the split as equal among all active members once a group is chosen, with
+  the person as the payer, and let the person open the same split editor as the group expense form
+  (equal, percentage or exact) to change it before sending.
 - FR-05: The system must create the group expense linked to the existing movement in one transaction, with
   its shares and no new movement, and leave the account balance and the movement's category, note, tags and
   frozen rate unchanged.
@@ -82,16 +95,25 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   expense and write the deletion entry as for any expense.
 - FR-13: The system must answer 404, never 403, when the movement is not the user's, does not exist, or the
   group is not one the user belongs to.
-- FR-14: The system must show every string of the action and its screen in Spanish and English from the
-  i18n catalogs, with amounts and dates from the locale formatters and every amount as an integer in minor
-  units.
+- FR-14: The system must show every string of the action, its screen, the edit-screen notice, the home link
+  and the list highlight in Spanish and English from the i18n catalogs, with amounts and dates from the
+  locale formatters and every amount as an integer in minor units.
+- FR-15: The system must show, on the edit screen of a movement linked to a group expense, a notice that the
+  movement belongs to a group expense and which fields are locked (amount, account and date when the
+  movement was adopted), and no send action.
+- FR-16: The system must turn each row of the home screen's recent movements into a link that opens the
+  movements list scrolled to that movement and highlighting it, where the same row actions exist.
+- FR-17: The system must show the movements list normally, with no highlight and no error, when the movement
+  to focus is not found among the rows or its id is not a valid id.
 
 ## Non-Functional Requirements
-- NFR-01: The send screen must render without horizontal scrolling at a 360 px wide viewport, verified by an
-  end-to-end test at that width.
+- NFR-01: The send screen, the movements list rows with the new icon and marker, and the home recent rows
+  must render without horizontal scrolling at a 360 px wide viewport, verified by an end-to-end test at that
+  width.
 - NFR-02: The send screen must load with at most 2 API requests before a group is chosen (the movement and
-  the groups) and at most 2 more after (the group and its expense options), and the send itself must be 1
-  request, each verified by a test that counts the calls.
+  the groups) and 1 more after (the expense options), so at most 3 loading requests even when the only
+  group is preselected, and the send itself must be 1 request (4 in the whole visit), each verified by a
+  test that counts the calls.
 - NFR-03: A send must create 0 movement rows, verified by a test that counts the rows of `movements` before
   and after, and 100 sends of 100 different movements must leave 100 expenses with 100 distinct links.
 - NFR-04: The Spanish and English catalogs must have 0 missing or empty keys, verified by the existing
@@ -103,29 +125,38 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   answer 409, leaving 1 expense and 1 log entry, verified by an integration test against PostgreSQL.
 - NFR-07: A refused send must leave 0 rows written (no expense, share, log entry or change to the movement),
   verified by tests that compare table counts after each refusal.
+- NFR-08: From the movements list to a recorded send must take at most 3 taps with the default split (the
+  icon, the group, the confirmation; 2 taps when the person has one group), verified by an end-to-end test
+  that counts the interactions.
+- NFR-09: The home screen must make 0 more API requests than today, and the movements list at most 1 more
+  (the person's groups, only when a loaded row is linked to a group expense), verified by tests that count
+  the calls; opening the list with a `focus` id must cost no request beyond opening it without one.
 
 ## Acceptance Criteria
 *(EARS)*
-- AC-01 (FR-01): WHEN the person opens an eligible expense movement while online, THE system SHALL show a
-  "Send to group" action on it.
-- AC-02 (FR-01): IF the device is offline, THEN THE system SHALL not offer the action and SHALL say that
-  sending to a group needs a connection.
+- AC-01 (FR-01): WHEN the movements list shows an eligible expense movement while online, THE system SHALL
+  show on its row a "Send to group" icon action, next to edit and delete, whose accessible name includes the
+  movement's title.
+- AC-02 (FR-01): IF the device is offline, THEN THE system SHALL not offer the action on any row, and the
+  send screen, if opened by address, SHALL say that sending to a group needs a connection.
 - AC-03 (FR-02): IF the movement is income, a transfer or a currency exchange, THEN THE system SHALL show no
   action and, at the API, SHALL refuse the send with a message that only expenses can be sent.
 - AC-04 (FR-02): IF the movement is still waiting in the device queue and the server does not hold it yet,
   THEN THE system SHALL show no action until it has synced.
 - AC-05 (FR-02): IF the movement is already linked to a group expense, THEN THE system SHALL show no action
-  and show the group it belongs to.
-- AC-06 (FR-03): WHEN the person opens the send screen, THE system SHALL show the movement's amount,
-  currency and date as text and list the groups the person belongs to.
-- AC-07 (FR-03): WHEN the person chooses a group, THE system SHALL list that group's categories and prefill
-  the description with the movement's note, cut to the 200 characters a group description allows.
+  on its row and show an "In group X" marker with the group's name, or "In a group" when the person no longer
+  sees that group.
+- AC-06 (FR-03): WHEN the person taps the icon, THE system SHALL open the send screen of that movement
+  showing its amount, currency and date as text and the groups the person belongs to, one tap choosing one.
+- AC-07 (FR-03): WHEN the person chooses a group, THE system SHALL list that group's categories with "Other
+  expenses" chosen (the first active category when it is archived or missing) and prefill the description
+  with the movement's note, cut to the 200 characters a group description allows.
 - AC-08 (FR-03): IF the person belongs to no group, THEN THE system SHALL say so and link to the groups
   list.
-- AC-09 (FR-03): IF the description is empty or the category is not chosen, THEN THE system SHALL show a
+- AC-09 (FR-03): IF the description is empty or the person clears the category, THEN THE system SHALL show a
   field error and not send.
-- AC-10 (FR-04): WHEN the person chooses equal, percentage or exact, THE system SHALL show the same split
-  fields as the group expense form, starting from the group's default split.
+- AC-10 (FR-04): WHEN the person opens the split editor and chooses equal, percentage or exact, THE system
+  SHALL show the same split fields as the group expense form.
 - AC-11 (FR-04): IF the percentages do not add up to 100 or the exact amounts do not add up to the
   movement's amount, THEN THE system SHALL show a field error and not send.
 - AC-12 (FR-05): WHEN the person sends a 40,000.00 ARS movement to a group split equally among 4 members,
@@ -175,7 +206,31 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - AC-33 (FR-13): IF the group does not exist or the person is not a member, THEN THE system SHALL answer 404
   and reveal nothing about it.
 - AC-34 (FR-14): WHERE the interface language is Spanish or English, THE system SHALL show every string of
-  the action, the screen and its refusals in that language.
+  the action, the screen, its refusals, the edit-screen notice, the home link and the list highlight in
+  that language.
+- AC-35 (FR-03): WHEN the person has exactly one group, THE system SHALL preselect it on the send screen and
+  load its categories and members without a tap.
+- AC-36 (FR-04): WHEN a group is chosen, THE system SHALL preselect the split as equal among all its active
+  members, so a 40,000.00 ARS movement in a group of 4 is ready to send as 10,000.00 ARS each.
+- AC-37 (FR-04): WHEN the person has chosen a group and the preselected category, description and split are
+  valid, THE system SHALL send with one tap on the confirm button and no other input.
+- AC-38 (FR-04): WHEN the person opens the split editor and changes the split, THE system SHALL send that
+  split instead of the preselected one.
+- AC-39 (FR-15): WHEN the person opens the edit screen of a movement adopted by a group expense, THE system
+  SHALL show a notice that it belongs to a group expense, name the locked fields (amount, account and date)
+  and show them as read-only text, with no "Send to group" action on the screen.
+- AC-40 (FR-15): WHEN the person opens the edit screen of a movement linked to a group expense that was
+  created in the group, THE system SHALL show the notice that it belongs to a group expense and leave every
+  field editable.
+- AC-41 (FR-16): WHEN the person opens a row of the home screen's recent movements, THE system SHALL open
+  the movements list scrolled to that movement and highlighting it, with the same row actions as any row.
+- AC-42 (FR-16): WHEN a home row is read by a screen reader or reached by keyboard, THE system SHALL expose it
+  as one link with an accessible name that includes the movement's title, with no interactive element
+  inside the link, and the highlighted list row SHALL be marked as such in text and not only by color.
+- AC-43 (FR-17): IF the movement to focus is not among the rows of the list, THEN THE system SHALL show the
+  list without highlight and without an error.
+- AC-44 (FR-17): IF the `focus` value is not a valid id, THEN THE system SHALL ignore it and show the list
+  without highlight and without an error.
 
 ## Out of Scope
 - Income, transfers and currency exchanges: only expense movements are sent.
@@ -186,7 +241,10 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   under the 05d rules (a member who left blocks it with 409).
 - Offline use: group screens are online only (PRD 05 decision), so the action is not queued.
 - Turning a group expense back into a personal-only movement beyond the detach on deletion.
-- Choosing the group category automatically from the movement's category; the person picks it.
+- Choosing the group category from the movement's personal category: the send screen preselects the group's
+  "Other expenses" and the person can change it.
+- A movement detail screen: the list row carries the action, and the edit screen only shows the notice.
+- Finding a focused movement beyond the first page of the list: the list then shows without highlight.
 - Changing the currency, the account or the payer of the expense: they come from the movement.
 - How reports show the sent expense beyond the existing share and receivable figures (PRD 09).
 
@@ -205,6 +263,11 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   (FR-11).
 - **Existing data already has two expenses on one movement** → none can exist by construction (each
   creation records its own movement), and the migration plan states the check before the unique index.
+- **The default category or split is wrong for the person and they send without looking** → both are shown
+  on the screen before the confirm button, the description and the split summary are visible text, and the
+  split editor is one tap away (FR-03, FR-04).
+- **The `focus` value of the address is hostile or malformed** → it is validated as a uuid, never rendered,
+  and used only to find a loaded row (FR-17, AC-44).
 - **A float slips into money** → amounts stay integers in minor units and go through the shared helpers
   (NFR-05).
 
@@ -215,8 +278,9 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   adopted movements.
 - DISC-001-05f (group expense screens) — the split editor, the default split and the expense options that the
   send screen reuses.
-- DISC-001-03 (movements) — the movement, its edit rules and the personal movement screens that gain the
-  action and the lock.
+- DISC-001-03 (movements) — the movement, its edit rules, the movements list rows that gain the icon action
+  and the marker, and the edit screen that gains the lock notice.
+- FEAT-005 (redesign of the home screen) — the home screen's recent movements, whose rows become links.
 - DISC-001-06b (budgets) — its spending reader already skips payer movements through the link.
 - DISC-001-04c to 04e (offline queues) — a queued edit of a locked movement must surface as failed.
 - Database change: a unique index on the movement link and a marker of an adopted movement on
@@ -246,3 +310,14 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - 2026-10-11: The model proposes a new endpoint (for example `POST /groups/:id/expenses/from-movement` with a
   `movementId`) and a database change; the spec decides the shape.
 - 2026-10-11: Open questions 1 to 5 resolved by the owner, who accepted the recommendation of each: (1) deleting an adopted expense detaches and keeps the movement; (2) an edit carries amount and date to the movement, never the note; (3) amount, account and date of an adopted movement are locked with a 409; (4) the creation log entry carries a field marking it as created from a movement; (5) deleting the movement of an adopted expense nulls the link and keeps the expense.
+- 2026-10-11: Owner decision (UX change after reading the spec; verified against the code: there is no
+  movement detail screen and the home recent rows are not clickable). (1) "Send to group" is an icon action on
+  each eligible row of the movements list, next to edit and delete, and an already-adopted movement shows an
+  "In group X" marker; it is not in the edit screen, which only shows a notice of the link and the locked
+  fields. (2) The icon opens `/movements/send?id=`, the split is preselected as equal among all active
+  members once a group is chosen, and a single group is preselected: icon, group, confirm is at most 3 taps
+  (NFR-08). (3) New: the home recent rows become links to `/movements?focus=<id>`, which opens the list
+  scrolled to and highlighting that movement. FR-01 to FR-04 and AC-01, AC-02, AC-05 to AC-07, AC-09 and AC-10
+  were rewritten; FR-15 to FR-17, NFR-08, NFR-09 and AC-35 to AC-44 were added; the five earlier owner
+  decisions stand. Assumption to confirm: the preselected group category is "Other expenses" (needed to meet
+  3 taps; deriving it from the movement's own category stays out of scope).

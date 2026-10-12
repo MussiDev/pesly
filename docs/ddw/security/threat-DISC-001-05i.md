@@ -14,9 +14,11 @@
 | `drizzle-group-expense-repository.ts` and the unique index `group_expenses_payer_movement_unique` | Blocks 2, 4 (`apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts`, migration 0036) |
 | `drizzle-movement-repository.ts` edit lock behind `PUT /movements/:id` | Block 5 (`apps/api/src/movements/infrastructure/db/drizzle-movement-repository.ts`; also the queued edits the sync pass replays through it) |
 | `drizzle-payer-movement-recorder.ts` (adoption lock, propagation, detach on delete) | Block 4 (`apps/api/src/groups/infrastructure/movements/drizzle-payer-movement-recorder.ts`) |
-| `GET /movements/:id` detail answer with the group link | Block 5 |
+| `GET /movements/:id` detail answer and `GET /movements` list `groupLinks` | Block 5 |
 | Activity log marker `group_activity_log.from_movement` | Blocks 2, 4, 11 (migration 0036 and the activity presenter) |
 | Web: `api-client.ts`, `features/movements/send-to-group/*` and `edit-movement-container.tsx` | Blocks 7, 8, 9, 10 |
+| Web: movements list send icon, marker and `focus` query (`movements-container.tsx`) | Block 12 |
+| Web: home recent-movement links (`recent-movements.tsx`) | Block 13 |
 
 ## Trust boundaries
 - Browser → API send: `POST /groups/:id/expenses/from-movement` takes a group id from the path and a movement
@@ -34,6 +36,9 @@
   a movement owned by another user.
 - API → rendered page: the activity entries, group names and descriptions written by other members are
   untrusted text rendered in this user's page; the new marker is a boolean and carries no text of its own.
+- Address bar → movements list: the `focus` query value is untrusted input typed or pasted by anyone (a
+  shared or crafted link). It is validated as a uuid, compared only with ids of rows already loaded under the
+  caller's own scope, never sent to the API and never rendered, so it can neither read nor reveal anything.
 - Error body → client: refusals travel as a code only; the client turns a code into catalog text.
 
 ## STRIDE analysis
@@ -117,15 +122,17 @@
   delete the expense, and now the payer's movement survives instead of being destroyed; the rollback script
   detaches adopted expenses first so older code can never delete a personal movement through the old rule.
 
-### `GET /movements/:id` detail answer with the group link
-- **Spoofing:** owner scope from the session; the link is looked up only for movements the scope owns.
+### `GET /movements/:id` detail answer and `GET /movements` list `groupLinks`
+- **Spoofing:** owner scope from the session; the link is looked up only for movements the scope owns, for
+  the detail and for the ids of the list page alike.
 - **Tampering:** read-only; it changes nothing.
 - **Repudiation:** not applicable; reads are not audited, the request log carries ids only.
-- **Information Disclosure:** the answer adds `groupId`, `expenseId` and `adopted` to the owner's own movement;
+- **Information Disclosure:** the answers add `groupId`, `expenseId` and `adopted` (the list as a record keyed
+  by the owner's own movement ids, empty when none) to the owner's own movements;
   it names no group, member or amount of the group, so a person who left the group learns only ids of a group
   they already belonged to, and the group name needs `getGroup`, which answers 404 to a non-member.
-- **Denial of Service:** one extra indexed lookup per read by id; the list endpoint is unchanged and does not
-  join the link.
+- **Denial of Service:** one extra indexed lookup per read by id; the list adds one indexed query for at most
+  100 ids of the page (no join in the list query), so a page costs one more statement, not one per row.
 - **Elevation of Privilege:** the link grants no access to the group; every group read still checks
   membership.
 
@@ -154,10 +161,41 @@
 - **Information Disclosure:** failures show catalog text chosen by code, never API text; the query carries
   only a movement id, never an amount or note; group names are rendered as React text, never as HTML.
 - **Denial of Service:** the action is online only and the button is disabled while the request runs, so a
-  double click sends once; the screen makes at most 2 requests before a group is chosen, 2 after and 1 to
-  send, with no polling or retry loop.
+  double click sends once; the screen makes at most 2 requests before a group is chosen, 1 after and 1 to
+  send (3 loads when the only group is preselected), with no polling or retry loop.
 - **Elevation of Privilege:** hiding the action when offline, queued or linked only guides the person; the
   API remains the authority and answers 404 or 409 whatever the UI showed.
+
+### Web: movements list send icon, marker and `focus` query (`movements-container.tsx`)
+- **Spoofing:** the icon is a link to `/movements/send?id=<own movement id>`; the id is a claim the API
+  checks, and no user, member or payer id travels in any address; a crafted `?focus=` link made by someone
+  else can at most highlight a row of the caller's own loaded list.
+- **Tampering:** `focus` is parsed with a uuid schema before use and only compared with loaded ids; it is not
+  sent to the API, not stored, not written to the DOM as text, an attribute or a selector (the row is found by
+  comparing ids in code, not by `querySelector` with the value), and a filter change drops it from the
+  address. A malformed or hostile value (`abc`, markup, a very long string) is ignored with the list shown
+  as usual (AC-44). The home link target is built from the API's own movement id.
+- **Repudiation:** not applicable; navigation and highlight write nothing and the send is logged by the server.
+- **Information Disclosure:** an id that is not among the loaded rows behaves exactly like any other unknown
+  id (no highlight, no error, no request), so `focus` cannot be used to test whether a movement id exists or
+  belongs to someone else; the marker shows a group name only when `listGroups` (membership-checked) returns
+  that group, else "In a group"; group names and notes are React text.
+- **Denial of Service:** `focus` causes no request; the list adds at most one `listGroups` call, only when a
+  loaded row is linked, and the home screen adds none; scroll and focus happen once per `focus` value, with no
+  timer or loop.
+- **Elevation of Privilege:** hiding the icon offline, for queued rows or linked rows only guides the person;
+  the API stays the authority (404 or 409); the highlight grants no access to anything.
+
+### Web: home recent-movement links (`recent-movements.tsx`)
+- **Spoofing:** the link target is built from the API's own movement id, never from typed input, and carries
+  no user or session claim.
+- **Tampering:** the row is one link with no nested interactive element; the target is encoded with
+  `encodeURIComponent`, so a note or title cannot alter the address.
+- **Repudiation:** not applicable; the link is a navigation and writes nothing.
+- **Information Disclosure:** the address holds only a movement id of the caller's own recent list, which the
+  browser history keeps on the caller's own device; the row text is React text.
+- **Denial of Service:** no request is added to the home screen; the five-row limit is unchanged.
+- **Elevation of Privilege:** the link grants nothing; the list answers under the caller's own scope.
 
 ## Data classification
 | Data | Class | At rest | In transit |
@@ -165,7 +203,8 @@
 | Movement amount, date, account, note, tags and rate that the send adopts | financial | PostgreSQL, managed encryption at rest; never copied by a send (0 new movement rows) | HTTPS only, behind the session cookie |
 | Group expense, shares and member ids created from a movement | financial | PostgreSQL, managed encryption at rest | HTTPS only |
 | Activity log entry with `from_movement` and the member and time | financial | PostgreSQL, managed encryption at rest; immutable by trigger | HTTPS only |
-| Group link of a movement (`groupId`, `expenseId`, `adopted`) | public | PostgreSQL, managed encryption at rest; ids only | HTTPS only |
+| Group link of a movement (`groupId`, `expenseId`, `adopted`), in the detail and the list `groupLinks` | public | PostgreSQL, managed encryption at rest; ids only | HTTPS only |
+| `focus` query value (a movement id in the address) | public | not stored; lives in the address bar and browser history | HTTPS only; never sent to the API |
 | Error codes such as `GROUP_MOVEMENT_ALREADY_SENT` | public | not stored; a rejected queued edit keeps the code (at most 64 characters) in the user's own device database, deleted on sign-out | HTTPS only |
 | Session cookie that authorises every call | credentials | HttpOnly cookie, never readable by page code | HTTPS only, sent with `credentials: include` |
 
@@ -179,13 +218,14 @@
 | R-05 | The movement is edited directly (amount, account, date) after adoption, so the expense and the movement drift apart | T | High | High | The lock sits in the single `update` statement path of the movements repository, in the same transaction as a `for update` read, on by default; tests cover `PUT`, a replayed queued edit, a repeated device creation id, the bypass flag and the race between an edit and a send (Block 5) |
 | R-06 | A refusal or the log marker leaks an amount, an account name, the note or the movement id to another member or to the wrong person | I | Medium | Medium | Error bodies are `{ code }` only; the marker is a boolean; the creation entry carries no snapshot; the link answer carries ids only and the group name needs a membership-checked read; tests assert refusals and the activity entry contain no amount, name or movement id (Blocks 5, 6, 11) |
 | R-07 | A member denies having sent the movement, or a sent expense is later passed off as typed in the group | R | Medium | Medium | The creation entry in the immutable log records the member, the server time and `from_movement`, written in the same transaction as the expense; the log answers 405 to any change (Blocks 2, 4) |
-| R-08 | Concurrent sends are used to exhaust connections or locks | D | Medium | Medium | Shared group lock, short transactions, a 409 after one read for repeats, bounded body and split size, the existing request rate limits; no loop or retry on the client (Blocks 4, 9) |
+| R-08 | Concurrent sends are used to exhaust connections or locks | D | Medium | Medium | Shared group lock, short transactions, a 409 after one read for repeats, bounded body and split size, the existing request rate limits; no loop or retry on the client (Blocks 4, 9, 12) |
 | R-09 | Deleting an adopted group expense destroys the person's own movement (privilege of the deleter over another user's record) | E | Medium | High | The marker `adopted_movement` makes delete detach and keep the movement; a non-adopted expense keeps the old rule; the migration rollback detaches adopted expenses first; tests for both deletes and for a deleted movement with a null link (Blocks 2, 4) |
 | R-10 | A queued offline edit of the movement is applied after the send and silently changes a locked field | T | Medium | High | The sync pass sends it through the same `PUT`, which answers 409 with the lock code; the pass stores a rejected change with that code and the movement screen shows a failed row with the message and the discard action; never applied silently (Blocks 5, 7) |
 | R-11 | The edit lock is bypassed by another write path (import, recurring job, card installment, device replay, account code) | E | Low | High | Reading the code shows `update` in `drizzle-movement-repository.ts` is the only statement that updates a movement row; the other paths only insert, delete or read; creation with an existing device id returns the stored movement; a test asserts the replay leaves an adopted movement unchanged, and the bypass is an explicit option used by one adapter (Block 5) |
 | R-12 | A database error or a migration step on existing data fails and leaves partial state | T | Low | High | Migration 0036 starts with a pre-check that aborts on a duplicate link and is otherwise additive; the whole send is one transaction so a failure stores nothing; an idempotent rollback script exists and is tested twice (Blocks 2, 4) |
-| R-13 | Markup or script in a group description, group name or note runs in another member's page through the lists or the activity page | T | Medium | High | Every description, name and note is rendered as React text with no HTML injection; the new marker is a boolean and the catalog text is static (Blocks 9, 10, 11) |
+| R-13 | Markup or script in a group description, group name or note runs in another member's page through the lists or the activity page | T | Medium | High | Every description, name and note is rendered as React text with no HTML injection; the new marker is a boolean and the catalog text is static; the list marker "In group X" renders the name as React text (Blocks 9, 10, 11, 12) |
 | R-14 | A float slips into money on the way (note derivation, split, display) | T | Medium | High | The amount is the movement's `bigint`, shares go through the shared allocation helper, a test over 1,000 random amounts proves the shares add up, and a scan rejects float conversions in the new files (Blocks 3, 8, 12) |
+| R-16 | The `focus` query value of a crafted or shared link injects markup or a selector, probes whether a movement id exists, or breaks the list | T | Medium | Low | Validated as a uuid, compared in code with loaded ids only, never rendered, used in a selector, stored or sent; an unknown or malformed value shows the list with no highlight and no error, so there is no oracle; tests with `abc`, a markup string and an unknown uuid (Block 12, Block 14) |
 | R-15 | A web bundle cached before the deploy cannot read the activity entry with the new required field | D | Medium | Low | The page shows the generic failure with retry and the service worker update loads the new bundle; accepted as a short transitional effect and listed for the owner in the spec (Block 11) |
 
 ## Supply chain
@@ -200,6 +240,8 @@ shared so sends of different movements do not block each other, and repeated sen
 409 after one read. The edit lock adds one `for update` read and one existence query to a movement edit. The
 unique partial index replaces the plain one of 0035, so the budgets' `not exists` probe keeps its index and
 write cost does not grow. The client screens add no polling, background timer or retry loop; the load budget
-is 2 requests, then at most 2 after choosing a group, then 1 to send, asserted by tests. A failed request
+is 2 requests, then 1 after choosing a group, then 1 to send, asserted by tests; the movements list adds at
+most 1 request (the person's groups, only when a row is linked) and the home screen none, and a `focus` value
+costs no request. A failed request
 leaves the screen on its error state with a manual retry, and a send that fails stores nothing, so it can be
 repeated safely. The send is online only: offline the action is not offered and no change is queued.
