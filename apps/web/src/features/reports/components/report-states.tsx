@@ -123,12 +123,15 @@ export function FilterGoneAlert({ onReload }: FilterGoneAlertProps) {
   );
 }
 
+/** The id the date fields point to when the server refused the range. */
+export const RANGE_ALERT_ID = 'report-range-alert';
+
 export interface RangeAlertProps {
   id?: string | undefined;
 }
 
 /** The server refused the date range (400 on `from` or `to`); figures stay hidden. */
-export function RangeAlert({ id }: RangeAlertProps) {
+export function RangeAlert({ id = RANGE_ALERT_ID }: RangeAlertProps) {
   const t = useTranslations('reports.states');
   return (
     <Alert id={id} variant="destructive">

@@ -76,6 +76,7 @@ const REQUIRED = [
   'reports.filters.account',
   'reports.filters.allAccounts',
   'reports.filters.archivedAccount',
+  'reports.filters.unknownAccount',
   'reports.filters.tag',
   'reports.filters.clear',
   'reports.currency.note',
@@ -170,6 +171,35 @@ describe('reports catalog (NFR-06)', () => {
     ]);
     expect(placeholders(en['reports.range.limit'] ?? '')).toContain('months');
     expect(placeholders(en['reports.states.emptyDescription'] ?? '')).toEqual(['from', 'to']);
+  });
+
+  it('names the tabs as the PRD does (AC-01)', () => {
+    const en = flatten(load('en'));
+    const es = flatten(load('es'));
+    expect([
+      en['reports.tabs.categories'],
+      en['reports.tabs.incomeExpenses'],
+      en['reports.tabs.netWorth'],
+    ]).toEqual(['Expenses by category', 'Income vs expenses', 'Net worth']);
+    expect([
+      es['reports.tabs.categories'],
+      es['reports.tabs.incomeExpenses'],
+      es['reports.tabs.netWorth'],
+    ]).toEqual(['Gastos por categoría', 'Ingresos vs gastos', 'Patrimonio neto']);
+  });
+
+  it('writes the Spanish reports strings in voseo, like the rest of the catalog (L6)', () => {
+    const tuteo = new Set(['revisa', 'inténtalo', 'vuelve', 'cámbiala', 'intenta', 'cambia']);
+    const offenders = Object.entries(flatten(load('es')))
+      .filter(([key]) => key.startsWith('reports.'))
+      .filter(([, value]) =>
+        value
+          .toLowerCase()
+          .split(/[^a-záéíóúñ]+/)
+          .some((word) => tuteo.has(word)),
+      )
+      .map(([key]) => key);
+    expect(offenders).toEqual([]);
   });
 
   it('error: a catalog with a missing key or an empty value fails the check', () => {

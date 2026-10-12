@@ -103,6 +103,9 @@ export function NetWorthScreen({
         accounts={[]}
         today={today}
         onChange={onFiltersChange}
+        serverField={
+          state.status === 'badRange' && state.reason === 'server' ? state.field : undefined
+        }
       />
       {state.status === 'loading' ? (
         <ReportLoading>
@@ -114,7 +117,7 @@ export function NetWorthScreen({
       ) : null}
       {state.status === 'filterGone' ? <ReportError retrying={false} onRetry={onRetry} /> : null}
       {state.status === 'offline' ? <ReportOffline onRetry={onRetry} /> : null}
-      {state.status === 'badRange' ? <RangeAlert /> : null}
+      {state.status === 'badRange' && state.reason === 'server' ? <RangeAlert /> : null}
       {state.status === 'ready' && state.data.points.length === 0 ? (
         <ReportEmpty from={state.data.from} to={state.data.to} onWiden={onWiden} />
       ) : null}

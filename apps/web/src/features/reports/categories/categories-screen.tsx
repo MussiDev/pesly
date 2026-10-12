@@ -86,6 +86,7 @@ export function CategoriesScreen({
       if (view.total <= 0n) {
         body = (
           <>
+            <CurrencyNote currency={view.currency} />
             {notices}
             <ReportEmpty from={view.from} to={view.to} onWiden={onWiden} />
           </>
@@ -96,13 +97,16 @@ export function CategoriesScreen({
       const segments = ringSegments(view.rows, t('categories.other'));
       body = (
         <>
+          <CurrencyNote currency={view.currency} />
           <p className="text-small text-muted-foreground">
             {t('range.resolved', { from: day(view.from), to: day(view.to) })}
           </p>
           {notices}
           <div className="grid gap-1">
             <p className="text-small text-muted-foreground">{t('categories.total')}</p>
-            <p className="text-display font-semibold tabular-nums [overflow-wrap:anywhere]">{total}</p>
+            <p className="text-display font-semibold tabular-nums [overflow-wrap:anywhere]">
+              {total}
+            </p>
           </div>
           <ChartFigure
             name={t('categories.chartName')}
@@ -116,6 +120,7 @@ export function CategoriesScreen({
               label={t('categories.chartName')}
               segments={segments}
               rows={view.rows}
+              total={view.total}
               percentText={percentText}
             />
           </ChartFigure>
@@ -136,8 +141,8 @@ export function CategoriesScreen({
 
   return (
     <section aria-label={t('categories.title')} className="grid gap-4">
+      <h2 className="text-h2 font-semibold">{t('categories.title')}</h2>
       {filters}
-      <CurrencyNote currency={state.status === 'ready' ? state.data.currency : 'ARS'} />
       {body}
     </section>
   );

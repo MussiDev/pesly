@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeReturnPath, signInHref } from '../src/features/auth/return-path';
+import { safeReturnPath, signInHref } from '../src/lib/return-path';
 
 describe('safeReturnPath (D2, AC-03)', () => {
   it.each(['/reports', '/reports/categories', '/reports/income-expenses', '/reports/net-worth'])(

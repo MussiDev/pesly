@@ -10,8 +10,12 @@ export interface ShareView {
 const RING_LARGEST = 5;
 
 /**
- * Whole-percent share of each row, by integer division rounded down. The leftover up to 100 goes to
- * the largest row, so the shown shares never exceed 100. A total of 0 or less gives no shares.
+ * Whole-percent share of each row by the largest-remainder method, with integers only: every row
+ * is rounded down and, when the rows cover the total, the leftover points go one by one to the rows
+ * with the largest fractional remainders (ties: the larger amount, then the earlier row). No row
+ * ends above its true share plus one point. A row under 1% stays at 0 (`underOne`) and never takes
+ * a leftover point, so the shown shares may then add up to less than 100. A total of 0 or less
+ * gives no shares.
  */
 export function computeShares(rows: readonly { amount: bigint }[], total: bigint): ShareView[] {
   if (total <= 0n) return [];
@@ -25,15 +29,25 @@ export function computeShares(rows: readonly { amount: bigint }[], total: bigint
   );
 
   if (positiveSum >= total) {
-    const leftover = 100 - percents.reduce((sum, percent) => sum + percent, 0);
-    let largest = -1;
-    rows.forEach((row, index) => {
-      const best = largest === -1 ? undefined : rows[largest];
-      if (row.amount > 0n && (best === undefined || row.amount > best.amount)) largest = index;
-    });
-    const current = largest === -1 ? undefined : percents[largest];
-    // With nothing at 1% or more there is no row the leftover could honestly be added to.
-    if (current !== undefined && current > 0) percents[largest] = current + leftover;
+    let leftover = 100 - percents.reduce((sum, percent) => sum + percent, 0);
+    const candidates = rows
+      .map((row, index) => ({
+        index,
+        amount: row.amount,
+        remainder: row.amount > 0n ? (row.amount * 100n) % base : 0n,
+      }))
+      // A row under 1% keeps its "<1%" and a whole share has nothing left to round up.
+      .filter((entry) => entry.remainder > 0n && (percents[entry.index] ?? 0) > 0)
+      .sort((a, b) => {
+        if (a.remainder !== b.remainder) return a.remainder > b.remainder ? -1 : 1;
+        if (a.amount !== b.amount) return a.amount > b.amount ? -1 : 1;
+        return a.index - b.index;
+      });
+    for (const entry of candidates) {
+      if (leftover <= 0) break;
+      percents[entry.index] = (percents[entry.index] ?? 0) + 1;
+      leftover -= 1;
+    }
   }
 
   return rows.map((row, index) => {

@@ -100,3 +100,21 @@ describe('checkRange (FR-15)', () => {
     expect(checkRange({ to: '2026-09-30', today, kind: 'netWorth' })).toEqual({ ok: true });
   });
 });
+
+describe('checkRange end in the future (L1)', () => {
+  it('rejects an end date later than today before anything else', () => {
+    expect(
+      checkRange({ from: '2026-10-01', to: '2026-10-13', today: '2026-10-12', kind: 'categories' }),
+    ).toEqual({ ok: false, reason: 'to_in_future' });
+    expect(checkRange({ to: '2026-10-13', today: '2026-10-12', kind: 'netWorth' })).toEqual({
+      ok: false,
+      reason: 'to_in_future',
+    });
+  });
+
+  it('accepts today as the end', () => {
+    expect(
+      checkRange({ from: '2026-10-01', to: '2026-10-12', today: '2026-10-12', kind: 'categories' }),
+    ).toEqual({ ok: true });
+  });
+});

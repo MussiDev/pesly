@@ -9,10 +9,11 @@ import { Select } from '@/components/ui/select';
 import { useCompactViewport } from '@/lib/use-compact-viewport';
 import { cn } from '@/lib/utils';
 import type { ReportAccountOption } from '../load-account-options';
-import { activePreset, presetsFor, rangeOfPreset, type RangePreset } from '../range';
+import { activePreset, maxMonthsFor, presetsFor, rangeOfPreset, type RangePreset } from '../range';
 import type { ReportFilterValues } from '../report-filters-state';
 import type { ReportKind } from '../report-view';
 import { rangeCheckFor } from '../use-report';
+import { RANGE_ALERT_ID } from './report-states';
 
 /** What the tag slot receives: the bar keeps one tag, so the box holds zero or one chip. */
 export interface ReportTagFieldControl {
@@ -30,6 +31,8 @@ export interface ReportFiltersProps {
   onChange: (next: ReportFilterValues) => void;
   /** Renders the tag box; the container supplies it so the bar stays presentational. */
   renderTagField?: ((control: ReportTagFieldControl) => ReactNode) | undefined;
+  /** The date field the server refused; the body's range alert describes it. */
+  serverField?: 'from' | 'to' | undefined;
 }
 
 /** A date pair the user typed that was not sent, kept so the fields show what was typed. */
@@ -64,6 +67,7 @@ export function ReportFilters({
   today,
   onChange,
   renderTagField,
+  serverField,
 }: ReportFiltersProps) {
   const t = useTranslations('reports');
   const id = useId();
@@ -107,8 +111,22 @@ export function ReportFilters({
   const message = !check.ok
     ? check.reason === 'from_after_to'
       ? t('range.errors.fromAfterTo')
-      : t('range.errors.tooLong', { months: check.maxMonths })
+      : check.reason === 'to_in_future'
+        ? t('range.errors.toInFuture')
+        : t('range.errors.tooLong', { months: check.maxMonths })
     : undefined;
+  const messageNode =
+    message === undefined ? null : (
+      <p id={messageId} role="alert" className="text-sm text-destructive">
+        {message}
+      </p>
+    );
+  // The active account may be missing from the options (still loading, failed, deleted): the
+  // control must keep showing it instead of falling back to "All accounts".
+  const missingAccount =
+    filters.accountId !== undefined && !accounts.some((account) => account.id === filters.accountId)
+      ? filters.accountId
+      : undefined;
 
   const body = (
     <div className="grid gap-3">
@@ -159,8 +177,10 @@ export function ReportFilters({
               id={`${id}-${field}`}
               type="date"
               value={shown[field] ?? ''}
-              aria-invalid={invalid}
-              aria-describedby={invalid ? messageId : undefined}
+              aria-invalid={invalid || serverField === field}
+              aria-describedby={
+                invalid ? messageId : serverField === field ? RANGE_ALERT_ID : undefined
+              }
               onChange={(event) => {
                 typeDate(field, event.currentTarget.value);
               }}
@@ -168,11 +188,10 @@ export function ReportFilters({
           </div>
         ))}
       </div>
-      {message === undefined ? null : (
-        <p id={messageId} role="alert" className="text-sm text-destructive">
-          {message}
-        </p>
-      )}
+      <p className="text-small text-muted-foreground">
+        {t('range.limit', { months: maxMonthsFor(kind) })}
+      </p>
+      {messageNode}
       {flow ? (
         <div className="grid gap-2">
           <Label htmlFor={`${id}-account`}>{t('filters.account')}</Label>
@@ -185,6 +204,9 @@ export function ReportFilters({
             }}
           >
             <option value="">{t('filters.allAccounts')}</option>
+            {missingAccount === undefined ? null : (
+              <option value={missingAccount}>{t('filters.unknownAccount')}</option>
+            )}
             {accounts.map((account) => (
               <option key={account.id} value={account.id}>
                 {account.label}
@@ -239,6 +261,8 @@ export function ReportFilters({
           >
             {t('filters.toggle', { count })}
           </button>
+          {/* The panel holds the message while open; collapsed, it still shows beside the toggle. */}
+          {open ? null : messageNode}
           <div id={`${id}-panel`} hidden={!open}>
             {open ? body : null}
           </div>

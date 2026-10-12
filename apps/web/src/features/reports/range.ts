@@ -22,6 +22,11 @@ const MAX_MONTHS: Record<ReportKind, number> = {
   netWorth: REPORT_MAX_MONTHS.netWorth,
 };
 
+/** How many months a range of the report may cover. */
+export function maxMonthsFor(kind: ReportKind): number {
+  return MAX_MONTHS[kind];
+}
+
 /** Income against expenses stops at 12 months, so it has no last-24 preset. */
 export function presetsFor(kind: ReportKind): RangePreset[] {
   const all: RangePreset[] = ['thisMonth', 'last3', 'last12', 'last24'];
@@ -56,11 +61,15 @@ export function activePreset(
 
 export type RangeCheck =
   | { ok: true }
+  | { ok: false; reason: 'to_in_future' }
   | { ok: false; reason: 'from_after_to' }
   | { ok: false; reason: 'too_long'; maxMonths: number };
 
 /** `YYYY-MM-DD` text compares in calendar order. A missing end is today; a missing start is the API default. */
 export function checkRange(input: RangeDates & { today: string; kind: ReportKind }): RangeCheck {
+  // The API answers 400 on an end date after today (PRD Decision Log 1), so it is not sent.
+  if (input.to !== undefined && input.to > input.today)
+    return { ok: false, reason: 'to_in_future' };
   const to = input.to ?? input.today;
   if (input.from === undefined) return { ok: true };
   if (input.from > to) return { ok: false, reason: 'from_after_to' };

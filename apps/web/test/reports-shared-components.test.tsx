@@ -15,6 +15,7 @@ import { ReportNotices } from '../src/features/reports/components/report-notices
 import {
   FilterGoneAlert,
   RangeAlert,
+  RANGE_ALERT_ID,
   ReportEmpty,
   ReportError,
   ReportLoading,
@@ -75,8 +76,8 @@ describe('ReportTabs', () => {
     const nav = screen.getByRole('navigation', { name: 'Report sections' });
     const links = within(nav).getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual([
-      'By category',
-      'Income and expenses',
+      'Expenses by category',
+      'Income vs expenses',
       'Net worth',
     ]);
     expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
@@ -204,6 +205,59 @@ describe('ReportFilters', () => {
     await userEvent.setup().click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByLabelText('Account')).toBeTruthy();
+  });
+
+  it('under 1024 px a local range problem is worded outside the collapsed panel (M1)', async () => {
+    viewport(true);
+    bar({ filters: { from: '2026-05-10', to: '2026-05-01' } });
+    const toggle = screen.getByRole('button', { name: /^Filters/ });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByLabelText('From')).toBeNull();
+    const text = 'The start date must not be after the end date.';
+    expect(screen.getByRole('alert').textContent).toBe(text);
+    await userEvent.setup().click(toggle);
+    // Open: the message sits with the fields, and it is still said only once.
+    expect(screen.getAllByText(text)).toHaveLength(1);
+    expect(screen.getByLabelText('From').getAttribute('aria-describedby')).toBe(
+      screen.getByText(text).id,
+    );
+  });
+
+  it('shows the limit of the range next to the date fields at all times (FR-15)', () => {
+    viewport(false);
+    bar({ kind: 'incomeExpenses' });
+    expect(screen.getByText('The range can cover up to 12 months.')).toBeTruthy();
+    cleanup();
+    bar({ kind: 'netWorth' });
+    expect(screen.getByText('The range can cover up to 24 months.')).toBeTruthy();
+  });
+
+  it('refuses an end date after today locally and says so (L1)', () => {
+    viewport(false);
+    const onChange = bar({ filters: { from: '2026-10-01', to: '2026-10-10' } });
+    const to = screen.getByLabelText('To');
+    fireEvent.change(to, { target: { value: '2026-10-13' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText('The end date cannot be in the future.')).toBeTruthy();
+    expect(to.getAttribute('aria-invalid')).toBe('true');
+  });
+
+  it('wires the server range alert to the field the server named (L1)', () => {
+    viewport(false);
+    bar({ serverField: 'to' });
+    expect(screen.getByLabelText('To').getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByLabelText('To').getAttribute('aria-describedby')).toBe(RANGE_ALERT_ID);
+    expect(screen.getByLabelText('From').getAttribute('aria-invalid')).toBe('false');
+    expect(screen.getByLabelText('From').getAttribute('aria-describedby')).toBeNull();
+  });
+
+  it('keeps the active account visible when it is not among the options (M6)', () => {
+    viewport(false);
+    const OTHER = '9f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a99';
+    bar({ filters: { accountId: OTHER }, accounts: [] });
+    const select = screen.getByLabelText<HTMLSelectElement>('Account');
+    expect(select.value).toBe(OTHER);
+    expect(within(select).getByRole('option', { name: 'Account not available' })).toBeTruthy();
   });
 
   it('from 1024 px the filters are open and there is no toggle (AC-50)', () => {

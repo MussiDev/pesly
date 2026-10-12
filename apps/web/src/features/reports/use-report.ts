@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { isOffline } from '@/lib/connectivity';
-import { signInHref } from '../auth/return-path';
+import { signInHref } from '@/lib/return-path';
 import { checkRange, type RangeCheck } from './range';
 import { serializeReportFilters, type ReportFilterValues } from './report-filters-state';
 import type { ReportKind } from './report-view';
 
 export type ReportRangeProblem =
-  { reason: 'from_after_to' } | { reason: 'too_long'; maxMonths: number } | { reason: 'server' };
+  | { reason: 'from_after_to' }
+  | { reason: 'to_in_future' }
+  | { reason: 'too_long'; maxMonths: number }
+  | { reason: 'server' };
 
 export type ReportState<T> =
   | { status: 'loading' }
@@ -47,7 +50,7 @@ export function rangeCheckFor(
 
 /** Which date field a local range problem is shown on. */
 function fieldOf(check: Exclude<RangeCheck, { ok: true }>): 'from' | 'to' {
-  return check.reason === 'from_after_to' ? 'to' : 'from';
+  return check.reason === 'too_long' ? 'from' : 'to';
 }
 
 interface Stored<T> {
@@ -154,7 +157,7 @@ export function useReport<T>({
     const problem: ReportRangeProblem =
       check.reason === 'too_long'
         ? { reason: 'too_long', maxMonths: check.maxMonths }
-        : { reason: 'from_after_to' };
+        : { reason: check.reason };
     return { state: { status: 'badRange', field: fieldOf(check), ...problem }, retry };
   }
   // An answer kept for another key is not shown, not even for one render.

@@ -1,15 +1,14 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
-import { useCallback, useEffect, useState } from 'react';
+import { useLocale } from 'next-intl';
+import { useCallback } from 'react';
 import { TagInputContainer } from '@/features/movements/containers/tag-input-container';
 import type { Locale } from '@/i18n/routing';
 import { useApiClient } from '@/lib/api-client-provider';
-import { isOffline } from '@/lib/connectivity';
 import { ReportFilters } from '../components/report-filters';
-import { loadAccountOptions, type ReportAccountOption } from '../load-account-options';
 import { toIncomeExpensesView } from '../report-adapters';
 import { hasEntityFilter, toReportQuery } from '../report-filters-state';
+import { useAccountOptions } from '../use-account-options';
 import { useReport } from '../use-report';
 import { useReportContext } from '../use-report-context';
 import { useReportFilters } from '../use-report-filters';
@@ -18,24 +17,10 @@ import { IncomeExpensesScreen } from './income-expenses-screen';
 /** Wires the address, the request and the account list to the presentational screen. */
 export function IncomeExpensesContainer() {
   const locale = useLocale() as Locale;
-  const t = useTranslations('reports');
   const api = useApiClient();
   const { today } = useReportContext();
   const { filters, setFilters, clearEntityFilters } = useReportFilters('incomeExpenses');
-  const [accounts, setAccounts] = useState<ReportAccountOption[]>([]);
-
-  useEffect(() => {
-    if (isOffline()) return;
-    let active = true;
-    void loadAccountOptions(api, (name) => t('filters.archivedAccount', { name })).then(
-      (options) => {
-        if (active) setAccounts(options);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [api, t]);
+  const accounts = useAccountOptions();
 
   const load = useCallback(
     () =>
@@ -66,6 +51,9 @@ export function IncomeExpensesContainer() {
           accounts={accounts}
           today={today}
           onChange={setFilters}
+          serverField={
+            state.status === 'badRange' && state.reason === 'server' ? state.field : undefined
+          }
           renderTagField={({ value, onChange }) => (
             <TagInputContainer value={value} onChange={onChange} />
           )}

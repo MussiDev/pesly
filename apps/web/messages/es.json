@@ -2271,8 +2271,8 @@
     "title": "Reportes",
     "tabs": {
       "label": "Secciones de reportes",
-      "categories": "Por categoría",
-      "incomeExpenses": "Ingresos y gastos",
+      "categories": "Gastos por categoría",
+      "incomeExpenses": "Ingresos vs gastos",
       "netWorth": "Patrimonio neto"
     },
     "range": {
@@ -2300,12 +2300,13 @@
       "account": "Cuenta",
       "allAccounts": "Todas las cuentas",
       "archivedAccount": "{name} (archivada)",
+      "unknownAccount": "Cuenta no disponible",
       "tag": "Etiqueta",
       "clear": "Quitar filtros"
     },
     "currency": {
       "note": "Los importes están en {currency}, la moneda de visualización de tu perfil.",
-      "changeLink": "Cámbiala en la configuración de tu perfil"
+      "changeLink": "Cambiala en la configuración de tu perfil"
     },
     "notices": {
       "unconverted": "Quedan afuera por no tener tipo de cambio: {shares, plural, one {# parte de grupo} other {# partes de grupo}} y {installments, plural, one {# cuota} other {# cuotas}}.",
@@ -2318,15 +2319,15 @@
       "widen": "Ampliar el rango",
       "record": "Registrar un movimiento",
       "errorTitle": "No se pudo cargar el reporte",
-      "errorDescription": "Algo salió mal de nuestro lado. Inténtalo de nuevo en un momento.",
+      "errorDescription": "Algo salió mal de nuestro lado. Intentá de nuevo en un momento.",
       "retry": "Reintentar",
       "retrying": "Reintentando…",
       "offlineTitle": "Los reportes necesitan conexión",
-      "offlineDescription": "Estás sin conexión. Vuelve a conectarte para ver este reporte; las cifras no se guardan en este dispositivo.",
+      "offlineDescription": "Estás sin conexión. Volvé a conectarte para ver este reporte; las cifras no se guardan en este dispositivo.",
       "offlineRetry": "Reintentar",
       "filterGoneMessage": "La cuenta o la etiqueta por la que filtraste ya no existe.",
       "filterGoneReload": "Quitar los filtros y recargar",
-      "badRangeMessage": "El rango de fechas no es válido. Revisa las fechas e inténtalo de nuevo."
+      "badRangeMessage": "El rango de fechas no es válido. Revisá las fechas e intentá de nuevo."
     },
     "categories": {
       "title": "Gastos por categoría",

@@ -2265,8 +2265,8 @@
     "title": "Reports",
     "tabs": {
       "label": "Report sections",
-      "categories": "By category",
-      "incomeExpenses": "Income and expenses",
+      "categories": "Expenses by category",
+      "incomeExpenses": "Income vs expenses",
       "netWorth": "Net worth"
     },
     "range": {
@@ -2294,6 +2294,7 @@
       "account": "Account",
       "allAccounts": "All accounts",
       "archivedAccount": "{name} (archived)",
+      "unknownAccount": "Account not available",
       "tag": "Tag",
       "clear": "Clear filters"
     },

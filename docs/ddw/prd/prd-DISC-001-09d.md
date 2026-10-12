@@ -290,6 +290,9 @@ the Decision Log for owner ratification:
   response has amounts and a total only; the leftover of rounding goes to the largest category so the shown
   shares never exceed 100%. The ring draws the 5 largest categories and one segment for the rest, matching the
   5 chart colors of the theme. Alternative: add shares to the API response, which is out of scope.
+  2026-10-12 note: the leftover of rounding goes by largest remainder instead of to the largest category, because
+  the latter can show 100% for a 50% category; no row ends above its true share plus one point, and the rest
+  segment of the ring shows its own share (rest amount over the total), not the sum of the rounded-down rows.
 - 2026-10-12: Proposed by the model, for owner ratification (4): net worth points without a converted total are
   drawn as gaps with a text reason and never bridged or filled with an older or later rate (follows 09a
   decision 3); when no point converts, the ARS and USD components are listed per month. Alternative: draw the ARS

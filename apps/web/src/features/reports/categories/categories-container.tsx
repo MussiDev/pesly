@@ -1,15 +1,14 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { TagInputContainer } from '@/features/movements/containers/tag-input-container';
 import type { Locale } from '@/i18n/routing';
 import { useApiClient } from '@/lib/api-client-provider';
-import { isOffline } from '@/lib/connectivity';
 import { ReportFilters } from '../components/report-filters';
-import { loadAccountOptions, type ReportAccountOption } from '../load-account-options';
 import { toCategoriesView } from '../report-adapters';
 import type { CategoriesView } from '../report-view';
+import { useAccountOptions } from '../use-account-options';
 import { useReport, type ReportState } from '../use-report';
 import { useReportContext } from '../use-report-context';
 import { useReportFilters } from '../use-report-filters';
@@ -22,20 +21,7 @@ export function CategoriesContainer() {
   const api = useApiClient();
   const { filters, setFilters, clearEntityFilters } = useReportFilters('categories');
   const { today } = useReportContext();
-  const [accounts, setAccounts] = useState<ReportAccountOption[]>([]);
-
-  useEffect(() => {
-    if (isOffline()) return;
-    let active = true;
-    void loadAccountOptions(api, (name) => t('filters.archivedAccount', { name })).then(
-      (options) => {
-        if (active) setAccounts(options);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [api, t]);
+  const accounts = useAccountOptions();
 
   const { state, retry } = useReport({
     kind: 'categories',
@@ -77,6 +63,9 @@ export function CategoriesContainer() {
           accounts={accounts}
           today={today}
           onChange={setFilters}
+          serverField={
+            state.status === 'badRange' && state.reason === 'server' ? state.field : undefined
+          }
           renderTagField={({ value, onChange }) => (
             <TagInputContainer value={value} onChange={onChange} />
           )}

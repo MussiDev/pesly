@@ -2,6 +2,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IDBFactory } from 'fake-indexeddb';
+import { PathnameContext } from 'next/dist/shared/lib/hooks-client-context.shared-runtime';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ThemeProvider } from '../src/components/theme-provider';
 import { AuthenticatedShellContainer } from '../src/features/shell/containers/authenticated-shell-container';
@@ -72,6 +73,25 @@ describe('AuthenticatedShellContainer', () => {
     expect(withoutNotices(calls)).toEqual([
       { method: 'GET', path: '/auth/session', body: undefined },
     ]);
+  });
+
+  it('does not ask for the session again when only the pathname changes', async () => {
+    const { calls } = stubApi({ 'GET /auth/session': session(true) });
+    const at = (path: string) => (
+      <PathnameContext.Provider value={path}>
+        <AuthenticatedShellContainer>
+          <p>private content</p>
+        </AuthenticatedShellContainer>
+      </PathnameContext.Provider>
+    );
+    const { rerender } = renderApp(at('/es/reports/categories'));
+    expect(await screen.findByText('private content')).toBeDefined();
+
+    rerender(at('/es/reports/net-worth'));
+    rerender(at('/es/movements'));
+
+    const sessionCalls = calls.filter((call) => call.path === '/auth/session');
+    expect(sessionCalls).toHaveLength(1);
   });
 
   it('refreshes an expired access token before deciding', async () => {

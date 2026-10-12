@@ -13,7 +13,7 @@
 | `apps/web/src/features/reports/report-filters-state.ts` | Block 1 |
 | `apps/web/src/features/reports/report-adapters.ts` | Block 1 |
 | `apps/web/src/features/reports/shares.ts` | Block 1 |
-| `apps/web/src/features/auth/return-path.ts` | Block 1 |
+| `apps/web/src/lib/return-path.ts` | Block 1 |
 | `apps/web/src/lib/api-client.ts` | Block 1 |
 | `apps/web/src/features/reports/use-report.ts` | Block 2 |
 | `apps/web/src/features/reports/load-account-options.ts` | Block 2 |
@@ -75,7 +75,7 @@
 - **Denial of Service:** constant work per row.
 - **Elevation of Privilege:** not applicable.
 
-### `apps/web/src/features/auth/return-path.ts`
+### `apps/web/src/lib/return-path.ts`
 - **Spoofing:** not applicable.
 - **Tampering:** the `next` value is accepted only when it equals one of four fixed report paths; absolute
   URLs, `//host`, backslashes, encoded variants, dot segments, queries and fragments give no return path, so

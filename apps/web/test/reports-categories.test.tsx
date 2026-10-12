@@ -101,6 +101,57 @@ describe('categories screen', () => {
     expect(percents.reduce((sum, value) => sum + value, 0)).toBeLessThanOrEqual(100);
   });
 
+  it('33.34, 33.33 and 33.33 of 100.00 show exactly 34%, 33% and 33% (AC-09)', async () => {
+    show({
+      [REPORT]: report('10000', [
+        named(ID_C, 'C', '3333'),
+        named(ID_A, 'A', '3334'),
+        named(ID_B, 'B', '3333'),
+      ]),
+    });
+    const list = await screen.findByRole('list', { name: 'Expenses by category' });
+    const shown = within(list)
+      .getAllByRole('listitem')
+      .map((item) => /(\d+)%/.exec(item.textContent)?.[1]);
+    expect(shown).toEqual(['34', '33', '33']);
+  });
+
+  it('the rest legend share comes from the rest amount, not from the floored row shares', async () => {
+    const big = Array.from({ length: 5 }, (_, i) =>
+      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1460'),
+    );
+    const small = Array.from({ length: 30 }, (_, i) =>
+      named(`00000000-0000-4000-8000-0000000002${String(10 + i)}`, `Small ${String(i)}`, '90'),
+    );
+    show({ [REPORT]: report('10000', [...big, ...small]) });
+    await screen.findByRole('list', { name: 'Expenses by category' });
+    const legend = screen.getByText('Other categories').closest('li');
+    expect(legend?.textContent).toContain('27%');
+  });
+
+  it('three rest rows of 6.9% show a rest of 20%', async () => {
+    const big = Array.from({ length: 5 }, (_, i) =>
+      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1586'),
+    );
+    const rest = Array.from({ length: 3 }, (_, i) =>
+      named(`00000000-0000-4000-8000-0000000002${String(10 + i)}`, `Rest ${String(i)}`, '690'),
+    );
+    show({ [REPORT]: report('10000', [...big, ...rest]) });
+    await screen.findByRole('list', { name: 'Expenses by category' });
+    const legend = screen.getByText('Other categories').closest('li');
+    expect(legend?.textContent).toContain('20%');
+  });
+
+  it('a rest under 1% still reads "<1%"', async () => {
+    const big = Array.from({ length: 5 }, (_, i) =>
+      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1990'),
+    );
+    show({ [REPORT]: report('10000', [...big, named(ID_C, 'Tiny', '50')]) });
+    await screen.findByRole('list', { name: 'Expenses by category' });
+    const legend = screen.getByText('Other categories').closest('li');
+    expect(legend?.textContent).toContain('<1%');
+  });
+
   it('a total of 0.00 shows the empty state and no percentage (AC-10)', async () => {
     show({ [REPORT]: report('0', []) });
     expect(await screen.findByText('No movements in this range')).toBeTruthy();
@@ -255,5 +306,32 @@ describe('categories screen', () => {
     });
     expect(await screen.findByRole('list', { name: 'Expenses by category' })).toBeTruthy();
     expect(container.querySelector('main')).toBeNull();
+  });
+
+  it('says the currency only once the report is ready, never a guessed ARS (USD profile)', async () => {
+    show({ [REPORT]: report('500', [food('500')], { currency: 'USD' }) });
+    // First paint: still loading, so no currency is claimed.
+    expect(screen.queryByText(/Amounts are in/)).toBeNull();
+    await screen.findByRole('list', { name: 'Expenses by category' });
+    expect(screen.getByText(/Amounts are in USD/)).toBeTruthy();
+    expect(screen.queryByText(/Amounts are in ARS/)).toBeNull();
+  });
+
+  it('a failed report does not state a currency', async () => {
+    show({ [REPORT]: { status: 500 } });
+    await screen.findByText('The report could not be loaded');
+    expect(screen.queryByText(/Amounts are in/)).toBeNull();
+  });
+
+  it('has an h2 heading with the report title (L5)', async () => {
+    show({ [REPORT]: report('500', [food('500')]) });
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Expenses by category' }),
+    ).toBeTruthy();
+  });
+
+  it('the route page gives Suspense a skeleton fallback (L5)', () => {
+    const page = CategoriesPage() as { props: { fallback?: unknown } };
+    expect(page.props.fallback).toBeTruthy();
   });
 });
