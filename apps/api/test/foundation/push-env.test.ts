@@ -25,23 +25,29 @@ const WORKER_PRODUCTION = {
   VAPID_SUBJECT: SUBJECT,
 };
 
-const workerProd = (overrides: Record<string, string | undefined> = {}) => () =>
-  parseWorkerEnv({ ...WORKER_PRODUCTION, ...overrides });
-const apiProd = (overrides: Record<string, string | undefined> = {}) => () =>
-  parseEnv({
-    ...testEnvSource({ ...productionOverrides, PUSH_PROVIDER: 'webpush' }),
-    VAPID_PUBLIC_KEY: PUBLIC_KEY,
-    ...overrides,
-  });
+const workerProd =
+  (overrides: Record<string, string | undefined> = {}) =>
+  () =>
+    parseWorkerEnv({ ...WORKER_PRODUCTION, ...overrides });
+const apiProd =
+  (overrides: Record<string, string | undefined> = {}) =>
+  () =>
+    parseEnv({
+      ...testEnvSource({ ...productionOverrides, PUSH_PROVIDER: 'webpush' }),
+      VAPID_PUBLIC_KEY: PUBLIC_KEY,
+      ...overrides,
+    });
 
-const workerLocal = (overrides: Record<string, string | undefined> = {}) => () =>
-  parseWorkerEnv({
-    NODE_ENV: 'development',
-    DATABASE_URL: 'postgres://x:y@localhost:5432/app',
-    WEB_BASE_URL: 'http://localhost:3000',
-    EMAIL_PROVIDER: 'console',
-    ...overrides,
-  });
+const workerLocal =
+  (overrides: Record<string, string | undefined> = {}) =>
+  () =>
+    parseWorkerEnv({
+      NODE_ENV: 'development',
+      DATABASE_URL: 'postgres://x:y@localhost:5432/app',
+      WEB_BASE_URL: 'http://localhost:3000',
+      EMAIL_PROVIDER: 'console',
+      ...overrides,
+    });
 
 function rawKeys(): { publicKey: string; privateKey: string } {
   const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -97,7 +103,9 @@ describe('push settings: production rules', () => {
   });
 
   it('rejects a public key of 64 bytes and a private key of 31 bytes', () => {
-    const shortPublic = Buffer.concat([Buffer.from([4]), Buffer.alloc(63, 1)]).toString('base64url');
+    const shortPublic = Buffer.concat([Buffer.from([4]), Buffer.alloc(63, 1)]).toString(
+      'base64url',
+    );
     expect(workerProd({ VAPID_PUBLIC_KEY: shortPublic })).toThrow(/VAPID_PUBLIC_KEY/);
     expect(apiProd({ VAPID_PUBLIC_KEY: shortPublic })).toThrow(/VAPID_PUBLIC_KEY/);
     const notPoint = Buffer.concat([Buffer.from([3]), Buffer.alloc(64, 1)]).toString('base64url');
@@ -127,7 +135,9 @@ describe('push settings: subject', () => {
   });
 
   it('rejects a subject longer than 255 characters', () => {
-    expect(workerProd({ VAPID_SUBJECT: `mailto:${'a'.repeat(250)}@x.io` })).toThrow(/VAPID_SUBJECT/);
+    expect(workerProd({ VAPID_SUBJECT: `mailto:${'a'.repeat(250)}@x.io` })).toThrow(
+      /VAPID_SUBJECT/,
+    );
   });
 });
 

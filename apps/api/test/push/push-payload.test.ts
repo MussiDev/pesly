@@ -21,7 +21,9 @@ describe('renderPushPayload', () => {
   });
 
   it('uses the stored Spanish text of a reminder (AC-33)', () => {
-    expect(render({ language: 'es', storedText: 'Luz vence mañana' }).body).toBe('Luz vence mañana');
+    expect(render({ language: 'es', storedText: 'Luz vence mañana' }).body).toBe(
+      'Luz vence mañana',
+    );
   });
 
   it('gives a Spanish user the Spanish link and an English user the English one (AC-36, AC-37)', () => {
