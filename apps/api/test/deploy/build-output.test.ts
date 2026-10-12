@@ -63,6 +63,8 @@ const ALL_TABLES = [
   'one_time_tokens',
   'portfolio_value_snapshots',
   'portfolios',
+  'push_deliveries',
+  'push_subscriptions',
   'recovery_codes',
   'recurring_occurrences',
   'recurring_payments',
