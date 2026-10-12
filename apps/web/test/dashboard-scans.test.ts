@@ -16,7 +16,6 @@ const SCANNED = [
   'src/components/theme-toggle.tsx',
   'src/components/theme-provider.tsx',
   'src/lib/theme.ts',
-  'src/lib/dashboard-contract.ts',
   'src/lib/use-compact-viewport.ts',
   'src/app/[locale]/(app)/page.tsx',
 ];
@@ -197,6 +196,12 @@ describe('dashboard scans: the touched files (NFR-06)', () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('the dashboard contract (spec D1)', () => {
+  it('comes from @pesly/shared: the provisional local copy is gone', () => {
+    expect(existsSync(join(webRoot, 'src/lib/dashboard-contract.ts'))).toBe(false);
   });
 });
 

@@ -11,7 +11,7 @@ const PARTS = {
   installmentDebt: { ars: '0', usd: '0' },
 };
 
-// A body in the shape of spec DISC-001-09b.
+// A body in the shape of the shared dashboard schema (09b).
 const dashboard = {
   currency: 'ARS',
   today: '2026-10-12',
@@ -160,6 +160,7 @@ describe('dashboard api client', () => {
     ['an unknown action kind', { actions: [{ ...dashboard.actions[0], kind: 'nope' }] }],
     ['a missing today', { today: undefined }],
     ['an unknown currency', { currency: 'EUR' }],
+    ['an impossible calendar day', { today: '2026-02-31' }],
   ])('rejects %s as a generic failure with no view', async (_name, patch) => {
     const { client } = clientWith(jsonResponse(200, { ...dashboard, ...patch }));
     expect(await client.getDashboard()).toMatchObject({ ok: false, messageKey: 'unexpected' });

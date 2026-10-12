@@ -1,8 +1,8 @@
-import { dashboardResponseSchema, type DashboardResponse } from '../../src/lib/dashboard-contract';
+import { dashboardResponseSchema, type DashboardResponse } from '@pesly/shared';
 
-// TODO(09b): this file builds a `GET /dashboard` response in the shape of spec DISC-001-09b, which
-// is not merged yet. Once 09b is on this branch, delete it together with `stubDashboard` and let
-// the real endpoint answer from real seeds.
+// TODO: this file builds a `GET /dashboard` response checked against the shared schema (09b is
+// merged). The browser specs still stub the endpoint with it; replace it, together with
+// `stubDashboard`, by real seeds once a Playwright run can verify them.
 
 const BUDGET_ID = '3f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a10';
 const PAYMENT_ID = '9b1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5b';

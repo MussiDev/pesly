@@ -1,6 +1,5 @@
-import { DEFAULT_CATEGORIES, defaultCategoryName } from '@pesly/shared';
+import { DEFAULT_CATEGORIES, defaultCategoryName, type DashboardResponse } from '@pesly/shared';
 import { expect, type Locator, type Page, type Route } from '@playwright/test';
-import type { DashboardResponse } from '../../src/lib/dashboard-contract';
 import { registerAndVerify, signIn, uniqueEmail } from './accounts';
 import { catalogs } from './catalogs';
 import { movementIdsOf } from './database';
@@ -54,10 +53,9 @@ function corsHeaders(route: Route): Record<string, string> {
 }
 
 /**
- * TODO(09b): slice 09b (`GET /dashboard`) is not merged on this branch, so the browser specs serve
- * that one path from a typed fixture in the 09b response shape that the app's own contract parser
- * accepts (`apps/web/src/lib/dashboard-contract.ts`, aligned to spec-DISC-001-09b). Accounts, movements and `GET /reports/net-worth`
- * stay real. When 09b merges, delete this helper and `dashboard-fixtures.ts` and seed the real
+ * TODO: the browser specs serve `GET /dashboard` from a typed fixture that the shared schema
+ * (`dashboardResponseSchema` from `@pesly/shared`, slice 09b) accepts. Accounts, movements and
+ * `GET /reports/net-worth` stay real. Once seeds can be verified in Playwright, delete this helper and `dashboard-fixtures.ts` and seed the real
  * data (a budget, a recurring payment due in 3 days, a closed statement due in 2 days) instead.
  *
  * The page calls the API from another origin with credentials, so the answers carry the CORS

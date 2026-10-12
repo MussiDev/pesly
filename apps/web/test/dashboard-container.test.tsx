@@ -12,7 +12,7 @@ import {
 import { DashboardSkeleton } from '../src/features/dashboard/components/dashboard-skeleton';
 import { DashboardScreen } from '../src/features/dashboard/components/dashboard-screen';
 import { toDashboardView } from '../src/features/dashboard/contract/dashboard-adapter';
-import { dashboardResponseSchema } from '../src/lib/dashboard-contract';
+import { dashboardResponseSchema } from '@pesly/shared';
 import { formatMoney } from '../src/lib/format-amount';
 import { SESSION_POINTER_KEY } from '../src/lib/local-store/session-pointer';
 import { QuickActions } from '../src/features/home/components/quick-actions';
@@ -37,7 +37,7 @@ function money(value: bigint, currency: 'ARS' | 'USD', locale: 'es' | 'en'): str
 
 const ZERO_PAIR = { ars: '0', usd: '0' };
 
-// A body in the shape of spec DISC-001-09b.
+// A body in the shape of the shared dashboard schema (09b).
 function dashboardBody(patch: Record<string, unknown> = {}) {
   return {
     currency: 'ARS',

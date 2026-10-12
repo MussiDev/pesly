@@ -1,10 +1,12 @@
-import { DEFAULT_CATEGORIES, defaultCategoryName, type NetWorthResponse } from '@pesly/shared';
+import {
+  DEFAULT_CATEGORIES,
+  defaultCategoryName,
+  type DashboardAction,
+  type DashboardResponse,
+  type DashboardUpcoming,
+  type NetWorthResponse,
+} from '@pesly/shared';
 import type { Locale } from '@/i18n/routing';
-import type {
-  DashboardAction,
-  DashboardResponse,
-  DashboardUpcoming,
-} from '@/lib/dashboard-contract';
 import type { CategoryView, DashboardView, SeriesView, UpcomingView } from '../dashboard-view';
 
 // The only reader of raw 09b fields (spec D1). Every amount string was already proven to be an

@@ -12,7 +12,7 @@ import {
   readyDashboard,
 } from '../e2e/support/dashboard-fixtures';
 import { attachThrottling, median, REFERENCE_PROFILE } from '../e2e/support/lab-profile';
-import { dashboardResponseSchema } from '../src/lib/dashboard-contract';
+import { dashboardResponseSchema } from '@pesly/shared';
 
 describe('contrast math (NFR-03)', () => {
   it('rates black on white 21:1 and a color on itself 1:1', () => {
@@ -148,7 +148,7 @@ describe('the lab profile (NFR-01, invalid input)', () => {
   });
 });
 
-describe('the provisional 09b fixtures match the contract parser (D1)', () => {
+describe('the e2e fixtures match the shared dashboard schema (D1)', () => {
   it('parses the ready response, the first-steps response and the no-rate response', () => {
     for (const body of [
       readyDashboard(),

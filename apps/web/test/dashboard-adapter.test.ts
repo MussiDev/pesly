@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dashboardResponseSchema } from '../src/lib/dashboard-contract';
+import { dashboardResponseSchema } from '@pesly/shared';
 import {
   toDashboardView,
   toSeriesView,
@@ -21,7 +21,7 @@ const PARTS = {
   installmentDebt: { ars: '0', usd: '0' },
 };
 
-// A body in the shape of spec DISC-001-09b (packages/shared/src/dashboard/dashboard.ts).
+// A body in the shape of the shared schema (packages/shared/src/dashboard/dashboard.ts).
 function body(patch: Record<string, unknown> = {}) {
   return {
     currency: 'ARS',

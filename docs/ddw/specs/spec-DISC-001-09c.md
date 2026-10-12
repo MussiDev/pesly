@@ -29,16 +29,15 @@ geometry uses bigint arithmetic on the series values and only turns a small inte
 drawing coordinate.
 
 ## Decisions
-- **D1 Provisional 09b contract in one place (FLAG for the owner and the 09b author).** The 09b
-  response schema does not exist yet (no 09b spec, nothing in `packages/shared`). Block 0 writes the
-  parser from the 09b PRD (sections, integer-string amounts, whole-number percentages, `on_track` |
-  `close` | `over`, category keys) in `apps/web/src/lib/dashboard-contract.ts`, and the mapping from that
-  shape to the screen's view types in `apps/web/src/features/dashboard/contract/dashboard-adapter.ts`.
-  Nothing else in the app imports the parser or reads a raw field. When 09b merges, the parser file is
-  deleted in favor of the shared schema and only the adapter is adjusted; the assumed fields are listed
-  in Block 0 (A1 to A9) so they can be compared with the merged 09b spec line by line.
-  Update 2026-10-12: the parser and the adapter were aligned to spec-DISC-001-09b (response shape,
-  link targets, derived `overdue`); A1 to A9 are superseded by that spec.
+- **D1 The 09b contract comes from `@pesly/shared` (09b merged).** The `GET /dashboard` response
+  schema and types (`dashboardResponseSchema`, `DashboardResponse`, `DashboardUpcoming`,
+  `DashboardAction`) are imported from `@pesly/shared` (`packages/shared/src/dashboard/dashboard.ts`) by
+  the api-client, which parses with the schema. The provisional parser `apps/web/src/lib/dashboard-contract.ts`
+  written in Block 0 was removed; the web keeps no copy of the schema. The mapping from the shared shape
+  to the screen's view types stays in `apps/web/src/features/dashboard/contract/dashboard-adapter.ts`,
+  the only reader of raw fields. Checked against the merged schema and the API: the shape matched; the
+  only difference is that the shared date schema also rejects impossible calendar days. A1 to A9 are
+  superseded by the shared schema.
 - **D2 Series request.** The net worth call sends no `from` or `to`, so the API answers its default
   range of 12 months ending today (the current month is dated today, earlier ones at their month end);
   the client never reads the clock. Points with a null total are kept for the points list and are not
@@ -169,8 +168,8 @@ files under `apps/web/test/`.
 **Files**
 - `apps/web/src/lib/api-client.ts` (modified) — interface and implementation of `getDashboard()` and
   `getNetWorthSeries()`, next to the recurring methods.
-- `apps/web/src/lib/dashboard-contract.ts` (new) — the provisional parser of the 09b response shape
-  (D1, to be replaced by the shared schema).
+- `apps/web/src/lib/dashboard-contract.ts` (removed) — the provisional parser; the shared schema
+  replaced it (D1).
 - `apps/web/src/features/dashboard/dashboard-view.ts` (new) — the view types of the screen.
 - `apps/web/src/features/dashboard/contract/dashboard-adapter.ts` (new) — `toDashboardView(raw)`,
   the only reader of raw fields, with category naming and link building.
@@ -693,9 +692,8 @@ is below 2.5 s.
   pass; `pnpm e2e` passes for the new specs and the existing design-system and navigation specs.
 - No file under `apps/api`, `packages/shared` or `apps/api/drizzle` is changed, and `apps/web/package.json`
   has the same runtime dependencies.
-- When 09b merges: delete `lib/dashboard-contract.ts`, import its shared schema in the api-client and
-  re-check the nine assumptions A1 to A9 against it in `dashboard-adapter.ts` only.
-- Owner ratification items (the PRD's Decision Log 1 to 8, plus): D1 (provisional contract), the
+- 09b merged: `lib/dashboard-contract.ts` is deleted and the api-client imports the shared schema (D1).
+- Owner ratification items (the PRD's Decision Log 1 to 8, plus): D1 (contract from the shared schema), the
   check-mark-plus-label reading of "marked by text" in AC-41 (D7), the first-steps layout (D8), the
   fallback links to `/recurring` and `/cards` when the response has no payment or card id (D9), and the
   contrast probe in place of an accessibility library (D11).

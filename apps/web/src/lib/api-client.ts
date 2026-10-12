@@ -1,6 +1,8 @@
 import {
   accountResponseSchema,
   categoryResponseSchema,
+  dashboardResponseSchema,
+  type DashboardResponse,
   errorResponseSchema,
   groupExpenseResponseSchema,
   groupExpensePageSchema,
@@ -219,7 +221,6 @@ import {
   type VerifyEmailResponse,
 } from '@pesly/shared';
 import { z } from 'zod';
-import { dashboardResponseSchema, type DashboardResponse } from './dashboard-contract';
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
