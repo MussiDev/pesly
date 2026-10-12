@@ -1621,6 +1621,54 @@
         "description": "Agregá el primer gasto para empezar a dividirlo con el grupo."
       }
     },
+    "categoryViews": {
+      "list": {
+        "monthEmpty": {
+          "title": "No hay gastos este mes",
+          "description": "Agregá el primer gasto de este mes para verlo acá."
+        },
+        "noMatch": {
+          "title": "Nada coincide con este filtro",
+          "description": "Ningún gasto de este mes pertenece a las categorías elegidas.",
+          "clear": "Quitar filtro"
+        },
+        "filteredTotal": {
+          "label": "Total de las categorías elegidas"
+        }
+      },
+      "detail": {
+        "label": "Categoría"
+      },
+      "chip": {
+        "archived": "Archivada"
+      },
+      "filter": {
+        "label": "Filtrar por categoría",
+        "activeLabel": "Filtros de categoría activos",
+        "remove": "Quitar filtro {name}",
+        "clear": "Limpiar filtros"
+      },
+      "month": {
+        "label": "Mes",
+        "previous": "Mes anterior",
+        "next": "Mes siguiente"
+      },
+      "summary": {
+        "total": "Total",
+        "expenses": "{count, plural, one {# gasto} other {# gastos}}"
+      },
+      "summarySection": {
+        "title": "Gastos por categoría",
+        "selected": "Filtrando por: {names}",
+        "empty": {
+          "title": "No hay gastos este mes",
+          "description": "Los gastos que agregues este mes aparecerán acá, agrupados por categoría."
+        }
+      },
+      "page": {
+        "filters": "Filtros de mes y categoría"
+      }
+    },
     "list": {
       "title": "Grupos",
       "description": "Gastos compartidos y quién debe a quién.",

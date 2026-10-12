@@ -8,6 +8,8 @@ import { DeleteConfirm } from '../../edit/components/delete-confirm';
 import { FailedChangePanel } from '../../edit/components/failed-change-panel';
 import { RowActions } from '../../edit/components/row-actions';
 import { SyncMarker } from '../../edit/components/sync-marker';
+import { CategoryChip } from '../../category-views/components/category-chip';
+import type { CategoryDisplay } from '../../category-views/types';
 import type { SyncState } from '../../sync-overlay';
 
 /** What a row needs to show its sync state and the actions the caller may take on it. */
@@ -29,7 +31,7 @@ export interface ExpenseRowEdit {
 
 export interface ExpenseRowProps {
   description: string;
-  category: string;
+  category: CategoryDisplay;
   payer: string;
   /** Already formatted with its currency. */
   amount: string;
@@ -58,7 +60,7 @@ export function ExpenseRow({
         title={description}
         description={
           <span className="grid gap-0.5">
-            <span>{category}</span>
+            <CategoryChip display={category} size="sm" />
             <span>{t('paidBy', { name: payer })}</span>
             <span>{date}</span>
             {share === undefined ? null : <span>{t('yourShare', { amount: share })}</span>}

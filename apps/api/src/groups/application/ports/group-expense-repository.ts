@@ -94,6 +94,11 @@ export interface ListExpensesQuery {
   limit: number;
   /** Opaque; produced by a previous page. */
   cursor?: string;
+  /** Keeps only expenses of these categories (already validated, 1 to 50 distinct ids). */
+  categoryIds?: readonly string[];
+  /** Inclusive UTC bounds on `occurredAt`. */
+  from?: Date;
+  to?: Date;
 }
 
 export interface ListPersonalSharesQuery {

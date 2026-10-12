@@ -1,8 +1,13 @@
 'use client';
 
-import type { CategoryLanguage, ExpenseOptionsResponse, GroupExpenseResponse } from '@pesly/shared';
+import type {
+  CategoryLanguage,
+  ExpenseOptionsResponse,
+  GroupCategoryResponse,
+  GroupExpenseResponse,
+} from '@pesly/shared';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { onSyncFinished } from '@/lib/sync/sync-events';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
@@ -11,7 +16,8 @@ import { Link, useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { formatDateTime, formatMoney } from '@/lib/format-amount';
-import { groupCategoryLabel } from '../../components/group-categories-list';
+import { resolveCategory } from '../../category-views/resolve-category';
+import type { CategoryDisplay, FilteredTotal } from '../../category-views/types';
 import { GroupNotFoundView } from '../../components/group-not-found';
 import { canEditRecord, selfRole } from '../../edit/permissions';
 import { applyQueuedValues } from '../../edit/queued-values';
@@ -19,7 +25,11 @@ import { useGroupChanges } from '../../edit/use-group-changes';
 import { overlayGroupRecords } from '../../sync-overlay';
 import { GroupsLoadStateView } from '../../components/groups-load-state';
 import { isGroupId } from '../../group-id';
-import { GroupExpensesList, type ExpenseListItem } from './group-expenses-list';
+import {
+  GroupExpensesList,
+  type ExpenseListItem,
+  type FilteredTotalItem,
+} from './group-expenses-list';
 
 const PAGE_SIZE = 50;
 
@@ -37,6 +47,27 @@ type ScreenState =
 
 export interface GroupExpensesContainerProps {
   groupId: string;
+  /** Inclusive UTC bounds of the month shown; absent, the whole history (05f behavior). */
+  range?: { from: string; to: string };
+  categoryIds?: readonly string[];
+  /** Per currency, from the summary of the same filter (D10). */
+  filteredTotals?: readonly FilteredTotal[];
+  onClearFilter?: () => void;
+  /** Hands the group's categories to the page, which offers them as the filter (D8). */
+  onLoadedOptions?: (categories: GroupCategoryResponse[]) => void;
+  /**
+   * Displays the page already knows (the summary names archived categories, which the options
+   * omit); used for a row whose category the options do not list, so no extra request is made.
+   */
+  knownCategories?: ReadonlyMap<string, CategoryDisplay>;
+  /** Rendered right after the page header and before the list (month picker, summary, filter). */
+  controls?: ReactNode;
+}
+
+interface PageFilter {
+  from?: string;
+  to?: string;
+  categoryIds?: string[];
 }
 
 /**
@@ -45,12 +76,22 @@ export interface GroupExpensesContainerProps {
  * caller's role. The cursor only ever comes
  * from the previous response.
  */
-export function GroupExpensesContainer({ groupId }: GroupExpensesContainerProps) {
+export function GroupExpensesContainer(props: GroupExpensesContainerProps) {
+  const { groupId } = props;
   if (!isGroupId(groupId)) return <GroupNotFoundView />;
-  return <GroupExpensesScreen groupId={groupId} />;
+  return <GroupExpensesScreen {...props} />;
 }
 
-function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
+function GroupExpensesScreen({
+  groupId,
+  range,
+  categoryIds,
+  filteredTotals,
+  onClearFilter,
+  onLoadedOptions,
+  knownCategories,
+  controls,
+}: GroupExpensesContainerProps) {
   const api = useApiClient();
   const router = useRouter();
   const t = useTranslations('groups.expenses');
@@ -70,6 +111,21 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
   const [loadMoreError, setLoadMoreError] = useState<ErrorMessageKey>();
   // Bumped whenever the first page is requested again, so a late "load more" answer is dropped.
   const generation = useRef(0);
+  // The group-level answers of the current load; a filter change reuses them (D4).
+  const base = useRef<
+    { key: string; options: ExpenseOptionsResponse; role: string | null } | undefined
+  >(undefined);
+  // The filter of the rows on screen, so "load more" continues the same list.
+  const applied = useRef<PageFilter>({});
+  const loadedFilter = useRef('');
+  const [reloadError, setReloadError] = useState<ErrorMessageKey>();
+  const onLoaded = useRef(onLoadedOptions);
+  onLoaded.current = onLoadedOptions;
+
+  const from = range?.from;
+  const to = range?.to;
+  const idsKey = categoryIds === undefined ? '' : categoryIds.join(',');
+  const filterKey = `${from ?? ''}|${to ?? ''}|${idsKey}`;
 
   useEffect(
     () =>
@@ -83,41 +139,69 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     let active = true;
     generation.current += 1;
     const key = `${groupId}:${attempt}`;
+    const baseKey = `${key}:${refresh}`;
     // A reload after a pass keeps what is on screen if it fails.
     const silent = loadedKey.current === key;
+    const filter: PageFilter = {};
+    if (from !== undefined) filter.from = from;
+    if (to !== undefined) filter.to = to;
+    if (idsKey !== '') filter.categoryIds = idsKey.split(',');
+    const cached = base.current?.key === baseKey ? base.current : undefined;
+    const pageRequest = api.listGroupExpenses(groupId, { limit: PAGE_SIZE, ...filter });
     void Promise.all([
-      api.listGroupExpenses(groupId, { limit: PAGE_SIZE }),
-      api.getExpenseOptions(groupId),
-      api.getGroup(groupId),
-    ]).then(([page, options, group]) => {
+      pageRequest,
+      cached ? undefined : api.getExpenseOptions(groupId),
+      cached ? undefined : api.getGroup(groupId),
+    ]).then(([page, optionsResult, group]) => {
       if (!active) return;
-      const failed = !page.ok ? page : !options.ok ? options : !group.ok ? group : undefined;
-      if (failed === undefined && page.ok && options.ok && group.ok) {
+      const failed = !page.ok
+        ? page
+        : optionsResult && !optionsResult.ok
+          ? optionsResult
+          : group && !group.ok
+            ? group
+            : undefined;
+      if (failed === undefined && page.ok) {
+        let loaded = cached;
+        if (loaded === undefined && optionsResult?.ok && group?.ok) {
+          loaded = {
+            key: baseKey,
+            options: optionsResult.data,
+            role: selfRole(group.data.members, optionsResult.data.selfMemberId) ?? group.data.role,
+          };
+          base.current = loaded;
+          onLoaded.current?.(optionsResult.data.categories);
+        }
+        if (loaded === undefined) return;
         loadedKey.current = key;
+        loadedFilter.current = filterKey;
+        applied.current = filter;
         setLoadingMore(false);
         setLoadMoreError(undefined);
+        setReloadError(undefined);
         setState({
           kind: 'ready',
-          options: options.data,
-          role: selfRole(group.data.members, options.data.selfMemberId) ?? group.data.role,
+          options: loaded.options,
+          role: loaded.role,
           expenses: page.data.items,
           nextCursor: page.data.nextCursor,
         });
-      } else if (failed?.ok === false && !silent) {
+      } else if (failed?.ok === false) {
         if (failed.code === 'UNAUTHENTICATED') router.replace('/sign-in');
         else if (failed.code === 'NOT_FOUND') setState({ kind: 'not-found' });
-        else setState({ kind: 'failed', error: failed.messageKey });
+        else if (!silent) setState({ kind: 'failed', error: failed.messageKey });
+        else if (loadedFilter.current !== filterKey) setReloadError(failed.messageKey);
       }
     });
     return () => {
       active = false;
     };
-  }, [api, groupId, router, attempt, refresh]);
+  }, [api, groupId, router, attempt, refresh, from, to, idsKey, filterKey]);
 
   if (state.kind === 'not-found') return <GroupNotFoundView />;
 
   if (state.kind !== 'ready') {
-    return (
+    const loadState = (
       <GroupsLoadStateView
         state={state}
         onRetry={() => {
@@ -126,14 +210,34 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
         }}
       />
     );
+    if (controls === undefined) return loadState;
+    // The controls own their requests: they stay while the list loads or fails (AC-30).
+    return (
+      <div className="grid gap-6">
+        <PageHeader
+          title={t('title')}
+          actions={
+            <Link
+              href={`/groups/${encodeURIComponent(groupId)}`}
+              className={buttonVariants({ variant: 'outline' })}
+            >
+              {t('back')}
+            </Link>
+          }
+        />
+        {controls}
+        {loadState}
+      </div>
+    );
   }
 
   const { options, role, expenses, nextCursor } = state;
   const memberName = (id: string): string =>
     options.members.find((member) => member.id === id)?.displayName ?? t('unnamedMember');
-  const categoryName = (id: string): string => {
-    const category = options.categories.find((item) => item.id === id);
-    return category ? groupCategoryLabel(category, language) : t('uncategorized');
+
+  const rowCategory = (id: string): CategoryDisplay => {
+    const listed = resolveCategory(id, options.categories, language, t('uncategorized'));
+    return listed.known ? listed : (knownCategories?.get(id) ?? listed);
   };
 
   const rows = overlayGroupRecords('expense', expenses, changes.changes);
@@ -144,7 +248,7 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     return {
       id: expense.id,
       description: expense.description,
-      category: categoryName(expense.categoryId),
+      category: rowCategory(expense.categoryId),
       payer: memberName(expense.payerMemberId),
       amount: formatMoney(BigInt(expense.amount), expense.currency, language),
       date: formatDateTime(expense.occurredAt, timeZone, language),
@@ -174,13 +278,19 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
     };
   });
 
+  const totals: FilteredTotalItem[] | undefined = filteredTotals?.map((entry) => ({
+    currency: entry.currency,
+    amount: formatMoney(entry.total, entry.currency, language),
+    count: entry.count,
+  }));
+
   function loadMore() {
     if (nextCursor === null || loadingMore) return;
     setLoadingMore(true);
     setLoadMoreError(undefined);
     const started = generation.current;
     void api
-      .listGroupExpenses(groupId, { limit: PAGE_SIZE, cursor: nextCursor })
+      .listGroupExpenses(groupId, { limit: PAGE_SIZE, cursor: nextCursor, ...applied.current })
       .then((page: ApiResult<{ items: GroupExpenseResponse[]; nextCursor: string | null }>) => {
         if (started !== generation.current) return;
         setLoadingMore(false);
@@ -212,6 +322,7 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
           </Link>
         }
       />
+      {controls}
       {changes.ready && !changes.available ? (
         <p role="alert" className="text-small text-destructive">
           {tEdit('unavailable')}
@@ -224,6 +335,11 @@ function GroupExpensesScreen({ groupId }: GroupExpensesContainerProps) {
         loadingMore={loadingMore}
         loadMoreError={loadMoreError === undefined ? undefined : tErrors(loadMoreError)}
         onLoadMore={loadMore}
+        filtered={idsKey !== ''}
+        monthScoped={range !== undefined}
+        filteredTotals={totals}
+        onClearFilter={onClearFilter}
+        reloadError={reloadError === undefined ? undefined : tErrors(reloadError)}
       />
     </div>
   );

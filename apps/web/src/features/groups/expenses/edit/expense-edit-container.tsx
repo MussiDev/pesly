@@ -12,6 +12,7 @@ import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
 import { readDeviceContext } from '@/lib/device-context';
 import { groupCategoryLabel } from '../../components/group-categories-list';
+import { resolveCategory } from '../../category-views/resolve-category';
 import { GroupsLoadStateView, type GroupsLoadState } from '../../components/groups-load-state';
 import { GroupConflictContainer } from '../../containers/group-conflict-container';
 import { buildExpenseEditRequest, expenseEditValues } from '../../edit/expense-edit-values';
@@ -64,6 +65,7 @@ function ExpenseEditScreen({
   const locale = useLocale();
   const language = locale === 'en' ? 'en' : 'es';
   const tForm = useTranslations('groups.expenses.form');
+  const tExpenses = useTranslations('groups.expenses');
   const timeZone = timeZoneProp ?? readDeviceContext().timeZone ?? FALLBACK_TIME_ZONE;
   const changes = useGroupChanges(groupId);
   const [state, setState] = useState<ScreenState>({ kind: 'loading' });
@@ -81,7 +83,8 @@ function ExpenseEditScreen({
       const [group, expense, options] = await Promise.all([
         api.getGroup(groupId),
         api.getGroupExpense(groupId, expenseId),
-        api.getExpenseOptions(groupId),
+        // Archived categories too, so the chip names the category of an expense whose one was archived.
+        api.getExpenseOptions(groupId, { includeArchived: true }),
       ]);
       if (!isActive()) return;
       const results: ApiResult<unknown>[] = [group, expense, options];
@@ -202,6 +205,12 @@ function ExpenseEditScreen({
     <ExpenseEditFormView
       // A new revision (retry, discard, another save) starts the fields again from the queue.
       key={`${String(change?.revision ?? 0)}:${change?.rejection?.code ?? ''}`}
+      category={resolveCategory(
+        expense.categoryId,
+        categories,
+        language,
+        tExpenses('uncategorized'),
+      )}
       form={{
         members,
         categories: categories

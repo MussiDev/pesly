@@ -4,6 +4,7 @@ import { movementAmountSchema, occurredAtSchema } from '../movements/movement';
 import { BASIS_POINTS_TOTAL } from '../money/split-expense';
 import { rateTypeSchema } from '../rate-types';
 import { groupCategoryResponseSchema } from './group';
+import { categoryIdsParamSchema, dateRangeRefinement } from './expense-summary';
 
 /** The member limit of a group (spec D13) bounds a split. */
 export const GROUP_SPLIT_MEMBERS_MAX = 50;
@@ -151,10 +152,15 @@ const pageLimitSchema = z.coerce.number().int().min(1).max(GROUP_EXPENSES_PAGE_S
 const cursorSchema = z.string().min(1).max(512).optional();
 
 /** `GET /groups/:id/expenses`; `limit` defaults to 50 where it is applied. */
-export const listGroupExpensesQuerySchema = z.strictObject({
-  limit: pageLimitSchema,
-  cursor: cursorSchema,
-});
+export const listGroupExpensesQuerySchema = z
+  .strictObject({
+    limit: pageLimitSchema,
+    cursor: cursorSchema,
+    categoryIds: categoryIdsParamSchema.optional(),
+    from: occurredAtSchema.optional(),
+    to: occurredAtSchema.optional(),
+  })
+  .superRefine(dateRangeRefinement);
 
 export type ListGroupExpensesQuery = z.infer<typeof listGroupExpensesQuerySchema>;
 
@@ -239,6 +245,19 @@ export const defaultSplitResponseSchema = z.discriminatedUnion('mode', [
 ]);
 
 export type DefaultSplitResponse = z.infer<typeof defaultSplitResponseSchema>;
+
+/**
+ * `GET /groups/:id/expense-options` query. `includeArchived` adds the archived categories so a
+ * screen can name the category of an existing expense (05j); pickers still offer active ones only.
+ */
+export const expenseOptionsQuerySchema = z.strictObject({
+  includeArchived: z
+    .enum(['true', 'false'])
+    .transform((value) => value === 'true')
+    .optional(),
+});
+
+export type ExpenseOptionsQuery = z.infer<typeof expenseOptionsQuerySchema>;
 
 /** `GET /groups/:id/expense-options`: everything a new expense needs in one call (spec D9). */
 export const expenseOptionsResponseSchema = z.object({

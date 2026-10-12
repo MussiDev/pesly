@@ -1615,6 +1615,54 @@
         "description": "Add the first expense to start splitting it with the group."
       }
     },
+    "categoryViews": {
+      "list": {
+        "monthEmpty": {
+          "title": "No expenses this month",
+          "description": "Add the first expense of this month to see it here."
+        },
+        "noMatch": {
+          "title": "Nothing matches this filter",
+          "description": "No expenses in this month belong to the selected categories.",
+          "clear": "Clear filter"
+        },
+        "filteredTotal": {
+          "label": "Total of the selected categories"
+        }
+      },
+      "detail": {
+        "label": "Category"
+      },
+      "chip": {
+        "archived": "Archived"
+      },
+      "filter": {
+        "label": "Filter by category",
+        "activeLabel": "Active category filters",
+        "remove": "Remove filter {name}",
+        "clear": "Clear filters"
+      },
+      "month": {
+        "label": "Month",
+        "previous": "Previous month",
+        "next": "Next month"
+      },
+      "summary": {
+        "total": "Total",
+        "expenses": "{count, plural, one {# expense} other {# expenses}}"
+      },
+      "summarySection": {
+        "title": "Spending by category",
+        "selected": "Filtering by: {names}",
+        "empty": {
+          "title": "No expenses this month",
+          "description": "Expenses you add for this month will show up here, grouped by category."
+        }
+      },
+      "page": {
+        "filters": "Month and category filters"
+      }
+    },
     "list": {
       "title": "Groups",
       "description": "Shared expenses and who owes whom.",

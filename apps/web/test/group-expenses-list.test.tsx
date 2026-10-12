@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import type { GroupExpenseResponse } from '@pesly/shared';
+import { displayCategoryName, type GroupExpenseResponse } from '@pesly/shared';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { IDBFactory } from 'fake-indexeddb';
@@ -518,5 +518,279 @@ describe('GroupExpensesContainer edit actions (DISC-001-05h Block 7)', () => {
     const row = within(await rowOf('Expense 1'));
     expect(await row.findByRole('link', { name: es.groups.edit.common.actions.edit })).toBeTruthy();
     expect(row.getByRole('button', { name: es.groups.edit.common.actions.delete })).toBeTruthy();
+  });
+});
+
+const RANGE = { from: '2026-10-01T03:00:00.000Z', to: '2026-11-01T02:59:59.999Z' };
+const TRIP = '66666666-6666-4666-8666-666666666662';
+const OLD = '66666666-6666-4666-8666-666666666663';
+const GHOST = '66666666-6666-4666-8666-666666666669';
+const view = en.groups.categoryViews;
+
+const filteredKey = (params: {
+  categoryIds?: string[];
+  cursor?: string;
+  from?: string;
+  to?: string;
+}) => {
+  const query = new URLSearchParams({ limit: '50' });
+  if (params.cursor !== undefined) query.set('cursor', params.cursor);
+  if (params.categoryIds !== undefined) query.set('categoryIds', params.categoryIds.join(','));
+  if (params.from !== undefined) query.set('from', params.from);
+  if (params.to !== undefined) query.set('to', params.to);
+  return `GET /groups/${GROUP_ID}/expenses?${query.toString()}`;
+};
+
+const withCategories = {
+  ...options,
+  categories: [
+    ...options.categories,
+    {
+      id: TRIP,
+      defaultKey: 'food',
+      name: null,
+      icon: 'plane',
+      color: 'blue',
+      archivedAt: null,
+    },
+    {
+      id: OLD,
+      defaultKey: null,
+      name: 'Old stuff',
+      icon: 'utensils',
+      color: 'red',
+      archivedAt: '2026-09-01T00:00:00.000Z',
+    },
+  ],
+};
+
+const openWith = (
+  props: { range?: typeof RANGE; categoryIds?: string[] } & Record<string, unknown> = {},
+) => renderApp(<GroupExpensesContainer groupId={GROUP_ID} {...props} />, { locale: 'en' });
+
+describe('GroupExpensesContainer category views (DISC-001-05j Block 7)', () => {
+  it('shows each row category icon, color and name, the default name, the archived marker and the neutral fallback', async () => {
+    stubApi({
+      [LIST]: {
+        status: 200,
+        body: {
+          items: [
+            expense(1),
+            expense(2, { categoryId: TRIP }),
+            expense(3, { categoryId: OLD }),
+            expense(4, { categoryId: GHOST }),
+          ],
+          nextCursor: null,
+        },
+      },
+      [OPTIONS]: { status: 200, body: withCategories },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    openWith();
+    const food = await rowOf('Expense 1');
+    expect(food.querySelector('[data-icon="utensils"]')?.getAttribute('data-color')).toBe('orange');
+    expect(within(food).getByText('Groceries')).toBeTruthy();
+    const trip = await rowOf('Expense 2');
+    expect(trip.querySelector('[data-icon="plane"]')).toBeTruthy();
+    expect(
+      within(trip).getByText(displayCategoryName({ key: 'food', name: null }, 'en')),
+    ).toBeTruthy();
+    const old = within(await rowOf('Expense 3'));
+    expect(old.getByText('Old stuff')).toBeTruthy();
+    expect(old.getByText(view.chip.archived)).toBeTruthy();
+    const unknown = await rowOf('Expense 4');
+    expect(within(unknown).getByText(en.groups.expenses.uncategorized)).toBeTruthy();
+    expect(unknown.querySelector('[data-icon="unknown"]')).toBeTruthy();
+    expect(unknown.textContent).not.toContain(GHOST);
+  });
+
+  it('marks an archived category the options omit when the page hands its summary display down', async () => {
+    stubApi({
+      [LIST]: { status: 200, body: { items: [expense(3, { categoryId: OLD })], nextCursor: null } },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    openWith({
+      knownCategories: new Map([
+        [
+          OLD,
+          { id: OLD, label: 'Old stuff', icon: 'plane', color: 'red', archived: true, known: true },
+        ],
+      ]),
+    });
+    const old = await rowOf('Expense 3');
+    expect(within(old).getByText('Old stuff')).toBeTruthy();
+    expect(within(old).getByText(view.chip.archived)).toBeTruthy();
+    expect(old.querySelector('[data-icon="plane"]')).toBeTruthy();
+  });
+
+  it('sends the filters on the first load, hands the categories up and makes 3 requests', async () => {
+    const key = filteredKey({ categoryIds: [FOOD], ...RANGE });
+    const { calls } = stubApi({
+      [key]: { status: 200, body: { items: [expense(1)], nextCursor: null } },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    const onLoadedOptions = vi.fn();
+    openWith({ range: RANGE, categoryIds: [FOOD], onLoadedOptions });
+    await screen.findByText('Expense 1');
+    expect(calls).toHaveLength(3);
+    expect(onLoadedOptions).toHaveBeenCalledWith(options.categories);
+  });
+
+  it('requests only the first page again when the month or the category changes', async () => {
+    const NEXT = { from: '2026-09-01T03:00:00.000Z', to: '2026-10-01T02:59:59.999Z' };
+    const { calls } = stubApi({
+      [filteredKey(RANGE)]: { status: 200, body: { items: [expense(1)], nextCursor: null } },
+      [filteredKey(NEXT)]: { status: 200, body: { items: [expense(2)], nextCursor: null } },
+      [filteredKey({ categoryIds: [FOOD], ...NEXT })]: {
+        status: 200,
+        body: { items: [expense(3)], nextCursor: null },
+      },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    const rendered = openWith({ range: RANGE, categoryIds: [] });
+    await screen.findByText('Expense 1');
+    expect(calls).toHaveLength(3);
+    rendered.rerender(<GroupExpensesContainer groupId={GROUP_ID} range={NEXT} categoryIds={[]} />);
+    await screen.findByText('Expense 2');
+    expect(calls).toHaveLength(4);
+    rendered.rerender(
+      <GroupExpensesContainer groupId={GROUP_ID} range={NEXT} categoryIds={[FOOD]} />,
+    );
+    await screen.findByText('Expense 3');
+    expect(calls).toHaveLength(5);
+  });
+
+  it('keeps the filters on load more with the previous cursor and requests the month again when cleared', async () => {
+    const { calls } = stubApi({
+      [filteredKey({ categoryIds: [FOOD], ...RANGE })]: {
+        status: 200,
+        body: { items: [expense(1)], nextCursor: 'CUR1' },
+      },
+      [filteredKey({ cursor: 'CUR1', categoryIds: [FOOD], ...RANGE })]: {
+        status: 200,
+        body: { items: [expense(2)], nextCursor: null },
+      },
+      [filteredKey(RANGE)]: { status: 200, body: { items: [expense(5)], nextCursor: null } },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    const rendered = openWith({ range: RANGE, categoryIds: [FOOD] });
+    await userEvent.click(await screen.findByRole('button', { name: en.groups.expenses.loadMore }));
+    expect(await screen.findByText('Expense 2')).toBeTruthy();
+    expect(
+      calls.some((call) => call.path.includes('cursor=CUR1') && call.path.includes('categoryIds=')),
+    ).toBe(true);
+    rendered.rerender(<GroupExpensesContainer groupId={GROUP_ID} range={RANGE} categoryIds={[]} />);
+    expect(await screen.findByText('Expense 5')).toBeTruthy();
+    expect(screen.queryByText('Expense 2')).toBeNull();
+  });
+
+  it('drops a late answer of the previous filter', async () => {
+    const stub = stubApi({
+      [filteredKey({ categoryIds: [FOOD], ...RANGE })]: {
+        status: 200,
+        body: { items: [expense(1)], nextCursor: null },
+      },
+      [filteredKey(RANGE)]: { status: 200, body: { items: [expense(2)], nextCursor: null } },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let requested = false;
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      if (!url.includes('categoryIds=')) return stub.fetch(url, init);
+      requested = true;
+      return held.then(() => stub.fetch(url, init));
+    });
+    const rendered = openWith({ range: RANGE, categoryIds: [FOOD] });
+    await waitFor(() => {
+      expect(requested).toBe(true);
+    });
+    rendered.rerender(<GroupExpensesContainer groupId={GROUP_ID} range={RANGE} categoryIds={[]} />);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(screen.queryByText('Expense 1')).toBeNull();
+  });
+
+  it('shows the month-empty state with the add action, and nothing-matches with a working clear action', async () => {
+    stubApi({
+      [filteredKey(RANGE)]: { status: 200, body: { items: [], nextCursor: null } },
+      [filteredKey({ categoryIds: [FOOD], ...RANGE })]: {
+        status: 200,
+        body: { items: [], nextCursor: null },
+      },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    const first = openWith({ range: RANGE, categoryIds: [] });
+    expect(await screen.findByText(view.list.monthEmpty.title)).toBeTruthy();
+    expect(
+      screen.getAllByRole('link', { name: en.groups.expenses.add })[0]?.getAttribute('href'),
+    ).toContain(`/groups/${GROUP_ID}/expenses/new`);
+    first.unmount();
+
+    const onClearFilter = vi.fn();
+    openWith({ range: RANGE, categoryIds: [FOOD], onClearFilter });
+    expect(await screen.findByText(view.list.noMatch.title)).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', { name: view.list.noMatch.clear }));
+    expect(onClearFilter).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the filtered total above the list from the summary, per currency', async () => {
+    stubApi({
+      [filteredKey({ categoryIds: [FOOD], ...RANGE })]: {
+        status: 200,
+        body: { items: [expense(1)], nextCursor: null },
+      },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    openWith({
+      range: RANGE,
+      categoryIds: [FOOD],
+      filteredTotals: [
+        { currency: 'ARS', total: 1500050n, count: 2 },
+        { currency: 'USD', total: 1000n, count: 1 },
+      ],
+    });
+    await screen.findByText('Expense 1');
+    const region = screen.getByLabelText(view.list.filteredTotal.label);
+    expect(within(region).getByText(/15,000\.50/)).toBeTruthy();
+    expect(within(region).getByText(/10\.00/)).toBeTruthy();
+    expect(within(region).getByText(/2 expenses/)).toBeTruthy();
+  });
+
+  it('keeps the previous rows and shows the error once when a page after a filter change fails', async () => {
+    stubApi({
+      [filteredKey(RANGE)]: { status: 200, body: { items: [expense(1)], nextCursor: null } },
+      [filteredKey({ categoryIds: [FOOD], ...RANGE })]: { status: 500 },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    const rendered = openWith({ range: RANGE, categoryIds: [] });
+    await screen.findByText('Expense 1');
+    rendered.rerender(
+      <GroupExpensesContainer groupId={GROUP_ID} range={RANGE} categoryIds={[FOOD]} />,
+    );
+    expect(await screen.findAllByRole('alert')).toHaveLength(1);
+    expect(screen.getByText('Expense 1')).toBeTruthy();
+  });
+
+  it('renders the new states in Spanish', async () => {
+    stubApi({
+      [filteredKey(RANGE)]: { status: 200, body: { items: [], nextCursor: null } },
+      [OPTIONS]: { status: 200, body: options },
+      [GROUP_KEY]: { status: 200, body: groupDetail() },
+    });
+    renderApp(<GroupExpensesContainer groupId={GROUP_ID} range={RANGE} categoryIds={[]} />, {
+      locale: 'es',
+    });
+    expect(await screen.findByText(es.groups.categoryViews.list.monthEmpty.title)).toBeTruthy();
   });
 });
