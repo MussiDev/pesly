@@ -16,7 +16,7 @@ export function GoalReadOnlyFields({ goal }: { goal: GoalResponse }) {
       </div>
       <div className="grid gap-1">
         <dt className="text-small text-muted-foreground">{t('account')}</dt>
-        <dd>{goal.accountId ?? t('accountNone')}</dd>
+        <dd>{goal.accountId === null ? t('accountNone') : t('accountLinked')}</dd>
       </div>
     </dl>
   );

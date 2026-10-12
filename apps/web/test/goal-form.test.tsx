@@ -238,7 +238,16 @@ describe('EditGoalContainer', () => {
     expect(screen.getByText(f.currency)).toBeTruthy();
     expect(screen.getByText('ARS')).toBeTruthy();
     expect(screen.getByText(f.account)).toBeTruthy();
+    expect(screen.getByText(f.accountLinked)).toBeTruthy();
+    expect(screen.queryByText(ACCOUNT_ID)).toBeNull();
     expect(calls).toHaveLength(1);
+  });
+
+  it('a malformed route id shows the not found state and sends no request', async () => {
+    const { calls } = stubApi({});
+    renderApp(<EditGoalContainer goalId="not-an-id" />, { locale: 'en' });
+    expect(await screen.findByText(en.goals.detail.notFound.title)).toBeTruthy();
+    expect(calls).toHaveLength(0);
   });
 
   it('sends only the changes and shows the figures the API returned', async () => {

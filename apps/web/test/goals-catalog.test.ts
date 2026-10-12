@@ -67,6 +67,7 @@ const GOAL_KEYS: Record<string, string[]> = {
   'form.clearTargetDate': [],
   'form.account': [],
   'form.accountNone': [],
+  'form.accountLinked': [],
   'form.noAccounts': [],
   'form.errors.nameRequired': [],
   'form.errors.nameTooLong': [],

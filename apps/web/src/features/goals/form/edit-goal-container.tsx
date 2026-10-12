@@ -4,6 +4,7 @@ import { formatMinorUnits, type GoalResponse } from '@pesly/shared';
 import { Target } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { z } from 'zod';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { GroupsLoadStateView } from '@/features/groups/components/groups-load-state';
@@ -20,6 +21,8 @@ type LoadState =
   | { kind: 'failed'; error: 'network' | 'unexpected' }
   | { kind: 'not-found' }
   | { kind: 'ready'; goal: GoalResponse };
+
+const goalIdSchema = z.uuid();
 
 function NotFound() {
   const t = useTranslations('goals.detail.notFound');
@@ -43,7 +46,10 @@ export function EditGoalContainer({ goalId }: { goalId: string }) {
   const router = useRouter();
   const locale = useLocale();
   const sending = useRef(false);
-  const [state, setState] = useState<LoadState>({ kind: 'loading' });
+  const validId = goalIdSchema.safeParse(goalId).success;
+  const [state, setState] = useState<LoadState>(
+    validId ? { kind: 'loading' } : { kind: 'not-found' },
+  );
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<GoalFormErrors>({});
   const [saved, setSaved] = useState<GoalResponse | undefined>();
@@ -65,8 +71,8 @@ export function EditGoalContainer({ goalId }: { goalId: string }) {
   }, [api, goalId, router]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (validId) void load();
+  }, [load, validId]);
 
   async function save(goal: GoalResponse, form: GoalFormState) {
     if (sending.current) return;

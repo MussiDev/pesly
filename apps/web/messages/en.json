@@ -2028,6 +2028,7 @@
       "clearTargetDate": "Clear target date",
       "account": "Link to an account (optional)",
       "accountNone": "No account",
+      "accountLinked": "Linked to an account",
       "noAccounts": "You have no accounts in this currency to link.",
       "errors": {
         "nameRequired": "Enter a name for the goal.",

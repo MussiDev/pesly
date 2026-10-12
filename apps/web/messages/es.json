@@ -2034,6 +2034,7 @@
       "clearTargetDate": "Quitar fecha objetivo",
       "account": "Vincular a una cuenta (opcional)",
       "accountNone": "Sin cuenta",
+      "accountLinked": "Vinculada a una cuenta",
       "noAccounts": "No tenés cuentas en esta moneda para vincular.",
       "errors": {
         "nameRequired": "Ingresá un nombre para la meta.",
