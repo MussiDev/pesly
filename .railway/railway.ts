@@ -55,6 +55,8 @@ export default defineRailway((_ctx, project) => {
       GOOGLE_CLIENT_ID: preserve(),
       GOOGLE_CLIENT_SECRET: preserve(),
       TOTP_ENCRYPTION_KEY: preserve(),
+      PUSH_PROVIDER: 'webpush',
+      VAPID_PUBLIC_KEY: preserve(),
     },
   });
 
@@ -80,6 +82,11 @@ export default defineRailway((_ctx, project) => {
       RESEND_API_KEY: preserve(),
       // Optional: without it the price job runs on CoinGecko's public limits (DISC-001-07b).
       COINGECKO_API_KEY: preserve(),
+      // The private key and the subject never reach the API (DISC-001-08d).
+      PUSH_PROVIDER: 'webpush',
+      VAPID_PUBLIC_KEY: preserve(),
+      VAPID_PRIVATE_KEY: preserve(),
+      VAPID_SUBJECT: preserve(),
     },
   });
 

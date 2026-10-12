@@ -199,6 +199,14 @@ import {
   type BudgetSpendingResponse,
   type CreateBudgetRequest,
   type UpdateBudgetRequest,
+  pushConfigResponseSchema,
+  pushSubscriptionRequestSchema,
+  pushSubscriptionResponseSchema,
+  unsubscribeRequestSchema,
+  type PushConfigResponse,
+  type PushSubscriptionRequest,
+  type PushSubscriptionResponse,
+  type UnsubscribeRequest,
   type ResendVerificationResponse,
   type SecondFactorVerifyRequest,
   type SecondFactorVerifyResponse,
@@ -830,6 +838,13 @@ export interface ApiClient {
   /** Only the given fields are sent; an empty body is refused before any request. */
   updateBudget(id: string, body: UpdateBudgetRequest): Promise<ApiResult<BudgetResponse>>;
   deleteBudget(id: string): Promise<ApiResult<undefined>>;
+  getPushConfig(): Promise<ApiResult<PushConfigResponse>>;
+  /** Only the endpoint and the two keys are sent; a body that fails the shared schema is refused before any request. */
+  storePushSubscription(
+    body: PushSubscriptionRequest,
+  ): Promise<ApiResult<PushSubscriptionResponse>>;
+  /** Only the endpoint is sent. A 404 means the server no longer knows it. */
+  removePushSubscription(body: UnsubscribeRequest): Promise<ApiResult<undefined>>;
 }
 
 /**
@@ -2198,5 +2213,35 @@ export function createApiClient({
       onBudget(id, (path) =>
         request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
       ),
+    getPushConfig: () =>
+      request({
+        method: 'GET',
+        path: '/push/config',
+        response: pushConfigResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    storePushSubscription: (body) => {
+      // Parsing also strips what the browser adds (`expirationTime`), so only the three fields leave.
+      const parsed = pushSubscriptionRequestSchema.safeParse(body);
+      if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+      return request({
+        method: 'PUT',
+        path: '/push/subscriptions',
+        body: parsed.data,
+        response: pushSubscriptionResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    removePushSubscription: (body) => {
+      const parsed = unsubscribeRequestSchema.safeParse(body);
+      if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+      return request({
+        method: 'POST',
+        path: '/push/subscriptions/unsubscribe',
+        body: parsed.data,
+        response: null,
+        refreshOnUnauthenticated: true,
+      });
+    },
   };
 }
