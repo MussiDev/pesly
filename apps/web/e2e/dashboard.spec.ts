@@ -120,6 +120,10 @@ test('the home sends exactly one request to each of the two figure paths and non
 }) => {
   test.skip(!PRODUCTION_BUILD, 'next dev runs effects twice; run with E2E_PRODUCTION_BUILD=1');
   const { figures } = await signedIn(page);
+  // Signing in lands on the home, whose own figure requests may still be in flight: let them
+  // finish before counting, or they leak into the count of the load under test.
+  await expectReady(page);
+  await page.waitForLoadState('networkidle');
   figures.reset();
 
   await page.goto('/es');
