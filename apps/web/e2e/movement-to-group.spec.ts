@@ -16,6 +16,7 @@ import {
   recordApiRequests,
   removeOtherExpenses,
   senderSetup,
+  withCustomCategory,
   tapCounter,
   type SenderSetup,
 } from './support/movement-to-group';
@@ -275,7 +276,8 @@ test('a group whose Other expenses category was archived: the send restores it, 
   try {
     const page = w.pageA;
     await archiveOtherExpenses(page, w.groupId);
-    const movementId = await createExpenseMovement(page, w.setupA, AMOUNT);
+    const custom = await withCustomCategory(page, w.setupA);
+    const movementId = await createExpenseMovement(page, custom, AMOUNT);
     await page.goto('/es/movements');
     const taps = tapCounter();
     await taps.tap(sendLink(page, movementId));
@@ -301,7 +303,8 @@ test('a group with no Other expenses category gets it created by the send (AC-45
   try {
     const page = w.pageA;
     await removeOtherExpenses(w.groupId);
-    const movementId = await createExpenseMovement(page, w.setupA, AMOUNT);
+    const custom = await withCustomCategory(page, w.setupA);
+    const movementId = await createExpenseMovement(page, custom, AMOUNT);
     await page.goto(`/es/movements/send?id=${movementId}`);
     await page.getByRole('button', { name: send.confirm }).click();
     await expect(page.getByText(send.categoryCreated)).toBeVisible();
@@ -413,7 +416,7 @@ test('the home recent row opens the list at that movement, highlighted and in vi
       await page.goto(`/es/movements?focus=${bad}`);
       await expect(page.getByRole('listitem').first()).toBeVisible();
       await expect(page.locator('[aria-current="true"]')).toHaveCount(0);
-      await expect(page.getByRole('alert')).toHaveCount(0);
+      await expect(page.getByRole('main').getByRole('alert')).toHaveCount(0);
     }
   } finally {
     await w.close();

@@ -57,6 +57,20 @@ export async function senderSetup(page: Page): Promise<SenderSetup> {
   return { accountId: account.id, categoryId: category.id };
 }
 
+/**
+ * The setup with a custom personal category (no default key), which has no equivalent in any group,
+ * so a send without a chosen category falls back to the group's Other expenses category.
+ */
+export async function withCustomCategory(page: Page, setup: SenderSetup): Promise<SenderSetup> {
+  const created = await api<{ id: string }>(page, 'POST', '/categories', {
+    name: 'Gasto propio',
+    kind: 'expense',
+    icon: 'ellipsis',
+    color: 'slate',
+  });
+  return { ...setup, categoryId: created.id };
+}
+
 /** Records an expense movement of `amount` minor units, a minute ago; `note` is optional. */
 export async function createExpenseMovement(
   page: Page,
