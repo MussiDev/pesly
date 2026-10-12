@@ -8,6 +8,14 @@ export function parseTheme(value: unknown): Theme | null {
   return THEMES.find((theme) => theme === value) ?? null;
 }
 
+export const THEME_CHOICES = ['light', 'dark', 'system'] as const;
+export type ThemeChoice = (typeof THEME_CHOICES)[number];
+
+/** Only an exact `light` or `dark` is a stored choice; anything else (including legacy `system`) is `system`. */
+export function parseThemeChoice(value: unknown): ThemeChoice {
+  return parseTheme(value) ?? 'system';
+}
+
 /** With no stored choice the interface follows the operating system. */
 export function resolveTheme(stored: Theme | null, prefersDark: boolean): Theme {
   return stored ?? (prefersDark ? 'dark' : 'light');

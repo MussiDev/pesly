@@ -9,11 +9,20 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { THEME_STORAGE_KEY, parseTheme, resolveTheme, type Theme } from '@/lib/theme';
+import {
+  THEME_STORAGE_KEY,
+  parseTheme,
+  resolveTheme,
+  type Theme,
+  type ThemeChoice,
+} from '@/lib/theme';
 
 interface ThemeContextValue {
+  /** The resolved theme actually applied. */
   theme: Theme;
-  setTheme: (theme: Theme) => void;
+  /** What the user picked; `system` when nothing is stored. */
+  choice: ThemeChoice;
+  setTheme: (choice: ThemeChoice) => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -27,9 +36,10 @@ function readStoredTheme(): Theme | null {
   }
 }
 
-function storeTheme(theme: Theme): void {
+function storeTheme(choice: ThemeChoice): void {
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    if (choice === 'system') localStorage.removeItem(THEME_STORAGE_KEY);
+    else localStorage.setItem(THEME_STORAGE_KEY, choice);
   } catch {
     // Blocked storage: the theme stays in memory for this session.
   }
@@ -66,12 +76,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle('dark', theme === 'dark');
   }, [ready, theme]);
 
-  const setTheme = useCallback((next: Theme) => {
-    setStored(next);
+  const choice: ThemeChoice = stored ?? 'system';
+
+  const setTheme = useCallback((next: ThemeChoice) => {
+    // "System" is stored as the absence of the key, so the pre-paint script keeps working unchanged.
+    setStored(next === 'system' ? null : next);
     storeTheme(next);
   }, []);
 
-  const value = useMemo(() => ({ theme, setTheme }), [theme, setTheme]);
+  const value = useMemo(() => ({ theme, choice, setTheme }), [theme, choice, setTheme]);
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
