@@ -11,11 +11,11 @@
 | Component | Source in the spec |
 |---|---|
 | `POST /groups/:id/expenses/from-movement` route and `send-movement-to-group.ts` | Blocks 3, 6 (`apps/api/src/groups/application/send-movement-to-group.ts`) |
-| `drizzle-group-expense-repository.ts` and the unique index `group_expenses_payer_movement_unique` | Blocks 2, 4 (`apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts`, migration 0036) |
+| `drizzle-group-expense-repository.ts` and the unique index `group_expenses_payer_movement_unique` | Blocks 2, 4 (`apps/api/src/groups/infrastructure/db/drizzle-group-expense-repository.ts`, migration 0037) |
 | `drizzle-movement-repository.ts` edit lock behind `PUT /movements/:id` | Block 5 (`apps/api/src/movements/infrastructure/db/drizzle-movement-repository.ts`; also the queued edits the sync pass replays through it) |
 | `drizzle-payer-movement-recorder.ts` (adoption lock, propagation, detach on delete) | Block 4 (`apps/api/src/groups/infrastructure/movements/drizzle-payer-movement-recorder.ts`) |
 | `GET /movements/:id` detail answer and `GET /movements` list `groupLinks` | Block 5 |
-| Activity log markers `group_activity_log.from_movement` and `auto_category` | Blocks 2, 4, 11 (migration 0036 and the activity presenter) |
+| Activity log markers `group_activity_log.from_movement` and `auto_category` | Blocks 2, 4, 11 (migration 0037 and the activity presenter) |
 | Automatic category resolver `ensure-default-category.ts`, called inside the send transaction | Blocks 15, 4 (`apps/api/src/groups/infrastructure/db/ensure-default-category.ts`; D18) |
 | Web: `api-client.ts`, `features/movements/send-to-group/*` and `edit-movement-container.tsx` | Blocks 7, 8, 9, 10 |
 | Web: movements list send icon, marker and `focus` query (`movements-container.tsx`) | Block 12 |
@@ -43,6 +43,11 @@
 - Member → group category table: a send with no category makes the server create or restore the group's
   "Other expenses" default on behalf of a caller who may not be an admin. The key, icon and color are
   server constants and nothing about the category comes from the request; the caller only needs membership.
+- Movement category → group category choice: with no `categoryId`, the server picks the group category
+  equivalent to the movement's own (root default key), else "Other expenses". The choice is made server-side
+  from owner-scoped data (`peekAdoptable` reads the movement's `categoryId` and `categoryDefaultKey` under the
+  caller's own scope); no request input takes part in it, and the equivalent is only read, never created or
+  restored.
 - Error body → client: refusals travel as a code only; the client turns a code into catalog text.
 
 ## STRIDE analysis
@@ -146,8 +151,12 @@
 - **Spoofing:** the group id is the one `GroupAccess.member` authorised for the session user; the resolver
   takes no user, member or role from the request, so nobody can create a category in a group they are not an
   active member of.
-- **Tampering:** the category's default key, icon and color come from the shared `DEFAULT_CATEGORIES`
-  entry `other-expenses` and its name is stored as null; the strict body rejects `categoryName`, `categoryKey`,
+- **Tampering:** the category choice (`resolveSendCategory`) takes the movement's default key from the
+  owner-scoped read, reduces it to its root key and looks up only an existing non-archived group category
+  with that key; the request cannot steer it (the strict body has no key, name, icon or color), so a member
+  cannot make the server pick or write any category by input; a crafted `categoryId` still goes through the
+  old rule (active category of the group). The category's default key, icon and color come from the shared
+  `DEFAULT_CATEGORIES` entry `other-expenses` and its name is stored as null; the strict body rejects `categoryName`, `categoryKey`,
   `icon` and `color` (FR-19), so a member cannot choose, rename or style the category through the send. A
   category renamed by an admin keeps its key and is used as is, never overwritten. Only `archived_at` of that
   one default row is ever updated.
@@ -162,12 +171,14 @@
   row can exist per group, so the table cannot be flooded through the send (a group has at most one such row,
   and the action cannot create any other); the work is one indexed read and at most one insert or update, inside
   the transaction that already holds the movement lock. A refused or failed send rolls the creation back.
-- **Elevation of Privilege:** a member without the admin role causes a category insert or an un-archive,
-  which the category routes reserve to admins. It is bounded by design: one fixed default key per group, no
+- **Elevation of Privilege:** the equivalent-category lookup writes nothing, so it grants nothing and cannot
+  be used to un-archive an archived equivalent (that case falls back to "Other expenses"); the server never
+  creates or restores any category other than the `other-expenses` default. A member without the admin role
+  causes a category insert or an un-archive of that one default, which the category routes reserve to
+  admins. It is bounded by design: one fixed default key per group, no
   user-supplied value, the same row the group is created with, and no other permission changes; an admin who
-  archived it on purpose can archive it again and the restoration is visible in the log. Decision awaiting the
-  owner: restore an archived category (current proposal) or fall back to the first active one (no write to an
-  admin's choice).
+  archived it on purpose can archive it again and the restoration is visible in the log. Owner decision
+  (approved 2026-10-11): restore an archived "Other expenses" rather than fall back to the first active one.
 
 ### Activity log markers `group_activity_log.from_movement` and `auto_category`
 - **Spoofing:** the markers are set by the server in the creation transaction, never by the request; no body
@@ -195,8 +206,8 @@
 - **Information Disclosure:** failures show catalog text chosen by code, never API text; the query carries
   only a movement id, never an amount or note; group names are rendered as React text, never as HTML.
 - **Denial of Service:** the action is online only and the button is disabled while the request runs, so a
-  double click sends once; the screen makes at most 2 requests before a group is chosen, 1 after and 1 to
-  send (3 loads when the only group is preselected), with no polling or retry loop.
+  double click sends once; the screen makes 3 requests before a group is chosen, 1 after and 1 to
+  send (4 loads when the only group is preselected), with no polling or retry loop.
 - **Elevation of Privilege:** hiding the action when offline, queued or linked only guides the person; the
   API remains the authority and answers 404 or 409 whatever the UI showed.
 
@@ -256,7 +267,7 @@
 | R-09 | Deleting an adopted group expense destroys the person's own movement (privilege of the deleter over another user's record) | E | Medium | High | The marker `adopted_movement` makes delete detach and keep the movement; a non-adopted expense keeps the old rule; the migration rollback detaches adopted expenses first; tests for both deletes and for a deleted movement with a null link (Blocks 2, 4) |
 | R-10 | A queued offline edit of the movement is applied after the send and silently changes a locked field | T | Medium | High | The sync pass sends it through the same `PUT`, which answers 409 with the lock code; the pass stores a rejected change with that code and the movement screen shows a failed row with the message and the discard action; never applied silently (Blocks 5, 7) |
 | R-11 | The edit lock is bypassed by another write path (import, recurring job, card installment, device replay, account code) | E | Low | High | Reading the code shows `update` in `drizzle-movement-repository.ts` is the only statement that updates a movement row; the other paths only insert, delete or read; creation with an existing device id returns the stored movement; a test asserts the replay leaves an adopted movement unchanged, and the bypass is an explicit option used by one adapter (Block 5) |
-| R-12 | A database error or a migration step on existing data fails and leaves partial state | T | Low | High | Migration 0036 starts with a pre-check that aborts on a duplicate link and is otherwise additive; the whole send is one transaction so a failure stores nothing; an idempotent rollback script exists and is tested twice (Blocks 2, 4) |
+| R-12 | A database error or a migration step on existing data fails and leaves partial state | T | Low | High | Migration 0036 starts with a pre-check that aborts on a duplicate link and is otherwise additive; the whole send is one transaction so a failure stores nothing; an idempotent rollback script (guarded with `to_regclass`) exists and is tested twice (Blocks 2, 4) |
 | R-13 | Markup or script in a group description, group name or note runs in another member's page through the lists or the activity page | T | Medium | High | Every description, name and note is rendered as React text with no HTML injection; the new marker is a boolean and the catalog text is static; the list marker "In group X" renders the name as React text (Blocks 9, 10, 11, 12) |
 | R-14 | A float slips into money on the way (note derivation, split, display) | T | Medium | High | The amount is the movement's `bigint`, shares go through the shared allocation helper, a test over 1,000 random amounts proves the shares add up, and a scan rejects float conversions in the new files (Blocks 3, 8, 12) |
 | R-16 | The `focus` query value of a crafted or shared link injects markup or a selector, probes whether a movement id exists, or breaks the list | T | Medium | Low | Validated as a uuid, compared in code with loaded ids only, never rendered, used in a selector, stored or sent; an unknown or malformed value shows the list with no highlight and no error, so there is no oracle; tests with `abc`, a markup string and an unknown uuid (Block 12, Block 14) |
@@ -266,11 +277,18 @@
 | R-20 | The automatic creation or restoration of a category cannot be traced to who caused it (repudiation) | R | Medium | Medium | The creation entry of the immutable log records `auto_category` `created` or `restored` with the caller's member id and the server time, in the same transaction; the activity page shows it as text (Blocks 2, 4, 11) |
 | R-15 | A web bundle cached before the deploy cannot read the activity entry with the new required field | D | Medium | Low | The page shows the generic failure with retry and the service worker update loads the new bundle; accepted as a short transitional effect and listed for the owner in the spec (Block 11) |
 
+| R-21 | A member steers the automatic category choice, or the equivalent lookup reads or writes another user's or group's data (tampering, elevation) | T, E | Low | Medium | The choice is server-side from the movement's own category read under the owner scope (`peekAdoptable`), with no request input; the lookup is a read of one group's non-archived row by default key and never creates or restores the equivalent; a non-owned movement answers 404; tests with another user's movement and with a body carrying a key or name (Blocks 3, 4, 15) |
+
 ## Decision Log
 - 2026-10-11: Owner decision: the send keeps the group category automatic and the system creates the group's
   "Other expenses" category when it is missing. The threat entries for the resolver (R-17 to R-20) were added
   for it. Owner decision (approved 2026-10-11): an archived category is restored (alternative: fall back
   to the first active category, which never changes an admin's choice).
+- 2026-10-11: Owner decision (approved by the owner): with no category in the request, the server picks the
+  group category equivalent to the movement's own category (root default key, non-archived), falling back to
+  "Other expenses" (create or restore) only when there is none, because budgets match a share to a personal
+  budget by category name (verifier finding B1). The trust boundary and the STRIDE entries of the resolver
+  (tampering, elevation of privilege) and R-21 were added for it.
 
 ## Supply chain
 No new runtime dependency is added (spec D13): the send reuses the existing Express route stack, Zod schemas of
@@ -284,7 +302,7 @@ shared so sends of different movements do not block each other, and repeated sen
 409 after one read. The edit lock adds one `for update` read and one existence query to a movement edit. The
 unique partial index replaces the plain one of 0035, so the budgets' `not exists` probe keeps its index and
 write cost does not grow. The client screens add no polling, background timer or retry loop; the load budget
-is 2 requests, then 1 after choosing a group, then 1 to send, asserted by tests; the movements list adds at
+is 3 requests (the movement, the groups, the account), then 1 after choosing a group, then 1 to send, asserted by tests; the movements list adds at
 most 1 request (the person's groups, only when a row is linked) and the home screen none, and a `focus` value
 costs no request. A failed request
 leaves the screen on its error state with a manual retry, and a send that fails stores nothing, so it can be

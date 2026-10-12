@@ -5,7 +5,7 @@
 | Ticket | DISC-001-05i |
 | Tracker | none |
 | Date | 2026-10-11 |
-| PRD loops | 2 |
+| PRD loops | 4 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -18,8 +18,8 @@ again in the group, retyping amount, date and account, and getting a second, dif
 
 This ticket adds the reverse path: a "Send to group" icon action on each eligible row of the movements list
 (next to edit and delete). The person picks the group (one tap) and confirms: the category and the split
-start preselected (the category is automatic: the server creates or restores the group's "Other expenses"
-category when it is missing or archived), so the whole send takes at most 3 taps, and the person can change
+start preselected (the category is automatic: the server uses the group category equivalent to the movement's
+own category and falls back to the group's "Other expenses", creating or restoring it when needed), so the whole send takes at most 3 taps, and the person can change
 the split first. The
 group expense is created adopting the movement
 as the payer's account movement: no second movement exists, the account balance does not change, and the
@@ -39,8 +39,8 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - The link is `group_expenses.payer_movement_id` (`on delete set null`) with a plain, non-unique partial
   index. Nothing prevents two expenses from pointing at one movement, so the one-to-one rule needs a
   database change (a unique index on the link, and a marker of an adopted movement on `group_expenses`).
-  The migration number is assigned at PLAN; its journal `when` must exceed the maximum on `main` when it
-  merges.
+  The migration number is assigned at PLAN (as built: 0037, `when` 1791810000000); its journal `when` must
+  exceed the maximum on `main` when it merges.
 - Deleting a group expense today deletes the payer movement (`DeleteGroupExpense` calls
   `PayerMovementRecorder.remove`). For a movement that existed before the expense, that would destroy the
   person's own record, so the rule for adopted movements changes (Decision Log, open question 1).
@@ -48,7 +48,10 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   movement the note is the person's own text and must not be overwritten (open question 2).
 - Budgets already leave a payer movement out of personal spending with a `not exists` probe on the link
   and count the payer's share instead, so linking is what moves the figures: no change to reports or
-  `GET /groups/personal/shares` is needed.
+  `GET /groups/personal/shares` is needed. They match a group share to a personal budget by category NAME,
+  so a Food movement sent under the group's "Other expenses" would drain the "Other expenses" budget and
+  leave the Food budget untouched (verifier finding B1); the automatic category must therefore be the
+  group category equivalent to the movement's own one (FR-18).
 - A movement has no version counter; `PUT /movements/:id` can change its amount, account and date freely, so
   a linked movement could drift from its expense (open question 3).
 - Movements that are not expenses (income, transfers, currency exchanges) cannot be sent. Card installments
@@ -77,8 +80,8 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   server already holds and that is not linked to a group expense; a row whose movement is already linked
   shows an "In group X" marker instead of the action.
 - FR-03: The system must show on the send screen the user's groups, let one tap choose one (preselecting it
-  when the person has exactly one), and preselect the group's category "Other expenses" as the automatic
-  category (FR-18) and a description that starts from the movement's note,
+  when the person has exactly one), and preselect the automatic category (FR-18: the group category equivalent
+  to the movement's own, or "Other expenses") and a description that starts from the movement's note,
   with the amount, currency and date taken from the movement and shown but not editable.
 - FR-04: The system must preselect the split as equal among all active members once a group is chosen, with
   the person as the payer, and let the person open the same split editor as the group expense form
@@ -112,12 +115,22 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   movements list scrolled to that movement and highlighting it, where the same row actions exist.
 - FR-17: The system must show the movements list normally, with no highlight and no error, when the movement
   to focus is not found among the rows or its id is not a valid id.
-- FR-18: The system must, when a send names no category, resolve the group's "Other expenses" default
-  category inside the same transaction as the send: use it when it is active, restore it when it is archived,
-  and create it with its default key, icon and color when it is missing, so a send never fails for lack of a
-  category and a refused send leaves the category untouched.
-- FR-19: The system must let any member of the group send (the automatic category needs no admin role), and
-  must take the category's key, name, icon and color only from the server's defaults, never from the request.
+- FR-18: The system must, when a send names no category, resolve the group category inside the same
+  transaction as the send, after the refusal checks: take the default key of the movement's own personal
+  category, reduce it to its root key (the part before the first dot), and use the group's NON-archived
+  category with that default key (no automatic marker). When the group has no such category (the equivalent
+  is archived, the personal category is custom and has no default key, or the group lacks the equivalent),
+  the system must fall back to the group's "Other expenses" default category: use it when active, restore it
+  when archived and create it with its default key, icon and color when missing. The system never creates or
+  restores any other category automatically, a category named in the request still wins, and a refused send
+  leaves the categories untouched.
+- FR-19: The system must let any member of the group send (the automatic category needs no admin role), must
+  take the category's key, name, icon and color only from the server's defaults, never from the request, and
+  must choose the equivalent category only from the movement's own data scoped by its owner, never from
+  request input.
+- FR-21: The system must prefill the description with a localized default ("Gasto" in Spanish, "Expense"
+  in English) when the movement has no note, keep it editable, and refuse a description the person clears,
+  because the API requires a description when the movement has no note.
 - FR-20: The system must record, on the creation entry of the activity log and attributed to the sender, that
   the category was created or restored automatically, answer the send with that fact, and show the person a
   one-line notice in Spanish and English.
@@ -126,10 +139,10 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - NFR-01: The send screen, the movements list rows with the new icon and marker, and the home recent rows
   must render without horizontal scrolling at a 360 px wide viewport, verified by an end-to-end test at that
   width.
-- NFR-02: The send screen must load with at most 2 API requests before a group is chosen (the movement and
-  the groups) and 1 more after (the expense options), so at most 3 loading requests even when the only
-  group is preselected, and the send itself must be 1 request (4 in the whole visit), each verified by a
-  test that counts the calls.
+- NFR-02: The send screen must load with 3 API requests before a group is chosen (the movement, the groups
+  and the movement's account, because the movement carries no currency) and 1 more after (the expense
+  options), so 4 loading requests when the only group is preselected, and the send itself must be 1 request
+  (5 in the whole visit), each verified by a test that counts the calls.
 - NFR-03: A send must create 0 movement rows, verified by a test that counts the rows of `movements` before
   and after, and 100 sends of 100 different movements must leave 100 expenses with 100 distinct links.
 - NFR-04: The Spanish and English catalogs must have 0 missing or empty keys, verified by the existing
@@ -167,9 +180,11 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   sees that group.
 - AC-06 (FR-03): WHEN the person taps the icon, THE system SHALL open the send screen of that movement
   showing its amount, currency and date as text and the groups the person belongs to, one tap choosing one.
-- AC-07 (FR-03): WHEN the person chooses a group, THE system SHALL list that group's categories with "Other
-  expenses" chosen as the automatic category (also when the group has none or has it archived) and prefill
-  the description with the movement's note, cut to the 200 characters a group description allows.
+- AC-07 (FR-03): WHEN the person chooses a group, THE system SHALL list that group's categories with the
+  automatic option chosen, labelled in Spanish 'Automática (la misma categoría del movimiento u "Otros
+  gastos")' and in English as the same category as the movement or "Other expenses", and prefill
+  the description with the movement's note, cut to the 200 characters a group description allows, or with
+  the localized default when the movement has no note (AC-54).
 - AC-08 (FR-03): IF the person belongs to no group, THEN THE system SHALL say so and link to the groups
   list.
 - AC-09 (FR-03): IF the description is empty, THEN THE system SHALL show a field error and not send.
@@ -250,13 +265,13 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - AC-44 (FR-17): IF the `focus` value is not a valid id, THEN THE system SHALL ignore it and show the list
   without highlight and without an error.
 
-- AC-45 (FR-18): WHEN a send names no category and the group has no "Other expenses" category, THE system
-  SHALL create it with its default key, icon and color, use it for the expense and answer that it was
+- AC-45 (FR-18): WHEN a send names no category, the movement has no equivalent group category and the group
+  has no "Other expenses" category, THE system SHALL create it with its default key, icon and color, use it for the expense and answer that it was
   created.
-- AC-46 (FR-18): WHEN a send names no category and the group's "Other expenses" category is archived, THE
-  system SHALL restore it, use it for the expense and answer that it was restored.
-- AC-47 (FR-18): WHEN a send names no category and the group's "Other expenses" category is active, THE
-  system SHALL use it, create and restore nothing and answer that nothing was changed.
+- AC-46 (FR-18): WHEN a send names no category, the movement has no equivalent group category and the
+  group's "Other expenses" category is archived, THE system SHALL restore it, use it for the expense and answer that it was restored.
+- AC-47 (FR-18): WHEN a send names no category, the movement has no equivalent group category and the
+  group's "Other expenses" category is active, THE system SHALL use it, create and restore nothing and answer that nothing was changed.
 - AC-48 (FR-18): IF two sends reach a group without the category at the same time, THEN THE system SHALL
   leave exactly one "Other expenses" category row and both expenses SHALL use it.
 - AC-49 (FR-18): IF a send is refused for any reason, THEN THE system SHALL leave the group's categories as
@@ -272,6 +287,27 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - AC-53 (FR-20): WHEN the send answers that the category was created or restored, THE system SHALL show
   the person a one-line notice in Spanish or English, with no amount in it.
 
+- AC-54 (FR-21): WHEN the movement has no note, THE system SHALL prefill the description with the localized
+  default ("Gasto" or "Expense"), editable, so the send still takes one tap on the confirm button.
+- AC-55 (FR-21): IF the person clears the description, THEN THE system SHALL show a field error on it and not
+  send anything.
+- AC-56 (FR-18): WHEN a send names no category and the movement's personal category has a default key whose
+  root key matches a non-archived category of the group (for example Food), THE system SHALL use that group
+  category, create and restore nothing and answer that nothing was changed.
+- AC-57 (FR-18): WHEN the movement's category has a sub-category default key (for example `food.restaurants`),
+  THE system SHALL use the group category of its root key (`food`).
+- AC-58 (FR-18): IF the group category equivalent to the movement's own is archived, THEN THE system SHALL
+  fall back to "Other expenses" (use, restore or create it) and SHALL NOT restore the archived equivalent.
+- AC-59 (FR-18): IF the movement's personal category is custom and has no default key, THEN THE system SHALL
+  fall back to "Other expenses".
+- AC-60 (FR-18): IF the group has no category with the equivalent default key, THEN THE system SHALL fall
+  back to "Other expenses" and SHALL NOT create the equivalent.
+- AC-61 (FR-18): WHEN a send names a category that is valid for the group, THE system SHALL use it and not
+  derive one from the movement.
+- AC-62 (FR-06, FR-18): WHEN a Food movement is sent with the automatic category to a group whose Food
+  category is active, THE system SHALL keep counting the person's share in the sender's Food budget
+  (matched by category name) and SHALL NOT count it in the "Other expenses" budget.
+
 ## Out of Scope
 - Income, transfers and currency exchanges: only expense movements are sent.
 - Sending to a group where another member paid: the person is always the payer, the same rule as an
@@ -281,8 +317,8 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   under the 05d rules (a member who left blocks it with 409).
 - Offline use: group screens are online only (PRD 05 decision), so the action is not queued.
 - Turning a group expense back into a personal-only movement beyond the detach on deletion.
-- Choosing the group category from the movement's personal category: the send screen preselects the group's
-  "Other expenses" (automatic) and the person can change it.
+- Choosing a different group category per member: the category belongs to the expense, not to each member's
+  share.
 - Letting the sender name, rename or style the automatic category, and a separate category entry in the
   activity log: the creation entry carries the fact.
 - A movement detail screen: the list row carries the action, and the edit screen only shows the notice.
@@ -305,13 +341,19 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   (FR-11).
 - **Existing data already has two expenses on one movement** → none can exist by construction (each
   creation records its own movement), and the migration plan states the check before the unique index.
+- **A Food movement sent under "Other expenses" drains the wrong budget** (verifier finding B1) -> budgets
+  match a share to a personal budget by category name, so the automatic category is the group category
+  equivalent to the movement's own (root default key), falling back to "Other expenses" only when there is
+  no active equivalent; the HTTP budget test proves the Food budget keeps counting the share (FR-18, AC-56,
+  AC-62).
 - **The default category or split is wrong for the person and they send without looking** → both are shown
   on the screen before the confirm button, the description and the split summary are visible text, and the
   split editor is one tap away (FR-03, FR-04).
 - **A member creates categories without being an admin through the send** -> the system action is limited
   to one fixed default key, with its default icon and color and no name taken from the request; the
   unique index makes it idempotent (FR-19, AC-50, AC-51).
-- **An admin archived "Other expenses" on purpose and sends restore it** -> stated as a proposed decision
+- **An admin archived "Other expenses" on purpose and sends restore it** (only when there is no active
+  equivalent category) -> stated as a proposed decision
   (Decision Log) with the fallback to the first active category; the admin can archive it again, and the
   log entry shows the restoration (FR-18, FR-20).
 - **The `focus` value of the address is hostile or malformed** → it is validated as a uuid, never rendered,
@@ -334,8 +376,8 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
 - DISC-001-06b (budgets) — its spending reader already skips payer movements through the link.
 - DISC-001-04c to 04e (offline queues) — a queued edit of a locked movement must surface as failed.
 - Database change: a unique index on the movement link and a marker of an adopted movement on
-  `group_expenses`; migration number assigned at PLAN, its journal `when` must exceed the maximum on `main`
-  when it merges.
+  `group_expenses`; migration `0037_group_expense_from_movement` (06d merged as 0036), its journal `when` must
+  exceed the maximum on `main` when it merges.
 - FEAT-004 (design system) — components and tokens.
 
 ## Decision Log
@@ -387,3 +429,26 @@ Findings in the code that shape the requirements (investigated 2026-10-11):
   restores it (an admin who archived it on purpose can archive it again, and the log shows the restoration).
   Alternative: do not touch an archived category and fall back to the first active category (a send then
   fails only when the group has no active category, which cannot be fixed without an admin).
+- 2026-10-11: Implementation finding, proposed by the model, awaiting the owner's ratification: (1) the
+  migration is `0037_group_expense_from_movement` (journal `when` 1791810000000), not 0036, because `main`
+  already has `0036_budget_alert_marks` from 06d; its rollback script is `0037_group_expense_from_movement.down.sql`.
+  (2) NFR-02 changes to 3 requests before a group is chosen (the movement, the groups and the movement's
+  account, since the movement carries no currency), 1 after and 1 to send; with a single group the loads are
+  4 in total; NFR-08 (3 taps) is unchanged. (3) A movement without a note gets the description prefilled with
+  the localized default ("Gasto" / "Expense", key `movements.sendToGroup.defaultDescription`), editable; clearing
+  it on purpose is refused with a field error and nothing is sent, because the API requires a description when
+  the movement has no note: FR-21, AC-54, AC-55. (4) The rollback script is guarded with `to_regclass` so it is
+  idempotent after older rollbacks dropped the group tables.
+- 2026-10-11: Owner decision (approved by the owner, 2026-10-11, after verifier finding B1): when a movement
+  is sent WITHOUT a category, the server picks the group category EQUIVALENT to the movement's own personal
+  category and falls back to the default "Other expenses" category (create or restore, as before) only when
+  there is no equivalent. Reason: budgets match a group share to a personal budget by category name, so
+  sending Food spending under "Other expenses" would drain the Food budget. Rule: inside the send
+  transaction, after the refusal checks, take the movement's personal category default key, reduce it to its
+  root key (before the first dot); if the group has a non-archived category with that default key use it (no
+  automatic marker); otherwise (archived equivalent, custom personal category without default key, group
+  without the equivalent) fall back to the `other-expenses` resolver; the server never creates or restores any
+  other category automatically; a category named in the request still wins. The web option label reads in
+  Spanish 'Automática (la misma categoría del movimiento u "Otros gastos")'. FR-03, FR-18, FR-19, AC-07 and
+  AC-45 to AC-47 were adjusted, AC-56 to AC-62 added, and the Out of Scope line that excluded deriving the
+  category was replaced. PRD loops 4; loops since the last human decision 0 because a human decided.

@@ -6,16 +6,16 @@
 | PRD | docs/ddw/prd/prd-DISC-001-05i.md |
 | Tier | FEATURE |
 | Date | 2026-10-11 |
-| Spec loops | 2 |
+| Spec loops | 4 |
 | Loops since last human decision | 0 |
 
 ## Summary
 A person turns a personal expense movement into a group expense without retyping anything. The API gains one
 endpoint, `POST /groups/:id/expenses/from-movement`, that creates the group expense adopting the movement
-as the payer's account movement (no second movement), one migration (`0036_group_expense_from_movement`:
+as the payer's account movement (no second movement), one migration (`0037_group_expense_from_movement`:
 a unique index on the movement link, a marker `adopted_movement` on `group_expenses` and the markers
-`from_movement` and `auto_category` on `group_activity_log`), an automatic "Other expenses" group category
-(created or restored by the send itself, D18), an edit lock on adopted movements inside the movements
+`from_movement` and `auto_category` on `group_activity_log`), an automatic group category (the one equivalent to the movement's own,
+else "Other expenses" created or restored by the send itself, D18), an edit lock on adopted movements inside the movements
 repository, a detach-on-delete rule for adopted expenses and a note-preserving propagation rule for
 adopted expenses. The web gains a "Send to group" icon action on each eligible row of the movements list
 (next to edit and delete) with an "In group X" marker for linked rows, a send screen `/movements/send?id=`
@@ -31,7 +31,7 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
 ## Decisions
 - **D1 Endpoint shape.** `POST /groups/:id/expenses/from-movement`, body `{ movementId, categoryId?,
   description?, split }`, answer 201 `sendMovementToGroupResponseSchema` (the expense plus `autoCategory`:
-  `'created'`, `'restored'` or `null`, D18). `categoryId` is omitted for the automatic category. The body
+  `'created'`, `'restored'` or `null`, D18). `categoryId` is omitted for the automatic category (the equivalent of the movement's own category, else "Other expenses", D18). The body
   names no amount, currency, date, account, payer or category name, icon, color or key: they come from the movement, and the strict schema rejects any such key. The
   payer is always the caller's own active member (PRD out of scope: another payer).
 - **D2 Where the lock is taken (race safety).** Creation takes, in this order, the group row `for share`,
@@ -85,9 +85,10 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
   already present is 409 (AC-21). Card installments are not movements; statement payments and automatic
   debits are transfers, so the type rule excludes them. Movements made by a recurring payment or a device
   are ordinary expenses and may be sent.
-- **D11 Online only, request budgets (NFR-02, NFR-09).** The send screen loads `getMovement` and `listGroups`
-  (2), then `getExpenseOptions(groupId)` once the group is chosen (1; with exactly one group it is chosen
-  on load, so 3 loads in all), then one `sendMovementToGroup`: 4 requests in the best visit and no polling.
+- **D11 Online only, request budgets (NFR-02, NFR-09).** The send screen loads `getMovement`, `listGroups`
+  and `getAccount` (3: the movement carries no currency, so the account is read for it), then
+  `getExpenseOptions(groupId)` once the group is chosen (1; with exactly one group it is chosen
+  on load, so 4 loads in all), then one `sendMovementToGroup`: 5 requests in the best visit and no polling.
   The movements list adds at most 1 request (`listGroups`, only when a loaded row is linked); the home screen
   adds none. The action is not offered offline, for a movement with a queued change on the device, for a
   device-copy row or for one the server does not hold (AC-02, AC-04).
@@ -104,8 +105,8 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
   deletes the user's movements, which sets the link of an adopted expense to null (D5).
 
 - **D15 Defaults for at most 3 taps (NFR-08).** Choosing a group is the only required tap: the group is
-  preselected when the person has exactly one; the category is automatic (the body omits `categoryId` and the server resolves the group's
-  `other-expenses` default, D18); the description is the note cut to 200 code
+  preselected when the person has exactly one; the category is automatic (the body omits `categoryId` and the server resolves the group category
+  equivalent to the movement's own, else the `other-expenses` default, D18); the description is the note cut to 200 code
   points; the split is `initialSplitState({ mode: 'equal' }, activeMemberIds, selfMemberId)`, equal among all
   active members and ignoring the group's own default split for the start (the editor offers percentage and
   exact; the group's default percentages apply there as in 05f). All defaults are visible before the confirm
@@ -122,11 +123,13 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
   the home recent rows link to the list with a highlight (PRD Decision Log, same date). The five earlier owner
   decisions (detach on delete, note never propagated, 409 lock, log field, null link on movement delete) are
   unchanged. This spec was revised once (Spec loops 1) and the loop counter since a human decision is 0.
-- **D18 Automatic group category (owner decision 2026-10-11).** A send that omits `categoryId` uses the
-  group's `other-expenses` default (`AUTOMATIC_SEND_CATEGORY_KEY` in `packages/shared`, icon `ellipsis`,
-  color `slate`, taken from `DEFAULT_CATEGORIES`). Inside the send's transaction, after the movement lock and
-  every refusal check and just before the expense insert, `ensureDefaultCategory(tx, groupId, key)`
-  resolves it: active, it is used and nothing is written; missing, it inserts `(group_id, default_key, name
+- **D18 Automatic group category (owner decisions 2026-10-11, refined by the owner decision of D19b).** A send
+  that omits `categoryId` first looks for the group category EQUIVALENT to the movement's own personal
+  category (D19b) and otherwise uses the group's `other-expenses` default (`AUTOMATIC_SEND_CATEGORY_KEY` in
+  `packages/shared`, icon `ellipsis`, color `slate`, taken from `DEFAULT_CATEGORIES`). Inside the send's
+  transaction, after the movement lock and every refusal check and just before the expense insert, the
+  repository calls `resolveSendCategory` (Block 15), which returns the equivalent when there is one and
+  otherwise calls `ensureDefaultCategory(tx, groupId, key)`, which resolves the fallback: active, it is used and nothing is written; missing, it inserts `(group_id, default_key, name
   null, icon, color)` with `ON CONFLICT (group_id, default_key) WHERE default_key IS NOT NULL DO NOTHING`
   and, when no row came back (a concurrent send inserted it), re-reads it under READ COMMITTED, which sees the
   winner's committed row; archived, it sets `archived_at` to null in a conditional update. It is a system
@@ -139,7 +142,8 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
   transaction and attributed to the caller (`member_id`); the log has no category actions today (its actions
   are expenses and settlements), so this is the smaller change than adding action and subject values. Only
   the request that inserted or restored the row reports it, so a race leaves one `created` entry. A send
-  that is refused rolls everything back, so a category is never created or restored by a refused send.
+  that is refused rolls everything back, so a category is never created or restored by a refused send. The
+  equivalent category is never created or restored: using it writes nothing and reports `null`.
   The answer carries `autoCategory` and the send screen shows a one-line notice (Block 9). A `categoryId`
   that is present keeps the old rule: it must be an active category of the group.
 - **D19 Decision Log, second owner decision (2026-10-11).** The owner decided that the send keeps the group
@@ -150,12 +154,38 @@ dependency. Money stays in `bigint` minor units and strings on the wire; no floa
   the archived category alone and fall back to the first active category of the group, which never changes
   the admin's choice but fails the send when the group has no active category and nobody can create one
   without an admin.
+- **D19b Equivalent group category (owner decision, approved by the owner, 2026-10-11, after verifier finding B1).**
+  Budgets match a group share to a personal budget by category NAME, so a Food movement sent under "Other
+  expenses" would drain the "Other expenses" budget and leave the Food budget untouched. When a movement is
+  sent WITHOUT a category, the server picks the group category EQUIVALENT to the movement's own personal
+  category and falls back to the default "Other expenses" category (create or restore, as before) only when
+  there is no equivalent. Inside the send transaction, after the refusal checks: `peekAdoptable` returns the
+  movement's `categoryId` and `categoryDefaultKey` (scoped by owner, never from the request); the root key is
+  the part of the default key before the first `.`; if the group has a NON-archived category with that
+  default key it is used, with no `auto_category` marker; otherwise (archived equivalent, custom personal
+  category without default key, group without the equivalent) the `other-expenses` resolver of D18 runs. The
+  server never creates or restores any other category automatically, and a request-supplied `categoryId`
+  still wins. The web option reads in Spanish 'Automática (la misma categoría del movimiento u "Otros
+  gastos")'. Spec loops 4; the loop counter since a human decision is 0 because a human decided.
+- **D20 Migration number (implementation finding, proposed by the model, awaiting the owner's ratification; 2026-10-11).**
+  `main` already holds `0036_budget_alert_marks` (06d merged), so this migration is
+  `0037_group_expense_from_movement`, journal idx 37, `when` 1791810000000, rollback
+  `0037_group_expense_from_movement.down.sql`. The earlier note about renumbering against the open 06d branch no
+  longer applies.
+- **D21 Request budget and default description (implementation finding, proposed by the model, awaiting the owner's ratification; 2026-10-11).**
+  (1) The send screen makes 3 requests before a group is chosen (`GET /movements/:id`, `GET /groups`,
+  `GET /accounts/:id`, because the movement carries no currency), 1 after (expense options) and 1 to send; with a
+  single group the loads are 4 in total. NFR-02 and the Block 9 and 14 tests say so (the e2e asserts 3/1/1);
+  NFR-08 (3 taps) is unchanged. (2) A movement without a note gets the description prefilled with the localized
+  default ("Gasto" / "Expense", key `movements.sendToGroup.defaultDescription`), editable; clearing it on purpose is
+  refused with a field error and nothing is sent, since the API requires a description when the movement has no
+  note (D8). FR-21, AC-54 and AC-55. (3) The rollback script is guarded with `to_regclass` so it is idempotent after
+  older rollbacks dropped the group tables. Spec loops 3; the loop counter since a human decision is 0.
 
-Items for the owner (also in the final verification): (1) the automatic group category is "Other expenses",
-created or restored by the send itself (D18, decided) and, flagged as proposed by the model and awaiting the
+Items for the owner (also in the final verification): (1) the automatic group category is the one equivalent to the movement's own
+(D19b, approved by the owner), else "Other expenses", created or restored by the send itself (D18, decided) and, flagged as proposed by the model and awaiting the
 owner, an archived category is restored instead of falling back to the first active one (D19); (2) `GROUP_MOVEMENT_CHANGED` is a fourth error code the PRD did not name (D9);
-(3) the migration number 0036 is also taken by the open 06d branch, whichever merges second renumbers and
-keeps its `when` above the other; (4) the rollback script detaches adopted expenses (Block 2) so rolled-back
+(3) the migration number is 0037, since 06d already merged as 0036_budget_alert_marks (D20); (4) the rollback script detaches adopted expenses (Block 2) so rolled-back
 code can never delete a personal movement; (5) an admin who edits another member's adopted expense changes
 the payer's movement amount and date, the existing 05d rule that FR-11 keeps; (6) the movement's manual rate
 stays editable on an adopted movement because the PRD locks only amount, account and date; (7) `fromMovement`
@@ -183,11 +213,12 @@ activity entry, with the same cached-bundle effect as item 7.
 | FR-15 | Block 10, Block 5 (the link read), Block 14 |
 | FR-16 | Block 13 (home link), Block 12 (focus and highlight), Block 14 |
 | FR-17 | Block 12, Block 14 |
-| FR-18 | Block 15 (the resolver), Block 3, Block 4 (the send transaction), Block 6 |
+| FR-18 | Block 15 (the resolver and the equivalent lookup), Block 3, Block 4 (the send transaction), Block 6, Block 14 (HTTP budget test) |
 | FR-19 | Block 1 (strict body), Block 3 (membership only), Block 6, Block 15 |
 | FR-20 | Block 1, Block 2, Block 4, Block 6, Block 9 (notice), Block 11 (log text), Block 14 |
+| FR-21 | Block 8 (default description), Block 9 (screen, field error), Block 3 (the API still requires a description when the movement has no note, D8), Block 14 |
 | NFR-01 | Block 14: end-to-end test of the send screen, the list rows with icon and marker, the edit notice and the home rows at 360 px wide, asserting no horizontal scroll |
-| NFR-02 | Strategy: the screen budget of D11 (2 requests, then 1, then 1 to send), asserted by a call-count unit test in Block 9 and again in the browser in Block 14 |
+| NFR-02 | Strategy: the screen budget of D11 (3 requests, then 1, then 1 to send), asserted by a call-count unit test in Block 9 and again in the browser in Block 14 |
 | NFR-03 | Block 4: integration test counting rows of `movements` before and after one send and 100 sends of 100 movements giving 100 distinct links |
 | NFR-04 | Strategy: every web block adds Spanish and English keys together and the existing catalog parity test runs in Blocks 7, 9, 10, 11, 12, 13 and 14 |
 | NFR-05 | Block 3 (1,000 random amounts through the use case with the shares adding up) and Block 14 (scan for float conversions in the new files) |
@@ -290,12 +321,12 @@ nullable; `groupExpense` is nullable; `categoryId` and `description` are optiona
 **Completion criterion**
 The shared and error-status tests pass and `pnpm typecheck` is clean for `packages/shared` and `apps/api`.
 
-## Block 2 — Data model and migration 0036
+## Block 2 — Data model and migration 0037
 
 **Files**
 - `apps/api/src/groups/infrastructure/db/schema.ts` (modified) — the three additions below.
-- `apps/api/drizzle/0036_group_expense_from_movement.sql` (generated, then hand-edited for the pre-check), `apps/api/drizzle/meta/_journal.json` and `apps/api/drizzle/meta/0036_snapshot.json` (generated).
-- `apps/api/drizzle/rollback/0036_group_expense_from_movement.down.sql` (new).
+- `apps/api/drizzle/0037_group_expense_from_movement.sql` (generated, then hand-edited for the pre-check), `apps/api/drizzle/meta/_journal.json` and `apps/api/drizzle/meta/0037_snapshot.json` (generated).
+- `apps/api/drizzle/rollback/0037_group_expense_from_movement.down.sql` (new).
 - `apps/api/test/groups/from-movement-migration.test.ts` (new), `apps/api/test/groups/expenses-schema-introspection.test.ts` and `apps/api/test/identity/user-erasure.test.ts` (modified only if a list changes).
 
 **Logic**
@@ -303,9 +334,9 @@ Generate with `pnpm --filter ./apps/api db:generate`, then hand-edit the SQL to 
 aborts when any movement already has two expenses: a `DO $$` block that raises an exception when
 `select payer_movement_id from group_expenses where payer_movement_id is not null group by payer_movement_id
 having count(*) > 1` returns a row (none can exist by construction, each creation records its own movement;
-the check states it). The journal entry is idx 36, tag `0036_group_expense_from_movement`, `when` 1791810000000,
-which exceeds the maximum on `main` (1791790000000 for 0035) and the 1791800000000 of the open 06d branch
-(Drizzle merge rule). The rollback script is idempotent and follows the style of `0035_*.down.sql`: it first
+the check states it). The journal entry is idx 37, tag `0037_group_expense_from_movement`, `when` 1791810000000,
+which exceeds the maximum on `main` (1791800000000 for 0036_budget_alert_marks, already merged by 06d)
+(Drizzle merge rule). The rollback script is idempotent (every statement on the group tables is guarded by `to_regclass`, so it also runs after the rollback of older migrations dropped them) and follows the style of `0035_*.down.sql`: it first
 sets `payer_movement_id` to null on every adopted expense (so code from before this ticket can never delete a
 personal movement through `PayerMovementRecorder.remove`; the budgets then count that movement fully and the
 share again until the expense is deleted, which the plan states), drops the checks and the three columns, drops the
@@ -343,7 +374,7 @@ migrations.
 - [ ] A log row with `from_movement` true and action `expense_updated` is rejected by the check, and the immutability trigger still refuses update and delete of a log row — validates AC-17.
 - [ ] A log row with `auto_category` `created` or `restored` on a creation from a movement inserts; the value `other`, or a value on `expense_updated` or with `from_movement` false, is rejected — validates AC-52.
 - [ ] The rollback script, run twice, detaches adopted expenses, restores the plain index, removes the three columns and the journal row, and the migration applies again afterwards — validates AC-29.
-- [ ] The journal `when` of 0036 is greater than 1791790000000 and 1791800000000, and no new table references `users` (the erasure registry lists are unchanged) — validates FR-09.
+- [ ] The journal `when` of 0037 is greater than 1791790000000 and 1791800000000, and no new table references `users` (the erasure registry lists are unchanged) — validates FR-09.
 
 **Completion criterion**
 The migration tests pass against PostgreSQL, `pnpm db:generate` shows no pending diff, and the rollback script
@@ -360,16 +391,18 @@ runs twice without error.
 
 **Logic**
 `PayerMovementRecorder` gains `peekAdoptable(userId, movementId)` returning `AdoptableMovement | null` (`id`,
-`type`, `amount`, `currency` of the account, `occurredAt`, `note`, `linked` boolean) read under the user's
-scope, `lockForAdoption(unit, userId, movementId)` (same shape, row `for update`) and `keepNote` on
+`type`, `amount`, `currency` of the account, `occurredAt`, `note`, `categoryId`, `categoryDefaultKey` (the
+default key of the movement's own category, null when it is custom or has none), `linked` boolean) read under
+the user's scope (owner-scoped, so the category never comes from the request), `lockForAdoption(unit, userId, movementId)` (same shape, row `for update`) and `keepNote` on
 `PayerMovementUpdate`. `NewGroupExpense` gains `adoptedMovement: { userId, movementId, expectedAmount,
 expectedOccurredAt } | null` (mutually exclusive with `payerMovement`) and `NewExpenseActivity` gains
 `fromMovement`. `SendMovementToGroup.execute(userId, groupId, data)`: (1) `GroupAccess.member`, 404 when not a
 member; (2) `peekAdoptable`, null is `ResourceNotFound`; (3) type not expense is `GroupMovementNotExpense`;
 `linked` is `GroupMovementAlreadySent`; (4) the group's active members must include every split member
 (`GroupSplitMemberInvalid`); when `categoryId` is present it must be an unarchived one of the group
-(`GroupExpenseCategoryInvalid`), and when it is absent the use case passes `categoryId: null` and the
-repository resolves the automatic category inside the transaction (D18); no admin check is made, only the
+(`GroupExpenseCategoryInvalid`), and when it is absent the use case passes `categoryId: null` plus the movement's `categoryDefaultKey` and the
+repository resolves the automatic category inside the transaction (D18, D19b: the equivalent of the movement's
+root key when active in the group, else "Other expenses"); no admin check is made, only the
 membership of step (1) (FR-19); (5) description from the request or derived (D8); (6) `allocateShares(amount,
 callerMemberId, split, members)` with the movement's amount, so the shares add up to it (percentage and exact
 mismatches throw the existing split errors); (7) `expenses.saveExpense` with `adoptedMovement`, `categoryId` (an id or null) and
@@ -394,6 +427,7 @@ are untouched; the use case returns it to the route.
 - [ ] A movement that is already linked is rejected with `GroupMovementAlreadySent` — validates AC-21.
 - [ ] A movement of another user, an unknown movement and a group where the caller is not a member are 404 and reveal nothing — validates AC-32, AC-33.
 - [ ] A category of another group or archived, when sent in the request, is rejected, and a split naming a non-member is rejected — validates AC-19, AC-20.
+- [ ] With no `categoryId` the use case passes the movement's `categoryDefaultKey` along with a null category; a movement with a custom category passes a null key; a `categoryId` in the request wins and no key is used — validates AC-59, AC-61.
 - [ ] With no `categoryId` the use case passes null to `saveExpense` and returns the `autoCategory` the fake reports (`created`, `restored` and null in three runs) — validates AC-45, AC-46, AC-47.
 - [ ] A member who is not an admin sends to a group whose fake has no "Other expenses" category and the send succeeds, while the admin-only create-category use case still refuses that member — validates AC-50.
 - [ ] A refused send (invalid split, linked movement) leaves the fake's categories unchanged, with no category created or restored — validates AC-49.
@@ -417,7 +451,9 @@ The use-case tests pass and `pnpm typecheck` is clean; no infrastructure import 
 `saveExpense` with `adoptedMovement`: group row `for share`, active members, then `lockForAdoption` (movement
 `for update` under the payer's own scope, joined to its account for the currency); null is `ResourceNotFound`;
 an amount or date different from the expected ones is `GroupMovementChanged`; `linked` is
-`GroupMovementAlreadySent`; then, when `categoryId` is null, `ensureDefaultCategory(tx, groupId, AUTOMATIC_SEND_CATEGORY_KEY)` (Block 15)
+`GroupMovementAlreadySent`; then, when `categoryId` is null, `resolveSendCategory(tx, groupId, movementDefaultKey)` (Block 15) takes the root
+key of the movement's default key (before the first `.`), uses the group's non-archived category with that
+key (change null) and otherwise runs `ensureDefaultCategory(tx, groupId, AUTOMATIC_SEND_CATEGORY_KEY)`; it
 returns the category id and whether it was created or restored; then the expense insert sets
 `payer_movement_id`, `adopted_movement` true, the resolved category and the shares, and the log row is
 inserted with `from_movement` true and `auto_category` set to that change (null when nothing changed). The
@@ -451,6 +487,14 @@ repository sets it explicitly.
 - [ ] A second send after a success answers 409 and creates nothing — validates AC-23.
 - [ ] A send with no category on a group that has none uses a new category with the default key, icon and color and a null name, and the creation entry has `auto_category` `created` attributed to the caller — validates AC-45, AC-52.
 - [ ] A send with no category on a group whose "Other expenses" is archived restores it (`archived_at` null), uses it and logs `restored`; with it active nothing is written to `group_categories` and the entry has `auto_category` null — validates AC-46, AC-47, AC-52.
+- [ ] A Food movement (default key `food`) sent with no category to a group whose Food category is active uses it, writes nothing to `group_categories` and logs `auto_category` null — validates AC-56.
+- [ ] A movement whose category has the sub-key `food.restaurants` uses the group's `food` category — validates AC-57.
+- [ ] A Food movement sent to a group whose Food category is archived falls back to "Other expenses" (restored or created) and leaves the Food category archived — validates AC-58.
+- [ ] A movement with a custom personal category (no default key) falls back to "Other expenses" — validates AC-59.
+- [ ] A Food movement sent to a group without a Food category falls back to "Other expenses" and creates no Food category — validates AC-60.
+- [ ] A `categoryId` in the request wins over the movement's category and nothing is derived — validates AC-61.
+- [ ] A sender's movement in the Food category, sent with the automatic category, is counted in the Food budget through the share and the "Other expenses" budget is untouched, read through the budget spending query — validates AC-62.
+- [ ] The equivalent lookup reads only the sending member's own movement category: another user's movement id is 404 and no category of another group is touched — validates AC-32, AC-56.
 - [ ] 20 concurrent sends of 20 different movements to a group without the category leave exactly 1 "Other expenses" row, 20 expenses using it, and exactly 1 creation entry with `auto_category` `created` — validates AC-48, NFR-10.
 - [ ] After a refused send (already linked, invalid split) on a group without the category, the category row count is unchanged (0) — validates AC-49.
 - [ ] A send by a member who is not an admin on a group without the category succeeds and creates it — validates AC-50.
@@ -627,13 +671,13 @@ The api-client tests and the catalog parity test pass and typecheck is clean.
 movement is an expense that the server holds (`queued` false, and the row is not a device copy), and
 `groupExpense` is null (AC-01 to AC-05). `pickOnlyGroup(groups)` returns the id when the person has exactly one
 group and `undefined` otherwise (AC-35). `AUTOMATIC_CATEGORY` is the default category choice: the request then omits `categoryId` and the server
-resolves, creates or restores "Other expenses" (AC-07, D15, D18); a category the person picks in the select is
+resolves the category equivalent to the movement's own, else "Other expenses", creating or restoring that fallback (AC-07, D15, D18, D19b); the option label is the catalog text es 'Automática (la misma categoría del movimiento u "Otros gastos")'; a category the person picks in the select is
 sent by id. `defaultSendSplit(options)` returns `initialSplitState({ mode: 'equal' },
 activeMemberIds, options.selfMemberId)` from the 05f `expense-request.ts`: equal, every active member checked,
-the group's own default split ignored for the start (AC-36). `descriptionFromNote(note)` collapses whitespace
+the group's own default split ignored for the start (AC-36). `defaultDescription` is the catalog text `movements.sendToGroup.defaultDescription` ("Gasto" / "Expense"): a movement without a note gets it as the prefilled, editable description (FR-21, D21). `descriptionFromNote(note)` collapses whitespace
 and cuts to 200 code points with `Array.from`, so a note with line breaks or an emoji never breaks the limit
 (AC-07). `buildSendRequest(values, context)` returns the `SendMovementToGroupRequest` or a field-errors
-object: the description must be non-empty (AC-09), the category is the automatic choice or an id from the options, and the split is built with the
+object: the description must be non-empty, so a description cleared on purpose is a field error and nothing is sent (AC-09, AC-55), the category is the automatic choice or an id from the options, and the split is built with the
 shared `buildSplit` against the movement's amount, so percentages not totalling 100 and exact amounts not
 totalling the amount are field errors (AC-10, AC-11); the amount is the movement's `bigint`, shown with the
 locale formatter and never parsed back from text.
@@ -650,10 +694,10 @@ locale formatter and never parsed back from text.
 - [ ] The action is offered for an online, server-held, unlinked expense — validates AC-01.
 - [ ] The action is not offered offline, for income, a transfer or an exchange, for a queued movement, for a device-copy row and for a linked one — invalid states, validates AC-02, AC-03, AC-04, AC-05.
 - [ ] `pickOnlyGroup` returns the id for one group and `undefined` for none and for two or more — validates AC-35.
-- [ ] The default category choice is automatic also when the options hold no `other-expenses` category or only an archived one, so the built request has no `categoryId`; a category picked by the person is sent by id — validates AC-07, AC-45, AC-46.
+- [ ] The default category choice is automatic (labelled 'Automática (la misma categoría del movimiento u "Otros gastos")' in Spanish) also when the options hold no `other-expenses` category or only an archived one, so the built request has no `categoryId`; a category picked by the person is sent by id — validates AC-07, AC-45, AC-46.
 - [ ] `defaultSendSplit` is equal with every active member checked, also when the group's default split is percentage, and builds a request that splits 40,000.00 ARS into 4 shares of 10,000.00 — validates AC-36, AC-12.
 - [ ] A note of 500 characters, with line breaks and emoji, becomes a description of at most 200 code points — validates AC-07.
-- [ ] An empty description is a field error and builds no request — validates AC-09.
+- [ ] An empty description is a field error and builds no request — validates AC-09, AC-55.
 - [ ] Percentages totalling 99 and exact amounts that differ from the movement amount are field errors with no request — validates AC-11.
 - [ ] The default values alone build a valid request with the movement id and no amount, currency, date or payer — validates AC-37.
 - [ ] 1,000 random amounts: the built split adds up to the amount with no `number` on the path — validates NFR-05.
@@ -671,7 +715,7 @@ The logic and property tests pass and typecheck is clean.
 - `apps/web/test/send-to-group-container.test.tsx` (new).
 
 **Logic**
-The container reads `id` from the query and calls `getMovement` and `listGroups` in parallel (2 requests). It
+The container reads `id` from the query and calls `getMovement`, `listGroups` and `getAccount` (the movement's account, for the currency) in parallel (3 requests). It
 shows the amount, currency and date as text from the locale formatters and the groups as a list of buttons
 (a radio group: one tap chooses one, `aria-checked`). When `pickOnlyGroup` returns an id, that group is
 chosen with no tap. The container calls `getExpenseOptions(groupId)` once per chosen group (1 request) and then
@@ -721,7 +765,9 @@ group expenses" / "Ver gastos del grupo".
 - [ ] With a group chosen the split summary shows equal among all active members, and one tap on the confirm button sends the request with that split and nothing else typed — validates AC-36, AC-37.
 - [ ] Opening the split editor and changing to percentage or exact sends the changed split; a total mismatch blocks the submit — validates AC-10, AC-11, AC-38.
 - [ ] A submit with an empty description shows the field error and sends nothing — invalid input, validates AC-09.
-- [ ] The screen makes at most 2 requests before a group is chosen, 1 after (3 loads with one group) and exactly 1 to send — validates NFR-02.
+- [ ] A movement without a note prefills the description with the localized default ("Gasto" in Spanish, "Expense" in English), editable, and one tap sends it — validates AC-54.
+- [ ] A description the person clears on purpose shows the field error, makes no `sendMovementToGroup` call and stores nothing — invalid input, validates AC-55.
+- [ ] The screen makes 3 requests before a group is chosen (the movement, the groups, the account), 1 after (4 loads with one group) and exactly 1 to send — validates NFR-02.
 - [ ] Offline, the screen offers no form and says that sending needs a connection — validates AC-02.
 - [ ] A 409 `GROUP_MOVEMENT_ALREADY_SENT` and a 404 show their messages in Spanish and in English, with no amount or account name in the error text — validates AC-21, AC-34.
 - [ ] The Spanish and English catalogs have 0 missing or empty keys for `movements.sendToGroup` — validates NFR-04, AC-34.
@@ -935,6 +981,7 @@ then fully again).
 - [ ] Changing the split in the editor sends the changed split — validates AC-38.
 - [ ] A person sends to a group whose "Other expenses" category was archived: the send still takes at most 3 interactions, the screen shows the restoration notice, and the group's categories list it active — validates AC-46, AC-53, NFR-08.
 - [ ] The personal figures count 10,000.00 of 40,000.00 and a receivable of 30,000.00, and the budget counts the amount once — validates AC-15, AC-16, FR-06.
+- [ ] Over HTTP (`send-movement-http-flow.test.ts`), a Food movement sent with the automatic category to a group with an active Food category keeps counting the share in the sender's Food budget and adds nothing to the "Other expenses" budget — validates AC-62, FR-18.
 - [ ] The row of the sent movement shows "In group X" and no icon, and the edit screen shows the notice with read-only amount, account and date and no send action; a refused queued edit appears as a failed change with the message and a discard action — validates AC-05, AC-25, AC-27, AC-39.
 - [ ] Deleting the group expense keeps the movement as a plain personal expense that counts fully again — validates AC-29, AC-30.
 - [ ] The home recent row opens the list at that movement, highlighted and in the viewport, with working row actions — validates AC-41, AC-42.
@@ -943,7 +990,7 @@ then fully again).
 - [ ] A send from a second tab for the same movement shows the already-sent message (409) and nothing is duplicated — validates AC-23, AC-24.
 - [ ] The Spanish and English catalogs have the same keys, none empty, and the screens render in both — validates NFR-04, AC-34.
 - [ ] The scan finds 0 floating-point conversions of money and 0 hardcoded strings in the new and touched files — validates NFR-05, FR-14.
-- [ ] The send screen makes at most 2 requests before a group is chosen, 1 after and 1 to send, counted in the browser; the home screen makes no extra request and the list at most 1 — validates NFR-02, NFR-09.
+- [ ] The send screen makes 3 requests before a group is chosen, 1 after and 1 to send, counted in the browser (the e2e asserts 3/1/1); the home screen makes no extra request and the list at most 1 — validates NFR-02, NFR-09.
 
 **Completion criterion**
 The end-to-end spec and the scans pass, and the full web and API suites with the coverage thresholds pass in CI.
@@ -951,10 +998,18 @@ The end-to-end spec and the scans pass, and the full web and API suites with the
 ## Block 15 — Automatic default category resolver
 
 **Files**
-- `apps/api/src/groups/infrastructure/db/ensure-default-category.ts` (new) — `ensureDefaultCategory`.
+- `apps/api/src/groups/infrastructure/db/ensure-default-category.ts` (new) — `ensureDefaultCategory` and `resolveSendCategory`.
 - `apps/api/test/groups/ensure-default-category.test.ts` (new).
 
 **Logic**
+`resolveSendCategory(tx, groupId, movementDefaultKey)` runs first: it reduces the movement's default key to its
+root key (the part before the first `.`; a null or empty key skips the lookup), reads the group's category with
+`default_key` equal to that root and `archived_at` null, and returns `{ categoryId, change: null }` when it
+exists. When it does not (archived equivalent, custom personal category without a key, group without the
+equivalent) it calls `ensureDefaultCategory(tx, groupId, 'other-expenses')`. It never inserts or restores the
+equivalent, and its inputs are the group id the use case authorised and a key read from the owner-scoped
+movement, never a request value (FR-19).
+
 `ensureDefaultCategory(tx, groupId, key)` runs inside the caller's transaction and returns `{ categoryId,
 change }` with `change` of `'created'`, `'restored'` or `null`. It looks up the default entry of `key` in
 `DEFAULT_CATEGORIES` (a key that is not a top-level expense default throws a programmer error, never reached
@@ -994,13 +1049,15 @@ no user, role or request value, so it cannot be steered by the caller (FR-19).
 - [ ] A transaction that rolls back after the call leaves no row (the creation is not committed) — validates AC-49.
 - [ ] A renamed default (name set, same key) is returned as is with no new row, and a key that is not a default throws — invalid input.
 - [ ] The function never touches another group's categories and sets no name (the row has `name` null) — validates AC-51.
+- [ ] `resolveSendCategory` returns the active equivalent for `food` and `food.restaurants` with change null and no write — validates AC-56, AC-57.
+- [ ] `resolveSendCategory` falls back to "Other expenses" for an archived equivalent, a null key and a missing equivalent, and never creates or restores the equivalent — validates AC-58, AC-59, AC-60.
 
 **Completion criterion**
 The resolver tests pass against PostgreSQL, the concurrency tests run 3 times in a row without a failure, and
 `pnpm typecheck` is clean.
 
 ## Final verification
-- Every AC (AC-01 to AC-53) and NFR (NFR-01 to NFR-10) has a test; every input has a sad-path test.
+- Every AC (AC-01 to AC-62) and NFR (NFR-01 to NFR-10) has a test; every input has a sad-path test.
 - `pnpm typecheck`, eslint and Prettier on touched files pass; the full suites and coverage pass; the
   migration applies on an empty database and on a copy of `main`; the rollback script runs twice.
 - No new runtime dependency; the only new route is `POST /groups/:id/expenses/from-movement`; the only new
@@ -1008,8 +1065,7 @@ The resolver tests pass against PostgreSQL, the concurrency tests run 3 times in
 - Items for the owner: (1) the automatic category is "Other expenses", created or restored by the send
   (D18, decided), and owner decision (approved 2026-10-11): an archived category is restored rather
   than falling back to the first active one (D19); (2) the
-  fourth code `GROUP_MOVEMENT_CHANGED` (D9); (3) the 0036 number is shared with the open 06d branch and the
-  second to merge renumbers; (4) the rollback script detaches adopted expenses; (5) an admin edit of an adopted
+  fourth code `GROUP_MOVEMENT_CHANGED` (D9); (3) the migration is 0037, because 06d merged as 0036 (D20); (4) the rollback script detaches adopted expenses; (5) an admin edit of an adopted
   expense changes the payer's movement amount and date; (6) the manual rate of an adopted movement stays
   editable; (7) `fromMovement` is required in the activity entry; (8) the focus highlight only finds movements
   in the first 100 rows of the list (D16); (9) `autoCategory` is required (nullable) in the activity entry.
