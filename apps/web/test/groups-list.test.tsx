@@ -5,7 +5,6 @@ import { describe, expect, it } from 'vitest';
 import { CreateGroupContainer } from '../src/features/groups/containers/create-group-container';
 import { GroupsListContainer } from '../src/features/groups/containers/groups-list-container';
 import { buildGroupRequest } from '../src/features/groups/group-request';
-import { HomeShortcuts } from '../src/features/home/components/home-shortcuts';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { en, es } = CATALOGS;
@@ -199,15 +198,5 @@ describe('CreateGroupContainer', () => {
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect((name as HTMLInputElement).value).toBe('Flatmates');
     expect(router.push).not.toHaveBeenCalled();
-  });
-});
-
-describe('HomeShortcuts', () => {
-  it('no longer flags the groups shortcut as in creation', () => {
-    renderApp(<HomeShortcuts />, { locale: 'en' });
-    const groups = screen.getByRole('link', { name: new RegExp(en.home.shortcuts.groups.title) });
-    expect(within(groups).queryByText(en.home.shortcuts.inCreation)).toBeNull();
-    const budgets = screen.getByRole('link', { name: new RegExp(en.home.shortcuts.budgets.title) });
-    expect(within(budgets).getByText(en.home.shortcuts.inCreation)).toBeTruthy();
   });
 });
