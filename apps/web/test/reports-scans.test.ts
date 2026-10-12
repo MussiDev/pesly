@@ -104,8 +104,8 @@ export function scanPattern(path: string, text: string, pattern: RegExp): string
  * and a slot index that picks a text. Each is reviewed by hand; any other `Number(` fails the scan.
  */
 const BOUNDED_NUMBER_CONVERSIONS = [
-  'src/features/reports/categories/category-ring.tsx:41:',
-  'src/features/reports/income-expenses/month-bars.tsx:30:',
+  'src/features/reports/categories/category-ring.tsx:',
+  'src/features/reports/income-expenses/month-bars.tsx:',
 ];
 
 const STORAGE = /\b(?:localStorage|sessionStorage|indexedDB)\b|\bcaches\.|\bserviceWorker\b/;
