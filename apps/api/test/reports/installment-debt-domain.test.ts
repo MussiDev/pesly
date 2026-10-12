@@ -24,7 +24,7 @@ function row(overrides: Partial<InstallmentDebtRow>): InstallmentDebtRow {
 }
 
 describe('installmentDebt', () => {
-  it('subtracts the installments whose statement closes after the point, from stored or derived dates', () => {
+  it('(AC-35, AC-36) subtracts the installments whose statement closes after the point, from stored or derived dates', () => {
     const rows = [
       // Stored closing date after 2026-06-30.
       row({ period: '2026-07', closingDate: '2026-07-20' }),

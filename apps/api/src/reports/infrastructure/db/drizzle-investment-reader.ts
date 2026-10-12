@@ -20,7 +20,7 @@ function arrayOf(values: readonly string[], type: 'date' | 'timestamptz') {
   )}]::${sql.raw(type)}[]`;
 }
 
-/** The latest daily snapshot on or before each point, per portfolio and currency, summed. */
+/** The latest daily snapshot day on or before each point, per portfolio, all its currency rows summed. */
 export class DrizzleInvestmentReader {
   constructor(private readonly db: Database) {}
 
@@ -48,10 +48,13 @@ export class DrizzleInvestmentReader {
       from unnest(${dates}) as d(point_date)
       join portfolios p on p.owner_id = ${owner}::uuid
       cross join lateral (
-        select distinct on (s.currency) s.currency, s.total_value
+        select s.currency, s.total_value
         from portfolio_value_snapshots s
-        where s.portfolio_id = p.id and s.owner_id = p.owner_id and s.snapshot_date <= d.point_date
-        order by s.currency, s.snapshot_date desc
+        where s.portfolio_id = p.id and s.owner_id = p.owner_id
+          and s.snapshot_date = (
+            select max(l.snapshot_date) from portfolio_value_snapshots l
+            where l.portfolio_id = p.id and l.owner_id = p.owner_id and l.snapshot_date <= d.point_date
+          )
       ) snap
       group by d.point_date, snap.currency
       union all

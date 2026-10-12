@@ -37,7 +37,7 @@ beforeEach(async () => {
 });
 
 describe('DrizzleNetWorthRateReader', () => {
-  it('uses the latest history row on or before each past date and never a later one', async () => {
+  it('(AC-37) uses the latest history row on or before each past date and never a later one', async () => {
     const reader = new DrizzleNetWorthRateReader(connection.db);
     const rates = await reader.sellRates('mep', ['2026-06-30', '2026-07-31'], '2026-10-06');
     expect(rates.get('2026-06-30')).toBe(11_000_000n);

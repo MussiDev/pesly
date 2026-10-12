@@ -94,7 +94,7 @@ describe('0037_exchange_rate_history migration', () => {
     await client.query('delete from exchange_rate_history');
   });
 
-  it('seeds one history row per stored rate, dated by fetched_at in Argentina', async () => {
+  it('(AC-41) seeds one history row per stored rate, dated by fetched_at in Argentina', async () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     for (const [index, type] of RATE_TYPES.entries()) {
       // The first one was fetched at 02:00 UTC, which is still the previous day in Argentina.

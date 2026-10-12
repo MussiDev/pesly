@@ -118,7 +118,7 @@ describe('accountFlows', () => {
     expect(flows.byMonth.size).toBe(0);
   });
 
-  it('leaves the total unchanged by a transfer between two ARS accounts and moves value in an exchange', async () => {
+  it('(AC-27) leaves the total unchanged by a transfer between two ARS accounts and moves value in an exchange', async () => {
     const owner = await newUserId(connection.db);
     const first = await accountWith(connection.pool, { ownerId: owner, opening: 10000000n });
     const second = await accountWith(connection.pool, { ownerId: owner });
@@ -194,7 +194,7 @@ describe('accountFlows', () => {
     expect(flows.byMonth.size).toBe(0);
   });
 
-  it('excludes an archived account with its movements, settlements and opening balance', async () => {
+  it('(AC-29) excludes an archived account with its movements, settlements and opening balance', async () => {
     const owner = await newUserId(connection.db);
     const other = await newUserId(connection.db);
     const archived = await accountWith(connection.pool, {
@@ -291,7 +291,7 @@ describe('accountFlows', () => {
 });
 
 describe('investmentValues', () => {
-  it('uses the latest snapshot on or before the point date', async () => {
+  it('(AC-30) uses the latest snapshot on or before the point date', async () => {
     const owner = await newUserId(connection.db);
     const portfolio = await portfolioOf(connection.pool, owner, '2026-01-01T00:00:00Z');
     await snapshotOf(connection.pool, {
@@ -326,7 +326,7 @@ describe('investmentValues', () => {
     expect([...result.incompleteDates].sort()).toEqual(['2026-06-30', '2026-07-31']);
   });
 
-  it('counts 0 and does not mark a portfolio created after the point', async () => {
+  it('(AC-32) counts 0 and does not mark a portfolio created after the point', async () => {
     const owner = await newUserId(connection.db);
     await portfolioOf(connection.pool, owner, '2026-07-15T12:00:00Z');
     const window = windowFor('2026-06', '2026-07', TODAY);
@@ -334,6 +334,72 @@ describe('investmentValues', () => {
     const result = await sources().investmentValues(await readScope(owner), window.points);
 
     expect([...result.incompleteDates]).toEqual(['2026-07-31']);
+  });
+
+  it('does not carry a currency that the portfolio stopped having after an older snapshot day', async () => {
+    const owner = await newUserId(connection.db);
+    const portfolio = await portfolioOf(connection.pool, owner, '2026-01-01T00:00:00Z');
+    const base = { portfolioId: portfolio, ownerId: owner };
+    await snapshotOf(connection.pool, {
+      ...base,
+      date: '2026-06-10',
+      value: 1000n,
+      currency: 'USD',
+    });
+    await snapshotOf(connection.pool, { ...base, date: '2026-06-10', value: 500n });
+    // The USD holding was sold: from the next day only ARS rows exist.
+    await snapshotOf(connection.pool, { ...base, date: '2026-06-11', value: 600n });
+    await snapshotOf(connection.pool, { ...base, date: '2026-07-20', value: 700n });
+    const window = windowFor('2026-06', '2026-07', TODAY);
+
+    const result = await sources().investmentValues(await readScope(owner), window.points);
+
+    expect(result.values.get('2026-06-30')).toEqual({ ARS: 600n, USD: 0n });
+    expect(result.values.get('2026-07-31')).toEqual({ ARS: 700n, USD: 0n });
+  });
+
+  it('sums every currency row of the portfolio latest snapshot day on or before the point', async () => {
+    const owner = await newUserId(connection.db);
+    const portfolio = await portfolioOf(connection.pool, owner, '2026-01-01T00:00:00Z');
+    const base = { portfolioId: portfolio, ownerId: owner };
+    await snapshotOf(connection.pool, {
+      ...base,
+      date: '2026-06-10',
+      value: 1000n,
+      currency: 'USD',
+    });
+    await snapshotOf(connection.pool, { ...base, date: '2026-06-10', value: 500n });
+    const window = windowFor('2026-06', '2026-07', TODAY);
+
+    const result = await sources().investmentValues(await readScope(owner), window.points);
+
+    expect(result.values.get('2026-06-30')).toEqual({ ARS: 500n, USD: 1000n });
+    expect(result.values.get('2026-07-31')).toEqual({ ARS: 500n, USD: 1000n });
+    expect(result.incompleteDates.size).toBe(0);
+  });
+
+  it('picks the latest snapshot day per portfolio, not across portfolios', async () => {
+    const owner = await newUserId(connection.db);
+    const first = await portfolioOf(connection.pool, owner, '2026-01-01T00:00:00Z');
+    const second = await portfolioOf(connection.pool, owner, '2026-01-01T00:00:00Z');
+    await snapshotOf(connection.pool, {
+      portfolioId: first,
+      ownerId: owner,
+      date: '2026-06-05',
+      value: 40n,
+      currency: 'USD',
+    });
+    await snapshotOf(connection.pool, {
+      portfolioId: second,
+      ownerId: owner,
+      date: '2026-06-20',
+      value: 9n,
+    });
+    const window = windowFor('2026-06', '2026-06', TODAY);
+
+    const result = await sources().investmentValues(await readScope(owner), window.points);
+
+    expect(result.values.get('2026-06-30')).toEqual({ ARS: 9n, USD: 40n });
   });
 
   it('sums portfolios per currency and never reads another user', async () => {
@@ -376,7 +442,7 @@ describe('investmentValues', () => {
 });
 
 describe('groupFlows', () => {
-  it('adds what members owe the user and subtracts what the user owes, former groups included', async () => {
+  it('(AC-33) adds what members owe the user and subtracts what the user owes, former groups included', async () => {
     const owner = await newUserId(connection.db);
     const other = await newUserId(connection.db);
     const first = await groupOf(connection.pool);
@@ -411,7 +477,7 @@ describe('groupFlows', () => {
     expect(flows.baseline).toEqual({ ARS: 0n, USD: 0n });
   });
 
-  it('puts a settlement dated after the month end in no bucket of that point', async () => {
+  it('(AC-34) puts a settlement dated after the month end in no bucket of that point', async () => {
     const owner = await newUserId(connection.db);
     const other = await newUserId(connection.db);
     const group = await groupOf(connection.pool);

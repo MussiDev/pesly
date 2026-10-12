@@ -75,7 +75,7 @@ describe('assemblePoints', () => {
     expect(july?.investmentsIncomplete).toBe(true);
   });
 
-  it('converts the USD component to ARS with the point rate (display ARS)', () => {
+  it('(AC-39) converts the USD component to ARS with the point rate (display ARS)', () => {
     const [june] = assemblePoints(
       input({
         accounts: { opening: amounts(0n, 100_000n), baseline: amounts(0n), byMonth: new Map() },

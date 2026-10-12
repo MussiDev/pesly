@@ -42,7 +42,7 @@ const bump = (delta: bigint) =>
   sampleQuotes().map((quote) => ({ ...quote, buy: quote.buy + delta, sell: quote.sell + delta }));
 
 describe('rate history write path', () => {
-  it('two refreshes on the same Argentina day leave one row per type with the second values', async () => {
+  it('(AC-40) two refreshes on the same Argentina day leave one row per type with the second values', async () => {
     await repository.replaceAll(sampleQuotes(), new Date('2026-10-02T12:00:00.000Z'));
     const second = bump(5n);
     await repository.replaceAll(second, new Date('2026-10-02T20:00:00.000Z'));
@@ -68,7 +68,9 @@ describe('rate history write path', () => {
       new Set(['2026-10-02', '2026-10-03']),
     );
     const first = rows.find((row) => row.rate_date === '2026-10-02' && row.rate_type === 'oficial');
-    const second = rows.find((row) => row.rate_date === '2026-10-03' && row.rate_type === 'oficial');
+    const second = rows.find(
+      (row) => row.rate_date === '2026-10-03' && row.rate_type === 'oficial',
+    );
     expect(first?.sell).toBe('10100000');
     // The 02:00 UTC fetch on the 4th landed on the 3rd and overwrote the 12:00 UTC one.
     expect(second?.sell).toBe('10100002');

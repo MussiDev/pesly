@@ -124,7 +124,7 @@ describe('GetNetWorth', () => {
     expect(response.points[11]?.date).toBe('2026-10-06');
   });
 
-  it('converts with the default rate type and the rate of the point date, never a later one', async () => {
+  it('(AC-37) converts with the default rate type and the rate of the point date, never a later one', async () => {
     const rates = new FakeRates({ '2026-06-30': 12_000_000n, '2026-07-31': 99_990_000n });
     const { useCase, scope } = await build({ rates });
     const response = await useCase.execute(scope, { from: '2026-06-01', to: '2026-07-31' });
@@ -140,7 +140,7 @@ describe('GetNetWorth', () => {
     expect(june?.total).toBe('125600000');
   });
 
-  it('returns both components, a null total and no_rate without a rate', async () => {
+  it('(AC-38) returns both components, a null total and no_rate without a rate', async () => {
     const { useCase, scope } = await build();
     const response = await useCase.execute(scope, { from: '2026-06-01', to: '2026-06-30' });
     expect(response.points[0]).toMatchObject({ usd: '100000', total: null, reason: 'no_rate' });
