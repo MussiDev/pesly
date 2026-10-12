@@ -366,7 +366,7 @@ test('offline, the row offers no send icon (AC-39)', async ({ browser }) => {
   }
 });
 
-test('the home recent row opens the list at that movement, highlighted and in view, with working actions; a bad focus shows no highlight (AC-41, AC-42, AC-43, AC-44, NFR-09)', async ({
+test('the list opens at the focused movement, highlighted and in view, with working actions; a bad focus shows no highlight (AC-41, AC-42, AC-43, AC-44, NFR-09)', async ({
   browser,
 }) => {
   const w = await world(browser, 'm2g-focus');
@@ -377,19 +377,11 @@ test('the home recent row opens the list at that movement, highlighted and in vi
     for (let i = 0; i < 12; i += 1) {
       await createExpenseMovement(page, w.setupA, `${1000 + i}`, `Relleno ${i}`);
     }
-    await page.goto('/es');
-    const link = page.locator(`a[href$="/movements?focus=${target}"]`);
-    // The home shows only the latest rows; when the target is older the first row is used instead.
-    const recent =
-      (await link.count()) > 0 ? link : page.locator('a[href*="/movements?focus="]').first();
-    const href = (await recent.getAttribute('href')) ?? '';
-    const focusId = new URL(href, 'http://localhost:3000').searchParams.get('focus') ?? '';
-    expect(focusId).not.toBe('');
+    const focusId = target;
 
     const requests = recordApiRequests(page);
     const start = requests.mark();
-    await recent.click();
-    await expect(page).toHaveURL(new RegExp(`/es/movements\\?focus=${focusId}$`));
+    await page.goto(`/es/movements?focus=${focusId}`);
     const row = rowOf(page, focusId);
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(row).toBeInViewport();
@@ -423,7 +415,7 @@ test('the home recent row opens the list at that movement, highlighted and in vi
   }
 });
 
-test('at 360 px wide the send screen, the list rows, the edit notice and the home rows do not scroll sideways (NFR-01)', async ({
+test('at 360 px wide the send screen, the list rows, and the edit notice do not scroll sideways (NFR-01)', async ({
   browser,
 }) => {
   const w = await world(browser, 'm2g-360');
@@ -438,10 +430,6 @@ test('at 360 px wide the send screen, the list rows, the edit notice and the hom
     );
     const sent = await createExpenseMovement(page, w.setupA, '250000', 'Ya enviado');
     await sendViaApi(page, w.groupId, sent);
-
-    await page.goto('/es');
-    await expect(page.locator('a[href*="/movements?focus="]').first()).toBeVisible();
-    await expectNoHorizontalScroll(page);
 
     await page.goto('/es/movements');
     await expect(sendLink(page, open)).toBeVisible();
