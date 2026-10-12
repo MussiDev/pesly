@@ -69,22 +69,33 @@ describe('routes', () => {
   it('the home page is only shown behind the session guard', async () => {
     const { calls } = stubApi({
       'GET /auth/session': SESSION,
-      'GET /accounts?archived=false&limit=100': {
+      'GET /dashboard': {
         status: 200,
         body: {
-          items: [],
-          availableTotals: { ARS: '0', USD: '0' },
-          netWorthTotals: { ARS: '0', USD: '0' },
-          debtTotals: { ARS: '0', USD: '0' },
-          creditCardCount: 0,
-          total: 0,
-          limit: 100,
-          offset: 0,
+          currency: 'ARS',
+          netWorth: { ars: '0', usd: '0', total: '0', reason: null, holdingsWithoutPrice: 0 },
+          month: {
+            expenses: '0',
+            income: '0',
+            net: '0',
+            expensesChange: null,
+            incomeChange: null,
+            netChange: null,
+            leftOutShares: 0,
+            leftOutInstallments: 0,
+          },
+          categories: [],
+          budgets: [],
+          upcoming: [],
+          actions: [],
+          groups: { owedToYou: { ARS: '0', USD: '0' }, youOwe: { ARS: '0', USD: '0' } },
+          insight: null,
+          firstSteps: { hasAccount: false, hasMovement: false, show: true },
         },
       },
-      'GET /movements?limit=5': {
+      'GET /reports/net-worth': {
         status: 200,
-        body: { items: [], total: 0, limit: 5, offset: 0, groupLinks: {} },
+        body: { currency: 'ARS', from: '2025-11-01', to: '2026-10-12', points: [] },
       },
     });
     renderApp(
@@ -93,13 +104,17 @@ describe('routes', () => {
       </AppLayout>,
     );
 
-    expect(screen.queryByRole('heading', { name: es.home.title })).toBeNull();
-    expect(await screen.findByRole('heading', { level: 1, name: es.home.title })).toBeDefined();
-    expect(await screen.findByRole('heading', { name: es.home.empty.title })).toBeDefined();
-    const link = screen.getByRole('link', { name: es.home.empty.action });
-    expect(link.getAttribute('href')).toBe('/es/accounts/new');
+    expect(screen.queryByRole('heading', { name: es.dashboard.title })).toBeNull();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: es.dashboard.title }),
+    ).toBeDefined();
+    expect(
+      await screen.findByRole('heading', { name: es.dashboard.firstSteps.title }),
+    ).toBeDefined();
     expect(calls[0]?.path).toBe('/auth/session');
-    expect(withoutNotices(calls).map((call) => call.path)).toContain('/movements?limit=5');
+    expect(withoutNotices(calls).map((call) => call.path)).toEqual(
+      expect.arrayContaining(['/dashboard', '/reports/net-worth']),
+    );
   });
 
   it('the accounts list is only shown behind the session guard', async () => {

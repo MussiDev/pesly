@@ -33,7 +33,6 @@ export function MoreMenu({
 }: MoreMenuProps) {
   const t = useTranslations('app');
   const tNav = useTranslations('app.nav');
-  const tTheme = useTranslations('theme');
 
   return (
     <main className="mx-auto flex w-full max-w-md flex-1 flex-col gap-6 p-4">
@@ -63,8 +62,7 @@ export function MoreMenu({
             </li>
           );
         })}
-        <li className="flex min-h-14 items-center justify-between gap-4 py-3">
-          <span className="text-body">{tTheme('darkMode')}</span>
+        <li className="py-3">
           <ThemeToggle />
         </li>
       </ul>

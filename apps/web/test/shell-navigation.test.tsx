@@ -408,6 +408,18 @@ describe('MoreMenu (FR-07)', () => {
     expect(onSignOut).toHaveBeenCalledOnce();
   });
 
+  it('offers the theme only as the three-option control, with no separate "Dark mode" text', () => {
+    renderMore();
+
+    expect(screen.queryByText(/dark mode/i)).toBeNull();
+    const group = within(screen.getByRole('radiogroup', { name: en.theme.label }));
+    expect(group.getAllByRole('radio').map((radio) => radio.getAttribute('value'))).toEqual([
+      'light',
+      'dark',
+      'system',
+    ]);
+  });
+
   it('disables sign out while it is in progress', () => {
     renderMore({ signingOut: true });
 

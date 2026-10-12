@@ -4,74 +4,12 @@
     "description": "Tus finanzas personales y compartidas, en pesos y dólares, incluso sin conexión."
   },
   "home": {
-    "title": "Pesly",
-    "tagline": "Tus cuentas, gastos y ahorros en pesos y dólares, en un solo lugar.",
-    "balance": {
-      "title": "Tu saldo",
-      "available": "Disponible",
-      "netWorth": "Patrimonio neto",
-      "currencies": {
-        "ARS": "Pesos argentinos (ARS)",
-        "USD": "Dólares estadounidenses (USD)"
-      },
-      "currenciesShort": {
-        "ARS": "Pesos",
-        "USD": "Dólares"
-      },
-      "tile": "{currency} · disponible"
-    },
-    "recent": {
-      "title": "Últimos movimientos",
-      "seeAll": "Ver todos",
-      "openInMovements": "Abrir en movimientos",
-      "income": "Ingreso",
-      "expense": "Gasto",
-      "transfer": "Transferencia",
-      "exchange": "Cambio de moneda",
-      "unknownAccount": "Cuenta desconocida",
-      "unknownCategory": "Categoría desconocida",
-      "empty": {
-        "title": "Todavía no hay movimientos",
-        "description": "Registra tu primer gasto o ingreso y aparecerá aquí.",
-        "action": "Agregar un movimiento"
-      }
-    },
-    "empty": {
-      "title": "Crea tu primera cuenta",
-      "description": "Agrega una cuenta en pesos o dólares para ver aquí tu saldo y tus últimos movimientos.",
-      "action": "Crear cuenta"
-    },
-    "month": {
-      "label": "Resumen del mes",
-      "spent": "Gastos",
-      "income": "Ingresos",
-      "result": "Resultado",
-      "inCreation": "Resumen del mes en creación"
-    },
-    "pending": {
-      "label": "Pago por confirmar",
-      "due": "{name} vence pronto",
-      "overdue": "{name} está vencido",
-      "detail": "{amount} · vence el {date} · pago por confirmar",
-      "confirm": "Confirmar pago"
-    },
-    "shortcuts": {
-      "label": "Accesos",
-      "inCreation": "En creación",
-      "budgets": { "title": "Presupuestos", "description": "Tus límites por categoría" },
-      "groups": { "title": "Grupos", "description": "Gastos compartidos y quién debe a quién" },
-      "cards": { "title": "Tarjetas", "description": "Resúmenes, cierres y cuotas" }
-    },
     "quickActions": {
       "label": "Acciones rápidas",
       "expense": "Gasto",
       "income": "Ingreso",
       "transfer": "Transferir",
       "exchange": "Cambio"
-    },
-    "accounts": {
-      "title": "Cuentas",
-      "seeAll": "Ver todas"
     }
   },
   "app": {
@@ -215,7 +153,6 @@
     "label": "Tema",
     "light": "Claro",
     "dark": "Oscuro",
-    "darkMode": "Modo oscuro",
     "system": "Sistema"
   },
   "ui": {

@@ -4,74 +4,12 @@
     "description": "Your personal and shared finances, in pesos and dollars, even offline."
   },
   "home": {
-    "title": "Pesly",
-    "tagline": "Your accounts, expenses and savings in pesos and dollars, in one place.",
-    "balance": {
-      "title": "Your balance",
-      "available": "Available",
-      "netWorth": "Net worth",
-      "currencies": {
-        "ARS": "Argentine pesos (ARS)",
-        "USD": "US dollars (USD)"
-      },
-      "currenciesShort": {
-        "ARS": "Pesos",
-        "USD": "Dollars"
-      },
-      "tile": "{currency} · available"
-    },
-    "recent": {
-      "title": "Latest movements",
-      "seeAll": "View all",
-      "openInMovements": "Open in movements",
-      "income": "Income",
-      "expense": "Expense",
-      "transfer": "Transfer",
-      "exchange": "Currency exchange",
-      "unknownAccount": "Unknown account",
-      "unknownCategory": "Unknown category",
-      "empty": {
-        "title": "No movements yet",
-        "description": "Record your first expense or income and it will show up here.",
-        "action": "Add a movement"
-      }
-    },
-    "empty": {
-      "title": "Create your first account",
-      "description": "Add an account in pesos or dollars to see your balance and your latest movements here.",
-      "action": "Create account"
-    },
-    "month": {
-      "label": "This month",
-      "spent": "Spending",
-      "income": "Income",
-      "result": "Result",
-      "inCreation": "Monthly summary in progress"
-    },
-    "pending": {
-      "label": "Payment to confirm",
-      "due": "{name} is due soon",
-      "overdue": "{name} is overdue",
-      "detail": "{amount} · due {date} · payment to confirm",
-      "confirm": "Confirm payment"
-    },
-    "shortcuts": {
-      "label": "Shortcuts",
-      "inCreation": "In progress",
-      "budgets": { "title": "Budgets", "description": "Your limits per category" },
-      "groups": { "title": "Groups", "description": "Shared expenses and who owes whom" },
-      "cards": { "title": "Cards", "description": "Statements, closings and installments" }
-    },
     "quickActions": {
       "label": "Quick actions",
       "expense": "Expense",
       "income": "Income",
       "transfer": "Transfer",
       "exchange": "Exchange"
-    },
-    "accounts": {
-      "title": "Accounts",
-      "seeAll": "See all"
     }
   },
   "app": {
@@ -215,7 +153,6 @@
     "label": "Theme",
     "light": "Light",
     "dark": "Dark",
-    "darkMode": "Dark mode",
     "system": "System"
   },
   "ui": {
