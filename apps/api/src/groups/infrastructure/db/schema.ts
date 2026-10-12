@@ -2,6 +2,7 @@ import { CATEGORY_COLORS, RATE_TYPES, type CategoryIcon } from '@pesly/shared';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   foreignKey,
   index,
@@ -226,6 +227,8 @@ export const groupExpenses = pgTable(
     createdAt: timestamptz('created_at').notNull().defaultNow(),
     // Optimistic concurrency counter: every change names the version it was based on (spec 04e D1).
     version: integer('version').notNull().default(1),
+    // True only when the expense adopted an existing movement (spec 05i D5): deleting it keeps the movement.
+    adoptedMovement: boolean('adopted_movement').notNull().default(false),
   },
   (table) => [
     check('group_expenses_version_check', sql`${table.version} >= 1`),
@@ -256,8 +259,9 @@ export const groupExpenses = pgTable(
       table.id.desc(),
     ),
     index('group_expenses_payer_idx').on(table.payerMemberId),
-    // Serves the `not exists` probe that leaves a payer movement out of the budgets' personal spending.
-    index('group_expenses_payer_movement_idx')
+    // One expense per movement; also serves the `not exists` probe that leaves a payer movement out
+    // of the budgets' personal spending (spec 05i D2).
+    uniqueIndex('group_expenses_payer_movement_unique')
       .on(table.payerMovementId)
       .where(sql`${table.payerMovementId} is not null`),
   ],
@@ -345,8 +349,20 @@ export const groupActivityLog = pgTable(
     /** Snapshots of an edit or a deletion; amounts are JSON strings of minor units (spec D7). */
     before: jsonb('before').$type<Record<string, unknown>>(),
     after: jsonb('after').$type<Record<string, unknown>>(),
+    /** True on the creation entry of an expense that adopted a movement (spec 05i D7). */
+    fromMovement: boolean('from_movement').notNull().default(false),
+    /** Set when the send created or restored the group's automatic category (spec 05i D18). */
+    autoCategory: text('auto_category', { enum: ['created', 'restored'] }),
   },
   (table) => [
+    check(
+      'group_activity_log_from_movement_check',
+      sql`${table.fromMovement} = false or ${table.action} = 'expense_created'`,
+    ),
+    check(
+      'group_activity_log_auto_category_check',
+      sql`${table.autoCategory} is null or (${table.autoCategory} in ('created', 'restored') and ${table.action} = 'expense_created' and ${table.fromMovement})`,
+    ),
     check(
       'group_activity_log_action_check',
       sql`${table.action} in ('expense_created', 'expense_updated', 'expense_deleted', 'settlement_created', 'settlement_updated', 'settlement_deleted')`,
