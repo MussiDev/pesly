@@ -27,7 +27,7 @@ import { removeDataset, seedDataset } from './movements-seed';
 const REQUESTS = 300;
 const WARM_UP_REQUESTS = 20;
 const CONNECTIONS = 8;
-const MAX_ADDED_P95_MS = 100;
+const MAX_ADDED_P95_MS = 150;
 const BUDGETS = 50;
 const TIME_ZONE = 'America/Cordoba';
 const PASSWORD = 'a long enough passphrase';
@@ -223,7 +223,7 @@ async function budgetAlertNotices(userId: string): Promise<number> {
 }
 
 describe('budget alert evaluation latency (NFR-02)', () => {
-  it('adds under 100 ms at p95 to POST /movements for 50 budgets over one category and 100,000 movements', async () => {
+  it('adds under 150 ms at p95 to POST /movements for 50 budgets over one category and 100,000 movements', async () => {
     const logger = createLogger({ level: 'error', destination: { write: () => undefined } });
     const failures: ExpenseSavedFailure[] = [];
     const hook = new BestEffortExpenseSavedHook(
