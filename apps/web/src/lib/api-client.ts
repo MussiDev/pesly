@@ -176,6 +176,18 @@ import {
   type ListGoalsResponse,
   type RecordGoalEntryResponse,
   type UpdateGoalRequest,
+  budgetResponseSchema,
+  budgetSpendingListResponseSchema,
+  budgetSpendingQuerySchema,
+  budgetSpendingResponseSchema,
+  createBudgetRequestSchema,
+  updateBudgetRequestSchema,
+  type BudgetResponse,
+  type BudgetSpendingListResponse,
+  type BudgetSpendingQuery,
+  type BudgetSpendingResponse,
+  type CreateBudgetRequest,
+  type UpdateBudgetRequest,
   type ResendVerificationResponse,
   type SecondFactorVerifyRequest,
   type SecondFactorVerifyResponse,
@@ -773,6 +785,18 @@ export interface ApiClient {
     id: string,
     query: ListGoalEntriesQuery,
   ): Promise<ApiResult<ListGoalEntriesResponse>>;
+  /** No month means the current month in the user's time zone; a malformed month is refused before any request. */
+  listBudgetSpending(query: BudgetSpendingQuery): Promise<ApiResult<BudgetSpendingListResponse>>;
+  getBudget(id: string): Promise<ApiResult<BudgetResponse>>;
+  getBudgetSpending(
+    id: string,
+    query: BudgetSpendingQuery,
+  ): Promise<ApiResult<BudgetSpendingResponse>>;
+  /** A body that fails the shared schema is refused before any request. */
+  createBudget(body: CreateBudgetRequest): Promise<ApiResult<BudgetResponse>>;
+  /** Only the given fields are sent; an empty body is refused before any request. */
+  updateBudget(id: string, body: UpdateBudgetRequest): Promise<ApiResult<BudgetResponse>>;
+  deleteBudget(id: string): Promise<ApiResult<undefined>>;
 }
 
 /**
@@ -967,6 +991,19 @@ export function createApiClient({
   ): Promise<ApiResult<T>> {
     const path = resourcePath('goals', id);
     return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  function onBudget<T>(
+    id: string,
+    build: (path: string) => Promise<ApiResult<T>>,
+  ): Promise<ApiResult<T>> {
+    const path = resourcePath('budgets', id);
+    return path === null ? Promise.resolve(failure('VALIDATION_FAILED')) : build(path);
+  }
+
+  /** The month is already validated as `YYYY-MM`; no month means the current one. */
+  function monthSuffix(month: string | undefined): string {
+    return month === undefined ? '' : `?month=${month}`;
   }
 
   function onGroup<T>(
@@ -2035,5 +2072,62 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         });
       }),
+    listBudgetSpending: (query) => {
+      const parsed = budgetSpendingQuerySchema.safeParse(query);
+      if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+      return request({
+        method: 'GET',
+        path: `/budgets/spending${monthSuffix(parsed.data.month)}`,
+        response: budgetSpendingListResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    getBudget: (id) =>
+      onBudget(id, (path) =>
+        request({
+          method: 'GET',
+          path,
+          response: budgetResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    getBudgetSpending: (id, query) =>
+      onBudget(id, (path) => {
+        const parsed = budgetSpendingQuerySchema.safeParse(query);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        return request({
+          method: 'GET',
+          path: `${path}/spending${monthSuffix(parsed.data.month)}`,
+          response: budgetSpendingResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    createBudget: (body) => {
+      const parsed = createBudgetRequestSchema.safeParse(body);
+      if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+      return request({
+        method: 'POST',
+        path: '/budgets',
+        body: parsed.data,
+        response: budgetResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    updateBudget: (id, body) =>
+      onBudget(id, (path) => {
+        const parsed = updateBudgetRequestSchema.safeParse(body);
+        if (!parsed.success) return Promise.resolve(failure('VALIDATION_FAILED'));
+        return request({
+          method: 'PATCH',
+          path,
+          body: parsed.data,
+          response: budgetResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    deleteBudget: (id) =>
+      onBudget(id, (path) =>
+        request({ method: 'DELETE', path, response: null, refreshOnUnauthenticated: true }),
+      ),
   };
 }

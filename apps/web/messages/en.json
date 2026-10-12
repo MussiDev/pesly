@@ -1296,6 +1296,7 @@
     "linkLabel": "Notices, {count} unread",
     "overflow": "{max}+",
     "dueOn": "Due {date}",
+    "alertMonth": "Budget alert for {month}",
     "listLabel": "Your notices",
     "errors": {
       "load": "We could not load your notices. Check your connection and try again.",
@@ -2054,6 +2055,90 @@
       "title": "Delete this goal?",
       "description": "Its entries will be removed. No account balance changes.",
       "confirm": "Delete goal",
+      "cancel": "Cancel"
+    }
+  },
+  "budgets": {
+    "list": {
+      "title": "Budgets",
+      "description": "Set a monthly limit for your spending and see how much is left.",
+      "create": "New budget",
+      "empty": {
+        "title": "No budgets yet",
+        "description": "Create a budget to keep your spending under control.",
+        "action": "Create a budget"
+      },
+      "retry": "Try again",
+      "error": "We could not load your budgets. Check your connection and try again.",
+      "month": {
+        "label": "Month",
+        "previous": "Previous month",
+        "next": "Next month",
+        "current": "Current month"
+      }
+    },
+    "card": {
+      "spentOfAvailable": "{spent} of {available}",
+      "remaining": "{amount} left",
+      "overBudget": "Over budget by {amount}",
+      "percentage": "{percent, number, ::percent} used",
+      "rollover": "Includes {amount} carried over",
+      "thresholds": "Alerts",
+      "marker": "Alert at {percent, number, ::percent}",
+      "unconvertedShares": "{count, plural, one {# group share could not be converted and is not counted} other {# group shares could not be converted and are not counted}}"
+    },
+    "detail": {
+      "title": "Budget",
+      "back": "Back to budgets",
+      "month": "Showing {month}",
+      "categories": "Covered categories",
+      "thresholds": "Alert thresholds",
+      "edit": "Edit budget",
+      "delete": "Delete budget",
+      "notFound": {
+        "title": "Budget not found",
+        "description": "This budget does not exist or was deleted.",
+        "back": "Back to budgets"
+      }
+    },
+    "form": {
+      "createTitle": "New budget",
+      "editTitle": "Edit budget",
+      "name": "Name",
+      "amount": "Monthly amount",
+      "currency": "Currency",
+      "currencyReadOnly": "The currency cannot be changed",
+      "categories": "Categories",
+      "categoriesGroup": "Subcategories of {parent}",
+      "rollover": "Carry unused money to the next month",
+      "thresholds": {
+        "label": "Alert thresholds",
+        "hint": "Whole numbers from {min} to {max}, percent of the budget used",
+        "input": "New threshold",
+        "add": "Add threshold",
+        "remove": "Remove threshold {percent}"
+      },
+      "editNote": "Changes apply from the current month. Past months are not affected.",
+      "errors": {
+        "nameRequired": "Enter a name for the budget.",
+        "nameTooLong": "The name is too long.",
+        "amountInvalid": "Enter an amount greater than zero.",
+        "categoriesRequired": "Choose at least one category.",
+        "thresholdsRequired": "Keep at least one alert threshold.",
+        "thresholdInvalid": "Enter a whole number within the allowed range.",
+        "thresholdDuplicate": "That threshold is already in the list.",
+        "thresholdsTooMany": "A budget can have at most {max} thresholds."
+      },
+      "submit": "Save budget",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "categoriesError": "We could not load your categories. Check your connection and try again.",
+      "categoriesRetry": "Try again"
+    },
+    "delete": {
+      "title": "Delete this budget?",
+      "description": "Your past spending is not affected.",
+      "confirm": "Delete budget",
       "cancel": "Cancel"
     }
   }

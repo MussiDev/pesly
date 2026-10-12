@@ -1296,6 +1296,7 @@
     "linkLabel": "Avisos, {count} sin leer",
     "overflow": "{max}+",
     "dueOn": "Vence el {date}",
+    "alertMonth": "Alerta de presupuesto de {month}",
     "listLabel": "Tus avisos",
     "errors": {
       "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
@@ -2060,6 +2061,90 @@
       "title": "¿Eliminar esta meta?",
       "description": "Se eliminarán sus movimientos. No cambia el saldo de ninguna cuenta.",
       "confirm": "Eliminar meta",
+      "cancel": "Cancelar"
+    }
+  },
+  "budgets": {
+    "list": {
+      "title": "Presupuestos",
+      "description": "Define un límite mensual para tus gastos y mira cuánto te queda.",
+      "create": "Nuevo presupuesto",
+      "empty": {
+        "title": "Todavía no tienes presupuestos",
+        "description": "Crea un presupuesto para mantener tus gastos bajo control.",
+        "action": "Crear un presupuesto"
+      },
+      "retry": "Reintentar",
+      "error": "No pudimos cargar tus presupuestos. Revisa tu conexión e inténtalo de nuevo.",
+      "month": {
+        "label": "Mes",
+        "previous": "Mes anterior",
+        "next": "Mes siguiente",
+        "current": "Mes actual"
+      }
+    },
+    "card": {
+      "spentOfAvailable": "{spent} de {available}",
+      "remaining": "Quedan {amount}",
+      "overBudget": "Te pasaste por {amount}",
+      "percentage": "{percent, number, ::percent} usado",
+      "rollover": "Incluye {amount} acumulados del mes anterior",
+      "thresholds": "Alertas",
+      "marker": "Alerta al {percent, number, ::percent}",
+      "unconvertedShares": "{count, plural, one {# parte de grupo no se pudo convertir y no se cuenta} other {# partes de grupo no se pudieron convertir y no se cuentan}}"
+    },
+    "detail": {
+      "title": "Presupuesto",
+      "back": "Volver a presupuestos",
+      "month": "Mostrando {month}",
+      "categories": "Categorías incluidas",
+      "thresholds": "Umbrales de alerta",
+      "edit": "Editar presupuesto",
+      "delete": "Eliminar presupuesto",
+      "notFound": {
+        "title": "Presupuesto no encontrado",
+        "description": "Este presupuesto no existe o fue eliminado.",
+        "back": "Volver a presupuestos"
+      }
+    },
+    "form": {
+      "createTitle": "Nuevo presupuesto",
+      "editTitle": "Editar presupuesto",
+      "name": "Nombre",
+      "amount": "Monto mensual",
+      "currency": "Moneda",
+      "currencyReadOnly": "La moneda no se puede cambiar",
+      "categories": "Categorías",
+      "categoriesGroup": "Subcategorías de {parent}",
+      "rollover": "Llevar lo que sobre al mes siguiente",
+      "thresholds": {
+        "label": "Umbrales de alerta",
+        "hint": "Números enteros de {min} a {max}, porcentaje usado del presupuesto",
+        "input": "Nuevo umbral",
+        "add": "Agregar umbral",
+        "remove": "Quitar umbral {percent}"
+      },
+      "editNote": "Los cambios se aplican desde el mes actual. Los meses anteriores no cambian.",
+      "errors": {
+        "nameRequired": "Ingresa un nombre para el presupuesto.",
+        "nameTooLong": "El nombre es demasiado largo.",
+        "amountInvalid": "Ingresa un monto mayor a cero.",
+        "categoriesRequired": "Elige al menos una categoría.",
+        "thresholdsRequired": "Deja al menos un umbral de alerta.",
+        "thresholdInvalid": "Ingresa un número entero dentro del rango permitido.",
+        "thresholdDuplicate": "Ese umbral ya está en la lista.",
+        "thresholdsTooMany": "Un presupuesto puede tener como máximo {max} umbrales."
+      },
+      "submit": "Guardar presupuesto",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "categoriesError": "No pudimos cargar tus categorías. Revisa tu conexión e inténtalo de nuevo.",
+      "categoriesRetry": "Reintentar"
+    },
+    "delete": {
+      "title": "¿Eliminar este presupuesto?",
+      "description": "Tus gastos pasados no cambian.",
+      "confirm": "Eliminar presupuesto",
       "cancel": "Cancelar"
     }
   }
