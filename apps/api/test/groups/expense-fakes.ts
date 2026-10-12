@@ -503,6 +503,9 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
     await Promise.resolve();
     const all = this.expenses
       .filter((e) => e.groupId === groupId)
+      .filter((e) => query.categoryIds === undefined || query.categoryIds.includes(e.categoryId))
+      .filter((e) => query.from === undefined || e.occurredAt >= query.from)
+      .filter((e) => query.to === undefined || e.occurredAt <= query.to)
       .sort(newestFirst)
       .filter((e) => afterCursor(e.occurredAt, e.id, query.cursor));
     const items = all.slice(0, query.limit);

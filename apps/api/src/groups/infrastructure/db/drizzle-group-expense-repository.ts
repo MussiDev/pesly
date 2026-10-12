@@ -465,7 +465,17 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
     const rows = await this.db
       .select(expenseColumns)
       .from(groupExpenses)
-      .where(and(eq(groupExpenses.groupId, groupId), afterCursor(cursor)))
+      .where(
+        and(
+          eq(groupExpenses.groupId, groupId),
+          query.categoryIds === undefined
+            ? undefined
+            : inArray(groupExpenses.categoryId, [...query.categoryIds]),
+          query.from === undefined ? undefined : gte(groupExpenses.occurredAt, query.from),
+          query.to === undefined ? undefined : lte(groupExpenses.occurredAt, query.to),
+          afterCursor(cursor),
+        ),
+      )
       .orderBy(desc(groupExpenses.occurredAt), desc(groupExpenses.id))
       .limit(query.limit + 1);
     const page = pageOf(rows, query.limit);

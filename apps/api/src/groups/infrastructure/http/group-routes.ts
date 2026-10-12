@@ -26,6 +26,9 @@ import {
   groupCategoryResponseSchema,
   groupDetailResponseSchema,
   groupExpensePageSchema,
+  expenseOptionsQuerySchema,
+  groupExpenseSummaryQuerySchema,
+  groupExpenseSummaryResponseSchema,
   groupExpenseParamsSchema,
   groupExpenseResponseSchema,
   groupIdParamsSchema,
@@ -86,16 +89,19 @@ import { RecordSettlement } from '../../application/record-settlement';
 import { RemoveMember } from '../../application/remove-member';
 import { SendMovementToGroup } from '../../application/send-movement-to-group';
 import { SetDefaultSplit } from '../../application/set-default-split';
+import { SummarizeGroupExpenses } from '../../application/summarize-group-expenses';
 import { UpdateGroup } from '../../application/update-group';
 import { UpdateGroupCategory } from '../../application/update-group-category';
 import { SystemClock } from '../clock/system-clock';
 import { RandomTokenSource } from '../crypto/random-token-source';
 import { DrizzleSettlementAccountChecker } from '../accounts/drizzle-settlement-account-checker';
 import { DrizzleGroupExpenseRepository } from '../db/drizzle-group-expense-repository';
+import { DrizzleGroupExpenseSummaryReader } from '../db/drizzle-group-expense-summary-reader';
 import { DrizzleGroupRepository } from '../db/drizzle-group-repository';
 import { DrizzleGroupSettlementRepository } from '../db/drizzle-group-settlement-repository';
 import { DrizzlePayerMovementRecorder } from '../movements/drizzle-payer-movement-recorder';
 import { DrizzleRateReader } from '../rates/drizzle-rate-reader';
+import { presentGroupExpenseSummary } from './group-expense-summary-presenter';
 import {
   presentDefaultSplit,
   presentExpenseOptions,
@@ -164,6 +170,10 @@ export function createGroupRoutes({
   const sendMovement = new SendMovementToGroup({ groups, expenses, payerMovements, clock });
   const listExpenses = new ListGroupExpenses({ groups, expenses });
   const getExpense = new GetGroupExpense({ groups, expenses });
+  const summarizeExpenses = new SummarizeGroupExpenses({
+    groups,
+    summaries: new DrizzleGroupExpenseSummaryReader(db),
+  });
   const getExpenseOptions = new GetExpenseOptions({ groups, expenses });
   const setDefaultSplit = new SetDefaultSplit({ groups, expenses });
   const listPersonalShares = new ListPersonalShares({ expenses });
@@ -484,6 +494,25 @@ export function createGroupRoutes({
       ),
     );
 
+    // Before `/groups/:id/expenses/:expenseId` so `summary` is never read as an expense id.
+    router.get(
+      '/groups/:id/expenses/summary',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          query: groupExpenseSummaryQuerySchema,
+          response: groupExpenseSummaryResponseSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
+          res.json(
+            presentGroupExpenseSummary(
+              await summarizeExpenses.execute(userIdOf(auth), params.id, query),
+            ),
+          );
+        },
+      ),
+    );
+
     router.get(
       '/groups/:id/expenses/:expenseId',
       validate(
@@ -537,10 +566,20 @@ export function createGroupRoutes({
     router.get(
       '/groups/:id/expense-options',
       validate(
-        { params: groupIdParamsSchema, response: expenseOptionsResponseSchema },
-        async ({ params }, { res, auth }) => {
+        {
+          params: groupIdParamsSchema,
+          query: expenseOptionsQuerySchema,
+          response: expenseOptionsResponseSchema,
+        },
+        async ({ params, query }, { res, auth }) => {
           res.json(
-            presentExpenseOptions(await getExpenseOptions.execute(userIdOf(auth), params.id)),
+            presentExpenseOptions(
+              await getExpenseOptions.execute(
+                userIdOf(auth),
+                params.id,
+                query.includeArchived ?? false,
+              ),
+            ),
           );
         },
       ),

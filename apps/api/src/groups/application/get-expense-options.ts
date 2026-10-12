@@ -30,7 +30,7 @@ export class GetExpenseOptions {
   }
 
   /** Any member: everything a new expense needs, in one call (spec D9). */
-  async execute(userId: string, groupId: string): Promise<ExpenseOptions> {
+  async execute(userId: string, groupId: string, includeArchived = false): Promise<ExpenseOptions> {
     const caller = await this.access.member(userId, groupId);
     const detail = await this.deps.groups.getGroup(groupId);
     if (detail === null) throw new ResourceNotFound();
@@ -41,7 +41,9 @@ export class GetExpenseOptions {
     return {
       selfMemberId: caller.id,
       members: detail.members,
-      categories: categories.filter((category) => category.archivedAt === null),
+      categories: includeArchived
+        ? categories
+        : categories.filter((category) => category.archivedAt === null),
       defaultSplit,
       defaultRateType: detail.group.defaultRateType,
     };

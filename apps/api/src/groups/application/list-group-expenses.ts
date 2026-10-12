@@ -28,6 +28,9 @@ export class ListGroupExpenses {
     return this.deps.expenses.listExpenses(groupId, {
       limit: query.limit ?? GROUP_EXPENSES_PAGE_SIZE_DEFAULT,
       ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+      ...(query.categoryIds !== undefined ? { categoryIds: query.categoryIds } : {}),
+      ...(query.from !== undefined ? { from: new Date(query.from) } : {}),
+      ...(query.to !== undefined ? { to: new Date(query.to) } : {}),
     });
   }
 }

@@ -424,6 +424,28 @@ describe('PUT /groups/:id/default-split and GET /groups/:id/expense-options', ()
     expect(ids).toContain(newId);
     expect(ids).not.toContain(w.categoryId);
 
+    const withArchived = expenseOptionsResponseSchema.parse(
+      (
+        await call(
+          w.api.app,
+          'get',
+          `/groups/${w.groupId}/expense-options?includeArchived=true`,
+          w.ana.cookies,
+        )
+      ).body,
+    );
+    expect(
+      withArchived.categories.find((category) => category.id === w.categoryId)?.archivedAt,
+    ).toEqual(expect.any(String));
+    expect(withArchived.categories.map((category) => category.id)).toContain(newId);
+    const malformed = await call(
+      w.api.app,
+      'get',
+      `/groups/${w.groupId}/expense-options?includeArchived=maybe`,
+      w.ana.cookies,
+    );
+    expect(malformed.status).toBe(400);
+
     const rejected = await call(
       w.api.app,
       'post',

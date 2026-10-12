@@ -117,6 +117,58 @@ describe('api client: group expenses (DISC-001-05f Block 1)', () => {
     });
   });
 
+  it('listGroupExpenses sends categoryIds joined by commas and the range (DISC-001-05j)', async () => {
+    const OTHER = '8a1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5c';
+    const from = '2026-10-01T03:00:00.000Z';
+    const to = '2026-11-01T02:59:59.999Z';
+    const { client, fetch } = clientWith(jsonResponse(200, { items: [], nextCursor: null }));
+
+    const result = await client.listGroupExpenses(GROUP, {
+      cursor: 'prev',
+      categoryIds: [CATEGORY, OTHER],
+      from,
+      to,
+    });
+
+    expect(result.ok).toBe(true);
+    const { url, init } = requestAt(fetch, 0);
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe(`/groups/${GROUP}/expenses`);
+    expect(parsed.searchParams.get('categoryIds')).toBe(`${CATEGORY},${OTHER}`);
+    expect(parsed.searchParams.get('from')).toBe(from);
+    expect(parsed.searchParams.get('to')).toBe(to);
+    expect(parsed.searchParams.get('cursor')).toBe('prev');
+    expect(init.method).toBe('GET');
+  });
+
+  it('listGroupExpenses refuses a bad category id, a reversed range and a long range locally', async () => {
+    const { client, fetch } = clientWith();
+    const from = '2026-10-01T03:00:00.000Z';
+    const to = '2026-11-01T02:59:59.999Z';
+
+    for (const query of [
+      { categoryIds: ['not-a-uuid'] },
+      { categoryIds: [] },
+      { from: to, to: from },
+      { from: '2024-01-01T00:00:00.000Z', to: '2026-01-01T00:00:00.000Z' },
+    ]) {
+      expect(await client.listGroupExpenses(GROUP, query)).toMatchObject({
+        ok: false,
+        code: 'VALIDATION_FAILED',
+      });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('listGroupExpenses answers NOT_FOUND on a 404 (DISC-001-05j)', async () => {
+    const { client } = clientWith(jsonResponse(404, { code: 'NOT_FOUND' }));
+
+    expect(await client.listGroupExpenses(GROUP, { categoryIds: [CATEGORY] })).toMatchObject({
+      ok: false,
+      code: 'NOT_FOUND',
+    });
+  });
+
   it('getExpenseOptions returns members, categories, default split and rate type', async () => {
     const options = {
       selfMemberId: MEMBER_A,
@@ -133,6 +185,23 @@ describe('api client: group expenses (DISC-001-05f Block 1)', () => {
 
     expect(result).toMatchObject({ ok: true, data: { defaultRateType: 'blue' } });
     expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/groups/${GROUP}/expense-options`);
+  });
+
+  it('getExpenseOptions asks for archived categories only on request', async () => {
+    const options = {
+      selfMemberId: MEMBER_A,
+      members: [],
+      categories: [],
+      defaultSplit: { mode: 'equal' },
+      defaultRateType: 'blue',
+    };
+    const { client, fetch } = clientWith(jsonResponse(200, options));
+
+    await client.getExpenseOptions(GROUP, { includeArchived: true });
+
+    expect(requestAt(fetch, 0).url).toBe(
+      `${BASE_URL}/groups/${GROUP}/expense-options?includeArchived=true`,
+    );
   });
 
   it('setDefaultSplit sends equal and percentage bodies', async () => {

@@ -9,6 +9,11 @@ import {
   defaultSplitRequestSchema,
   createGroupExpenseRequestSchema,
   personalSharesPageSchema,
+  listGroupExpensesQuerySchema,
+  groupExpenseSummaryQuerySchema,
+  groupExpenseSummaryResponseSchema,
+  type GroupExpenseSummaryQuery,
+  type GroupExpenseSummaryResponse,
   type CreateGroupExpenseRequest,
   type DefaultSplitRequest,
   type DefaultSplitResponse,
@@ -704,9 +709,18 @@ export interface ApiClient {
   ): Promise<ApiResult<GroupExpenseResponse>>;
   listGroupExpenses(
     groupId: string,
-    query: Pick<ListGroupExpensesQuery, 'limit' | 'cursor'>,
+    query: Pick<ListGroupExpensesQuery, 'limit' | 'cursor' | 'categoryIds' | 'from' | 'to'>,
   ): Promise<ApiResult<GroupExpensePage>>;
-  getExpenseOptions(groupId: string): Promise<ApiResult<ExpenseOptionsResponse>>;
+  /** Sums per currency and category over the range; both bounds are required. */
+  getGroupExpenseSummary(
+    groupId: string,
+    query: GroupExpenseSummaryQuery,
+  ): Promise<ApiResult<GroupExpenseSummaryResponse>>;
+  /** `includeArchived` also returns archived categories, to name the category of an expense. */
+  getExpenseOptions(
+    groupId: string,
+    query?: { includeArchived?: boolean },
+  ): Promise<ApiResult<ExpenseOptionsResponse>>;
   /** An invalid body is refused locally and sends no request. */
   setDefaultSplit(
     groupId: string,
@@ -1722,11 +1736,17 @@ export function createApiClient({
             })
           : Promise.resolve(failure('VALIDATION_FAILED')),
       ),
-    listGroupExpenses: (groupId, { limit, cursor }) =>
+    listGroupExpenses: (groupId, { limit, cursor, categoryIds, from, to }) =>
       onGroup(groupId, (path) => {
         const query = new URLSearchParams();
         if (limit !== undefined) query.set('limit', String(limit));
         if (cursor !== undefined) query.set('cursor', cursor);
+        if (categoryIds !== undefined) query.set('categoryIds', categoryIds.join(','));
+        if (from !== undefined) query.set('from', from);
+        if (to !== undefined) query.set('to', to);
+        if (!listGroupExpensesQuerySchema.safeParse(Object.fromEntries(query)).success) {
+          return Promise.resolve(failure('VALIDATION_FAILED'));
+        }
         const queryString = query.toString();
         return request({
           method: 'GET',
@@ -1735,11 +1755,29 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         });
       }),
-    getExpenseOptions: (groupId) =>
+    getGroupExpenseSummary: (groupId, { from, to }) =>
+      onGroup(groupId, (path) => {
+        const query = new URLSearchParams();
+        query.set('from', from);
+        query.set('to', to);
+        if (!groupExpenseSummaryQuerySchema.safeParse(Object.fromEntries(query)).success) {
+          return Promise.resolve(failure('VALIDATION_FAILED'));
+        }
+        return request({
+          method: 'GET',
+          path: `${path}/expenses/summary?${query.toString()}`,
+          response: groupExpenseSummaryResponseSchema,
+          refreshOnUnauthenticated: true,
+        });
+      }),
+    getExpenseOptions: (groupId, query) =>
       onGroup(groupId, (path) =>
         request({
           method: 'GET',
-          path: `${path}/expense-options`,
+          path:
+            query?.includeArchived === true
+              ? `${path}/expense-options?includeArchived=true`
+              : `${path}/expense-options`,
           response: expenseOptionsResponseSchema,
           refreshOnUnauthenticated: true,
         }),

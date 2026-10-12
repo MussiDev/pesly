@@ -8,6 +8,8 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
 import { Link } from '@/i18n/navigation';
+import { CategoryChip } from '../../category-views/components/category-chip';
+import type { CategoryDisplay } from '../../category-views/types';
 import { DeleteConfirm } from '../../edit/components/delete-confirm';
 import { FailedChangePanel } from '../../edit/components/failed-change-panel';
 import { ExpenseForm, type ExpenseFormProps } from '../form/expense-form';
@@ -40,6 +42,8 @@ export function ExpenseEditNoticeView({
 
 interface ExpenseEditFormViewProps {
   form: ExpenseFormProps;
+  /** The expense's current category, shown read-only above the form. */
+  category: CategoryDisplay;
   /** The code of the refusal of the queued change, when there is one. */
   rejectionCode: string | undefined;
   /** The device queue cannot be used, so nothing can be saved. */
@@ -53,6 +57,7 @@ interface ExpenseEditFormViewProps {
 /** The edit form with the failed-change panel above it and the delete action below. */
 export function ExpenseEditFormView({
   form,
+  category,
   rejectionCode,
   unavailable,
   deleting,
@@ -62,6 +67,7 @@ export function ExpenseEditFormView({
 }: ExpenseEditFormViewProps) {
   const t = useTranslations('groups.edit.expense');
   const tCommon = useTranslations('groups.edit.common');
+  const tDetail = useTranslations('groups.categoryViews.detail');
   const [confirming, setConfirming] = useState(false);
   return (
     <div className="grid gap-6">
@@ -75,6 +81,10 @@ export function ExpenseEditFormView({
           <AlertDescription>{tCommon('unavailable')}</AlertDescription>
         </Alert>
       ) : null}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-small text-muted-foreground">{tDetail('label')}</span>
+        <CategoryChip display={category} />
+      </div>
       <ExpenseForm {...form} />
       {confirming ? (
         <DeleteConfirm

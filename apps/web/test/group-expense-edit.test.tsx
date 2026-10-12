@@ -33,7 +33,8 @@ const CATEGORY = '44444444-4444-4444-8444-444444444444';
 
 const GROUP = `GET /groups/${G}`;
 const EXPENSE = `GET /groups/${G}/expenses/${E}`;
-const OPTIONS = `GET /groups/${G}/expense-options`;
+// The edit screen asks for archived categories too, so an archived one still names its chip.
+const OPTIONS = `GET /groups/${G}/expense-options?includeArchived=true`;
 
 const NOW = new Date('2026-10-11T15:00:00.000Z');
 const ZONE = 'America/Argentina/Buenos_Aires';
@@ -395,6 +396,81 @@ describe('ExpenseEditContainer (DISC-001-05h Block 5)', () => {
       expect(await screen.findByRole('alert')).toBeTruthy();
       expect(screen.getByRole('region', { name: en.groupConflict.mine })).toBeTruthy();
       expect(screen.getByRole('region', { name: en.groupConflict.server })).toBeTruthy();
+    });
+  });
+
+  describe('category chip (DISC-001-05j Block 10)', () => {
+    const ARCHIVED = '66666666-6666-4666-8666-666666666666';
+    const MISSING = '77777777-7777-4777-8777-777777777777';
+    const withCategories = (record: GroupExpenseResponse) => ({
+      ...routes(ANA, record),
+      [OPTIONS]: {
+        status: 200,
+        body: {
+          ...optionsBody,
+          categories: [
+            ...optionsBody.categories,
+            {
+              id: ARCHIVED,
+              defaultKey: null,
+              name: 'Old trips',
+              icon: 'plane',
+              color: 'violet',
+              archivedAt: '2026-09-01T00:00:00.000Z',
+            },
+          ],
+        },
+      },
+    });
+    const chip = () => document.querySelector<HTMLElement>('[data-slot="category-chip"]');
+
+    it('shows the category icon, color and name above the form, read-only', async () => {
+      const { calls } = stubApi(routes());
+      open();
+      await screen.findByLabelText(form.fields.amount);
+      const shown = chip();
+      expect(shown).not.toBeNull();
+      expect(within(shown as HTMLElement).getByText('Rent')).toBeTruthy();
+      expect(shown?.querySelector('svg')).not.toBeNull();
+      expect(shown?.innerHTML).toContain('category-blue');
+      expect(
+        within(shown?.parentElement as HTMLElement).getByText(en.groups.categoryViews.detail.label),
+      ).toBeTruthy();
+      expect(screen.queryByText(en.groups.categoryViews.chip.archived)).toBeNull();
+      expect(field(form.fields.category).value).toBe(CATEGORY);
+      expect(calls).toHaveLength(3);
+    });
+
+    it('marks an archived category', async () => {
+      stubApi(withCategories(expense({ categoryId: ARCHIVED })));
+      open();
+      await screen.findByLabelText(form.fields.amount);
+      expect(within(chip() as HTMLElement).getByText('Old trips')).toBeTruthy();
+      expect(
+        within(chip() as HTMLElement).getByText(en.groups.categoryViews.chip.archived),
+      ).toBeTruthy();
+    });
+
+    it('shows the neutral fallback, never the id, for a category missing from the options', async () => {
+      stubApi(routes(ANA, expense({ categoryId: MISSING })));
+      open();
+      await screen.findByLabelText(form.fields.amount);
+      expect(
+        within(chip() as HTMLElement).getByText(en.groups.expenses.uncategorized),
+      ).toBeTruthy();
+      expect(document.body.textContent).not.toContain(MISSING);
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('renders the chip label in Spanish', async () => {
+      stubApi(routes());
+      open('es');
+      await screen.findByLabelText(es.groups.expenses.form.fields.amount);
+      expect(
+        within(chip()?.parentElement as HTMLElement).getByText(
+          es.groups.categoryViews.detail.label,
+        ),
+      ).toBeTruthy();
     });
   });
 

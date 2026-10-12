@@ -344,6 +344,63 @@ describe('listExpenses', () => {
     expect(first.items[0]?.shares).toHaveLength(3);
   });
 
+  it('filters by category ids and an inclusive range, and a cursor continues the same filter', async () => {
+    const w = await newWorld();
+    const other = await newWorld();
+    const [, second] = await groupsRepo.listCategories(w.groupId);
+    const secondId = second?.id ?? '';
+    const from = new Date('2026-10-01T00:00:00.000Z');
+    const to = new Date('2026-10-31T23:59:59.999Z');
+    const inRange = [
+      new Date('2026-10-01T00:00:00.000Z'),
+      new Date('2026-10-15T00:00:00.000Z'),
+      new Date('2026-10-31T23:59:59.999Z'),
+    ];
+    const expected: string[] = [];
+    for (const occurredAt of inRange) {
+      expected.push((await repository.saveExpense(expenseOf(w, { occurredAt }))).id);
+    }
+    await repository.saveExpense(
+      expenseOf(w, { occurredAt: new Date('2026-09-30T23:59:59.999Z') }),
+    );
+    await repository.saveExpense(
+      expenseOf(w, { occurredAt: new Date('2026-11-01T00:00:00.000Z') }),
+    );
+    await repository.saveExpense(
+      expenseOf(w, { occurredAt: new Date('2026-10-10T00:00:00.000Z'), categoryId: secondId }),
+    );
+    await repository.saveExpense(expenseOf(other));
+
+    const first = await repository.listExpenses(w.groupId, {
+      limit: 2,
+      categoryIds: [w.categoryId],
+      from,
+      to,
+    });
+    const next = await repository.listExpenses(w.groupId, {
+      limit: 2,
+      categoryIds: [w.categoryId],
+      from,
+      to,
+      ...(first.nextCursor === null ? {} : { cursor: first.nextCursor }),
+    });
+    const union = await repository.listExpenses(w.groupId, {
+      limit: 50,
+      categoryIds: [w.categoryId, secondId],
+      from,
+      to,
+    });
+    const foreign = await repository.listExpenses(w.groupId, {
+      limit: 50,
+      categoryIds: [other.categoryId],
+    });
+
+    expect([...first.items, ...next.items].map((e) => e.id)).toEqual([...expected].reverse());
+    expect(next.nextCursor).toBeNull();
+    expect(union.items).toHaveLength(4);
+    expect(foreign.items).toEqual([]);
+  });
+
   it('answers a validation error for a cursor it did not produce (sad path)', async () => {
     const w = await newWorld();
 
