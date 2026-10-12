@@ -215,3 +215,4 @@ the person resolves, not an error. What stays out is in Out of Scope.
   queue count knows no group; alternative: store the group id in the count and link to the first group with
   a conflict.
 - 2026-10-11: Open question 2 resolved by the owner: edits and deletes always go through the queue, one path, no direct call first.
+- 2026-10-11: Open question 1 resolved by the owner: the shell's group sync status links to the groups list.
