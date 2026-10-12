@@ -28,6 +28,8 @@ function fakeSubscription(overrides: Record<string, unknown> = {}) {
 function install(
   options: {
     existing?: ReturnType<typeof fakeSubscription> | null;
+    /** No worker is registered: `ready` never settles, as in a browser. */
+    unregistered?: boolean;
     created?: ReturnType<typeof fakeSubscription>;
     permission?: NotificationPermission;
   } = {},
@@ -39,7 +41,12 @@ function install(
     ),
   };
   Object.defineProperty(navigator, 'serviceWorker', {
-    value: { ready: Promise.resolve({ pushManager }) },
+    value: options.unregistered
+      ? { ready: new Promise(() => undefined), getRegistration: () => Promise.resolve(undefined) }
+      : {
+          ready: Promise.resolve({ pushManager }),
+          getRegistration: () => Promise.resolve({ pushManager }),
+        },
     configurable: true,
   });
   const requestPermission = vi.fn(() => Promise.resolve(options.permission ?? 'granted'));
@@ -66,6 +73,13 @@ describe('readSubscription', () => {
       endpoint: ENDPOINT,
       keys: { p256dh: P256DH, auth: AUTH },
     });
+  });
+
+  it('returns null, without waiting for a worker, when none is registered', async () => {
+    const { pushManager } = install({ unregistered: true });
+
+    expect(await readSubscription()).toBeNull();
+    expect(pushManager.getSubscription).not.toHaveBeenCalled();
   });
 });
 
@@ -122,6 +136,12 @@ describe('unsubscribe', () => {
 
   it('is true when there is no subscription', async () => {
     install({ existing: null });
+
+    expect(await unsubscribe()).toBe(true);
+  });
+
+  it('is true, without waiting for a worker, when none is registered', async () => {
+    install({ unregistered: true });
 
     expect(await unsubscribe()).toBe(true);
   });
