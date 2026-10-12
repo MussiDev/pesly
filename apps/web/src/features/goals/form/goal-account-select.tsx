@@ -16,10 +16,18 @@ interface GoalAccountSelectProps {
   currency: string;
   value: string;
   onChange: (accountId: string) => void;
+  /** A full catalog path. */
+  error?: string;
 }
 
 /** The active accounts in the goal's currency; the empty value means no link. */
-export function GoalAccountSelect({ accounts, currency, value, onChange }: GoalAccountSelectProps) {
+export function GoalAccountSelect({
+  accounts,
+  currency,
+  value,
+  onChange,
+  error,
+}: GoalAccountSelectProps) {
   const t = useTranslations('goals.form');
   const tAll = useTranslations();
 
@@ -33,9 +41,12 @@ export function GoalAccountSelect({ accounts, currency, value, onChange }: GoalA
   }
   if (accounts.kind === 'failed') {
     return (
-      <p role="alert" className="text-small text-destructive">
-        {tAll(accounts.message)}
-      </p>
+      <>
+        <p role="alert" className="text-small text-destructive">
+          {tAll(accounts.message)}
+        </p>
+        {error ? <p className="text-small text-destructive">{tAll(error)}</p> : null}
+      </>
     );
   }
 
@@ -43,11 +54,16 @@ export function GoalAccountSelect({ accounts, currency, value, onChange }: GoalA
     (account) => !account.archived && account.currency === currency,
   );
   if (options.length === 0) {
-    return <p className="text-small text-muted-foreground">{t('noAccounts')}</p>;
+    return (
+      <>
+        <p className="text-small text-muted-foreground">{t('noAccounts')}</p>
+        {error ? <p className="text-small text-destructive">{tAll(error)}</p> : null}
+      </>
+    );
   }
 
   return (
-    <MovementField label={t('account')} error={undefined}>
+    <MovementField label={t('account')} error={error}>
       {(control) => (
         <Select
           name="accountId"

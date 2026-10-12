@@ -10,13 +10,14 @@ import {
   type UpdateGoalRequest,
 } from '@pesly/shared';
 
-export type GoalFieldName = 'name' | 'targetAmount' | 'targetDate';
+export type GoalFieldName = 'name' | 'targetAmount' | 'targetDate' | 'accountId';
 
 export type GoalFieldMessage =
   | 'goals.form.errors.nameRequired'
   | 'goals.form.errors.nameTooLong'
   | 'goals.form.errors.amountInvalid'
-  | 'goals.form.errors.dateInvalid';
+  | 'goals.form.errors.dateInvalid'
+  | 'goals.form.errors.accountRequired';
 
 export type GoalFieldErrors = Partial<Record<GoalFieldName, GoalFieldMessage>>;
 
@@ -29,6 +30,8 @@ export interface GoalFormState {
   currency: CreateGoalRequest['currency'];
   targetDate: string;
   accountId: string;
+  /** The link checkbox is on; with no account chosen the form is invalid instead of unlinked. */
+  linked?: boolean;
 }
 
 export type CreateGoalResult =
@@ -85,6 +88,9 @@ function checkFields(state: GoalFormState, locale: string): CheckedFields {
 
 export function buildCreateGoal(state: GoalFormState, locale: string): CreateGoalResult {
   const { name, amount, errors } = checkFields(state, locale);
+  if (state.linked === true && state.accountId === '') {
+    errors.accountId = 'goals.form.errors.accountRequired';
+  }
   if (amount === null || Object.keys(errors).length > 0) return { errors };
 
   const request: CreateGoalRequest = { name, targetAmount: amount, currency: state.currency };

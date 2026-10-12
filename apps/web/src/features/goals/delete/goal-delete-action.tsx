@@ -27,17 +27,22 @@ export function GoalDeleteAction({ goalId, onDeleted }: GoalDeleteActionProps) {
     locked.current = true;
     setPending(true);
     setFailure(undefined);
+    let succeeded = false;
     try {
       const result = await api.deleteGoal(goalId);
       if (result.ok) {
+        succeeded = true;
         onDeleted();
         return;
       }
       const key = goalFailureKey(result);
       setFailure(key.kind === 'not-found' ? 'goals.detail.notFound.description' : key.key);
     } finally {
-      locked.current = false;
-      setPending(false);
+      // After a success the goal is gone: stay locked so a later tap cannot send a second DELETE.
+      if (!succeeded) {
+        locked.current = false;
+        setPending(false);
+      }
     }
   }
 

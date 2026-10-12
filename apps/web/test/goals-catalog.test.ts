@@ -73,6 +73,7 @@ const GOAL_KEYS: Record<string, string[]> = {
   'form.errors.nameTooLong': [],
   'form.errors.amountInvalid': [],
   'form.errors.dateInvalid': [],
+  'form.errors.accountRequired': [],
   'entries.errors.amountInvalid': [],
   'form.submit': [],
   'form.cancel': [],

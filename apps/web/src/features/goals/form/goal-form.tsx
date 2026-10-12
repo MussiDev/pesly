@@ -79,6 +79,7 @@ export function GoalForm({
       currency,
       targetDate,
       accountId: linked ? accountId : '',
+      linked,
     });
   }
 
@@ -182,6 +183,7 @@ export function GoalForm({
                   accounts={accounts}
                   currency={currency}
                   value={accountId}
+                  error={errors.fields?.accountId}
                   onChange={setAccountId}
                 />
               ) : null}

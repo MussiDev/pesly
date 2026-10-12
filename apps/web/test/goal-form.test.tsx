@@ -159,6 +159,31 @@ describe('CreateGoalContainer', () => {
     expect(calls).toHaveLength(2);
   });
 
+  it('blocks the submit with a field error when the link is checked but no account is chosen', async () => {
+    const { calls } = stubApi({ [ACCOUNTS]: accountsAnswer });
+    renderApp(<CreateGoalContainer />, { locale: 'en' });
+    await fillCreate('Trip', '1000');
+    await userEvent.click(screen.getByRole('checkbox', { name: f.account }));
+    await screen.findByRole('combobox', { name: f.account });
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+
+    expect(await screen.findByText(f.errors.accountRequired)).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+    expect(document.activeElement).toBe(document.querySelector('[aria-invalid="true"]'));
+  });
+
+  it('blocks the submit when the link is checked but the accounts failed to load', async () => {
+    const { calls } = stubApi({ [ACCOUNTS]: { status: 500 } });
+    renderApp(<CreateGoalContainer />, { locale: 'en' });
+    await fillCreate('Trip', '1000');
+    await userEvent.click(screen.getByRole('checkbox', { name: f.account }));
+    await screen.findByRole('alert');
+    await userEvent.click(screen.getByRole('button', { name: f.submit }));
+
+    expect(await screen.findByText(f.errors.accountRequired)).toBeTruthy();
+    expect(calls.filter((c) => c.method === 'POST')).toHaveLength(0);
+  });
+
   it('says so when there are no accounts in the currency', async () => {
     stubApi({
       [ACCOUNTS]: { status: 200, body: { ...accountsAnswer.body, items: [] } },
@@ -295,7 +320,9 @@ describe('EditGoalContainer', () => {
 
   it.each([
     ['name', f.name, '', f.errors.nameRequired],
+    ['long name', f.name, 'x'.repeat(81), f.errors.nameTooLong],
     ['amount', f.targetAmount, '0', f.errors.amountInvalid],
+    ['non-numeric amount', f.targetAmount, 'abc', f.errors.amountInvalid],
   ])(
     'an empty or invalid %s shows a field error and sends nothing',
     async (_n, label, value, message) => {
@@ -307,6 +334,7 @@ describe('EditGoalContainer', () => {
       await userEvent.click(screen.getByRole('button', { name: f.submit }));
       expect(await screen.findByText(message)).toBeTruthy();
       expect(calls).toHaveLength(1);
+      expect(calls.some((c) => c.method === 'PATCH')).toBe(false);
     },
   );
 

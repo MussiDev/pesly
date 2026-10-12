@@ -2034,7 +2034,8 @@
         "nameRequired": "Enter a name for the goal.",
         "nameTooLong": "The name is too long.",
         "amountInvalid": "Enter an amount greater than zero.",
-        "dateInvalid": "Enter a valid date."
+        "dateInvalid": "Enter a valid date.",
+        "accountRequired": "Choose an account to link."
       },
       "submit": "Save goal",
       "cancel": "Cancel",

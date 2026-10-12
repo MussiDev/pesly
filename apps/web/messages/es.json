@@ -2040,7 +2040,8 @@
         "nameRequired": "Ingresá un nombre para la meta.",
         "nameTooLong": "El nombre es demasiado largo.",
         "amountInvalid": "Ingresá un monto mayor a cero.",
-        "dateInvalid": "Ingresá una fecha válida."
+        "dateInvalid": "Ingresá una fecha válida.",
+        "accountRequired": "Elegí una cuenta para vincular."
       },
       "submit": "Guardar meta",
       "cancel": "Cancelar",

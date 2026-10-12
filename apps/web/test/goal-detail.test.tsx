@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { GoalDetailContainer } from '../src/features/goals/detail/goal-detail-container';
@@ -73,6 +73,7 @@ const ACCOUNT_ID = '22222222-2222-4222-8222-222222222222';
 const NBSP = String.fromCharCode(0xa0);
 const money = (value: bigint, currency: 'ARS' | 'USD', language: 'en' | 'es' = 'en'): string =>
   formatMoney(value, currency, language).replaceAll(NBSP, ' ');
+const LATEST_NOTE = en.goals.detail.entries.latestNote.replace('{count}', '100');
 const GET_GOAL = `GET /goals/${GOAL_ID}`;
 const FIRST = `GET /goals/${GOAL_ID}/entries?limit=50`;
 const SECOND = `GET /goals/${GOAL_ID}/entries?limit=100`;
@@ -124,9 +125,7 @@ describe('GoalDetailContainer', () => {
     const second = within(rows[1] as HTMLElement);
     expect(second.getByText(en.goals.detail.entries.contribution)).toBeTruthy();
     expect(second.getByText(money(10000n, 'ARS'))).toBeTruthy();
-    expect(
-      screen.getByText(en.goals.detail.entries.latestNote.replace('{count}', '100')),
-    ).toBeTruthy();
+    expect(screen.queryByText(LATEST_NOTE)).toBeNull();
     expect(screen.getByRole('link', { name: en.goals.detail.edit }).getAttribute('href')).toBe(
       `/en/goals/${GOAL_ID}/edit`,
     );
@@ -173,6 +172,37 @@ describe('GoalDetailContainer', () => {
     expect(calls.filter((call) => call.path === `/goals/${GOAL_ID}`)).toHaveLength(1);
     expect(calls.filter((call) => call.path.endsWith('limit=50'))).toHaveLength(1);
     expect(calls.filter((call) => call.path.endsWith('limit=100'))).toHaveLength(1);
+  });
+
+  it('shows the latest-entries note only when the list is at the 100 cap', async () => {
+    stubApi({
+      [GET_GOAL]: ok(goal()),
+      [FIRST]: ok({ entries: entries(50) }),
+      [SECOND]: ok({ entries: entries(100) }),
+    });
+    open();
+    await screen.findAllByRole('listitem');
+    expect(screen.queryByText(LATEST_NOTE)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: en.goals.detail.entries.loadMore }));
+    expect(await screen.findByText(LATEST_NOTE)).toBeTruthy();
+  });
+
+  it('keeps an entry recorded while "load more" is in flight', async () => {
+    stubApi({
+      [GET_GOAL]: ok(goal()),
+      [FIRST]: ok({ entries: entries(50) }),
+      [SECOND]: ok({ entries: entries(70) }),
+    });
+    open();
+    await screen.findAllByRole('listitem');
+    fireEvent.click(screen.getByRole('button', { name: en.goals.detail.entries.loadMore }));
+    fireEvent.click(screen.getByRole('button', { name: 'stub-record' }));
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('listitem')).toHaveLength(71);
+    });
+    const rows = screen.getAllByRole('listitem');
+    expect(within(rows[0] as HTMLElement).getByText(money(20000n, 'ARS'))).toBeTruthy();
   });
 
   it('hides the control when fewer entries than asked came back (AC-11)', async () => {

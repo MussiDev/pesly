@@ -88,6 +88,24 @@ describe('GoalDeleteAction', () => {
     });
   });
 
+  it('keeps the lock after a successful delete so a later tap sends nothing', async () => {
+    const { calls } = stubApi({ [ROUTE]: { status: 204 } });
+    const onDeleted = open();
+    const user = userEvent.setup();
+
+    await ask(user);
+    const confirm = screen.getByRole('button', { name: en.goals.delete.confirm });
+    fireEvent.click(confirm);
+    await waitFor(() => {
+      expect(onDeleted).toHaveBeenCalledTimes(1);
+    });
+    fireEvent.click(confirm);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(calls).toHaveLength(1);
+    expect(onDeleted).toHaveBeenCalledTimes(1);
+  });
+
   it('a network failure shows the offline message and keeps the confirmation (AC-28)', async () => {
     stubApi({ [ROUTE]: 'network-error' });
     const onDeleted = open();

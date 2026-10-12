@@ -35,6 +35,7 @@ export function GoalSavedSummary({ goal }: { goal: GoalResponse }) {
           target: formatMoney(view.targetAmount, view.currency, locale),
         })}
       </p>
+      {/* Rescales 0-100 to the 0-1 fraction the percent formatter expects (display, not money). */}
       <p>{t('percentage', { percent: view.percentage / 100 })}</p>
       {view.monthlyAmountNeeded === null ? null : (
         <p>

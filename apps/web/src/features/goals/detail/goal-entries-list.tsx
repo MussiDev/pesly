@@ -42,9 +42,11 @@ export function GoalEntriesList({
       <h2 id="goal-entries-title" className="text-h3">
         {t('title')}
       </h2>
-      <p className="text-small text-muted-foreground">
-        {t('latestNote', { count: GOAL_ENTRIES_PAGE_SIZE_MAX })}
-      </p>
+      {entries.length >= GOAL_ENTRIES_PAGE_SIZE_MAX ? (
+        <p className="text-small text-muted-foreground">
+          {t('latestNote', { count: GOAL_ENTRIES_PAGE_SIZE_MAX })}
+        </p>
+      ) : null}
       {entries.length === 0 ? (
         <p>{t('empty')}</p>
       ) : (

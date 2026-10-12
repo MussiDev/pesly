@@ -10,6 +10,7 @@ import type { GoalView } from '../helpers/goal-view';
 export function GoalProgress({ goal }: { goal: GoalView }) {
   const t = useTranslations('goals.card');
   const locale = useLocale() as Locale;
+  // Only rescales 0-100 to the 0-1 fraction the locale percent formatter expects (display, not money).
   const percentLabel = t('percentage', { percent: goal.percentage / 100 });
 
   return (

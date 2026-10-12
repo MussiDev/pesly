@@ -36,6 +36,16 @@ type ScreenState =
 
 const goalIdSchema = z.uuid();
 
+/** The response, plus entries recorded here while it was in flight; the newest stay on top. */
+function mergeEntries(
+  fetched: GoalEntryResponse[],
+  local: GoalEntryResponse[],
+): GoalEntryResponse[] {
+  const known = new Set(fetched.map((entry) => entry.id));
+  const extra = local.filter((entry) => !known.has(entry.id));
+  return [...extra, ...fetched].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 /**
  * One goal and its entries. 2 requests for an unlinked goal, 1 for a linked one (D5); recording
  * an entry updates the screen from the response without asking again (FR-10).
@@ -127,7 +137,7 @@ export function GoalDetailContainer({ goalId }: { goalId: string }) {
         if (!page.ok) return { ...current, loadingMore: false, moreError: page.messageKey };
         return {
           ...current,
-          entries: page.data.entries,
+          entries: mergeEntries(page.data.entries, current.entries ?? []),
           asked: limit,
           returned: page.data.entries.length,
           loadingMore: false,
