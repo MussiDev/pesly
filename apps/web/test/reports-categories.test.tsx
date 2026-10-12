@@ -169,7 +169,9 @@ describe('categories screen', () => {
     expect(reportCalls(calls).map((call) => call.path)).toEqual(['/reports/expenses-by-category']);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Last 3 months' }).disabled).toBe(false);
+      expect(
+        screen.getByRole<HTMLButtonElement>('button', { name: 'Last 3 months' }).disabled,
+      ).toBe(false);
     });
     await userEvent.click(screen.getByRole('button', { name: 'Last 3 months' }));
     const target = router.replace.mock.calls.at(-1)?.[0] ?? '';

@@ -102,7 +102,7 @@ export function CategoriesScreen({
           {notices}
           <div className="grid gap-1">
             <p className="text-small text-muted-foreground">{t('categories.total')}</p>
-            <p className="text-display font-semibold tabular-nums">{total}</p>
+            <p className="text-display font-semibold tabular-nums [overflow-wrap:anywhere]">{total}</p>
           </div>
           <ChartFigure
             name={t('categories.chartName')}

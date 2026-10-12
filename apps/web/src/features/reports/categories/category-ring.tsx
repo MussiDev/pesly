@@ -36,6 +36,7 @@ export function CategoryRing({ label, segments, rows, percentText }: CategoryRin
 
   return (
     <DonutChart
+      className="flex-wrap [&>ul]:min-w-40"
       label={label}
       segments={donut}
       formatPercent={(weight) => texts[Number(BigInt(weight) % INDEX_SLOTS)] ?? ''}
