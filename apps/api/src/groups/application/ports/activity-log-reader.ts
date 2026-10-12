@@ -1,4 +1,9 @@
-import type { ExpenseSnapshot, GroupActivityAction, SettlementSnapshot } from '@pesly/shared';
+import type {
+  AutomaticCategoryChange,
+  ExpenseSnapshot,
+  GroupActivityAction,
+  SettlementSnapshot,
+} from '@pesly/shared';
 
 /** One log row (spec D9): creations carry no snapshots, a deletion carries no `after`. */
 export interface ActivityLogEntry {
@@ -11,6 +16,10 @@ export interface ActivityLogEntry {
   createdAt: Date;
   before: ExpenseSnapshot | SettlementSnapshot | null;
   after: ExpenseSnapshot | SettlementSnapshot | null;
+  /** True on the creation entry of an expense made from an existing movement (spec 05i D7). */
+  fromMovement: boolean;
+  /** What the send did to the group's automatic category (spec 05i D18). */
+  autoCategory: AutomaticCategoryChange | null;
 }
 
 export interface ListActivityPageQuery {

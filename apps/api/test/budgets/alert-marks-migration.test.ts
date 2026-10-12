@@ -180,11 +180,13 @@ describe('0036_budget_alert_marks migration', () => {
     );
     const countBefore = await appliedMigrations();
 
+    // 0037 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await tableExists('budget_alert_marks')).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
     expect(await kindCheckDefinition()).not.toContain('budget_alert');
     const notices = await client.query<{ kind: string }>('select kind from notices');
     expect(notices.rows.map((row) => row.kind)).toEqual(['reminder']);
@@ -215,7 +217,13 @@ describe('0036_budget_alert_marks migration', () => {
 
     expect(own?.idx).toBe(36);
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
-    expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
+    expect(own?.when).toBe(
+      Math.max(
+        ...journal.entries
+          .filter((entry) => entry.tag !== '0037_group_expense_from_movement')
+          .map((entry) => entry.when),
+      ),
+    );
     const snapshot = JSON.parse(await fileOf('meta/0036_snapshot.json')) as { prevId: string };
     const previous = JSON.parse(await fileOf('meta/0035_snapshot.json')) as { id: string };
     expect(snapshot.prevId).toBe(previous.id);

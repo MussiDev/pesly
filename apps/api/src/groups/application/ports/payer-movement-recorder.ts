@@ -1,4 +1,21 @@
-import type { AccountCurrency, RateType } from '@pesly/shared';
+import type { AccountCurrency, MovementType, RateType } from '@pesly/shared';
+
+/** A movement the caller owns, as the send-to-group use case reads it (spec 05i D2). */
+export interface AdoptableMovement {
+  id: string;
+  type: MovementType;
+  amount: bigint;
+  /** The currency of the movement's account. */
+  currency: AccountCurrency;
+  occurredAt: Date;
+  note: string | null;
+  /** The movement's own personal category; null for an income. */
+  categoryId: string | null;
+  /** That category's default key (`food`, `food.groceries`); null for a custom one. */
+  categoryDefaultKey: string | null;
+  /** True when a group expense already points at the movement. */
+  linked: boolean;
+}
 
 /** What the use case asks before writing: is this account and category usable by this user. */
 export interface PayerAccountCheck {
@@ -33,6 +50,8 @@ export interface PayerMovementUpdate {
   /** The expense description. */
   note: string;
   rateType: RateType;
+  /** Adopted expenses never carry the note: the movement's own note is written back (spec 05i D6). */
+  keepNote?: boolean;
 }
 
 export interface PayerMovementRemoval {
@@ -51,6 +70,13 @@ export interface PayerMovementRecorder<Tx = unknown> {
    * the user's personal expense categories. Read-only; may run outside the transaction.
    */
   isUsable(check: PayerAccountCheck): Promise<boolean>;
+  /**
+   * Reads one of the user's movements to decide whether it can be sent to a group; null when it is
+   * missing, not the user's, or its account is not the user's. Read-only, no lock.
+   */
+  peekAdoptable(userId: string, movementId: string): Promise<AdoptableMovement | null>;
+  /** Same read as `peekAdoptable`, inside `unit` with the movement row `for update`. */
+  lockForAdoption(unit: Tx, userId: string, movementId: string): Promise<AdoptableMovement | null>;
   /** Inserts the movement inside `unit` and returns its id. Never opens its own transaction. */
   record(unit: Tx, movement: PayerMovementToRecord): Promise<{ id: string }>;
   /**

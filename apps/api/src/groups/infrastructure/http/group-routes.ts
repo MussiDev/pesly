@@ -37,6 +37,8 @@ import {
   listGroupExpensesQuerySchema,
   personalSharesPageSchema,
   personalSharesQuerySchema,
+  sendMovementToGroupRequestSchema,
+  sendMovementToGroupResponseSchema,
   updateGroupCategoryRequestSchema,
   updateGroupRequestSchema,
 } from '@pesly/shared';
@@ -82,6 +84,7 @@ import { PreviewConsolidation } from '../../application/preview-consolidation';
 import { RecordGroupExpense } from '../../application/record-group-expense';
 import { RecordSettlement } from '../../application/record-settlement';
 import { RemoveMember } from '../../application/remove-member';
+import { SendMovementToGroup } from '../../application/send-movement-to-group';
 import { SetDefaultSplit } from '../../application/set-default-split';
 import { UpdateGroup } from '../../application/update-group';
 import { UpdateGroupCategory } from '../../application/update-group-category';
@@ -158,6 +161,7 @@ export function createGroupRoutes({
   const createCategory = new CreateGroupCategory({ groups });
   const updateCategory = new UpdateGroupCategory({ groups, clock });
   const recordExpense = new RecordGroupExpense({ groups, expenses, payerMovements, clock });
+  const sendMovement = new SendMovementToGroup({ groups, expenses, payerMovements, clock });
   const listExpenses = new ListGroupExpenses({ groups, expenses });
   const getExpense = new GetGroupExpense({ groups, expenses });
   const getExpenseOptions = new GetExpenseOptions({ groups, expenses });
@@ -191,7 +195,12 @@ export function createGroupRoutes({
     requestId: string,
     auth: AuthContext | undefined,
     groupId: string,
-    extra: { expenseId?: string; settlementId?: string; memberId?: string } = {},
+    extra: {
+      expenseId?: string;
+      settlementId?: string;
+      memberId?: string;
+      autoCategory?: string | null;
+    } = {},
   ): void => {
     logger.info({ requestId, userId: auth?.userId, groupId, ...extra }, message);
   };
@@ -436,6 +445,25 @@ export function createGroupRoutes({
           const expense = await recordExpense.execute(userIdOf(auth), params.id, body);
           audit('group expense created', requestId, auth, params.id, { expenseId: expense.id });
           res.status(201).json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.post(
+      '/groups/:id/expenses/from-movement',
+      validate(
+        {
+          params: groupIdParamsSchema,
+          body: sendMovementToGroupRequestSchema,
+          response: sendMovementToGroupResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const saved = await sendMovement.execute(userIdOf(auth), params.id, body);
+          audit('group expense created from movement', requestId, auth, params.id, {
+            expenseId: saved.id,
+            autoCategory: saved.autoCategory,
+          });
+          res.status(201).json({ ...presentGroupExpense(saved), autoCategory: saved.autoCategory });
         },
       ),
     );

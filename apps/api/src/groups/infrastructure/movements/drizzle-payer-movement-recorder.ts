@@ -1,4 +1,5 @@
 import { dateInTimeZone, todayInTimeZone } from '@pesly/shared';
+import { and, eq } from 'drizzle-orm';
 import { CreateMovement } from '../../../movements/application/create-movement';
 import { localDayRange } from '../../../movements/application/local-day-range';
 import type { UserPreferences } from '../../../movements/application/ports/user-preferences';
@@ -13,6 +14,7 @@ import { DenyAllGroupMembershipReader } from '../../../shared/access/infrastruct
 import type { Database } from '../../../shared/db/client';
 import type { Clock } from '../../application/ports/clock';
 import type {
+  AdoptableMovement,
   PayerAccountCheck,
   PayerMovementRecorder,
   PayerMovementRemoval,
@@ -20,6 +22,8 @@ import type {
   PayerMovementUpdate,
 } from '../../application/ports/payer-movement-recorder';
 import { SystemClock } from '../clock/system-clock';
+import { accounts, categories, movements } from '../db/foreign-relations';
+import { groupExpenses } from '../db/schema';
 
 /** The transaction handle drizzle passes to the callback of `Database.transaction`. */
 export type PayerTx = Parameters<Parameters<Database['transaction']>[0]>[0];
@@ -50,6 +54,58 @@ export class DrizzlePayerMovementRecorder implements PayerMovementRecorder<Payer
     if (account === null || account.archived || account.currency !== check.currency) return false;
     const category = await new DrizzleCategoryLookup(this.db).find(scope, check.categoryId);
     return category !== null && category.kind === 'expense' && !category.archived;
+  }
+
+  async peekAdoptable(userId: string, movementId: string): Promise<AdoptableMovement | null> {
+    return this.readAdoptable(this.db, userId, movementId, false);
+  }
+
+  async lockForAdoption(
+    unit: PayerTx,
+    userId: string,
+    movementId: string,
+  ): Promise<AdoptableMovement | null> {
+    return this.readAdoptable(unit, userId, movementId, true);
+  }
+
+  /** The movement joined to its account, only when both are the user's (a miss is a miss). */
+  private async readAdoptable(
+    db: Database,
+    userId: string,
+    movementId: string,
+    lock: boolean,
+  ): Promise<AdoptableMovement | null> {
+    const query = db
+      .select({
+        id: movements.id,
+        type: movements.type,
+        amount: movements.amount,
+        currency: accounts.currency,
+        occurredAt: movements.occurredAt,
+        note: movements.note,
+        categoryId: movements.categoryId,
+        categoryDefaultKey: categories.defaultKey,
+      })
+      .from(movements)
+      .innerJoin(
+        accounts,
+        and(eq(accounts.id, movements.accountId), eq(accounts.ownerId, movements.ownerId)),
+      )
+      .leftJoin(
+        categories,
+        and(eq(categories.id, movements.categoryId), eq(categories.ownerId, movements.ownerId)),
+      )
+      .where(and(eq(movements.id, movementId), eq(movements.ownerId, userId)))
+      .limit(1);
+    // `for update of movements` locks the movement row only, never the account row.
+    const [row] = await (lock ? query.for('update', { of: movements }) : query);
+    if (!row) return null;
+    const [link] = await db
+      .select({ id: groupExpenses.id })
+      .from(groupExpenses)
+      .where(eq(groupExpenses.payerMovementId, row.id))
+      .limit(1);
+    return { ...row, linked: link !== undefined };
   }
 
   async record(unit: PayerTx, movement: PayerMovementToRecord): Promise<{ id: string }> {
@@ -102,16 +158,22 @@ export class DrizzlePayerMovementRecorder implements PayerMovementRecorder<Payer
       clock: this.clock,
     });
     // The rate stays as frozen when the movement was recorded; only amount, date and note move.
-    await update.execute(scope, change.movementId, {
-      type: 'expense',
-      accountId: existing.accountId,
-      categoryId: existing.categoryId,
-      amount: change.amount,
-      occurredAt: this.latestAllowed(change.occurredAt, timeZone),
-      note: change.note,
-      tags: existing.tags,
-      rate: { source: 'keep' },
-    });
+    await update.execute(
+      scope,
+      change.movementId,
+      {
+        type: 'expense',
+        accountId: existing.accountId,
+        categoryId: existing.categoryId,
+        amount: change.amount,
+        occurredAt: this.latestAllowed(change.occurredAt, timeZone),
+        note: change.keepNote === true ? (existing.note ?? undefined) : change.note,
+        tags: existing.tags,
+        rate: { source: 'keep' },
+      },
+      // The expense owns amount and date of the movement it adopted (spec 05i D3, D6).
+      { bypassGroupLock: true },
+    );
   }
 
   async remove(unit: PayerTx, removal: PayerMovementRemoval): Promise<void> {

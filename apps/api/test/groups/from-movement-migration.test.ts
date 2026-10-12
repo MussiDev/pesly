@@ -169,8 +169,7 @@ const insertLog = (
   fromMovement: boolean,
   autoCategory: string | null,
 ): Promise<string | undefined> => {
-  const snapshots =
-    action === 'expense_updated' ? "'{}'::jsonb, '{}'::jsonb" : 'null, null';
+  const snapshots = action === 'expense_updated' ? "'{}'::jsonb, '{}'::jsonb" : 'null, null';
   return sqlState(
     `insert into group_activity_log (group_id, member_id, action, subject_id, created_at,
        before, after, from_movement, auto_category)

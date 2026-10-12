@@ -17,14 +17,22 @@ BEGIN
 END
 $$;
 
-ALTER TABLE "group_activity_log" DROP CONSTRAINT IF EXISTS "group_activity_log_auto_category_check";
-ALTER TABLE "group_activity_log" DROP CONSTRAINT IF EXISTS "group_activity_log_from_movement_check";
-ALTER TABLE "group_activity_log" DROP COLUMN IF EXISTS "auto_category";
-ALTER TABLE "group_activity_log" DROP COLUMN IF EXISTS "from_movement";
-ALTER TABLE "group_expenses" DROP COLUMN IF EXISTS "adopted_movement";
-
-DROP INDEX IF EXISTS "group_expenses_payer_movement_unique";
-CREATE INDEX IF NOT EXISTS "group_expenses_payer_movement_idx" ON "group_expenses" USING btree ("payer_movement_id") WHERE "group_expenses"."payer_movement_id" is not null;
+-- Guarded so the script also runs after the rollback of 0026 has dropped the group tables.
+DO $$
+BEGIN
+  IF to_regclass('public.group_activity_log') IS NOT NULL THEN
+    ALTER TABLE "group_activity_log" DROP CONSTRAINT IF EXISTS "group_activity_log_auto_category_check";
+    ALTER TABLE "group_activity_log" DROP CONSTRAINT IF EXISTS "group_activity_log_from_movement_check";
+    ALTER TABLE "group_activity_log" DROP COLUMN IF EXISTS "auto_category";
+    ALTER TABLE "group_activity_log" DROP COLUMN IF EXISTS "from_movement";
+  END IF;
+  IF to_regclass('public.group_expenses') IS NOT NULL THEN
+    ALTER TABLE "group_expenses" DROP COLUMN IF EXISTS "adopted_movement";
+    DROP INDEX IF EXISTS "group_expenses_payer_movement_unique";
+    CREATE INDEX IF NOT EXISTS "group_expenses_payer_movement_idx" ON "group_expenses" USING btree ("payer_movement_id") WHERE "group_expenses"."payer_movement_id" is not null;
+  END IF;
+END
+$$;
 
 -- Forget the migration so `pnpm db:migrate` applies it again; `created_at` is the journal's
 -- `when` for 0037_group_expense_from_movement.

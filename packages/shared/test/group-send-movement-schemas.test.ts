@@ -63,21 +63,34 @@ const movement = {
 
 const link = { groupId: GROUP, expenseId: EXPENSE, adopted: false };
 
+/** A copy of `value` without `key`, for asserting what a schema or a read does without a field. */
+function omit<T extends object, K extends keyof T>(value: T, key: K): Omit<T, K> {
+  const copy = { ...value };
+  Reflect.deleteProperty(copy, key);
+  return copy;
+}
+
 describe('sendMovementToGroupRequestSchema', () => {
   it('accepts a body with and without description and categoryId', () => {
     expect(okRequest(body)).toBe(true);
-    const { description: _d, ...noDescription } = body;
+    const noDescription = omit(body, 'description');
     expect(okRequest(noDescription)).toBe(true);
-    const { categoryId: _c, ...noCategory } = body;
+    const noCategory = omit(body, 'categoryId');
     expect(okRequest(noCategory)).toBe(true);
   });
 
-  it.each(['amount', 'currency', 'payerAccount', 'categoryName', 'categoryKey', 'name', 'icon', 'color'])(
-    'rejects the unknown key %s',
-    (key) => {
-      expect(okRequest({ ...body, [key]: 'x' })).toBe(false);
-    },
-  );
+  it.each([
+    'amount',
+    'currency',
+    'payerAccount',
+    'categoryName',
+    'categoryKey',
+    'name',
+    'icon',
+    'color',
+  ])('rejects the unknown key %s', (key) => {
+    expect(okRequest({ ...body, [key]: 'x' })).toBe(false);
+  });
 
   it('rejects a categoryId or movementId that is not a uuid', () => {
     expect(okRequest({ ...body, categoryId: 'nope' })).toBe(false);
@@ -92,7 +105,7 @@ describe('sendMovementToGroupRequestSchema', () => {
 
   it('rejects a split with a duplicate member and a missing split', () => {
     expect(okRequest({ ...body, split: { mode: 'equal', memberIds: [M1, M1] } })).toBe(false);
-    const { split: _s, ...noSplit } = body;
+    const noSplit = omit(body, 'split');
     expect(okRequest(noSplit)).toBe(false);
   });
 });

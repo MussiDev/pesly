@@ -124,6 +124,7 @@ describe('0026_groups migration', () => {
     const countBefore = await appliedMigrations();
 
     // Newest first: 0031, 0030 and 0029 have the greatest journal `when`s, then 0028 and 0027, whose tables reference the 0026 ones.
+    await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
     await client.query(await fileOf('rollback/0036_budget_alert_marks.down.sql'));
     await client.query(await fileOf('rollback/0035_group_expense_payer_movement_idx.down.sql'));
     await client.query(await fileOf('rollback/0034_budgets.down.sql'));
@@ -139,7 +140,7 @@ describe('0026_groups migration', () => {
 
     expect(await groupTables()).toEqual([]);
     expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 14);
-    expect(await appliedMigrations()).toBe(countBefore - 11);
+    expect(await appliedMigrations()).toBe(countBefore - 12);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await groupTables()).toEqual(GROUP_TABLES);
