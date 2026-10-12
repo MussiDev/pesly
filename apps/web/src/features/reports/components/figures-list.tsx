@@ -17,7 +17,10 @@ export function FiguresList({ label, rows }: FiguresListProps) {
   return (
     <ul aria-label={label} className="grid gap-1 text-small">
       {rows.map((row) => (
-        <li key={row.key} className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <li
+          key={row.key}
+          className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1"
+        >
           <span>{row.label}</span>
           <span className="flex flex-wrap items-center gap-x-2 tabular-nums">
             {row.note === undefined ? null : (
