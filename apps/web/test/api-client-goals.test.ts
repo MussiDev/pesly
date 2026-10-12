@@ -95,7 +95,7 @@ describe('goals api client', () => {
     const { url, init } = requestAt(fetch, 0);
     expect(url).toBe(`${BASE_URL}/goals`);
     expect(init.method).toBe('POST');
-    expect(JSON.parse(String(init.body))).toEqual({
+    expect(JSON.parse(init.body as string)).toEqual({
       name: 'Trip',
       targetAmount: '100000',
       currency: 'ARS',
@@ -112,7 +112,7 @@ describe('goals api client', () => {
     const { url, init } = requestAt(fetch, 0);
     expect(url).toBe(`${BASE_URL}/goals/${GOAL_ID}`);
     expect(init.method).toBe('PATCH');
-    expect(JSON.parse(String(init.body))).toEqual({ targetDate: null });
+    expect(JSON.parse(init.body as string)).toEqual({ targetDate: null });
   });
 
   it('recordGoalEntry returns the entry and the updated goal (AC-20)', async () => {
@@ -124,7 +124,7 @@ describe('goals api client', () => {
     const { url, init } = requestAt(fetch, 0);
     expect(url).toBe(`${BASE_URL}/goals/${GOAL_ID}/entries`);
     expect(init.method).toBe('POST');
-    expect(JSON.parse(String(init.body))).toEqual({ kind: 'contribution', amount: '5000' });
+    expect(JSON.parse(init.body as string)).toEqual({ kind: 'contribution', amount: '5000' });
   });
 
   it('deleteGoal resolves with no body (AC-24)', async () => {
