@@ -128,7 +128,7 @@ describe('GoalEntryActions', () => {
     await user.click(screen.getByRole('button', { name: en.goals.entries.submitWithdrawal }));
 
     expect(await screen.findByText(en.errors.goalWithdrawalExceedsProgress)).not.toBeNull();
-    expect((amount).value).toBe('900');
+    expect(amount.value).toBe('900');
     expect(onRecorded).not.toHaveBeenCalled();
   });
 
@@ -142,7 +142,7 @@ describe('GoalEntryActions', () => {
     await user.click(screen.getByRole('button', { name: en.goals.entries.submitContribution }));
 
     expect(await screen.findByText(en.errors.network)).not.toBeNull();
-    expect((amount).value).toBe('5');
+    expect(amount.value).toBe('5');
   });
 
   it('disables the submit while pending and sends one request on a double tap', async () => {
