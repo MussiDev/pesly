@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-import { renderHook, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, renderHook, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   buildAttentionItems,
   type QueueAttention,
@@ -182,6 +182,28 @@ describe('useQueueAttention', () => {
       expect(result.current.ready).toBe(true);
     });
     expect(result.current.queue).toEqual(NONE);
+  });
+
+  describe('when the local read never settles', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('becomes ready with an empty queue after the timeout', async () => {
+      vi.useFakeTimers();
+      readQueueCounts.mockReturnValue(new Promise(() => undefined));
+      readGroupQueueCounts.mockReturnValue(new Promise(() => undefined));
+      const { result } = renderHook(() => useQueueAttention());
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_900);
+      });
+      expect(result.current.ready).toBe(false);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(result.current.ready).toBe(true);
+      expect(result.current.queue).toEqual(NONE);
+    });
   });
 
   it('lists the queue items offline and sends no request (AC-24)', async () => {

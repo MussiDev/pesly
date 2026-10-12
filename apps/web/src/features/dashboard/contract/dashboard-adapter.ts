@@ -1,6 +1,10 @@
 import { DEFAULT_CATEGORIES, defaultCategoryName, type NetWorthResponse } from '@pesly/shared';
 import type { Locale } from '@/i18n/routing';
-import type { DashboardEntry, DashboardResponse } from '@/lib/dashboard-contract';
+import type {
+  DashboardAction,
+  DashboardResponse,
+  DashboardUpcoming,
+} from '@/lib/dashboard-contract';
 import type { CategoryView, DashboardView, SeriesPointView, UpcomingView } from '../dashboard-view';
 
 // The only reader of raw 09b fields (spec D1). Every amount string was already proven to be an
@@ -24,21 +28,33 @@ function resolveLabel(
   return trimmed ? trimmed : otherLabel;
 }
 
-function entryHref(entry: DashboardEntry): string {
-  const toCards = entry.kind.includes('statement') || entry.kind.includes('card');
-  const prefix = toCards ? '/cards' : '/recurring';
-  return entry.id === null ? prefix : `${prefix}/${entry.id}`;
-}
-
-function toEntryView(entry: DashboardEntry): UpcomingView {
+// The web has no statement route and no occurrence route: a statement links to its card and an
+// occurrence to the recurring list; only a recurring payment has its own page.
+function toUpcomingView(entry: DashboardUpcoming): UpcomingView {
   return {
     kind: entry.kind,
-    href: entryHref(entry),
-    overdue: entry.kind.includes('overdue'),
+    href:
+      entry.kind === 'card_statement' ? `/cards/${entry.cardId}` : `/recurring/${entry.paymentId}`,
+    overdue: false,
     name: entry.name,
     date: entry.date,
-    amount: entry.amount === null ? null : BigInt(entry.amount),
+    amount: BigInt(entry.amount),
     currency: entry.currency,
+  };
+}
+
+/** The 09b actions carry no amount or currency, so those stay null in the view. */
+function toActionView(entry: DashboardAction, today: string): UpcomingView {
+  const isStatement = entry.kind === 'unpaid_statement';
+  return {
+    kind: entry.kind,
+    href: isStatement ? `/cards/${entry.cardId}` : '/recurring',
+    // ISO calendar dates compare as text.
+    overdue: entry.kind === 'overdue_occurrence' || (isStatement && entry.dueDate < today),
+    name: entry.name,
+    date: entry.dueDate,
+    amount: null,
+    currency: null,
   };
 }
 
@@ -47,7 +63,7 @@ function toCategoryViews(raw: DashboardResponse, options: AdapterOptions): Categ
     key: `${index}:${row.categoryId ?? row.defaultKey ?? 'row'}`,
     label: resolveLabel(row.defaultKey, row.name, options),
     amount: BigInt(row.amount),
-    share: row.share,
+    share: row.sharePercent,
   }));
 }
 
@@ -63,33 +79,33 @@ export function toDashboardView(raw: DashboardResponse, options: AdapterOptions)
       holdingsWithoutPrice: netWorth.holdingsWithoutPrice,
     },
     month: {
-      expenses: { value: BigInt(month.expenses), change: month.expensesChange },
-      income: { value: BigInt(month.income), change: month.incomeChange },
-      net: { value: BigInt(month.net), change: month.netChange },
-      leftOutCount: month.leftOutShares + month.leftOutInstallments,
+      expenses: { value: BigInt(month.expenses), change: month.change.expenses },
+      income: { value: BigInt(month.income), change: month.change.income },
+      net: { value: BigInt(month.net), change: month.change.net },
+      leftOutCount: month.unconvertedShareCount + month.unconvertedInstallmentCount,
     },
     categories: toCategoryViews(raw, options),
     budgets: raw.budgets.map((budget) => ({
-      id: budget.id,
+      id: budget.budgetId,
       name: budget.name,
       currency: budget.currency,
-      percent: budget.percent,
+      percent: budget.percentUsed,
       status: budget.status,
-      href: `/budgets/${budget.id}`,
+      href: `/budgets/${budget.budgetId}`,
     })),
-    upcoming: raw.upcoming.map(toEntryView),
-    actions: raw.actions.map(toEntryView),
+    upcoming: raw.upcoming.map(toUpcomingView),
+    actions: raw.actions.map((action) => toActionView(action, raw.today)),
     groups: {
-      owedToYou: { ARS: BigInt(groups.owedToYou.ARS), USD: BigInt(groups.owedToYou.USD) },
-      youOwe: { ARS: BigInt(groups.youOwe.ARS), USD: BigInt(groups.youOwe.USD) },
+      owedToYou: { ARS: BigInt(groups.owedToYou.ars), USD: BigInt(groups.owedToYou.usd) },
+      youOwe: { ARS: BigInt(groups.youOwe.ars), USD: BigInt(groups.youOwe.usd) },
     },
     insight:
       raw.insight === null
         ? null
         : {
             label: resolveLabel(raw.insight.defaultKey, raw.insight.name, options),
-            share: raw.insight.share,
-            change: raw.insight.change,
+            share: raw.insight.sharePercent,
+            change: raw.insight.changePercent,
           },
     firstSteps: raw.firstSteps,
   };

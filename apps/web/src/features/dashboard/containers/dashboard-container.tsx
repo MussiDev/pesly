@@ -16,7 +16,11 @@ import { DashboardFrame, DashboardScreen } from '../components/dashboard-screen'
 import { DashboardSkeleton } from '../components/dashboard-skeleton';
 import { toDashboardView, toSeriesView } from '../contract/dashboard-adapter';
 import type { DashboardView, SeriesPointView } from '../dashboard-view';
-import { recallDashboard, rememberDashboard } from './dashboard-session-cache';
+import {
+  clearDashboardMemory,
+  recallDashboard,
+  rememberDashboard,
+} from './dashboard-session-cache';
 
 type SeriesData = SeriesPointView[] | null;
 
@@ -59,6 +63,7 @@ export function DashboardContainer() {
         (answer) => !answer.ok && answer.code === 'UNAUTHENTICATED',
       );
       if (expired) {
+        clearDashboardMemory();
         router.replace('/sign-in');
         return;
       }
@@ -111,6 +116,7 @@ export function DashboardContainer() {
     void (async () => {
       const series = await api.getNetWorthSeries();
       if (!series.ok && series.code === 'UNAUTHENTICATED') {
+        clearDashboardMemory();
         router.replace('/sign-in');
         return;
       }

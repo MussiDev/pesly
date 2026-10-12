@@ -12,10 +12,12 @@ import {
   clampAnchor,
   clampIndex,
   drawnPoints,
-  indexFromPosition,
+  nearestIndexByX,
   toSvgX,
   toSvgY,
 } from './chart-geometry';
+
+const PAGE = 3;
 
 /**
  * The net worth over time as an SVG area and line. The plot is one slider: pointer, tap and keys
@@ -52,20 +54,38 @@ export function NetWorthChart({
         });
   };
 
-  const coordinates = drawn.map((point) => ({ x: toSvgX(point.x), y: toSvgY(point.y) }));
-  const line = coordinates
-    .map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x} ${y}`)
-    .join(' ');
-  const first = coordinates[0];
-  const last = coordinates[count - 1];
-  const area =
-    first === undefined || last === undefined
-      ? ''
-      : `${line} L${last.x} ${VIEW_HEIGHT} L${first.x} ${VIEW_HEIGHT} Z`;
+  const coordinates = drawn.map((point) => ({
+    x: toSvgX(point.x),
+    y: toSvgY(point.y),
+    segment: point.segment,
+  }));
+  const segments = coordinates.reduce<(typeof coordinates)[]>((groups, coordinate) => {
+    const group = groups[coordinate.segment];
+    if (group === undefined) groups.push([coordinate]);
+    else group.push(coordinate);
+    return groups;
+  }, []);
+  // A segment of one month has nothing to join: it is only its dot.
+  const joined = segments
+    .filter((group) => group.length > 1)
+    .map((group) => {
+      const line = group.map(({ x, y }, index) => `${index === 0 ? 'M' : 'L'}${x} ${y}`).join(' ');
+      const start = group[0];
+      const end = group[group.length - 1];
+      return {
+        key: start?.x ?? 0,
+        line,
+        area: `${line} L${end?.x ?? 0} ${VIEW_HEIGHT} L${start?.x ?? 0} ${VIEW_HEIGHT} Z`,
+      };
+    });
 
   const selectAt = (clientX: number, target: HTMLElement) => {
     const rect = target.getBoundingClientRect();
-    const index = indexFromPosition(clientX - rect.left, rect.width, count);
+    const index = nearestIndexByX(
+      clientX - rect.left,
+      rect.width,
+      drawn.map((point) => point.x),
+    );
     if (index !== null) setSelected(index);
   };
 
@@ -77,7 +97,13 @@ export function NetWorthChart({
       ArrowUp: current + 1,
       Home: 0,
       End: count - 1,
+      PageUp: current + PAGE,
+      PageDown: current - PAGE,
     };
+    if (event.key === 'Escape') {
+      setSelected(null);
+      return;
+    }
     const next = keys[event.key];
     if (next === undefined) return;
     event.preventDefault();
@@ -122,8 +148,8 @@ export function NetWorthChart({
             aria-hidden="true"
             focusable="false"
           >
-            {count > 1 ? (
-              <>
+            {joined.map(({ key, line, area }) => (
+              <g key={key}>
                 <path data-chart-area d={area} className="fill-chart-2/15 stroke-none" />
                 <path
                   data-chart-line
@@ -133,8 +159,8 @@ export function NetWorthChart({
                   strokeLinejoin="round"
                   className="stroke-chart-2"
                 />
-              </>
-            ) : null}
+              </g>
+            ))}
             {coordinates.map(({ x, y }, index) => (
               <circle
                 key={drawn[index]?.date ?? index}

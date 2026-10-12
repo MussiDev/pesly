@@ -6,6 +6,7 @@ import {
   clampIndex,
   drawnPoints,
   indexFromPosition,
+  nearestIndexByX,
   toSvgX,
   toSvgY,
 } from '../src/features/dashboard/chart/chart-geometry';
@@ -25,7 +26,7 @@ describe('drawnPoints', () => {
   it('keeps the extremes at 0 and 1000 and spreads x over 0 to 1000', () => {
     const points = drawnPoints([point(1, 100n), point(2, 300n), point(3, 200n)]);
     expect(points.map((p) => p.y)).toEqual([0, 1000, 500]);
-    expect(points.map((p) => p.x)).toEqual([0, 500, 1000]);
+    expect(points.map((p) => p.x)).toEqual([0, 525, 1000]);
     expect(points.map((p) => p.value)).toEqual([100n, 300n, 200n]);
   });
 
@@ -38,6 +39,30 @@ describe('drawnPoints', () => {
     const points = drawnPoints([point(1, null), point(2, 5n), point(3, null)]);
     expect(points).toHaveLength(1);
     expect(points[0]?.date).toBe('2026-02-28');
+  });
+
+  it('places x by date and starts a new segment after a gap of null totals', () => {
+    const points = drawnPoints([
+      point(1, 1n),
+      point(2, 2n),
+      point(3, 3n),
+      point(4, null),
+      point(5, null),
+      point(6, null),
+      point(7, 7n),
+      point(8, 8n),
+      point(9, 9n),
+    ]);
+    expect(points.map((p) => p.segment)).toEqual([0, 0, 0, 1, 1, 1]);
+    // July sits six months into an eight-month span, not at the fourth of six equal slots.
+    expect(points[3]?.x).toBeGreaterThan(700);
+    expect(points[3]?.x).toBeLessThan(800);
+    expect(points[5]?.x).toBe(1000);
+  });
+
+  it('keeps one segment when every month has a total', () => {
+    const points = drawnPoints([point(1, 1n), point(2, 2n), point(3, 3n)]);
+    expect(new Set(points.map((p) => p.segment)).size).toBe(1);
   });
 
   it('never throws on 0 or 1 points', () => {
@@ -75,6 +100,17 @@ describe('selection helpers', () => {
     expect(indexFromPosition(10, 0, 3)).toBeNull();
     expect(indexFromPosition(10, 100, 0)).toBeNull();
     expect(indexFromPosition(10, 100, 1)).toBe(0);
+  });
+
+  it('maps a pointer position to the drawn point nearest by x', () => {
+    const xs = [0, 100, 1000];
+    expect(nearestIndexByX(4, 100, xs)).toBe(0);
+    expect(nearestIndexByX(40, 100, xs)).toBe(1);
+    expect(nearestIndexByX(100, 100, xs)).toBe(2);
+    expect(nearestIndexByX(-1, 100, xs)).toBeNull();
+    expect(nearestIndexByX(101, 100, xs)).toBeNull();
+    expect(nearestIndexByX(10, 0, xs)).toBeNull();
+    expect(nearestIndexByX(10, 100, [])).toBeNull();
   });
 
   it('clamps the tooltip anchor so it stays inside the plot', () => {

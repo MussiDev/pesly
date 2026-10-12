@@ -161,6 +161,15 @@ describe('net worth chart', () => {
     expect(container.querySelectorAll('circle')).toHaveLength(3);
   });
 
+  it('breaks the line at a gap of months without a total and keeps the table complete', () => {
+    const { container } = renderCard({
+      series: ready(series(9, (i) => (i >= 3 && i <= 5 ? null : BigInt(i + 1) * 1_000_000n))),
+    });
+    expect(container.querySelectorAll('circle')).toHaveLength(6);
+    expect(container.querySelectorAll('[data-chart-line]')).toHaveLength(2);
+    expect(within(screen.getByRole('table')).getAllByRole('row')).toHaveLength(10);
+  });
+
   it('with a single point shows the point value and no line (AC-11)', () => {
     const { container } = renderCard({ series: ready(series(1, () => 3_000_000n)) });
     expect(container.querySelectorAll('circle')).toHaveLength(1);
@@ -268,6 +277,33 @@ describe('net worth chart', () => {
     expect(tooltipText()).toContain(formatCalendarDate('2025-01-28', 'en'));
     fireEvent.click(slider, { clientX: 210 });
     expect(tooltipText()).toContain(formatCalendarDate('2025-03-28', 'en'));
+  });
+
+  it('dismisses the tooltip on Escape and keeps the focus', () => {
+    renderCard();
+    const slider = screen.getByRole('slider');
+    fireEvent.focus(slider);
+    expect(screen.getByTestId('chart-tooltip')).toBeDefined();
+    fireEvent.keyDown(slider, { key: 'Escape' });
+    expect(screen.queryByTestId('chart-tooltip')).toBeNull();
+    fireEvent.keyDown(slider, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('chart-tooltip')).toBeDefined();
+  });
+
+  it('moves by a page with PageUp and PageDown and stops at the ends', () => {
+    renderCard({ series: ready(series(12, (i) => BigInt(i + 1) * 1_000_000n)) });
+    const slider = screen.getByRole('slider');
+    fireEvent.focus(slider);
+    expect(slider.getAttribute('aria-valuenow')).toBe('11');
+    fireEvent.keyDown(slider, { key: 'PageDown' });
+    expect(slider.getAttribute('aria-valuenow')).toBe('8');
+    fireEvent.keyDown(slider, { key: 'PageUp' });
+    expect(slider.getAttribute('aria-valuenow')).toBe('11');
+    fireEvent.keyDown(slider, { key: 'PageUp' });
+    expect(slider.getAttribute('aria-valuenow')).toBe('11');
+    fireEvent.keyDown(slider, { key: 'Home' });
+    fireEvent.keyDown(slider, { key: 'PageDown' });
+    expect(slider.getAttribute('aria-valuenow')).toBe('0');
   });
 
   it('hides the tooltip on blur', () => {

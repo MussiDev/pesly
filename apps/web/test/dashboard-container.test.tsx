@@ -4,7 +4,11 @@ import { join as resolve } from 'node:path';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DashboardContainer } from '../src/features/dashboard/containers/dashboard-container';
-import { clearDashboardMemory } from '../src/features/dashboard/containers/dashboard-session-cache';
+import {
+  clearDashboardMemory,
+  recallDashboard,
+  rememberDashboard,
+} from '../src/features/dashboard/containers/dashboard-session-cache';
 import { DashboardSkeleton } from '../src/features/dashboard/components/dashboard-skeleton';
 import { DashboardScreen } from '../src/features/dashboard/components/dashboard-screen';
 import { toDashboardView } from '../src/features/dashboard/contract/dashboard-adapter';
@@ -31,54 +35,72 @@ function money(value: bigint, currency: 'ARS' | 'USD', locale: 'es' | 'en'): str
   return formatMoney(value, currency, locale).replace(/\s+/g, ' ');
 }
 
+const ZERO_PAIR = { ars: '0', usd: '0' };
+
+// A body in the shape of spec DISC-001-09b.
 function dashboardBody(patch: Record<string, unknown> = {}) {
   return {
     currency: 'ARS',
+    today: '2026-10-12',
     netWorth: {
       ars: '100000000',
       usd: '100000',
       total: '142000000',
       reason: null,
       holdingsWithoutPrice: 0,
+      parts: {
+        accounts: { ars: '100000000', usd: '100000' },
+        investments: ZERO_PAIR,
+        groups: ZERO_PAIR,
+        installmentDebt: ZERO_PAIR,
+      },
     },
     month: {
+      from: '2026-10-01',
+      to: '2026-10-12',
       expenses: '24000000',
       income: '80000000',
       net: '56000000',
-      expensesChange: 20,
-      incomeChange: null,
-      netChange: -5,
-      leftOutShares: 0,
-      leftOutInstallments: 0,
+      change: { expenses: 20, income: null, net: -5 },
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
     },
     categories: [
-      { categoryId: null, defaultKey: 'food', name: null, amount: '8000000', share: 33 },
+      { categoryId: null, defaultKey: 'food', name: null, amount: '8000000', sharePercent: 33 },
     ],
     budgets: [
-      { id: BUDGET_ID, name: 'Groceries', currency: 'ARS', percent: 40, status: 'on_track' },
+      {
+        budgetId: BUDGET_ID,
+        name: 'Groceries',
+        currency: 'ARS',
+        available: '6000000',
+        spent: '4000000',
+        percentUsed: 40,
+        status: 'on_track',
+      },
     ],
     upcoming: [
       {
-        kind: 'payment',
-        id: PAYMENT_ID,
-        name: 'Rent',
+        kind: 'recurring_payment',
+        paymentId: PAYMENT_ID,
         date: '2026-10-14',
-        amount: '4500000',
+        name: 'Rent',
         currency: 'ARS',
+        amount: '4500000',
       },
     ],
     actions: [
-      {
-        kind: 'pending_occurrence',
-        id: PAYMENT_ID,
-        name: 'Gym',
-        date: '2026-10-12',
-        amount: '1000000',
-        currency: 'ARS',
-      },
+      { kind: 'pending_occurrence', dueDate: '2026-10-12', name: 'Gym', occurrenceId: PAYMENT_ID },
     ],
-    groups: { owedToYou: { ARS: '3000000', USD: '0' }, youOwe: { ARS: '0', USD: '5000' } },
-    insight: { defaultKey: 'food', name: null, share: 33, change: 40 },
+    groups: { owedToYou: { ars: '3000000', usd: '0' }, youOwe: { ars: '0', usd: '5000' } },
+    insight: {
+      categoryId: null,
+      defaultKey: 'food',
+      name: null,
+      amount: '8000000',
+      sharePercent: 33,
+      changePercent: 40,
+    },
     firstSteps: { hasAccount: true, hasMovement: true, show: false },
     ...patch,
   };
@@ -297,6 +319,21 @@ describe('DashboardContainer errors (AC-03, AC-49)', () => {
     });
     expect(screen.queryAllByText(money(142000000n, 'ARS', 'es'))).toHaveLength(0);
     expect(screen.queryByText(es.dashboard.states.error)).toBeNull();
+  });
+
+  it('forgets the remembered answers when the session has expired', async () => {
+    // Only the identity of the entry matters here, not the shape of the view.
+    rememberDashboard('u1', { view: {} as never, points: null });
+    stubApi({
+      [DASHBOARD]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      [SERIES]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+      'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
+    });
+    const { router } = renderApp(<DashboardContainer />);
+    await waitFor(() => {
+      expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
+    });
+    expect(recallDashboard('u1')).toBeUndefined();
   });
 
   it('shows the error state when the dashboard body does not match its parser', async () => {

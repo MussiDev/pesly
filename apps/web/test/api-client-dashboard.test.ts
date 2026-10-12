@@ -4,42 +4,69 @@ import { createApiClient, type FetchLike } from '../src/lib/api-client';
 const BASE_URL = 'http://api.argent.test';
 const ID = '3f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a10';
 
+const PARTS = {
+  accounts: { ars: '100000000', usd: '100000' },
+  investments: { ars: '0', usd: '0' },
+  groups: { ars: '0', usd: '0' },
+  installmentDebt: { ars: '0', usd: '0' },
+};
+
+// A body in the shape of spec DISC-001-09b.
 const dashboard = {
   currency: 'ARS',
+  today: '2026-10-12',
   netWorth: {
     ars: '100000000',
     usd: '100000',
     total: '142000000',
     reason: null,
     holdingsWithoutPrice: 0,
+    parts: PARTS,
   },
   month: {
+    from: '2026-10-01',
+    to: '2026-10-12',
     expenses: '24000000',
     income: '80000000',
     net: '56000000',
-    expensesChange: 20,
-    incomeChange: null,
-    netChange: -5,
-    leftOutShares: 1,
-    leftOutInstallments: 2,
+    change: { expenses: 20, income: null, net: -5 },
+    unconvertedShareCount: 1,
+    unconvertedInstallmentCount: 2,
   },
-  categories: [{ categoryId: null, defaultKey: 'food', name: null, amount: '12000000', share: 60 }],
-  budgets: [{ id: ID, name: 'Food', currency: 'ARS', percent: 80, status: 'close' }],
-  upcoming: [
+  categories: [
+    { categoryId: null, defaultKey: 'food', name: null, amount: '12000000', sharePercent: 60 },
+  ],
+  budgets: [
     {
-      kind: 'payment',
-      id: ID,
-      name: 'Rent',
-      date: '2026-10-15',
-      amount: '35000000',
+      budgetId: ID,
+      name: 'Food',
       currency: 'ARS',
+      available: '2000000',
+      spent: '8000000',
+      percentUsed: 80,
+      status: 'close',
     },
   ],
-  actions: [
-    { kind: 'overdue_occurrence', id: null, name: null, date: null, amount: null, currency: null },
+  upcoming: [
+    {
+      kind: 'recurring_payment',
+      paymentId: ID,
+      date: '2026-10-15',
+      name: 'Rent',
+      currency: 'ARS',
+      amount: '35000000',
+    },
   ],
-  groups: { owedToYou: { ARS: '3000000', USD: '0' }, youOwe: { ARS: '0', USD: '5000' } },
-  insight: { defaultKey: 'food', name: null, share: 32, change: 40 },
+  actions: [{ kind: 'overdue_occurrence', dueDate: '2026-10-01', name: 'Gym', occurrenceId: ID }],
+  groups: { owedToYou: { ars: '3000000', usd: '0' }, youOwe: { ars: '0', usd: '5000' } },
+  insight: {
+    categoryId: null,
+    defaultKey: 'food',
+    name: null,
+    amount: '12000000',
+    sharePercent: 32,
+    changePercent: 40,
+  },
   firstSteps: { hasAccount: true, hasMovement: true, show: false },
 };
 
@@ -128,8 +155,10 @@ describe('dashboard api client', () => {
   it.each([
     ['a decimal amount', { netWorth: { ...dashboard.netWorth, total: '12.5' } }],
     ['an unknown budget status', { budgets: [{ ...dashboard.budgets[0], status: 'fine' }] }],
-    ['an id that is not a UUID', { budgets: [{ ...dashboard.budgets[0], id: 'abc' }] }],
-    ['a fractional percent', { categories: [{ ...dashboard.categories[0], share: 60.5 }] }],
+    ['an id that is not a UUID', { budgets: [{ ...dashboard.budgets[0], budgetId: 'abc' }] }],
+    ['a fractional percent', { categories: [{ ...dashboard.categories[0], sharePercent: 60.5 }] }],
+    ['an unknown action kind', { actions: [{ ...dashboard.actions[0], kind: 'nope' }] }],
+    ['a missing today', { today: undefined }],
     ['an unknown currency', { currency: 'EUR' }],
   ])('rejects %s as a generic failure with no view', async (_name, patch) => {
     const { client } = clientWith(jsonResponse(200, { ...dashboard, ...patch }));

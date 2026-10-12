@@ -56,16 +56,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)');
+    // Some embedded browsers have no `matchMedia`: the theme then follows the light default.
+    const query =
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: dark)')
+        : null;
     const onChange = (event: { matches: boolean }) => {
       setPrefersDark(event.matches);
     };
+    // Another tab changed the preference: `key` is null when its storage was cleared.
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === THEME_STORAGE_KEY) setStored(readStoredTheme());
+    };
     setStored(readStoredTheme());
-    setPrefersDark(query.matches);
+    setPrefersDark(query?.matches ?? false);
     setReady(true);
-    query.addEventListener('change', onChange);
+    query?.addEventListener('change', onChange);
+    window.addEventListener('storage', onStorage);
     return () => {
-      query.removeEventListener('change', onChange);
+      query?.removeEventListener('change', onChange);
+      window.removeEventListener('storage', onStorage);
     };
   }, []);
 

@@ -37,6 +37,8 @@ drawing coordinate.
   Nothing else in the app imports the parser or reads a raw field. When 09b merges, the parser file is
   deleted in favor of the shared schema and only the adapter is adjusted; the assumed fields are listed
   in Block 0 (A1 to A9) so they can be compared with the merged 09b spec line by line.
+  Update 2026-10-12: the parser and the adapter were aligned to spec-DISC-001-09b (response shape,
+  link targets, derived `overdue`); A1 to A9 are superseded by that spec.
 - **D2 Series request.** The net worth call sends no `from` or `to`, so the API answers its default
   range of 12 months ending today (the current month is dated today, earlier ones at their month end);
   the client never reads the clock. Points with a null total are kept for the points list and are not

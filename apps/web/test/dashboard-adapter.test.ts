@@ -14,44 +14,49 @@ const ID = '3f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a10';
 const ID2 = '9b1d2c34-1e5f-4a67-8b90-0c1d2e3f4a5b';
 const OTHER = 'Other';
 
-const EMPTY_ENTRY = {
-  kind: 'payment',
-  id: null,
-  name: null,
-  date: null,
-  amount: null,
-  currency: null,
+const PARTS = {
+  accounts: { ars: '90000000', usd: '100000' },
+  investments: { ars: '10000000', usd: '0' },
+  groups: { ars: '0', usd: '0' },
+  installmentDebt: { ars: '0', usd: '0' },
 };
 
-function raw(patch: Record<string, unknown> = {}) {
-  return dashboardResponseSchema.parse({
+// A body in the shape of spec DISC-001-09b (packages/shared/src/dashboard/dashboard.ts).
+function body(patch: Record<string, unknown> = {}) {
+  return {
     currency: 'ARS',
+    today: '2026-10-12',
     netWorth: {
       ars: '100000000',
       usd: '100000',
       total: '142000000',
       reason: null,
       holdingsWithoutPrice: 2,
+      parts: PARTS,
     },
     month: {
+      from: '2026-10-01',
+      to: '2026-10-12',
       expenses: '24000000',
       income: '80000000',
       net: '-5600',
-      expensesChange: 20,
-      incomeChange: null,
-      netChange: -5,
-      leftOutShares: 1,
-      leftOutInstallments: 2,
+      change: { expenses: 20, income: null, net: -5 },
+      unconvertedShareCount: 1,
+      unconvertedInstallmentCount: 2,
     },
     categories: [],
     budgets: [],
     upcoming: [],
     actions: [],
-    groups: { owedToYou: { ARS: '3000000', USD: '0' }, youOwe: { ARS: '0', USD: '5000' } },
+    groups: { owedToYou: { ars: '3000000', usd: '0' }, youOwe: { ars: '0', usd: '5000' } },
     insight: null,
     firstSteps: { hasAccount: true, hasMovement: false, show: false },
     ...patch,
-  });
+  };
+}
+
+function raw(patch: Record<string, unknown> = {}) {
+  return dashboardResponseSchema.parse(body(patch));
 }
 
 const view = (patch: Record<string, unknown> = {}, locale: 'es' | 'en' = 'en') =>
@@ -72,7 +77,14 @@ describe('toDashboardView', () => {
 
   it('keeps both parts and no total on no_rate, and a null change null (AC-05, AC-09)', () => {
     const result = view({
-      netWorth: { ars: '5', usd: '7', total: null, reason: 'no_rate', holdingsWithoutPrice: 0 },
+      netWorth: {
+        ars: '5',
+        usd: '7',
+        total: null,
+        reason: 'no_rate',
+        holdingsWithoutPrice: 0,
+        parts: PARTS,
+      },
     });
     expect(result.netWorth).toMatchObject({ total: null, reason: 'no_rate', ars: 5n, usd: 7n });
     expect(result.month.income.change).toBeNull();
@@ -81,10 +93,12 @@ describe('toDashboardView', () => {
 
   it('keeps the budget statuses and their order (AC-17)', () => {
     const budgets = (['over', 'close', 'on_track'] as const).map((status, i) => ({
-      id: ID,
+      budgetId: ID,
       name: `B${i}`,
       currency: 'USD',
-      percent: 120 - i * 40,
+      available: '1000',
+      spent: '500',
+      percentUsed: 120 - i * 40,
       status,
     }));
     const result = view({ budgets });
@@ -95,10 +109,10 @@ describe('toDashboardView', () => {
 
   it('names categories in the active language, then the response name, then the generic label (AC-48)', () => {
     const categories = [
-      { categoryId: null, defaultKey: 'food', name: null, amount: '1', share: 50 },
-      { categoryId: ID, defaultKey: 'nope-unknown', name: 'Mine', amount: '2', share: 30 },
-      { categoryId: ID2, defaultKey: 'nope-unknown', name: null, amount: '3', share: 20 },
-      { categoryId: null, defaultKey: null, name: '  ', amount: '4', share: 0 },
+      { categoryId: null, defaultKey: 'food', name: null, amount: '1', sharePercent: 50 },
+      { categoryId: ID, defaultKey: 'nope-unknown', name: 'Mine', amount: '2', sharePercent: 30 },
+      { categoryId: ID2, defaultKey: 'nope-unknown', name: null, amount: '3', sharePercent: 20 },
+      { categoryId: null, defaultKey: null, name: '  ', amount: '4', sharePercent: 0 },
     ];
     const en = view({ categories }, 'en').categories;
     const es = view({ categories }, 'es').categories;
@@ -111,56 +125,88 @@ describe('toDashboardView', () => {
     expect(en[0]?.amount).toBe(1n);
   });
 
-  it('builds links only from UUID ids and fixed prefixes, with fallbacks (AC-21)', () => {
+  it('builds links from the real ids of each union member (AC-21)', () => {
     const result = view({
       upcoming: [
         {
-          ...EMPTY_ENTRY,
-          id: ID,
-          name: 'Rent',
+          kind: 'recurring_payment',
+          paymentId: ID,
           date: '2026-10-15',
-          amount: '100',
+          name: 'Rent',
           currency: 'ARS',
+          amount: '100',
         },
-        { ...EMPTY_ENTRY, kind: 'statement', id: ID2, date: '2026-10-18' },
-        { ...EMPTY_ENTRY, kind: 'statement' },
-        EMPTY_ENTRY,
+        {
+          kind: 'card_statement',
+          cardId: ID2,
+          statementId: ID,
+          date: '2026-10-18',
+          name: 'Visa',
+          currency: 'USD',
+          amount: '50',
+        },
       ],
       actions: [
+        { kind: 'overdue_occurrence', dueDate: '2026-10-01', name: 'Gym', occurrenceId: ID },
+        { kind: 'pending_occurrence', dueDate: '2026-10-12', name: 'Rent', occurrenceId: ID2 },
         {
-          ...EMPTY_ENTRY,
-          kind: 'overdue_occurrence',
-          id: ID,
-          name: 'Gym',
-          date: '2026-10-01',
-          amount: '9',
-          currency: 'USD',
+          kind: 'unpaid_statement',
+          dueDate: '2026-10-05',
+          name: 'Visa',
+          statementId: ID,
+          cardId: ID2,
         },
-        { ...EMPTY_ENTRY, kind: 'weird-new-kind' },
+        {
+          kind: 'unpaid_statement',
+          dueDate: '2026-10-12',
+          name: 'Master',
+          statementId: ID,
+          cardId: ID2,
+        },
       ],
     });
-    expect(result.upcoming.map((u) => u.href)).toEqual([
-      `/recurring/${ID}`,
-      `/cards/${ID2}`,
-      '/cards',
-      '/recurring',
-    ]);
+    // The web has no statement route and no occurrence route: cards go to the card, occurrences
+    // to the recurring list.
+    expect(result.upcoming.map((u) => u.href)).toEqual([`/recurring/${ID}`, `/cards/${ID2}`]);
     expect(result.upcoming[0]).toMatchObject({ name: 'Rent', amount: 100n, currency: 'ARS' });
-    expect(result.upcoming[1]).toMatchObject({ name: null, amount: null });
-    expect(result.actions[0]).toMatchObject({
-      href: `/recurring/${ID}`,
-      overdue: true,
-      amount: 9n,
+    expect(result.upcoming[1]).toMatchObject({
+      kind: 'card_statement',
+      amount: 50n,
+      currency: 'USD',
     });
-    expect(result.actions[1]).toMatchObject({ href: '/recurring', overdue: false });
+    expect(result.actions.map((a) => a.href)).toEqual([
+      '/recurring',
+      '/recurring',
+      `/cards/${ID2}`,
+      `/cards/${ID2}`,
+    ]);
+    expect(result.actions[0]).toMatchObject({ date: '2026-10-01', amount: null, currency: null });
+    expect(result.actions.map((a) => a.overdue)).toEqual([true, false, true, false]);
   });
 
-  it('rejects a non-UUID id in an entry at the parser', () => {
-    expect(() => raw({ upcoming: [{ ...EMPTY_ENTRY, id: '../x' }] })).toThrow();
+  it('rejects a non-UUID id in an entry and an unknown kind at the parser', () => {
+    const upcoming = {
+      kind: 'recurring_payment',
+      date: '2026-10-15',
+      name: 'x',
+      currency: 'ARS',
+      amount: '1',
+    };
+    expect(() => raw({ upcoming: [{ ...upcoming, paymentId: '../x' }] })).toThrow();
+    expect(() => raw({ upcoming: [{ ...upcoming, kind: 'weird', paymentId: ID }] })).toThrow();
   });
 
   it('maps groups, insight and first steps', () => {
-    const result = view({ insight: { defaultKey: 'food', name: null, share: 32, change: 40 } });
+    const result = view({
+      insight: {
+        categoryId: null,
+        defaultKey: 'food',
+        name: null,
+        amount: '10',
+        sharePercent: 32,
+        changePercent: 40,
+      },
+    });
     expect(result.groups.owedToYou).toEqual({ ARS: 3000000n, USD: 0n });
     expect(result.groups.youOwe).toEqual({ ARS: 0n, USD: 5000n });
     expect(result.insight).toEqual({ label: 'Food', share: 32, change: 40 });

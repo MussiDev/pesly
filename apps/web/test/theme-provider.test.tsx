@@ -115,6 +115,48 @@ describe('ThemeProvider', () => {
     expect(isDark()).toBe(false);
   });
 
+  it('picks up a theme changed in another tab through the storage event', () => {
+    stubSystemPreference(false);
+    renderToggle();
+    expect(probe()).toBe('system:light');
+
+    act(() => {
+      localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+      window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY }));
+    });
+    expect(probe()).toBe('dark:dark');
+    expect(isDark()).toBe(true);
+
+    act(() => {
+      localStorage.removeItem(THEME_STORAGE_KEY);
+      window.dispatchEvent(new StorageEvent('storage', { key: THEME_STORAGE_KEY }));
+    });
+    expect(probe()).toBe('system:light');
+  });
+
+  it('ignores storage events for other keys and a cleared storage', () => {
+    stubSystemPreference(false);
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    renderToggle();
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'other' }));
+    });
+    expect(probe()).toBe('dark:dark');
+    act(() => {
+      localStorage.clear();
+      window.dispatchEvent(new StorageEvent('storage', { key: null }));
+    });
+    expect(probe()).toBe('system:light');
+  });
+
+  it('still works when matchMedia is not available', () => {
+    vi.stubGlobal('matchMedia', undefined);
+    localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    renderToggle();
+    expect(probe()).toBe('dark:dark');
+    expect(isDark()).toBe(true);
+  });
+
   it.each(['<img src=x>', 'system'])('treats the stored value %j as system', (value) => {
     stubSystemPreference(false);
     localStorage.setItem(THEME_STORAGE_KEY, value);

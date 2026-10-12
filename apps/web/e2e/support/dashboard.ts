@@ -55,8 +55,8 @@ function corsHeaders(route: Route): Record<string, string> {
 
 /**
  * TODO(09b): slice 09b (`GET /dashboard`) is not merged on this branch, so the browser specs serve
- * that one path from a typed fixture that the app's own provisional contract parser accepts
- * (`apps/web/src/lib/dashboard-contract.ts`). Accounts, movements and `GET /reports/net-worth`
+ * that one path from a typed fixture in the 09b response shape that the app's own contract parser
+ * accepts (`apps/web/src/lib/dashboard-contract.ts`, aligned to spec-DISC-001-09b). Accounts, movements and `GET /reports/net-worth`
  * stay real. When 09b merges, delete this helper and `dashboard-fixtures.ts` and seed the real
  * data (a budget, a recurring payment due in 3 days, a closed statement due in 2 days) instead.
  *

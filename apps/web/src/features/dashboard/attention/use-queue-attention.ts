@@ -7,6 +7,9 @@ import { readGroupQueueCounts } from '@/lib/sync/group-queue-counts';
 import { onQueueChanged, onSyncFinished } from '@/lib/sync/sync-events';
 import type { QueueAttention } from './attention-items';
 
+/** How long the skeleton may wait for the local read before the screen shows without the queue. */
+const READ_TIMEOUT_MS = 2000;
+
 const EMPTY: QueueAttention = { failedMovements: 0, failedGroupChanges: 0, groupConflicts: 0 };
 
 /**
@@ -45,11 +48,16 @@ export function useQueueAttention(): { ready: boolean; queue: QueueAttention } {
         });
       });
     };
+    // An IndexedDB read that never settles must not keep the skeleton up forever.
+    const timer = setTimeout(() => {
+      if (live) setState((current) => (current.ready ? current : { ready: true, queue: EMPTY }));
+    }, READ_TIMEOUT_MS);
     read();
     const stopQueue = onQueueChanged(read);
     const stopSync = onSyncFinished(read);
     return () => {
       live = false;
+      clearTimeout(timer);
       stopQueue();
       stopSync();
     };
