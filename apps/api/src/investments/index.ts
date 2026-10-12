@@ -29,6 +29,12 @@ import { holdingRoutes } from './infrastructure/http/holding-routes';
 import { portfolioRoutes } from './infrastructure/http/portfolio-routes';
 import { systemClock } from './infrastructure/system-clock';
 
+export { ListPortfolios } from './application/portfolio-use-cases';
+export type { PortfolioView } from './application/portfolio-view';
+export { DrizzleHoldingRepository } from './infrastructure/db/drizzle-holding-repository';
+export { DrizzleMarketPriceReader } from './infrastructure/db/drizzle-market-price-reader';
+export { DrizzlePortfolioRepository } from './infrastructure/db/drizzle-portfolio-repository';
+
 export interface InvestmentsRoutesOptions {
   db: InvestmentsDb;
   /** Defaults to the module's own system clock. */
