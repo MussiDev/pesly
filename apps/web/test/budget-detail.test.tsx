@@ -214,7 +214,53 @@ describe('BudgetDetailContainer', () => {
     open();
 
     await screen.findByTestId('budget-progress');
-    expect(screen.getByText(/^3 group shares could not be converted/)).toBeTruthy();
+    expect(
+      screen.getByText(/^3 group shares or card installments could not be converted/),
+    ).toBeTruthy();
+  });
+
+  it('shows the notice with the count of 1 installment not converted (AC-27)', async () => {
+    stubApi(routes({ [GET_SPENDING]: ok(spending({ unconvertedInstallmentCount: 1 })) }));
+    open();
+
+    await screen.findByTestId('budget-progress');
+    expect(
+      screen.getByText(/^1 group share or card installment could not be converted/),
+    ).toBeTruthy();
+  });
+
+  it('adds shares and installments left out into one count (AC-27)', async () => {
+    stubApi(
+      routes({
+        [GET_SPENDING]: ok(spending({ unconvertedShareCount: 2, unconvertedInstallmentCount: 3 })),
+      }),
+    );
+    open();
+
+    await screen.findByTestId('budget-progress');
+    expect(screen.getByText(/^5 group shares or card installments/)).toBeTruthy();
+  });
+
+  it.each([
+    ['en', en],
+    ['es', es],
+  ] as const)('shows the card purchases note in %s (AC-13)', async (locale, catalog) => {
+    stubApi(routes());
+    open(locale);
+
+    await screen.findByTestId('budget-progress');
+    expect(screen.getByText(catalog.cardPurchasesNote.text)).toBeTruthy();
+  });
+
+  it('shows the failure state, not a notice, when the response lacks the installment count (AC-27)', async () => {
+    const legacy: Record<string, unknown> = spending({ unconvertedShareCount: 2 });
+    delete legacy['unconvertedInstallmentCount'];
+    stubApi(routes({ [GET_SPENDING]: ok(legacy) }));
+    open();
+
+    expect(await screen.findByRole('button', { name: en.app.retry })).toBeTruthy();
+    expect(screen.queryByTestId('budget-progress')).toBeNull();
+    expect(screen.queryByText(/could not be converted/)).toBeNull();
   });
 
   it('shows no unconverted shares notice at 0 (AC-14)', async () => {
@@ -298,6 +344,8 @@ describe('BudgetDetailContainer', () => {
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: es.budgets.detail.edit })).toBeTruthy();
     expect(screen.getByRole('list', { name: es.budgets.detail.categories })).toBeTruthy();
-    expect(screen.getByText(/^1 parte de grupo no se pudo convertir/)).toBeTruthy();
+    expect(
+      screen.getByText(/^1 parte de grupo o cuota de tarjeta no se pudo convertir/),
+    ).toBeTruthy();
   });
 });

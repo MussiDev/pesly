@@ -2196,7 +2196,7 @@
       "rollover": "Includes {amount} carried over",
       "thresholds": "Alerts",
       "marker": "Alert at {percent, number, ::percent}",
-      "unconvertedShares": "{count, plural, one {# group share could not be converted and is not counted} other {# group shares could not be converted and are not counted}}"
+      "unconvertedShares": "{count, plural, one {# group share or card installment could not be converted and is not counted} other {# group shares or card installments could not be converted and are not counted}}"
     },
     "detail": {
       "title": "Budget",

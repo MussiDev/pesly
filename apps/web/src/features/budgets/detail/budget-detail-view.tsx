@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { formatPeriod } from '@/features/credit-cards/format-dates';
@@ -45,7 +46,11 @@ export function BudgetDetailView({ view, groups, onDeleted }: BudgetDetailViewPr
         {t('month', { month: formatPeriod(view.month, locale) })}
       </p>
       <BudgetProgress view={view} />
-      <UnconvertedNotice count={view.unconvertedShareCount} />
+      <UnconvertedNotice
+        shares={view.unconvertedShareCount}
+        installments={view.unconvertedInstallmentCount}
+      />
+      <CardPurchasesNote />
       <BudgetCategories groups={groups} />
       <section className="grid gap-2">
         <h2 className="text-h3 font-semibold">{t('thresholds')}</h2>

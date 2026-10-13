@@ -2202,7 +2202,7 @@
       "rollover": "Incluye {amount} acumulados del mes anterior",
       "thresholds": "Alertas",
       "marker": "Alerta al {percent, number, ::percent}",
-      "unconvertedShares": "{count, plural, one {# parte de grupo no se pudo convertir y no se cuenta} other {# partes de grupo no se pudieron convertir y no se cuentan}}"
+      "unconvertedShares": "{count, plural, one {# parte de grupo o cuota de tarjeta no se pudo convertir y no se cuenta} other {# partes de grupo o cuotas de tarjeta no se pudieron convertir y no se cuentan}}"
     },
     "detail": {
       "title": "Presupuesto",

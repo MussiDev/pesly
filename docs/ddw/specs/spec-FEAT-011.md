@@ -270,12 +270,12 @@ its months.
   existing failure state; no value is guessed.
 
 **Required tests**
-- [ ] The budget list and the budget detail show the card purchases note in Spanish and in English —
+- [x] The budget list and the budget detail show the card purchases note in Spanish and in English —
       validates AC-13.
-- [ ] A budget with 1 installment not converted shows the notice with that count — validates AC-27.
-- [ ] Both catalogs carry the same keys and no string is hardcoded — validates AC-13.
-- [ ] The screens issue the same requests as before — validates AC-17.
-- [ ] A response missing the new field shows the failure state, not a notice with a wrong count.
+- [x] A budget with 1 installment not converted shows the notice with that count — validates AC-27.
+- [x] Both catalogs carry the same keys and no string is hardcoded — validates AC-13.
+- [x] The screens issue the same requests as before — validates AC-17.
+- [x] A response missing the new field shows the failure state, not a notice with a wrong count.
 
 **Completion criterion**
 The listed web tests pass with `npx vitest run` and the budgets screens render the note in both

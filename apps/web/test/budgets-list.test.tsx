@@ -301,9 +301,69 @@ describe('BudgetsContainer', () => {
     renderApp(<BudgetsContainer />, { locale: 'en' });
 
     const some = await screen.findByRole('listitem', { name: 'Some' });
-    expect(within(some).getByText(/2 group shares could not be converted/)).toBeDefined();
+    expect(
+      within(some).getByText(/2 group shares or card installments could not be converted/),
+    ).toBeDefined();
     const none = screen.getByRole('listitem', { name: 'None' });
     expect(within(none).queryByText(/could not be converted/)).toBeNull();
+  });
+
+  it('counts shares and installments left out together in the notice (AC-27)', async () => {
+    stubApi({
+      'GET /budgets/spending': list([
+        spending({ name: 'Cards', unconvertedShareCount: 0, unconvertedInstallmentCount: 1 }),
+        spending({
+          budgetId: '4f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a11',
+          name: 'Both',
+          unconvertedShareCount: 2,
+          unconvertedInstallmentCount: 3,
+        }),
+      ]),
+    });
+    renderApp(<BudgetsContainer />, { locale: 'en' });
+
+    const cards = await screen.findByRole('listitem', { name: 'Cards' });
+    expect(
+      within(cards).getByText(/^1 group share or card installment could not be converted/),
+    ).toBeDefined();
+    const both = screen.getByRole('listitem', { name: 'Both' });
+    expect(
+      within(both).getByText(/^5 group shares or card installments could not be converted/),
+    ).toBeDefined();
+  });
+
+  it.each([
+    ['es', es],
+    ['en', en],
+  ] as const)(
+    'shows the card purchases note under the header in %s (AC-13)',
+    async (locale, catalog) => {
+      stubApi({ 'GET /budgets/spending': list([spending()]) });
+      renderApp(<BudgetsContainer />, { locale });
+
+      await screen.findByRole('listitem', { name: 'Food' });
+      expect(screen.getByText(catalog.cardPurchasesNote.text)).toBeDefined();
+    },
+  );
+
+  it('loads the list with the same single request as before (AC-17)', async () => {
+    const { calls } = stubApi({ 'GET /budgets/spending': list([spending()]) });
+    renderApp(<BudgetsContainer />, { locale: 'en' });
+
+    await screen.findByText(en.cardPurchasesNote.text);
+    await screen.findByRole('listitem', { name: 'Food' });
+    expect(calls.map((c) => c.path)).toEqual(['/budgets/spending']);
+  });
+
+  it('shows the failure state, not a notice with a guessed count, when the response lacks the installment count (AC-27)', async () => {
+    const legacy: Record<string, unknown> = spending({ unconvertedShareCount: 2 });
+    delete legacy['unconvertedInstallmentCount'];
+    stubApi({ 'GET /budgets/spending': list([legacy as unknown as BudgetSpendingResponse]) });
+    renderApp(<BudgetsContainer />, { locale: 'en' });
+
+    expect(await screen.findByRole('button', { name: en.budgets.list.retry })).toBeDefined();
+    expect(screen.queryByRole('listitem', { name: 'Food' })).toBeNull();
+    expect(screen.queryByText(/could not be converted/)).toBeNull();
   });
 
   it('loads an earlier month from the query after the current one (query month)', async () => {
@@ -385,9 +445,20 @@ describe('BudgetProgress', () => {
 
 describe('UnconvertedNotice', () => {
   it('renders nothing for a count of 0 and the count otherwise (AC-13, AC-14)', () => {
-    const { rerender, container } = renderApp(<UnconvertedNotice count={0} />, { locale: 'es' });
+    const { rerender, container } = renderApp(<UnconvertedNotice shares={0} installments={0} />, {
+      locale: 'es',
+    });
     expect(container.textContent).toBe('');
-    rerender(<UnconvertedNotice count={1} />);
-    expect(screen.getByText(/1 parte de grupo/)).toBeDefined();
+    rerender(<UnconvertedNotice shares={1} installments={0} />);
+    expect(screen.getByText(/1 parte de grupo o cuota de tarjeta/)).toBeDefined();
+  });
+
+  it('sums shares and installments, and shows for installments alone (AC-27)', () => {
+    const { rerender } = renderApp(<UnconvertedNotice shares={0} installments={1} />, {
+      locale: 'en',
+    });
+    expect(screen.getByText(/^1 group share or card installment could not be/)).toBeDefined();
+    rerender(<UnconvertedNotice shares={2} installments={3} />);
+    expect(screen.getByText(/^5 group shares or card installments could not be/)).toBeDefined();
   });
 });

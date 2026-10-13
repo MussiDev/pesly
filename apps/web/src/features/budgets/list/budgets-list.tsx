@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { buttonVariants } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
 import { Link } from '@/i18n/navigation';
@@ -12,15 +13,18 @@ import { BudgetsEmptyState } from './budgets-empty-state';
 export function BudgetsHeader() {
   const t = useTranslations('budgets.list');
   return (
-    <PageHeader
-      title={t('title')}
-      description={t('description')}
-      actions={
-        <Link href="/budgets/new" className={buttonVariants({ size: 'sm' })}>
-          {t('create')}
-        </Link>
-      }
-    />
+    <div className="grid gap-3">
+      <PageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <Link href="/budgets/new" className={buttonVariants({ size: 'sm' })}>
+            {t('create')}
+          </Link>
+        }
+      />
+      <CardPurchasesNote />
+    </div>
   );
 }
 
