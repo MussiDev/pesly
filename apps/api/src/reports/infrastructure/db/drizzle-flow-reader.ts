@@ -1,9 +1,12 @@
+import { databaseTimeZone } from '@pesly/shared';
 import { and, asc, eq, gte, isNull, lt, lte, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { assertIssuedScope, type AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
 import type {
+  CardPurchaseFlowRow,
+  CardPurchaseOptions,
   FlowReader,
   FlowWindow,
   InstallmentFlowRow,
@@ -11,7 +14,7 @@ import type {
   ShareFlowRow,
 } from '../../application/ports/flow-reader';
 import type { TopCategory } from '../../domain/flows';
-import { instant, monthIn, personalConditions } from './flow-conditions';
+import { instant, monthIn, ownedFlowConditions, personalConditions } from './flow-conditions';
 import {
   accounts,
   categories,
@@ -25,6 +28,18 @@ import {
   installments,
   movements,
 } from './foreign-relations';
+
+interface CardPurchaseSqlRow extends Record<string, unknown> {
+  period: string;
+  due_date: string | null;
+  closing_day: number;
+  due_day: number;
+  top_category_id: string | null;
+  currency: 'ARS' | 'USD';
+  rate: string | null;
+  sum: string;
+  count: number;
+}
 
 export class DrizzleFlowReader implements FlowReader {
   constructor(private readonly db: Database) {}
@@ -203,6 +218,89 @@ export class DrizzleFlowReader implements FlowReader {
       sum: BigInt(row.sum),
       count: row.count,
     }));
+  }
+
+  async cardPurchaseRows(
+    scope: AccessScope,
+    periodFrom: string,
+    periodTo: string,
+    options: CardPurchaseOptions,
+  ): Promise<CardPurchaseFlowRow[]> {
+    const zone = databaseTimeZone(options.timeZone);
+    // The purchase's calendar day in the user's zone, as the statements' closing dates are days.
+    const day = sql`(${movements.occurredAt} at time zone ${zone})::date`;
+    // No stored statement closes on or after the day: the cycle the card days would give, and never
+    // one at or before the last stored statement (its closing date, possibly edited by hand, is
+    // before the day, so the purchase belongs to a later cycle).
+    const dayCycle = sql`to_char(case when extract(day from ${day}) <= ${creditCards.closingDay} then ${day} else ${day} + interval '1 month' end, 'YYYY-MM')`;
+    const afterLastStored = sql`(
+      select to_char((max(${creditCardStatements.period}) || '-01')::date + interval '1 month', 'YYYY-MM')
+      from ${creditCardStatements}
+      where ${creditCardStatements.cardId} = ${creditCards.id}
+        and ${creditCardStatements.ownerId} = ${creditCards.ownerId}
+    )`;
+    const fallbackPeriod = sql`greatest(${dayCycle}, ${afterLastStored})`;
+    // No purchase date bound: the period is what places a purchase, and a purchase long before the
+    // first stored cycle still belongs to that cycle, so a date window would make the figure of a
+    // month depend on the range that is asked for.
+    const conditions = and(
+      ...ownedFlowConditions(this.db, scope, options),
+      eq(movements.type, 'expense'),
+    );
+    // One grouped read, then the exact period filter on the outside: the period is a computed
+    // column, so filtering it in HAVING would repeat the expression under other placeholders.
+    const result = await this.db.execute<CardPurchaseSqlRow>(sql`
+      select * from (
+        select
+          coalesce(stmt.period, ${fallbackPeriod}) as period,
+          to_char(stmt.due_date, 'YYYY-MM-DD') as due_date,
+          ${creditCards.closingDay} as closing_day,
+          ${creditCards.dueDay} as due_day,
+          coalesce(${categories.parentId}, ${categories.id}) as top_category_id,
+          ${accounts.currency} as currency,
+          ${movements.rate}::text as rate,
+          sum(${movements.amount})::text as sum,
+          count(*)::int as count
+        from ${movements}
+        inner join ${accounts}
+          on ${accounts.id} = ${movements.accountId} and ${accounts.ownerId} = ${movements.ownerId}
+        inner join ${creditCards}
+          on ${creditCards.ownerId} = ${movements.ownerId}
+          and (${creditCards.arsAccountId} = ${movements.accountId}
+            or ${creditCards.usdAccountId} = ${movements.accountId})
+        inner join ${categories}
+          on ${categories.id} = ${movements.categoryId} and ${categories.ownerId} = ${movements.ownerId}
+        left join lateral (
+          select ${creditCardStatements.period} as period, ${creditCardStatements.dueDate} as due_date
+          from ${creditCardStatements}
+          where ${creditCardStatements.cardId} = ${creditCards.id}
+            and ${creditCardStatements.ownerId} = ${creditCards.ownerId}
+            and ${creditCardStatements.closingDate} >= ${day}
+          order by ${creditCardStatements.closingDate} asc, ${creditCardStatements.period} asc
+          limit 1
+        ) stmt on true
+        where ${conditions}
+        group by 1, 2, 3, 4, 5, 6, 7
+      ) grouped
+      where grouped.period between ${periodFrom} and ${periodTo}
+      order by grouped.period, grouped.top_category_id, grouped.currency, grouped.rate
+    `);
+
+    return result.rows.map((row) => {
+      if (row.top_category_id === null) throw new Error('A flow movement has no category');
+      if (row.rate === null) throw new Error('A flow movement has no frozen rate');
+      return {
+        period: row.period,
+        dueDate: row.due_date,
+        closingDay: row.closing_day,
+        dueDay: row.due_day,
+        topCategoryId: row.top_category_id,
+        currency: row.currency,
+        rate: BigInt(row.rate),
+        sum: BigInt(row.sum),
+        count: row.count,
+      };
+    });
   }
 
   async topCategories(scope: AccessScope): Promise<TopCategory[]> {

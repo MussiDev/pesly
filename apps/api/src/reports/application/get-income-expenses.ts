@@ -47,15 +47,28 @@ export class GetIncomeExpenses implements ReportUseCase<ReportFlowQuery, IncomeE
       ...(context.tag === undefined ? {} : { tag: context.tag }),
     };
 
-    const personal = convertRows(
-      await this.deps.flows.personalRows(scope, window),
-      display,
-      'throw',
-    );
+    // The due date can fall a month or two after the statement's period.
+    const firstMonth = range.from.slice(0, 7);
+    const lastMonth = range.to.slice(0, 7);
+    // A card purchase counts in the month its statement is due, with or without an account or tag
+    // filter (FEAT-010): unlike a share or an installment, it is a movement and can be filtered.
+    const [personalRows, cardPurchaseRows] = await Promise.all([
+      this.deps.flows.personalRows(scope, window),
+      this.deps.flows.cardPurchaseRows(scope, addMonths(firstMonth, -2), addMonths(lastMonth, 2), {
+        timeZone: window.timeZone,
+        ...(context.accountId === undefined ? {} : { accountId: context.accountId }),
+        ...(context.tag === undefined ? {} : { tag: context.tag }),
+      }),
+    ]);
+    const personal = convertRows(personalRows, display, 'throw');
     const incomes: MonthAmount[] = [];
     const expenses: MonthAmount[] = [];
     for (const { row, amount } of personal.items) {
       (row.type === 'income' ? incomes : expenses).push({ month: row.month, amount });
+    }
+    for (const { row, amount } of convertRows(cardPurchaseRows, display, 'throw').items) {
+      const month = installmentMonthOf(row, range.from, range.to);
+      if (month !== null) expenses.push({ month, amount });
     }
 
     let unconvertedShareCount = 0;
@@ -66,9 +79,6 @@ export class GetIncomeExpenses implements ReportUseCase<ReportFlowQuery, IncomeE
       for (const { row, amount } of shares.items) expenses.push({ month: row.month, amount });
       unconvertedShareCount = shares.unconvertedCount;
 
-      // The due date can fall a month or two after the statement's period.
-      const firstMonth = range.from.slice(0, 7);
-      const lastMonth = range.to.slice(0, 7);
       const rows = await this.deps.flows.installmentRows(
         scope,
         addMonths(firstMonth, -2),

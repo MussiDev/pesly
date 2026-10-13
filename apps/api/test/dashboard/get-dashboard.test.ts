@@ -48,6 +48,7 @@ function setup(overrides: Partial<GetDashboardDependencies> = {}) {
         personalRows: () => Promise.resolve([]),
         shareRows: () => Promise.resolve([]),
         installmentRows: () => Promise.resolve([]),
+        cardPurchaseRows: () => Promise.resolve([]),
         topCategories: () => Promise.resolve([]),
       },
     },

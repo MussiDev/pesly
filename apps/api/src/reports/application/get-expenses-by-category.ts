@@ -32,7 +32,21 @@ export class GetExpensesByCategory {
       ...(context.tag === undefined ? {} : { tag: context.tag }),
     };
 
-    const personalRows = await flows.personalRows(scope, window);
+    // A card purchase counts in the month its statement is due, with or without an account or tag
+    // filter (FEAT-010): unlike a share or an installment, it is a movement and can be filtered.
+    const [personalRows, cardPurchaseRows] = await Promise.all([
+      flows.personalRows(scope, window),
+      flows.cardPurchaseRows(
+        scope,
+        addMonths(context.range.from.slice(0, 7), -PERIOD_MARGIN),
+        addMonths(context.range.to.slice(0, 7), PERIOD_MARGIN),
+        {
+          timeZone: window.timeZone,
+          ...(context.accountId === undefined ? {} : { accountId: context.accountId }),
+          ...(context.tag === undefined ? {} : { tag: context.tag }),
+        },
+      ),
+    ]);
     const known = await flows.topCategories(scope);
     const [shareRows, installmentRows] = filtered
       ? [[], []]
@@ -57,6 +71,14 @@ export class GetExpensesByCategory {
       'throw',
     );
     for (const { row, amount } of personal.items) {
+      requireKnown(row.topCategoryId);
+      addToCategory(totals, row.topCategoryId, amount);
+    }
+
+    const cardDue = cardPurchaseRows.filter(
+      (row) => installmentMonthOf(row, context.range.from, context.range.to) !== null,
+    );
+    for (const { row, amount } of convertRows(cardDue, display, 'throw').items) {
       requireKnown(row.topCategoryId);
       addToCategory(totals, row.topCategoryId, amount);
     }

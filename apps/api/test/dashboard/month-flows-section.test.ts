@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { AccessScope } from '../../src/shared/access';
 import type { FlowReader, FlowWindow, TopCategory } from '../../src/reports';
 import type {
+  CardPurchaseFlowRow,
   InstallmentFlowRow,
   PersonalFlowRow,
   ShareFlowRow,
@@ -87,13 +88,15 @@ interface Fixture {
   shares?: ShareFlowRow[];
   previousShares?: ShareFlowRow[];
   installments?: InstallmentFlowRow[];
+  cardPurchases?: CardPurchaseFlowRow[];
   categories?: TopCategory[];
 }
 
 const MAIN_WINDOW_MIN_MS = 60 * 24 * 3600 * 1000;
 
 class FakeFlows implements FlowReader {
-  calls = { personal: 0, shares: 0, installments: 0, categories: 0 };
+  calls = { personal: 0, shares: 0, installments: 0, cardPurchases: 0, categories: 0 };
+  cardPurchasePeriods: [string, string][] = [];
   windows: FlowWindow[] = [];
   periods: [string, string][] = [];
 
@@ -131,6 +134,16 @@ class FakeFlows implements FlowReader {
     this.calls.installments += 1;
     this.periods.push([periodFrom, periodTo]);
     return Promise.resolve(this.fixture.installments ?? []);
+  }
+
+  cardPurchaseRows(
+    _scope: AccessScope,
+    periodFrom: string,
+    periodTo: string,
+  ): Promise<CardPurchaseFlowRow[]> {
+    this.calls.cardPurchases += 1;
+    this.cardPurchasePeriods.push([periodFrom, periodTo]);
+    return Promise.resolve(this.fixture.cardPurchases ?? []);
   }
 
   topCategories(): Promise<TopCategory[]> {
@@ -386,10 +399,16 @@ describe('buildMonthFlows', () => {
     expect(result.month.change.net).toBe(25);
   });
 
-  it('makes six reads', async () => {
+  it('makes seven reads', async () => {
     const { flows } = await run({});
 
-    expect(flows.calls).toEqual({ personal: 2, shares: 2, installments: 1, categories: 1 });
+    expect(flows.calls).toEqual({
+      personal: 2,
+      shares: 2,
+      installments: 1,
+      cardPurchases: 1,
+      categories: 1,
+    });
   });
 
   it('throws for a personal row with no frozen rate', async () => {
@@ -416,6 +435,7 @@ describe('buildMonthFlows', () => {
       personalRows: () => Promise.reject(new Error('db down')),
       shareRows: () => Promise.resolve([]),
       installmentRows: () => Promise.resolve([]),
+      cardPurchaseRows: () => Promise.resolve([]),
       topCategories: () => Promise.resolve([]),
     };
     const context = await prepareDashboard(
@@ -445,5 +465,35 @@ describe('buildMonthFlows', () => {
     }).execute(SCOPE, {});
 
     expect(result.month.expenses.toString()).toBe(report.total);
+  });
+});
+
+describe('buildMonthFlows card purchases', () => {
+  const cardPurchase = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
+    topCategoryId: FOOD,
+    currency: 'ARS',
+    rate: RATE,
+    sum: 3_000_000n,
+    count: 1,
+    ...fields,
+  });
+
+  it('counts a card purchase in the month of its due date, like an installment', async () => {
+    const { result, flows } = await run({ cardPurchases: [cardPurchase({})] });
+
+    expect(result.month.expenses).toBe(3_000_000n);
+    expect(flows.cardPurchasePeriods).toHaveLength(1);
+  });
+
+  it('fails the dashboard with a RangeError when the top category of a card purchase is unknown', async () => {
+    await expect(
+      run({
+        cardPurchases: [cardPurchase({ topCategoryId: 'f0000000-0000-4000-8000-0000000000ff' })],
+      }),
+    ).rejects.toThrow(RangeError);
   });
 });

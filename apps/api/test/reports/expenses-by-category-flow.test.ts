@@ -77,10 +77,11 @@ describe('GetExpensesByCategory against PostgreSQL', () => {
       ],
     });
 
+    // The card has its own linked accounts: an expense on them would count by its statement.
     const card = await newCard(connection.pool, {
       ownerId: ana,
-      arsAccountId: ars,
-      usdAccountId: usd,
+      arsAccountId: await newAccount(connection.pool, ana, false, 'ARS'),
+      usdAccountId: await newAccount(connection.pool, ana, false, 'USD'),
     });
     await newInstallmentPurchase(connection.pool, {
       ownerId: ana,

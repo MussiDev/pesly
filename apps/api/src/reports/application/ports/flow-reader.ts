@@ -54,6 +54,23 @@ export interface InstallmentFlowRow {
 }
 
 /**
+ * Sum of the expense movements made on a card's linked account of one (statement, top category,
+ * currency, frozen rate) group. It has the shape of an installment row, so the same placement by
+ * due date applies, plus the movement's own frozen rate.
+ */
+export interface CardPurchaseFlowRow extends Omit<InstallmentFlowRow, 'rate'> {
+  /** The frozen rate of the purchase, ARS per USD scaled by 10,000. */
+  rate: bigint;
+}
+
+/** The optional narrowing of the card purchase read, and the zone that gives a purchase its day. */
+export interface CardPurchaseOptions {
+  timeZone: string;
+  accountId?: string;
+  tag?: string;
+}
+
+/**
  * Aggregated flows of the caller, one statement per method (never one per month or row). Amounts
  * are minor units of the row currency, unconverted; conversion is the domain's job. The use cases
  * call `shareRows` and `installmentRows` only when `accountId` and `tag` are both unset.
@@ -67,6 +84,18 @@ export interface FlowReader {
     periodFrom: string,
     periodTo: string,
   ): Promise<InstallmentFlowRow[]>;
+  /**
+   * Expense movements on a card's linked account, grouped by the statement they belong to
+   * (DISC-001-10b): the stored statement whose period is within `[periodFrom, periodTo]`
+   * (`YYYY-MM`), or, when none is stored, the period computed from the card's closing day. The
+   * account and tag filters apply; the installments' rule of reading them only unfiltered does not.
+   */
+  cardPurchaseRows(
+    scope: AccessScope,
+    periodFrom: string,
+    periodTo: string,
+    options: CardPurchaseOptions,
+  ): Promise<CardPurchaseFlowRow[]>;
   /** The caller's top-level expense categories, oldest first. */
   topCategories(scope: AccessScope): Promise<TopCategory[]>;
 }
