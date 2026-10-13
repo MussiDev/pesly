@@ -1,3 +1,4 @@
+import { databaseTimeZone } from '@pesly/shared';
 import { sql } from 'drizzle-orm';
 import type { CurrencyAmounts } from '../../domain/installment-debt';
 
@@ -23,7 +24,7 @@ export function assertCurrency(value: string): 'ARS' | 'USD' {
 /** The month bucket of the `at` column: null before `start`, else `YYYY-MM` in `timeZone`. */
 export function bucketOfAt(start: Date, timeZone: string) {
   return sql`case when at < ${instant(start)} then null
-    else to_char(at at time zone ${timeZone}::text, 'YYYY-MM') end`;
+    else to_char(at at time zone ${databaseTimeZone(timeZone)}::text, 'YYYY-MM') end`;
 }
 
 /** Folds `(currency, bucket, total)` rows into a baseline and per-month amounts. */

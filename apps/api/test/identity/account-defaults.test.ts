@@ -20,9 +20,11 @@ describe('account defaults', () => {
     expect(defaults.displayCurrency).toBe('ARS');
   });
 
-  it('keeps the time zone America/Cordoba (AC-19)', () => {
-    expect(resolveTimeZone('America/Cordoba')).toBe('America/Cordoba');
-    expect(newAccountDefaults({ timeZone: 'America/Cordoba' }).timeZone).toBe('America/Cordoba');
+  it('stores the legacy alias America/Cordoba as its canonical zone (AC-19)', () => {
+    expect(resolveTimeZone('America/Cordoba')).toBe('America/Argentina/Cordoba');
+    expect(newAccountDefaults({ timeZone: 'America/Cordoba' }).timeZone).toBe(
+      'America/Argentina/Cordoba',
+    );
   });
 
   it('keeps other valid IANA zones as reported', () => {
@@ -73,7 +75,7 @@ describe('account defaults share the profile lists', () => {
     expect(newAccountDefaults({ timeZone: 'America/Cordoba', language: 'en-US' })).toEqual({
       defaultRateType: 'mep',
       displayCurrency: 'ARS',
-      timeZone: 'America/Cordoba',
+      timeZone: 'America/Argentina/Cordoba',
       language: 'en',
     });
   });
