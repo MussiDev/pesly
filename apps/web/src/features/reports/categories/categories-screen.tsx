@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import { CurrencyNote } from '../components/currency-note';
 import { ChartFigure, FiguresList } from '../components/figures-list';
+import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { ReportNotices } from '../components/report-notices';
 import {
   FilterGoneAlert,
@@ -77,11 +78,14 @@ export function CategoriesScreen({
     case 'ready': {
       const view = state.data;
       const notices = (
-        <ReportNotices
-          unconvertedShares={view.unconvertedShareCount}
-          unconvertedInstallments={view.unconvertedInstallmentCount}
-          filtered={filtered}
-        />
+        <>
+          <ReportNotices
+            unconvertedShares={view.unconvertedShareCount}
+            unconvertedInstallments={view.unconvertedInstallmentCount}
+            filtered={filtered}
+          />
+          <CardPurchasesNote />
+        </>
       );
       if (view.total <= 0n) {
         body = (

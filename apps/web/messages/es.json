@@ -2310,6 +2310,9 @@
       "retry": "Reintentar"
     }
   },
+  "cardPurchasesNote": {
+    "text": "Las compras con tarjeta cuentan en el mes de vencimiento de su resumen."
+  },
   "reports": {
     "title": "Reportes",
     "tabs": {

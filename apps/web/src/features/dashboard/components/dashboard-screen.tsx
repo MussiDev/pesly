@@ -12,6 +12,7 @@ import { FirstSteps } from './first-steps';
 import { GroupsCard } from './groups-card';
 import { InsightCard } from './insight-card';
 import { KpiCards } from './kpi-cards';
+import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { MonthNotice } from './month-notice';
 import { NetWorthCard, type SeriesState } from './net-worth-card';
 import { UpcomingCard } from './upcoming-card';
@@ -116,6 +117,7 @@ export function DashboardScreen({ locale, view, series, attention }: DashboardSc
           <div className="grid min-w-0 content-start gap-3">
             <KpiCards locale={locale} currency={view.currency} month={view.month} />
             <MonthNotice count={view.month.leftOutCount} />
+            <CardPurchasesNote />
           </div>
         ),
         quickActions: <QuickActions />,
