@@ -1,4 +1,9 @@
-import { DISPLAY_CURRENCY_VALUES, LANGUAGE_VALUES, type RateType } from '@pesly/shared';
+import {
+  databaseTimeZone,
+  DISPLAY_CURRENCY_VALUES,
+  LANGUAGE_VALUES,
+  type RateType,
+} from '@pesly/shared';
 
 export const DISPLAY_CURRENCIES = DISPLAY_CURRENCY_VALUES;
 export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number];
@@ -15,14 +20,14 @@ export const TIME_ZONE_MAX_LENGTH = 64;
 export const LANGUAGE_MAX_LENGTH = 35;
 
 /**
- * Keeps the device's time zone when the runtime's IANA database knows it — including links such
- * as `America/Cordoba`, stored as reported — and falls back to Buenos Aires otherwise (FR-10).
+ * Keeps the device's time zone when the runtime's IANA database knows it, with a legacy alias such
+ * as `America/Cordoba` stored as its canonical zone, and falls back to Buenos Aires otherwise (FR-10).
  */
 export function resolveTimeZone(timeZone: string | null | undefined): string {
   if (!timeZone || timeZone.length > TIME_ZONE_MAX_LENGTH) return DEFAULT_TIME_ZONE;
   try {
     new Intl.DateTimeFormat('en', { timeZone });
-    return timeZone;
+    return databaseTimeZone(timeZone);
   } catch {
     // RangeError: not a time zone the IANA database knows.
     return DEFAULT_TIME_ZONE;

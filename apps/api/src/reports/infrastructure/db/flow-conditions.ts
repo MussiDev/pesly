@@ -1,3 +1,4 @@
+import { databaseTimeZone } from '@pesly/shared';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import { and, eq, gte, inArray, lt, notExists, sql, type SQL } from 'drizzle-orm';
 import type { AccessScope } from '../../../shared/access';
@@ -11,7 +12,7 @@ export const instant = (value: Date) => sql`${value.toISOString()}::timestamptz`
 
 /** `YYYY-MM` of a timestamp in the user's zone; the zone is a bound parameter. */
 export const monthIn = (column: AnyPgColumn, timeZone: string) =>
-  sql<string>`to_char(${column} at time zone ${timeZone}, 'YYYY-MM')`;
+  sql<string>`to_char(${column} at time zone ${databaseTimeZone(timeZone)}, 'YYYY-MM')`;
 
 /**
  * The WHERE of the personal read, in one place: the owner, expense and income only, the window,

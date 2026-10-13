@@ -17,6 +17,29 @@ function formatterFor(value: string): Intl.DateTimeFormat | null {
   }
 }
 
+/**
+ * Legacy names browsers still report and `Intl` accepts, but whose link the production Postgres
+ * tzdata does not carry: `AT TIME ZONE 'America/Buenos_Aires'` fails there with `22023`.
+ */
+const LEGACY_ALIASES: Readonly<Record<string, string>> = {
+  'America/Buenos_Aires': 'America/Argentina/Buenos_Aires',
+  'America/Catamarca': 'America/Argentina/Catamarca',
+  'America/Cordoba': 'America/Argentina/Cordoba',
+  'America/Jujuy': 'America/Argentina/Jujuy',
+  'America/Mendoza': 'America/Argentina/Mendoza',
+  'America/Rosario': 'America/Argentina/Cordoba',
+  'Asia/Calcutta': 'Asia/Kolkata',
+  'Asia/Katmandu': 'Asia/Kathmandu',
+  'Asia/Rangoon': 'Asia/Yangon',
+  'Asia/Saigon': 'Asia/Ho_Chi_Minh',
+  'Europe/Kiev': 'Europe/Kyiv',
+};
+
+/** The spelling every database query must bind: a legacy alias becomes its canonical zone. */
+export function databaseTimeZone(value: string): string {
+  return LEGACY_ALIASES[value] ?? value;
+}
+
 export function isIanaTimeZone(value: string): boolean {
   return formatterFor(value) !== null;
 }
@@ -25,7 +48,7 @@ export function isIanaTimeZone(value: string): boolean {
 export function canonicalTimeZone(value: string): string {
   const formatter = formatterFor(value);
   if (!formatter) throw new RangeError(`Invalid IANA time zone: ${value}`);
-  return formatter.resolvedOptions().timeZone;
+  return databaseTimeZone(formatter.resolvedOptions().timeZone);
 }
 
 export const ianaTimeZoneSchema = z
