@@ -28,6 +28,7 @@ function spending(overrides: Partial<BudgetSpendingResponse> = {}): BudgetSpendi
     percentUsed: 25,
     thresholds: [80, 100],
     unconvertedShareCount: 0,
+    unconvertedInstallmentCount: 0,
     ...overrides,
   };
 }

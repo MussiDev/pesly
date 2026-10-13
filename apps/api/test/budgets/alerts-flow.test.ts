@@ -20,6 +20,7 @@ import { testDatabaseUrl } from '../helpers/test-database';
 import { trustedHeaders } from '../helpers/test-env';
 import { newAccount, newCategory, writeScope } from '../movements/db-fixtures';
 import { MovableClock, PASSWORD, type Owner } from './route-harness';
+import { newCard, newStatement } from '../reports/flow-fixtures';
 import { newBudgetWithVersions, newMovementAt } from './spending-fixtures';
 
 const BUENOS_AIRES = 'America/Argentina/Buenos_Aires';
@@ -205,6 +206,46 @@ describe('budget alerts flow over PostgreSQL', () => {
     expect(first.unreadCount).toBe(1);
     expect(first.items[0]?.text).not.toMatch(/\d{4}|\$|ARS/);
     expect(second.items).toHaveLength(1);
+  });
+
+  it('publishes the 80% notice in October for a September card purchase whose statement is due in October (AC-11)', async () => {
+    const world = buildWorld();
+    const ana = await person(world.app, 'ana');
+    const { account, category } = await outings(ana);
+    const pool = connection.pool;
+    const cardArs = await newAccount(pool, ana.id);
+    const cardUsd = await newAccount(pool, ana.id, false, 'USD');
+    const cardId = await newCard(pool, {
+      ownerId: ana.id,
+      arsAccountId: cardArs,
+      usdAccountId: cardUsd,
+      closingDay: 24,
+      dueDay: 5,
+    });
+    await newStatement(pool, {
+      cardId,
+      ownerId: ana.id,
+      period: '2026-09',
+      closingDate: '2026-09-24',
+      dueDate: '2026-10-05',
+    });
+    await newMovementAt(pool, {
+      ownerId: ana.id,
+      accountId: cardArs,
+      categoryId: category,
+      amount: 12000000n,
+      occurredAt: '2026-09-20T15:00:00Z',
+    });
+    await createBudget(world, ana, {
+      name: 'Outings',
+      amount: '15000000',
+      currency: 'ARS',
+      categoryIds: [category],
+    });
+
+    await spend(world, ana, account, category, 100n);
+
+    expect(await texts(world.app, ana)).toEqual([ES_80]);
   });
 
   it('publishes two notices for 70% to 110% and evaluates a rollover budget against its available amount (AC-02, AC-04)', async () => {

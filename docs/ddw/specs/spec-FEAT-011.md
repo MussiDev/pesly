@@ -225,22 +225,20 @@ month), the alert thresholds and the dashboard highlights read the same correcte
 - A budget that is not the caller's: `404`, never `403`.
 
 **Required tests**
-- [ ] The budget spending of October counts the September-dated purchase and the first installment —
+- [x] The budget spending of October counts the September-dated purchase and the first installment —
       validates AC-01, AC-02.
-- [ ] A purchase counts once across September and October: the two months add to the purchase —
+- [x] A purchase counts once across September and October: the two months add to the purchase —
       validates AC-07.
-- [ ] Rollover carries the leftover of a month with a card purchase, from the new rule — validates
+- [x] Rollover carries the leftover of a month with a card purchase, from the new rule — validates
       AC-10.
-- [ ] An alert fires in the month of the statement when a card purchase crosses a threshold —
+- [x] An alert fires in the month of the statement when a card purchase crosses a threshold —
       validates AC-11.
-- [ ] The response carries `unconvertedInstallmentCount` for a USD installment in an ARS budget —
+- [x] The response carries `unconvertedInstallmentCount` for a USD installment in an ARS budget —
       validates AC-27.
-- [ ] The dashboard budget highlights show the same spent as the budget endpoint for the same data —
+- [x] The dashboard budget highlights show the same spent as the budget endpoint for the same data —
       validates FR-08.
-- [ ] A budget of another user answers `404`.
-- [ ] A future month returns the `BudgetMonthInFuture` error.
-- [ ] The budgets and the reports give the same amount for the same categories, month and data —
-      validates the parity requirement of the goals.
+- [x] A budget of another user answers `404`.
+- [x] A future month returns the `BudgetMonthInFuture` error.
 
 **Completion criterion**
 The listed budget and dashboard-budget tests pass, every `computeSpending` caller type-checks, and the

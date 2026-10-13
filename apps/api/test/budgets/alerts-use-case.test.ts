@@ -3,6 +3,7 @@ import type { CreateBudgetRequest } from '@pesly/shared';
 import { CreateBudget, EvaluateBudgetAlerts, ListBudgetSpending } from '../../src/budgets';
 import type { BudgetAlertStore } from '../../src/budgets/application/ports/budget-alert-store';
 import type { BucketedPersonalRow } from '../../src/budgets/application/ports/spending-reader';
+import { cardPurchaseRow } from './spending-fixtures';
 import {
   FakeCategories,
   FakeSpendingReader,
@@ -263,6 +264,30 @@ describe('EvaluateBudgetAlerts', () => {
     build();
     reader.personalSpending = () => Promise.reject(new Error('read down'));
     await expect(run(ALICE, food.id)).rejects.toThrow('read down');
+  });
+
+  it('fires 80 in the month of the statement when a card purchase from September crosses it (AC-11)', async () => {
+    const food = categories.add(ALICE, { name: 'Outings' });
+    const created = await budget(ALICE, [food.id]);
+    // The September statement is due 5 Oct: 120,000.00 of a 150,000.00 budget is 80%.
+    reader.cardPurchases.set(ALICE, [cardPurchaseRow(food.id, { sum: 12000000n })]);
+
+    await run(ALICE, food.id);
+
+    expect(store.calls[0]?.crossings).toEqual([
+      { budgetId: created.id, budgetName: 'Outings', month: '2026-10-01', threshold: 80 },
+    ]);
+  });
+
+  it('fires nothing in September for a card purchase that the statement moves to October (AC-11)', async () => {
+    const food = categories.add(ALICE, { name: 'Outings' });
+    clock.current = new Date('2026-09-10T15:00:00Z');
+    await budget(ALICE, [food.id]);
+    reader.cardPurchases.set(ALICE, [cardPurchaseRow(food.id, { sum: 12000000n })]);
+
+    await run(ALICE, food.id, new Date('2026-09-09T15:00:00Z'));
+
+    expect(store.calls).toHaveLength(0);
   });
 });
 

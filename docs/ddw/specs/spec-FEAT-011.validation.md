@@ -14,7 +14,7 @@
   ✅ F-SPEC-10: every block documents its error handling
   ✅ F-SPEC-16: every documented error is named by a test
   ✅ F-SPEC-11: dependencies between blocks are declared
-  ⚠️ W-SPEC-02: large block, consider splitting: Block 2 (Budgets domain, row types and port) (6 files, 394 words), Block 3 (Drizzle spending reader) (4 files, 586 words), Block 4 (Use cases, callers and response) (7 files, 426 words), Block 5 (Budget screens: card note and installment notice) (6 files, 238 words), Block 6 (Dashboard available money: API) (10 files, 599 words), Block 7 (Dashboard available money: web and i18n) (7 files, 259 words)
+  ⚠️ W-SPEC-02: large block, consider splitting: Block 2 (Budgets domain, row types and port) (6 files, 387 words), Block 3 (Drizzle spending reader) (4 files, 573 words), Block 4 (Use cases, callers and response) (7 files, 391 words), Block 5 (Budget screens: card note and installment notice) (6 files, 238 words), Block 6 (Dashboard available money: API) (10 files, 599 words), Block 7 (Dashboard available money: web and i18n) (7 files, 259 words)
   ⚠️ W-SPEC-03: schema changes with no rollback or reverse-migration consideration
   👁  F-SPEC-12 (contradicts the PRD) and F-SPEC-13 (terminology diverging from
       the PRD) are MANUAL: judge them and say so explicitly in your report.

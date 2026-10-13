@@ -12,6 +12,7 @@ import {
   readScopeFor,
   writeScopeFor,
 } from '../budgets/fakes';
+import { cardPurchaseRow, installmentRow } from '../budgets/spending-fixtures';
 import { FakePreferences, FixedClock } from './fakes';
 
 const ANA = '11111111-1111-4111-8111-111111111111';
@@ -124,6 +125,25 @@ describe('buildBudgets', () => {
       }),
       expect.objectContaining({ name: 'Pesos', currency: 'ARS', available: 10000n, spent: 4000n }),
     ]);
+  });
+
+  it('counts the card purchase and the installment due this month in the highlight (FR-08)', async () => {
+    const category = categories.add(ANA);
+    await create.execute(await writeScopeFor(ANA), {
+      name: 'Cards',
+      amount: '10000',
+      currency: 'ARS',
+      rollover: false,
+      thresholds: [80, 100],
+      categoryIds: [category.id],
+    });
+    spending.cardPurchases.set(ANA, [cardPurchaseRow(category.id, { sum: 5000n })]);
+    spending.installments.set(ANA, [installmentRow(category.id, { sum: 3000n })]);
+
+    const result = await run();
+
+    expect(result.map((row) => [row.spent, row.percentUsed])).toEqual([[8000n, 80]]);
+    expect(spending.cardPurchaseCalls[0]?.timeZone).toBe('America/Argentina/Buenos_Aires');
   });
 
   it('is empty when no budget is in force', async () => {

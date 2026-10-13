@@ -157,7 +157,9 @@ describe('GET /dashboard over the real routes and PostgreSQL', () => {
     ]);
 
     expect(body.budgets.map((row) => [row.budgetId, row.percentUsed, row.status])).toEqual([
-      [world.foodBudgetId, 160, 'over'],
+      // 5,300,000 of 3,000,000: the same food total as the categories above, now that the
+      // 5,000.00 installment of the statement due 2026-10-09 counts in October.
+      [world.foodBudgetId, 176, 'over'],
       [world.funBudgetId, 80, 'close'],
     ]);
 

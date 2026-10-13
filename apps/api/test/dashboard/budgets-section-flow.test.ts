@@ -10,6 +10,7 @@ import { newBudgetWithVersions, newMovementAt } from '../budgets/spending-fixtur
 import { seedUser, sessionFrom, signIn } from '../helpers/session-client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { newAccount, newCategory, readScope } from '../movements/db-fixtures';
+import { newCard, newInstallmentPurchase, newStatement } from '../reports/flow-fixtures';
 import { FixedClock } from './fakes';
 
 const NOW = new Date('2026-10-06T16:00:00.000Z');
@@ -106,5 +107,76 @@ describe('budgets section over PostgreSQL', () => {
       ['Food', 16000n, 9000n, 56, 'on_track'],
       ['Fun', 20000n, 5000n, 25, 'on_track'],
     ]);
+  });
+
+  it('shows the same spent as the budget endpoint with a card purchase and an installment (FR-08)', async () => {
+    const { app } = buildApp(connection, new MovableClock(NOW));
+    const email = `ana-cards-${Date.now()}@dashboard-budgets.test`;
+    const userId = await seedUser(connection, {
+      email,
+      password: PASSWORD,
+      timeZone: BUENOS_AIRES,
+    });
+    const cookies = sessionFrom(await signIn(app, email, PASSWORD));
+    const pool = connection.pool;
+    const cardArs = await newAccount(pool, userId);
+    const cardUsd = await newAccount(pool, userId, false, 'USD');
+    const food = await newCategory(pool, userId, 'expense');
+    await newBudgetWithVersions(pool, {
+      ownerId: userId,
+      versions: [
+        { effectiveFrom: '2026-09-01', name: 'Food', amount: 20000n, categoryIds: [food] },
+      ],
+    });
+    const cardId = await newCard(pool, {
+      ownerId: userId,
+      arsAccountId: cardArs,
+      usdAccountId: cardUsd,
+      closingDay: 24,
+      dueDay: 5,
+    });
+    await newStatement(pool, {
+      cardId,
+      ownerId: userId,
+      period: '2026-09',
+      closingDate: '2026-09-24',
+      dueDate: '2026-10-05',
+    });
+    // Dated in September, on the statement due 5 Oct: it belongs to October.
+    await newMovementAt(pool, {
+      ownerId: userId,
+      accountId: cardArs,
+      categoryId: food,
+      amount: 6000n,
+      occurredAt: '2026-09-20T15:00:00Z',
+    });
+    await newInstallmentPurchase(pool, {
+      ownerId: userId,
+      cardId,
+      categoryId: food,
+      installments: [{ period: '2026-09', amount: 2500n }],
+    });
+
+    const scope = await readScope(userId);
+    const clock = new FixedClock(NOW);
+    const context = await prepareDashboard(
+      { clock, preferences: new DrizzleReportPreferences(connection.db) },
+      scope,
+    );
+    const section = await buildBudgets(
+      {
+        versions: new DrizzleBudgetVersionReader(connection.db),
+        spending: new DrizzleSpendingReader(connection.db),
+        clock,
+      },
+      scope,
+      context,
+    );
+
+    const response = await call(app, 'get', '/budgets/spending', cookies);
+    const listed = budgetSpendingListResponseSchema.parse(response.body);
+    expect(listed.budgets.map((row) => row.spent)).toEqual(['8500']);
+    expect(section.map((row) => row.spent.toString())).toEqual(['8500']);
+    expect(section[0]?.percentUsed).toBe(listed.budgets[0]?.percentUsed);
   });
 });

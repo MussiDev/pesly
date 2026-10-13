@@ -32,6 +32,7 @@ const spending = {
   percentUsed: 25,
   thresholds: [80, 100],
   unconvertedShareCount: 0,
+  unconvertedInstallmentCount: 0,
 };
 
 function jsonResponse(status: number, body: unknown): Response {

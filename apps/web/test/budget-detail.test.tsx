@@ -63,6 +63,7 @@ const spending = (overrides: Record<string, unknown> = {}) => ({
   percentUsed: 38,
   thresholds: [80, 100],
   unconvertedShareCount: 0,
+  unconvertedInstallmentCount: 0,
   ...overrides,
 });
 

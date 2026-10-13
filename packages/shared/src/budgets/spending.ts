@@ -34,6 +34,8 @@ export const budgetSpendingResponseSchema = z.object({
   thresholds: z.array(z.number().int()),
   /** Group shares in the other currency that no frozen rate could convert; not in `spent`. */
   unconvertedShareCount: z.number().int().min(0),
+  /** Card installments in the other currency that were left out of `spent`. */
+  unconvertedInstallmentCount: z.number().int().min(0),
 });
 export type BudgetSpendingResponse = z.infer<typeof budgetSpendingResponseSchema>;
 

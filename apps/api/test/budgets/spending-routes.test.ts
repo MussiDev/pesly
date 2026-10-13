@@ -7,10 +7,12 @@ import type {
 import type {
   BucketedPersonalRow,
   SpendingReader,
+  StatementInstallmentRow,
 } from '../../src/budgets/application/ports/spending-reader';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { addUser, buildApp, call } from './route-harness';
+import { installmentRow } from './spending-fixtures';
 
 let connection: DatabaseConnection;
 
@@ -48,7 +50,7 @@ function monthVersions(months: readonly string[]): BudgetVersions {
 }
 
 /** Scripted readers: the budget belongs to `ownerId` only, and every read is counted. */
-function readers(ownerId: string, sum: bigint) {
+function readers(ownerId: string, sum: bigint, installments: StatementInstallmentRow[] = []) {
   const calls = { versions: 0, spending: 0 };
   const versionReader: BudgetVersionReader = {
     forMonths(scope, months, budgetId) {
@@ -75,16 +77,16 @@ function readers(ownerId: string, sum: bigint) {
       return Promise.resolve([]);
     },
     cardPurchaseSpending: () => Promise.resolve([]),
-    installmentSpending: () => Promise.resolve([]),
+    installmentSpending: () => Promise.resolve(installments),
   };
   return { calls, versionReader, spendingReader };
 }
 
-async function setup(sum = 12000000n) {
+async function setup(sum = 12000000n, installments: StatementInstallmentRow[] = []) {
   // Resolved after the users exist: the scripted budget belongs to the first one.
   const probe = buildApp(connection);
   const ana = await addUser(connection, probe.app, 'ana');
-  const fake = readers(ana.id, sum);
+  const fake = readers(ana.id, sum, installments);
   const { app, lines } = buildApp(connection, undefined, {
     readers: { versionReader: fake.versionReader, spendingReader: fake.spendingReader },
   });
@@ -115,6 +117,20 @@ describe('budget spending routes', () => {
       percentUsed: 80,
       thresholds: [80, 100],
       unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
+    });
+  });
+
+  it('adds a card installment due this month and counts a USD one left out (AC-02, AC-27)', async () => {
+    const s = await setup(12000000n, [
+      installmentRow(FOOD, { sum: 1000000n }),
+      installmentRow(FOOD, { currency: 'USD', sum: 1000n, count: 3 }),
+    ]);
+    const response = await call(s.app, 'get', `/budgets/${BUDGET_ID}/spending`, s.ana.cookies);
+    expect(response.status).toBe(200);
+    expect(budgetSpendingResponseSchema.parse(response.body)).toMatchObject({
+      spent: '13000000',
+      unconvertedInstallmentCount: 3,
     });
   });
 
