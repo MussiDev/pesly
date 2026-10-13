@@ -1837,6 +1837,14 @@
       }
     },
     "detail": {
+      "suggestedTitle": "Pagos sugeridos",
+      "allSettled": "Todo saldado. Nadie debe nada.",
+      "recentTitle": "Gastos recientes",
+      "seeAll": "Ver todos",
+      "recentEmpty": "Todavía no hay gastos.",
+      "recentEmptyLink": "Cargar un gasto",
+      "sectionFailed": "No se pudo cargar esta sección.",
+      "recordFor": "Registrar pago de {payer} a {payee}",
       "defaultRate": "Cotización por defecto: {rateType}",
       "membersTitle": "Miembros",
       "formerTitle": "Ex miembros",
