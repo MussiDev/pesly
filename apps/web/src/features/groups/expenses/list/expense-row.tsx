@@ -63,6 +63,7 @@ export function ExpenseRow({
   return (
     <>
       <ListRow
+        wrapDescription
         title={description}
         description={
           <span className="grid gap-0.5">

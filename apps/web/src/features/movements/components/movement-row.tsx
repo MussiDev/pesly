@@ -184,6 +184,7 @@ export function MovementRow({
     >
       {highlighted ? <span className="sr-only">{t('highlighted')}</span> : null}
       <ListRow
+        wrapDescription
         leading={
           <MovementAvatar
             type={movement.type}

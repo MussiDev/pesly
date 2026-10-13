@@ -48,6 +48,7 @@ export function OccurrenceRow({ item, lookups, pending, onConfirm, onSkip }: Occ
   return (
     <>
       <ListRow
+        wrapDescription
         leading={
           <span aria-hidden="true" className="grid w-11 justify-items-center leading-tight">
             <span className="text-heading font-bold">{calendarDay(item.dueDate)}</span>

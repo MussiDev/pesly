@@ -39,6 +39,7 @@ export function RecurringPaymentList({ payments, lookups }: RecurringPaymentList
               className="block rounded-md focus-visible:outline-2"
             >
               <ListRow
+                wrapDescription
                 interactive
                 title={payment.name}
                 description={

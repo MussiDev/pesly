@@ -39,6 +39,7 @@ export function StatementList({
         return (
           <li key={statement.id} aria-label={label}>
             <ListRow
+              wrapDescription
               title={label}
               description={
                 <>

@@ -21,6 +21,8 @@ interface ListRowProps extends Omit<ComponentProps<'div'>, 'title' | 'ref'> {
   description?: ReactNode;
   trailing?: ReactNode;
   interactive?: boolean;
+  /** Lets a multi-line description wrap instead of being cut to one line. */
+  wrapDescription?: boolean;
 }
 
 export function ListRow({
@@ -30,6 +32,7 @@ export function ListRow({
   description,
   trailing,
   interactive = false,
+  wrapDescription = false,
   className,
   ...props
 }: ListRowProps) {
@@ -45,7 +48,14 @@ export function ListRow({
       <div className="grid min-w-0 flex-1 gap-0.5">
         <div className="line-clamp-2 text-small font-semibold break-words">{title}</div>
         {description ? (
-          <div className="truncate text-caption text-muted-foreground">{description}</div>
+          <div
+            className={cn(
+              'text-caption text-muted-foreground',
+              wrapDescription ? 'break-words' : 'truncate',
+            )}
+          >
+            {description}
+          </div>
         ) : null}
       </div>
       {trailing ? <div className="shrink-0">{trailing}</div> : null}

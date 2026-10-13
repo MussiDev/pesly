@@ -57,6 +57,7 @@ export function InstallmentPurchaseList({
             return (
               <li key={purchase.id} aria-label={title}>
                 <ListRow
+                  wrapDescription
                   title={title}
                   description={
                     <>

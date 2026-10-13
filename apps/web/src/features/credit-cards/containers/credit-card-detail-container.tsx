@@ -285,7 +285,7 @@ export function CreditCardDetailContainer({ cardId }: { cardId: string }) {
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-title">{state.card.name}</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={`/cards/${cardId}/payments/new`}
             className={buttonVariants({ variant: 'outline', size: 'sm' })}
