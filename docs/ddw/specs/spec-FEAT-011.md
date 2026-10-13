@@ -6,8 +6,8 @@
 | PRD | docs/ddw/prd/prd-FEAT-011.md |
 | Tier | FEATURE |
 | Date | 2026-10-13 |
-| Spec loops | 1 |
-| Loops since last human decision | 1 |
+| Spec loops | 2 |
+| Loops since last human decision | 0 |
 
 ## Summary
 
@@ -22,7 +22,7 @@ feeds it to the same `spendingOf` calculation; installments in another currency 
 left out and counted in a new `unconvertedInstallmentCount`. Every consumer of `computeSpending`
 (budget list, budget detail, alert evaluation, dashboard highlights) picks it up unchanged. The budget
 screens reuse the existing `CardPurchasesNote`. Separately, the dashboard response gets an `available`
-section computed by the accounts module's own `ListAccounts` totals, converted with the net worth
+section computed by the accounts module's own available totals (`GetAvailableTotals`, which shares `totalsOf`, `balanceOf` and `sumsFor` with `ListAccounts`), converted with the net worth
 rate, and the home screen shows it beside the net worth. No migration: every month is computed on read.
 
 ## Coverage: PRD → blocks
@@ -43,11 +43,12 @@ rate, and the home screen shows it beside the net worth. No migration: every mon
 | FR-12 | Block 6, Block 7 |
 | FR-13 | Block 6 (accounts rule reused, not rewritten) |
 | NFR-01 | Strategy: two extra grouped queries per budget read, joined by card and statement, no per-row or per-budget query; the existing perf tests run unchanged in Block 8 |
-| NFR-02 | Strategy: every condition goes through `scopedTo` with the caller's owner column, as the other readers do; the accounts section reads through `ListAccounts`, which is already owner-scoped |
+| NFR-02 | Strategy: every condition goes through `scopedTo` with the caller's owner column, as the other readers do; the accounts section reads through `GetAvailableTotals`, which is owner-scoped like `ListAccounts` |
 | NFR-03 | Strategy: sums stay bigint read as text; conversion is the existing `convertAmount` and the shared money helpers |
 | NFR-04 | Block 5 and Block 7: the notes and the tile use data the screens already hold; no request is added |
 | NFR-05 | Strategy: tests of every block, run with coverage on the changed files; no `any` |
-| NFR-06 | Strategy: `available` joins the existing `GET /dashboard` response, built in the parallel section reads already there; the dashboard perf test runs unchanged in Block 8 |
+| NFR-06 | Strategy: `available` joins the existing `GET /dashboard` response, built in the parallel section reads already there; the dashboard perf test runs unchanged in Block 8 at its latency and body thresholds |
+| NFR-07 | Strategy: the available read is slimmed to the active accounts and their balance sums (4 statements, no page query and no count), and the ceiling of the dashboard perf test moves from 40 to 46 statements, the 40 of the baseline plus 4 of the available money and 2 of the budgets; Block 8 measures it |
 
 ## Dependencies between blocks
 
@@ -287,7 +288,7 @@ languages.
 - `packages/shared/src/dashboard/dashboard.ts` (modified) — adds `dashboardAvailableSchema` and the
   `available` field of the response.
 - `apps/api/src/accounts/index.ts` (modified) — also exports `DrizzleAccountRepository`, the only
-  adapter `ListAccounts` needs from this module; the movement sums come from `createAccountMovements`
+  adapter the accounts use cases need from this module; the movement sums come from `createAccountMovements`
   in the movements barrel, which the dashboard already imports.
 - `apps/api/src/dashboard/application/build-available.ts` (new) — builds the section from the accounts
   totals and the rate.
@@ -296,7 +297,9 @@ languages.
 - `apps/api/src/dashboard/application/get-dashboard.ts`, `dashboard-context.ts` (modified) — run the
   section in the parallel reads and pass it on.
 - `apps/api/src/dashboard/infrastructure/http/present-dashboard.ts` (modified) — presents it.
-- `apps/api/src/dashboard/index.ts` (modified) — composes `ListAccounts`.
+- `apps/api/src/accounts/application/get-available-totals.ts` (new) — `GetAvailableTotals`: the active
+  accounts and their balance sums, with the available totals of `totalsOf`, and nothing else.
+- `apps/api/src/dashboard/index.ts` (modified) — composes `GetAvailableTotals`.
 - `apps/api/test/dashboard/boundaries.test.ts` (modified) — adds `accounts` to `SOURCE_MODULES`.
 - `apps/api/test/dashboard/available-section.test.ts` (new), `fakes.ts`, `world-fixtures.ts`,
   `route-harness.ts`, `dashboard-routes.test.ts`, `get-dashboard.test.ts`, `dashboard-flow.test.ts`,
@@ -304,9 +307,9 @@ languages.
 - `packages/shared/test/dashboard-contracts.test.ts` (modified).
 
 **Logic**
-`buildAvailable` runs `ListAccounts.execute(scope, { limit: 1, offset: 0 })` and takes its
-`availableTotals` (ARS and USD); the totals are computed from all the active accounts, not from the
-page, so the limit does not change them. They are
+`buildAvailable` runs `GetAvailableTotals.execute(scope)` and takes its available totals (ARS and
+USD), computed from all the active accounts with the same `totalsOf`, `balanceOf` and `sumsFor` as
+`ListAccounts`, without its page query and count. They are
 the balances of the active accounts marked "include in available": the accounts screen shows
 exactly these, so the two screens agree by construction and the flag is the only filter (an archived
 account is not listed, savings count only if the user marked them, a credit card account never carries
@@ -340,7 +343,11 @@ is missing the section returns the two parts, `total: null` and the same reason 
 - [x] A credit card with debt and an investment portfolio do not change the available — validates
       AC-23.
 - [x] Another user's included account never counts — validates AC-24.
-- [x] The endpoint adds no request and the dashboard perf test keeps its threshold — validates AC-25.
+- [x] The endpoint adds no request and the dashboard perf test keeps its latency and body thresholds —
+      validates AC-25.
+- [x] `GetAvailableTotals` gives the same totals as `ListAccounts` for the same data and ignores archived
+      accounts, unflagged accounts, card debt and another user's accounts — validates AC-19, AC-22,
+      AC-23, AC-24.
 - [x] An accounts read error fails the dashboard section and is not swallowed.
 - [x] The dashboard boundaries test accepts `accounts` only through its barrel.
 
@@ -405,16 +412,17 @@ month.
   regression, and no threshold is changed.
 
 **Required tests**
-- [ ] e2e: the October budget counts the September purchase; the September budget does not — validates
+- [x] e2e: the October budget counts the September purchase; the September budget does not — validates
       AC-01, AC-07.
-- [ ] e2e: the home screen shows the available money in Spanish and English — validates AC-18, AC-26.
-- [ ] Parity: budgets and reports return the same spending for card purchases and installments —
+- [x] e2e: the home screen shows the available money in Spanish and English — validates AC-18, AC-26.
+- [x] Parity: budgets and reports return the same spending for card purchases and installments —
       validates FR-08.
-- [ ] Parity: the fallback cycle and a card without a stored statement place the purchase in the same
+- [x] Parity: the fallback cycle and a card without a stored statement place the purchase in the same
       month in budgets and in reports — validates AC-05.
-- [ ] The three perf tests pass at their existing thresholds — validates AC-15, AC-25.
-- [ ] A transfer payment of the statement counts in neither budgets nor reports — validates AC-08.
-- [ ] A flaky perf failure is rerun once and no threshold is changed (error path of the gate).
+- [x] The three perf tests pass at their existing latency thresholds, and the dashboard request runs 46
+      statements or fewer — validates AC-15, AC-25, AC-28.
+- [x] A transfer payment of the statement counts in neither budgets nor reports — validates AC-08.
+- [x] A flaky perf failure is rerun once and no threshold is changed (error path of the gate).
 
 **Completion criterion**
 `pnpm e2e` for the three specs, the parity test and `pnpm test:perf` pass with 0 threshold changes.

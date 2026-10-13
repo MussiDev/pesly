@@ -5,7 +5,7 @@
 | Ticket | FEAT-011 |
 | Tracker | none |
 | Date | 2026-10-13 |
-| PRD loops | 2 |
+| PRD loops | 3 |
 | Loops since last human decision | 0 |
 
 ## Context and Problem
@@ -92,7 +92,12 @@ worth, computed with the same rule as the accounts screen.
   branches and functions, and no `any` is introduced.
 - NFR-06: The available money arrives in the existing dashboard response, so the home screen issues
   0 additional API requests, and the dashboard endpoint keeps passing its latency benchmark at its
-  existing threshold.
+  existing threshold of 1,000 ms at p95 and its body of 32 KB or less.
+- NFR-07: A dashboard request runs at most 46 SQL statements, none of them per movement, per month or
+  per budget. This replaces the ceiling of 40 of DISC-001-09b NFR-05 for the dashboard, which this
+  change needs to exceed: the available money adds 4 statements (the active accounts and three
+  balance sums) and the budgets add 2 (card purchases and installments by statement), and the
+  dashboard already ran exactly 40. The human owner approved the new ceiling on 2026-10-13.
 
 ## Acceptance Criteria
 
@@ -149,7 +154,9 @@ worth, computed with the same rule as the accounts screen.
 - AC-24 (NFR-02): IF another user owns an account marked "include in available", THEN THE home screen
   SHALL not count its balance for the caller.
 - AC-25 (NFR-06): WHEN the home screen loads, THE web app SHALL issue the same requests as before
-  this change, and the dashboard benchmark SHALL pass at its existing threshold.
+  this change, and the dashboard benchmark SHALL pass at its existing latency and body thresholds.
+- AC-28 (NFR-07): WHEN the dashboard benchmark runs against its seeded data, THE dashboard request
+  SHALL run 46 SQL statements or fewer.
 - AC-26 (FR-11): WHILE the interface language is Spanish or English, THE home screen SHALL show the
   label of the available money from that language's catalog, and both catalogs SHALL carry the same
   keys.
