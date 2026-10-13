@@ -249,6 +249,20 @@ describe('LinkExpenseContainer, the adopt way', () => {
     expect(await screen.findByLabelText(en.groups.expenses.form.fields.account)).toBeTruthy();
   });
 
+  it('keeps the chosen way and movement when the movement is not found on submit, instead of saying the expense is gone (AC-24, AC-15)', async () => {
+    stubApi(routes({ [LINK]: { status: 404, body: { code: 'NOT_FOUND' } } }));
+    const { router } = open();
+    await userEvent.click(await screen.findByRole('radio', { name: link.ways.adopt }));
+    await userEvent.click(await screen.findByRole('radio', { name: /Chango/ }));
+
+    await userEvent.click(screen.getByRole('button', { name: link.submit }));
+
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Chango/ }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.queryByText(link.notFound)).toBeNull();
+    expect(router.push).not.toHaveBeenCalled();
+  });
+
   it('asks to choose a movement and sends nothing when none is chosen (invalid input)', async () => {
     const { calls } = stubApi(routes());
     open();

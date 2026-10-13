@@ -22,6 +22,7 @@ import {
   GroupExpenseCategoryInvalid,
   GroupMovementAlreadySent,
   GroupMovementChanged,
+  GroupMovementMismatch,
   GroupMovementNotExpense,
   GroupPayerOnly,
   GroupSplitMemberInvalid,
@@ -273,6 +274,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
         // payer deleting it reaches the expense row through `on delete set null`.
         await lockGroup(tx, data.groupId, 'share');
         const link = data.link;
+        let adoptedCurrency: string | null = null;
         if (link.mode === 'adopt') {
           const movement = await this.recorder.lockForAdoption(
             tx,
@@ -288,6 +290,7 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
             throw new GroupMovementChanged();
           }
           if (movement.linked) throw new GroupMovementAlreadySent();
+          adoptedCurrency = movement.currency;
         }
         const [row] = await tx
           .select(expenseColumns)
@@ -295,6 +298,10 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           .where(and(eq(groupExpenses.groupId, data.groupId), eq(groupExpenses.id, data.expenseId)))
           .for('update');
         if (!row) throw new ResourceNotFound();
+        // The payer can move the movement to an account of another currency after the use case read it.
+        if (adoptedCurrency !== null && adoptedCurrency !== row.currency) {
+          throw new GroupMovementMismatch();
+        }
         // Two requests for the same expense queue on the row lock: the loser finds it linked.
         if (row.payerMovementId !== null) throw new GroupExpenseAlreadyLinked();
         const [payer] = await tx

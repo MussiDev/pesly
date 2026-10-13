@@ -223,7 +223,8 @@ function LinkExpenseScreen({
     setPending(false);
     if (linked.ok) router.push(`/groups/${encodeURIComponent(groupId)}/expenses`);
     else if (linked.code === 'UNAUTHENTICATED') router.replace('/sign-in');
-    else if (linked.code === 'NOT_FOUND') setScreen({ kind: 'notFound' });
+    // In the adopt way a 404 most likely means the chosen movement is gone; keep the choices.
+    else if (linked.code === 'NOT_FOUND' && way === 'create') setScreen({ kind: 'notFound' });
     else setIssue(linked);
   }
 

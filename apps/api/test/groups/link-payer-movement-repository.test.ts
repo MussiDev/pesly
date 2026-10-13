@@ -4,6 +4,7 @@ import {
   GroupExpenseAlreadyLinked,
   GroupMovementAlreadySent,
   GroupMovementChanged,
+  GroupMovementMismatch,
   GroupPayerOnly,
   type LinkPayerMovementData,
 } from '../../src/groups';
@@ -240,6 +241,29 @@ describe('DrizzleGroupExpenseRepository.linkPayerMovement', () => {
         },
       }),
     ).rejects.toBeInstanceOf(GroupMovementChanged);
+    expect((await stored(w)).payer_movement_id).toBeNull();
+  });
+
+  it('refuses the link when the currency of the movement no longer matches the expense after the lock (error)', async () => {
+    const w = await newWorld();
+    const movementId = await movementRow(w);
+    await connection.pool.query("update group_expenses set currency = 'USD' where id = $1", [
+      w.expenseId,
+    ]);
+
+    await expect(
+      repository.linkPayerMovement({
+        groupId: w.groupId,
+        expenseId: w.expenseId,
+        payerUserId: w.ana,
+        link: {
+          mode: 'adopt',
+          movementId,
+          expectedAmount: AMOUNT,
+          expectedOccurredAt: OCCURRED_AT,
+        },
+      }),
+    ).rejects.toBeInstanceOf(GroupMovementMismatch);
     expect((await stored(w)).payer_movement_id).toBeNull();
   });
 
