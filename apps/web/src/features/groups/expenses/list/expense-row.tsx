@@ -38,6 +38,11 @@ export interface ExpenseRowProps {
   date: string;
   /** The viewer's own share, formatted; absent when the viewer holds none or is unknown. */
   share: string | undefined;
+  /**
+   * Only for the payer: the way to link an expense that has no movement of theirs, or a marker
+   * that it is linked (FEAT-008). Independent of `edit`, so it stays when the device queue is not.
+   */
+  linkAction?: { kind: 'link'; href: string } | { kind: 'linked' };
   /** Absent while the device queue is unavailable: the row then has no marker and no actions. */
   edit?: ExpenseRowEdit;
 }
@@ -50,6 +55,7 @@ export function ExpenseRow({
   amount,
   date,
   share,
+  linkAction,
   edit,
 }: ExpenseRowProps) {
   const t = useTranslations('groups.expenses');
@@ -68,6 +74,18 @@ export function ExpenseRow({
         }
         trailing={<span className="font-medium tabular-nums">{amount}</span>}
       />
+      {linkAction === undefined ? null : linkAction.kind === 'link' ? (
+        <div className="pb-3">
+          <Link
+            href={linkAction.href}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+          >
+            {t('linkAction')}
+          </Link>
+        </div>
+      ) : (
+        <p className="pb-3 text-small text-muted-foreground">{t('linkedMarker')}</p>
+      )}
       {edit === undefined ? null : (
         <div className="grid gap-2 pb-3">
           <div>

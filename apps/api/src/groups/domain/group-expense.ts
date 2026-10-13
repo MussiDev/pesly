@@ -89,6 +89,27 @@ export class GroupMovementChanged extends AppError {
   }
 }
 
+/** Only the payer of an expense, a registered member, can link it to an account (FEAT-008). */
+export class GroupPayerOnly extends AppError {
+  constructor() {
+    super('GROUP_PAYER_ONLY');
+  }
+}
+
+/** The expense already has a movement of its payer: it cannot be linked again (FEAT-008). */
+export class GroupExpenseAlreadyLinked extends AppError {
+  constructor() {
+    super('GROUP_EXPENSE_ALREADY_LINKED');
+  }
+}
+
+/** The movement to adopt differs from the expense in amount or currency (FEAT-008). */
+export class GroupMovementMismatch extends AppError {
+  constructor() {
+    super('GROUP_MOVEMENT_MISMATCH');
+  }
+}
+
 /** The payer account is missing, sent for the wrong payer, or not usable (spec D5). */
 export class GroupPayerAccountInvalid extends AppError {
   constructor() {

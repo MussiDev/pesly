@@ -195,6 +195,28 @@ describe('MovementFilters', () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps a partly typed date in the box and reports it only once it is a real day (invalid input)', () => {
+    const { onChange } = renderBar();
+    const from = screen.getByLabelText<HTMLInputElement>(es.movements.filters.from);
+
+    // The browser reports these while the year is being typed.
+    fireEvent.change(from, { target: { value: '0002-09-01' } });
+    fireEvent.change(from, { target: { value: '0202-09-01' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(from.value).toBe('0202-09-01');
+
+    fireEvent.change(from, { target: { value: '2026-09-01' } });
+    expect(onChange).toHaveBeenLastCalledWith({ from: '2026-09-01' });
+  });
+
+  it('reports an emptied date so the filter can be removed', () => {
+    const { onChange } = renderBar({ filters: { from: '2026-09-01' } });
+
+    fireEvent.change(screen.getByLabelText(es.movements.filters.from), { target: { value: '' } });
+
+    expect(onChange).toHaveBeenLastCalledWith({});
+  });
+
   it('turning a select back to "all" removes that filter', async () => {
     const { onChange } = renderBar({ filters: { accountId: CAJA } });
 
@@ -213,7 +235,7 @@ describe('MovementFilters', () => {
 
     const message = screen.getByText(es.movements.filters.invalidRange);
     expect(message.getAttribute('role')).toBe('alert');
-    const from = screen.getByLabelText(es.movements.filters.from);
+    const from = screen.getByLabelText<HTMLInputElement>(es.movements.filters.from);
     expect(from.getAttribute('aria-invalid')).toBe('true');
     expect(from.getAttribute('aria-describedby')).toBe(message.id);
   });

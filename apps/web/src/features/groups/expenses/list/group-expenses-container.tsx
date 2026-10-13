@@ -254,6 +254,14 @@ function GroupExpensesScreen({
       date: formatDateTime(expense.occurredAt, timeZone, language),
       share:
         own === undefined ? undefined : formatMoney(BigInt(own.amount), expense.currency, language),
+      // Only the payer, and only for a stored expense: a queued one has no server id to link yet.
+      ...(record.payerMemberId !== options.selfMemberId
+        ? {}
+        : record.payerMovementId !== null
+          ? { linkAction: { kind: 'linked' as const } }
+          : syncState === 'synced'
+            ? { linkAction: { kind: 'link' as const, href: `${base}/link` } }
+            : {}),
       edit: changes.available
         ? {
             state: syncState,

@@ -18,12 +18,15 @@ import {
   type GroupSettlement,
   type Member,
   type AdoptableMovement,
+  type LinkPayerMovementData,
+  type MovementCandidateRow,
   type SavedExpense,
   type PayerMovementRemoval,
   type PayerMovementUpdate,
   type UpdateGroupExpenseData,
 } from '../../src/groups';
 import { GroupRecordConflictError } from '../../src/groups/domain/errors';
+import { GroupExpenseAlreadyLinked } from '../../src/groups/domain/group-expense';
 import { ResourceNotFound } from '../../src/shared/access';
 import type {
   DefaultSplit,
@@ -120,6 +123,32 @@ export class InMemoryPayerMovementRecorder implements PayerMovementRecorder<Fake
     movementId: string,
   ): Promise<AdoptableMovement | null> {
     return this.peekAdoptable(userId, movementId);
+  }
+
+  async listCandidates(
+    userId: string,
+    query: { amount: bigint; currency: 'ARS' | 'USD'; limit: number },
+  ): Promise<MovementCandidateRow[]> {
+    await Promise.resolve();
+    return [...this.adoptable.values()]
+      .filter(
+        (movement) =>
+          movement.userId === userId &&
+          movement.type === 'expense' &&
+          !movement.linked &&
+          movement.amount === query.amount &&
+          movement.currency === query.currency,
+      )
+      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
+      .slice(0, query.limit)
+      .map((movement) => ({
+        id: movement.id,
+        amount: movement.amount,
+        occurredAt: movement.occurredAt,
+        note: movement.note,
+        accountId: 'fake-account',
+        accountName: 'Fake account',
+      }));
   }
 
   seedAccount(userId: string, currency: 'ARS' | 'USD'): string {
@@ -497,6 +526,27 @@ export class InMemoryGroupExpenseRepository implements GroupExpenseRepository {
       throw new Error('A payer movement needs a registered payer');
     }
     return payer.userId;
+  }
+
+  /** The links made through `linkPayerMovement`, in order. */
+  readonly linkCalls: LinkPayerMovementData[] = [];
+
+  async linkPayerMovement(data: LinkPayerMovementData): Promise<GroupExpense> {
+    await Promise.resolve();
+    const index = this.expenses.findIndex(
+      (expense) => expense.groupId === data.groupId && expense.id === data.expenseId,
+    );
+    const expense = this.expenses[index];
+    if (expense === undefined) throw new ResourceNotFound();
+    if (expense.payerMovementId !== null) throw new GroupExpenseAlreadyLinked();
+    this.linkCalls.push(data);
+    const linked = {
+      ...expense,
+      payerMovementId: data.link.mode === 'adopt' ? data.link.movementId : randomUUID(),
+      adoptedMovement: data.link.mode === 'adopt',
+    };
+    this.expenses[index] = linked;
+    return linked;
   }
 
   async listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult> {
