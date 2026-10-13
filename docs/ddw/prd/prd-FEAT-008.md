@@ -5,8 +5,8 @@
 | Ticket | FEAT-008 |
 | Tracker | none |
 | Date | 2026-10-12 |
-| PRD loops | 0 |
-| Loops since last human decision | 0 |
+| PRD loops | 1 |
+| Loops since last human decision | 1 |
 
 ## Context and Problem
 
@@ -36,7 +36,7 @@ the payer to attach a movement to an expense that has none.
 
 ## Functional Requirements
 
-- FR-01: The API exposes `POST /groups/:groupId/expenses/:expenseId/payer-movement`, validated by a
+- FR-01: The API exposes `POST /groups/:id/expenses/:expenseId/payer-movement`, validated by a
   shared Zod schema, whose body is either `{ mode: "create", accountId, categoryId }` or
   `{ mode: "adopt", movementId }`.
 - FR-02: The endpoint accepts the request only from the member who is the payer of the expense, a
@@ -54,7 +54,7 @@ the payer to attach a movement to an expense that has none.
   movement's amount, account and date are locked against direct edits.
 - FR-05: Linking does not change the expense's shares, receivables, balances, version or activity
   log, and sends no notification.
-- FR-06: The API exposes `GET /groups/:groupId/expenses/:expenseId/movement-candidates`, answered only
+- FR-06: The API exposes `GET /groups/:id/expenses/:expenseId/movement-candidates`, answered only
   to the payer of an unlinked expense, listing at most 20 of the payer's own movements that are
   expenses, unlinked, in the expense's currency and of the expense's amount, newest first.
 - FR-07: The expense row in the web list offers "Link to my account" only to the member who is the
@@ -80,7 +80,8 @@ the payer to attach a movement to an expense that has none.
 - NFR-03: The expense list adds 0 requests for members who are not the payer of the expense: the
   action is decided from data the list already holds.
 - NFR-04: Every query reads data scoped by the caller's membership or ownership; a movement, account
-  or category that is not the caller's, and a group the caller is not in, answer 404.
+  or category that is not the caller's is never read for the caller, and a group the caller is not in
+  answers 404.
 - NFR-05: The screens have no horizontal scroll at 360 px width at the default text size, and every
   action is reachable by keyboard with an accessible name.
 - NFR-06: Coverage of the new code stays at or above the project floor of 80% lines, branches and
@@ -104,20 +105,20 @@ the payer to attach a movement to an expense that has none.
   accounts, THE API SHALL subtract 40,000.00 ARS from that account through one expense movement
   carrying the chosen category, the expense's date and the expense description as note.
 - AC-08 (FR-03): IF the chosen account is archived, belongs to another user, or has a currency
-  different from the expense's, THEN THE API SHALL answer 422 with `GROUP_PAYER_ACCOUNT_INVALID` and
+  different from the expense's, THEN THE API SHALL answer 400 with `GROUP_PAYER_ACCOUNT_INVALID` and
   create no movement.
 - AC-09 (FR-03): IF the chosen category is not a personal expense category of the payer, THEN THE API
-  SHALL answer 422 with `GROUP_PAYER_ACCOUNT_INVALID` and create no movement.
+  SHALL answer 400 with `GROUP_PAYER_ACCOUNT_INVALID` and create no movement.
 - AC-10 (FR-03): WHEN an expense linked in `create` mode is deleted, THE API SHALL delete the
   movement too, as for an expense the payer recorded.
 - AC-11 (FR-04): WHEN the payer links in `adopt` mode one of their expense movements of the same
   amount and currency, THE API SHALL link it and change no balance of any account.
-- AC-12 (FR-04): IF the movement is not an expense, THEN THE API SHALL answer 422 with
+- AC-12 (FR-04): IF the movement is not an expense, THEN THE API SHALL answer 400 with
   `GROUP_MOVEMENT_NOT_EXPENSE`.
 - AC-13 (FR-04): IF the movement is already linked to a group expense, THEN THE API SHALL answer 409
   with `GROUP_MOVEMENT_ALREADY_SENT`.
 - AC-14 (FR-04): IF the movement's amount or currency differs from the expense's, THEN THE API SHALL
-  answer 422 with `GROUP_MOVEMENT_MISMATCH` and link nothing.
+  answer 400 with `GROUP_MOVEMENT_MISMATCH` and link nothing.
 - AC-15 (FR-04): IF the movement does not exist or is not the payer's, THEN THE API SHALL answer 404.
 - AC-16 (FR-04): WHEN an expense linked in `adopt` mode is edited, THE API SHALL carry the new amount
   and date to the movement and keep its note; WHEN it is deleted, THE API SHALL keep the movement and
@@ -153,8 +154,10 @@ the payer to attach a movement to an expense that has none.
   in under 300 ms at the 95th percentile.
 - AC-30 (NFR-03): WHEN the expense list loads, THE web app SHALL issue the same requests as before
   this change.
-- AC-31 (NFR-04): IF the account, category or movement belongs to another user, THEN THE API SHALL
-  answer 404 without revealing whether it exists.
+- AC-31 (NFR-04): IF the account or the category of a `create` request belongs to another user or does
+  not exist, THEN THE API SHALL answer the same 400 with `GROUP_PAYER_ACCOUNT_INVALID` in both cases,
+  and IF the movement of an `adopt` request belongs to another user or does not exist, THEN THE API
+  SHALL answer the same 404 in both cases, so neither answer reveals whether the record exists.
 - AC-32 (NFR-05): WHILE the viewport is 360 px wide at the default text size, THE screens SHALL show
   no horizontal scroll.
 
@@ -197,3 +200,9 @@ the payer to attach a movement to an expense that has none.
 - DISC-001-03b (movements and frozen rates) and DISC-001-02a (accounts and their currency).
 - DISC-001-05f (the group expenses list that hosts the action).
 - Shared error catalog and Zod schemas in `packages/shared`.
+
+## Decision log
+
+- 2026-10-13: Corrected by the author after reading the API code, with no change of intent: the error codes that this PRD wrote as 422 answer 400 (the API has no 422, and `GROUP_PAYER_ACCOUNT_INVALID` and `GROUP_MOVEMENT_NOT_EXPENSE` already answer 400); the group id in the paths is `:id`; and a foreign or missing account or category answers `GROUP_PAYER_ACCOUNT_INVALID`, as recording an expense does today, while a foreign or missing movement answers 404 (AC-31).
+- 2026-10-13: Decided by the owner: linking an expense to the payer's account writes no entry in the group's activity log, does not change the expense's version and notifies nobody, because the shared record (amount, payer, shares) does not change and the account is the payer's private bookkeeping (FR-05, AC-17).
+- 2026-10-12: Decided by the owner: both ways ship in this ticket, creating the movement from an account and a category (`create`) and adopting a movement the payer already registered (`adopt`).
