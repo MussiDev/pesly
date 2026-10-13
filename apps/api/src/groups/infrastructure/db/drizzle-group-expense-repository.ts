@@ -13,13 +13,17 @@ import type {
   SavedExpense,
   UpdateGroupExpenseData,
   DeleteGroupExpenseData,
+  LinkPayerMovementData,
 } from '../../application/ports/group-expense-repository';
 import type { PayerMovementRecorder } from '../../application/ports/payer-movement-recorder';
 import {
   ExpenseAmountNotPositive,
+  GroupExpenseAlreadyLinked,
   GroupExpenseCategoryInvalid,
   GroupMovementAlreadySent,
   GroupMovementChanged,
+  GroupMovementNotExpense,
+  GroupPayerOnly,
   GroupSplitMemberInvalid,
   type DefaultSplit,
   type GroupExpense,
@@ -255,6 +259,66 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
         }
         const shares = data.shares.map((share) => ({ ...share })).sort(byMember);
         return { ...toExpense({ ...row, payerMovementId }, shares), autoCategory };
+      });
+    } catch (error) {
+      throw mapWriteError(error);
+    }
+  }
+
+  async linkPayerMovement(data: LinkPayerMovementData): Promise<GroupExpense> {
+    try {
+      return await this.db.transaction(async (tx) => {
+        // The order of an expense change: the group, then the movement being adopted, then the
+        // expense row, then the payer member. The movement goes before the expense row because the
+        // payer deleting it reaches the expense row through `on delete set null`.
+        await lockGroup(tx, data.groupId, 'share');
+        const link = data.link;
+        if (link.mode === 'adopt') {
+          const movement = await this.recorder.lockForAdoption(
+            tx,
+            data.payerUserId,
+            link.movementId,
+          );
+          if (movement === null) throw new ResourceNotFound();
+          if (movement.type !== 'expense') throw new GroupMovementNotExpense();
+          if (
+            movement.amount !== link.expectedAmount ||
+            movement.occurredAt.getTime() !== link.expectedOccurredAt.getTime()
+          ) {
+            throw new GroupMovementChanged();
+          }
+          if (movement.linked) throw new GroupMovementAlreadySent();
+        }
+        const [row] = await tx
+          .select(expenseColumns)
+          .from(groupExpenses)
+          .where(and(eq(groupExpenses.groupId, data.groupId), eq(groupExpenses.id, data.expenseId)))
+          .for('update');
+        if (!row) throw new ResourceNotFound();
+        // Two requests for the same expense queue on the row lock: the loser finds it linked.
+        if (row.payerMovementId !== null) throw new GroupExpenseAlreadyLinked();
+        const [payer] = await tx
+          .select({ userId: groupMembers.userId, leftAt: groupMembers.leftAt })
+          .from(groupMembers)
+          .where(
+            and(eq(groupMembers.groupId, data.groupId), eq(groupMembers.id, row.payerMemberId)),
+          )
+          .for('share');
+        if (!payer || payer.leftAt !== null || payer.userId !== data.payerUserId) {
+          throw new GroupPayerOnly();
+        }
+        const movementId =
+          link.mode === 'adopt'
+            ? link.movementId
+            : (await this.recorder.record(tx, link.movement)).id;
+        // Only the link: no version, no shares and no log row, because nothing shared changes.
+        const [updated] = await tx
+          .update(groupExpenses)
+          .set({ payerMovementId: movementId, adoptedMovement: link.mode === 'adopt' })
+          .where(eq(groupExpenses.id, row.id))
+          .returning(expenseColumns);
+        if (!updated) throw new Error('Linking a group expense returned no row');
+        return toExpense(updated, (await loadShares(tx, [row.id])).get(row.id) ?? []);
       });
     } catch (error) {
       throw mapWriteError(error);

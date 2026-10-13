@@ -457,6 +457,7 @@ describe('updateExpense', () => {
       isUsable: (check) => recorder.isUsable(check),
       peekAdoptable: (userId, movementId) => recorder.peekAdoptable(userId, movementId),
       lockForAdoption: (tx, userId, movementId) => recorder.lockForAdoption(tx, userId, movementId),
+      listCandidates: (userId, query) => recorder.listCandidates(userId, query),
       record: (tx, movement) => recorder.record(tx, movement),
       update: async (tx, change) => {
         await recorder.update(tx, change);

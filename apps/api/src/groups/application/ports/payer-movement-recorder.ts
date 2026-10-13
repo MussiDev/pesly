@@ -54,6 +54,16 @@ export interface PayerMovementUpdate {
   keepNote?: boolean;
 }
 
+/** One of the payer's own expense movements that could be adopted by an expense (FEAT-008). */
+export interface MovementCandidateRow {
+  id: string;
+  amount: bigint;
+  occurredAt: Date;
+  note: string | null;
+  accountId: string;
+  accountName: string;
+}
+
 export interface PayerMovementRemoval {
   userId: string;
   movementId: string;
@@ -77,6 +87,14 @@ export interface PayerMovementRecorder<Tx = unknown> {
   peekAdoptable(userId: string, movementId: string): Promise<AdoptableMovement | null>;
   /** Same read as `peekAdoptable`, inside `unit` with the movement row `for update`. */
   lockForAdoption(unit: Tx, userId: string, movementId: string): Promise<AdoptableMovement | null>;
+  /**
+   * The user's own expense movements of that amount, on an account of that currency, that no group
+   * expense holds, newest first, at most `limit`. Read-only, no lock (FEAT-008).
+   */
+  listCandidates(
+    userId: string,
+    query: { amount: bigint; currency: AccountCurrency; limit: number },
+  ): Promise<MovementCandidateRow[]>;
   /** Inserts the movement inside `unit` and returns its id. Never opens its own transaction. */
   record(unit: Tx, movement: PayerMovementToRecord): Promise<{ id: string }>;
   /**

@@ -123,6 +123,17 @@ export interface PersonalSharesPageResult {
  * Newest first (`occurred_at desc, id desc`), keyset pages. Every read is scoped by group id (or,
  * for the personal view, by the user's own member rows); the use case checks membership first.
  */
+/** What the payer of an expense that has no movement links to it afterwards (FEAT-008). */
+export interface LinkPayerMovementData {
+  groupId: string;
+  expenseId: string;
+  /** The payer: the caller, a registered member of the group. */
+  payerUserId: string;
+  link:
+    | { mode: 'create'; movement: PayerMovementToRecord }
+    | { mode: 'adopt'; movementId: string; expectedAmount: bigint; expectedOccurredAt: Date };
+}
+
 export interface GroupExpenseRepository {
   /**
    * One transaction: the expense, its shares, the log row and, when `payerMovement` is set, the
@@ -149,6 +160,15 @@ export interface GroupExpenseRepository {
    * The same `baseVersion` check applies before anything is removed.
    */
   deleteExpense(data: DeleteGroupExpenseData): Promise<void>;
+  /**
+   * One transaction, with the locks of an expense change (group, then the adopted movement, then the
+   * expense row, then the payer member): re-check that the expense has no movement
+   * (`GroupExpenseAlreadyLinked`) and that the payer is still the caller; `create` records the movement
+   * through the `PayerMovementRecorder` on the same unit, `adopt` re-checks the movement under its lock
+   * (`GroupMovementChanged`, `GroupMovementAlreadySent`); then set `payerMovementId` and
+   * `adoptedMovement` and nothing else: no version, no shares, no log row (FEAT-008).
+   */
+  linkPayerMovement(data: LinkPayerMovementData): Promise<GroupExpense>;
   listExpenses(groupId: string, query: ListExpensesQuery): Promise<GroupExpensePageResult>;
   /** Null when the expense does not exist or belongs to another group. */
   getExpense(groupId: string, expenseId: string): Promise<GroupExpense | null>;

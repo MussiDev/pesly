@@ -211,6 +211,7 @@ describe('saveExpense', () => {
       isUsable: (check) => recorder.isUsable(check),
       peekAdoptable: (userId, movementId) => recorder.peekAdoptable(userId, movementId),
       lockForAdoption: (tx, userId, movementId) => recorder.lockForAdoption(tx, userId, movementId),
+      listCandidates: (userId, query) => recorder.listCandidates(userId, query),
       record: async (tx, movement) => {
         await recorder.record(tx, movement);
         throw new Error('forced failure');

@@ -1,6 +1,8 @@
 import {
   AppError,
   activityPageSchema,
+  linkPayerMovementRequestSchema,
+  movementCandidatesResponseSchema,
   addGhostMemberRequestSchema,
   balancesResponseSchema,
   listActivityQuerySchema,
@@ -75,6 +77,8 @@ import { GetGroup } from '../../application/get-group';
 import { GetGroupExpense } from '../../application/get-group-expense';
 import { GetSettlement } from '../../application/get-settlement';
 import { JoinGroup } from '../../application/join-group';
+import { LinkPayerMovement } from '../../application/link-payer-movement';
+import { ListMovementCandidates } from '../../application/list-movement-candidates';
 import { LeaveGroup } from '../../application/leave-group';
 import { ListGroupCategories } from '../../application/list-group-categories';
 import { ListGroupExpenses } from '../../application/list-group-expenses';
@@ -168,6 +172,8 @@ export function createGroupRoutes({
   const updateCategory = new UpdateGroupCategory({ groups, clock });
   const recordExpense = new RecordGroupExpense({ groups, expenses, payerMovements, clock });
   const sendMovement = new SendMovementToGroup({ groups, expenses, payerMovements, clock });
+  const linkPayerMovement = new LinkPayerMovement({ groups, expenses, payerMovements });
+  const listMovementCandidates = new ListMovementCandidates({ groups, expenses, payerMovements });
   const listExpenses = new ListGroupExpenses({ groups, expenses });
   const getExpense = new GetGroupExpense({ groups, expenses });
   const summarizeExpenses = new SummarizeGroupExpenses({
@@ -520,6 +526,53 @@ export function createGroupRoutes({
         async ({ params }, { res, auth }) => {
           const expense = await getExpense.execute(userIdOf(auth), params.id, params.expenseId);
           res.json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.post(
+      '/groups/:id/expenses/:expenseId/payer-movement',
+      validate(
+        {
+          params: groupExpenseParamsSchema,
+          body: linkPayerMovementRequestSchema,
+          response: groupExpenseResponseSchema,
+        },
+        async ({ params, body }, { res, auth, requestId }) => {
+          const expense = await linkPayerMovement.execute(
+            userIdOf(auth),
+            params.id,
+            params.expenseId,
+            body,
+          );
+          audit('group expense linked to the payer movement', requestId, auth, params.id, {
+            expenseId: expense.id,
+          });
+          res.json(presentGroupExpense(expense));
+        },
+      ),
+    );
+
+    router.get(
+      '/groups/:id/expenses/:expenseId/movement-candidates',
+      validate(
+        { params: groupExpenseParamsSchema, response: movementCandidatesResponseSchema },
+        async ({ params }, { res, auth }) => {
+          const items = await listMovementCandidates.execute(
+            userIdOf(auth),
+            params.id,
+            params.expenseId,
+          );
+          res.json({
+            items: items.map((item) => ({
+              id: item.id,
+              amount: item.amount.toString(),
+              occurredAt: item.occurredAt.toISOString(),
+              note: item.note,
+              accountId: item.accountId,
+              accountName: item.accountName,
+            })),
+          });
         },
       ),
     );

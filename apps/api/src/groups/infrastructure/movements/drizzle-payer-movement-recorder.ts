@@ -1,5 +1,5 @@
 import { dateInTimeZone, todayInTimeZone } from '@pesly/shared';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, notExists, sql } from 'drizzle-orm';
 import { CreateMovement } from '../../../movements/application/create-movement';
 import { localDayRange } from '../../../movements/application/local-day-range';
 import type { UserPreferences } from '../../../movements/application/ports/user-preferences';
@@ -15,6 +15,7 @@ import type { Database } from '../../../shared/db/client';
 import type { Clock } from '../../application/ports/clock';
 import type {
   AdoptableMovement,
+  MovementCandidateRow,
   PayerAccountCheck,
   PayerMovementRecorder,
   PayerMovementRemoval,
@@ -54,6 +55,42 @@ export class DrizzlePayerMovementRecorder implements PayerMovementRecorder<Payer
     if (account === null || account.archived || account.currency !== check.currency) return false;
     const category = await new DrizzleCategoryLookup(this.db).find(scope, check.categoryId);
     return category !== null && category.kind === 'expense' && !category.archived;
+  }
+
+  async listCandidates(
+    userId: string,
+    query: { amount: bigint; currency: 'ARS' | 'USD'; limit: number },
+  ): Promise<MovementCandidateRow[]> {
+    return this.db
+      .select({
+        id: movements.id,
+        amount: movements.amount,
+        occurredAt: movements.occurredAt,
+        note: movements.note,
+        accountId: movements.accountId,
+        accountName: accounts.name,
+      })
+      .from(movements)
+      .innerJoin(
+        accounts,
+        and(eq(accounts.id, movements.accountId), eq(accounts.ownerId, movements.ownerId)),
+      )
+      .where(
+        and(
+          eq(movements.ownerId, userId),
+          eq(movements.type, 'expense'),
+          eq(movements.amount, query.amount),
+          eq(accounts.currency, query.currency),
+          notExists(
+            this.db
+              .select({ one: sql`1` })
+              .from(groupExpenses)
+              .where(eq(groupExpenses.payerMovementId, movements.id)),
+          ),
+        ),
+      )
+      .orderBy(desc(movements.occurredAt), desc(movements.id))
+      .limit(query.limit);
   }
 
   async peekAdoptable(userId: string, movementId: string): Promise<AdoptableMovement | null> {
