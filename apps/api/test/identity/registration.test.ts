@@ -145,7 +145,7 @@ describe('POST /auth/register', () => {
       {
         default_rate_type: 'mep',
         display_currency: 'ARS',
-        time_zone: 'America/Cordoba',
+        time_zone: 'America/Argentina/Cordoba',
         language: 'en',
       },
     ]);
