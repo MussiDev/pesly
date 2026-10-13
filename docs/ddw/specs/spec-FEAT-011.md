@@ -98,8 +98,7 @@ longer defines the rule, and `pnpm typecheck` is clean.
   `InstallmentSpendingRow`, and extends `spendingOf` with the card rows and an
   `unconvertedInstallmentCount` result.
 - `apps/api/src/budgets/application/ports/spending-reader.ts` (modified) — adds
-  `StatementSpendingRow`, `cardPurchaseSpending` and `installmentSpending` to `SpendingReader`, and
-  changes the window helpers so a statement row carries its due month.
+  `StatementSpendingRow`, `cardPurchaseSpending` and `installmentSpending` to `SpendingReader`. The rows carry the statement fields, and the use case derives the due month in Block 4.
 - `apps/api/test/budgets/fakes.ts` (modified) — `FakeSpendingReader` implements the two new reads.
 - `apps/api/test/budgets/spending-fixtures.ts` (modified) — builders for the new rows.
 - `apps/api/test/budgets/spending-domain.test.ts` (modified) — unit tests of the calculation.

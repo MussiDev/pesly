@@ -7,6 +7,8 @@ import type {
   BucketedPersonalRow,
   BucketedShareRow,
   SpendingBucket,
+  StatementCardPurchaseRow,
+  StatementInstallmentRow,
   SpendingReader,
   SpendingWindow,
 } from '../../application/ports/spending-reader';
@@ -37,6 +39,16 @@ function bucketOf(column: AnyPgColumn, window: SpendingWindow) {
 
 export class DrizzleSpendingReader implements SpendingReader {
   constructor(private readonly db: Database) {}
+
+  // TODO(FEAT-011 Block 3): replace this stub with the statement-placed card purchase query.
+  cardPurchaseSpending(): Promise<StatementCardPurchaseRow[]> {
+    return Promise.resolve([]);
+  }
+
+  // TODO(FEAT-011 Block 3): replace this stub with the statement-placed installment query.
+  installmentSpending(): Promise<StatementInstallmentRow[]> {
+    return Promise.resolve([]);
+  }
 
   async personalSpending(
     scope: AccessScope,

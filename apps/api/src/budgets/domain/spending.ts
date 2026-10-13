@@ -23,6 +23,34 @@ export interface ShareRow {
   sum: bigint;
 }
 
+/** The statement a card row belongs to; the due month is derived from it by `statementDueMonth`. */
+export interface StatementPlacement {
+  /** The statement's month, `YYYY-MM`. */
+  period: string;
+  /** The stored statement's due date, or null when the statement is not stored yet. */
+  dueDate: string | null;
+  closingDay: number;
+  dueDay: number;
+}
+
+/** Sum of the expenses made on a card account of one (statement, category, currency, rate) group. */
+export interface CardPurchaseRow extends StatementPlacement {
+  categoryId: string;
+  currency: BudgetCurrency;
+  /** ARS per USD scaled by 10,000, frozen on the movements; null never happens for a movement. */
+  rate: bigint | null;
+  sum: bigint;
+}
+
+/** Sum of the installments of one (statement, category, purchase currency) group; no frozen rate. */
+export interface InstallmentSpendingRow extends StatementPlacement {
+  categoryId: string;
+  currency: BudgetCurrency;
+  sum: bigint;
+  /** How many installments the sum holds. */
+  count: number;
+}
+
 function fold(name: string): string {
   return name.normalize('NFC').toLowerCase();
 }
@@ -64,12 +92,16 @@ export function spendingOf(
   coveredNames: readonly string[],
   personalRows: readonly PersonalRow[],
   shareRows: readonly ShareRow[],
-): { spent: bigint; unconvertedShareCount: number } {
+  cardPurchaseRows: readonly CardPurchaseRow[] = [],
+  installmentRows: readonly InstallmentSpendingRow[] = [],
+): { spent: bigint; unconvertedShareCount: number; unconvertedInstallmentCount: number } {
   const wanted = new Set(coveredNames.map(fold));
   let spent = 0n;
   let unconvertedShareCount = 0;
+  let unconvertedInstallmentCount = 0;
 
-  for (const row of personalRows) {
+  // A card purchase keeps the frozen rate of its movement, so it adds like a personal expense.
+  for (const row of [...personalRows, ...cardPurchaseRows]) {
     if (!coveredCategoryIds.has(row.categoryId)) continue;
     const converted = convertAmount(row.sum, row.currency, budgetCurrency, row.rate);
     if (converted === null) throw new RangeError('A personal expense needs a frozen rate');
@@ -87,7 +119,17 @@ export function spendingOf(
     spent += converted;
   }
 
-  return { spent, unconvertedShareCount };
+  // An installment stores no frozen rate, so one in the other currency cannot be converted.
+  for (const row of installmentRows) {
+    if (!coveredCategoryIds.has(row.categoryId)) continue;
+    if (row.currency !== budgetCurrency) {
+      unconvertedInstallmentCount += row.count;
+      continue;
+    }
+    spent += row.sum;
+  }
+
+  return { spent, unconvertedShareCount, unconvertedInstallmentCount };
 }
 
 /** `spent * 100 / available` rounded down, from 0 to 1,000; `available` must be positive. */

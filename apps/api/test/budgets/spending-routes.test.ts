@@ -74,6 +74,8 @@ function readers(ownerId: string, sum: bigint) {
       calls.spending += 1;
       return Promise.resolve([]);
     },
+    cardPurchaseSpending: () => Promise.resolve([]),
+    installmentSpending: () => Promise.resolve([]),
   };
   return { calls, versionReader, spendingReader };
 }

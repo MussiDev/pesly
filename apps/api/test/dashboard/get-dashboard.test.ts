@@ -57,6 +57,8 @@ function setup(overrides: Partial<GetDashboardDependencies> = {}) {
       spending: {
         personalSpending: () => Promise.resolve([]),
         shareSpending: () => Promise.resolve([]),
+        cardPurchaseSpending: () => Promise.resolve([]),
+        installmentSpending: () => Promise.resolve([]),
       },
       clock: new FixedClock(),
     },

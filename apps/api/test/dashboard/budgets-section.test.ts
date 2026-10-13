@@ -144,6 +144,8 @@ describe('buildBudgets', () => {
     const failing: SpendingReader = {
       personalSpending: () => Promise.reject(new Error('spending read failed')),
       shareSpending: () => Promise.resolve([]),
+      cardPurchaseSpending: () => Promise.resolve([]),
+      installmentSpending: () => Promise.resolve([]),
     };
 
     await expect(run({ spending: failing })).rejects.toThrow('spending read failed');
