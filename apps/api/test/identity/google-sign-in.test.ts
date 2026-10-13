@@ -242,7 +242,7 @@ describe('GET /auth/google/start', () => {
       state_hash: sha256(state),
       binding_hash: sha256(binding?.value ?? ''),
       nonce_hash: sha256(nonce),
-      time_zone: 'America/Cordoba',
+      time_zone: 'America/Argentina/Cordoba',
       language: 'en',
     });
     expect((row.expires_at as Date).getTime()).toBe(harness.clock.now().getTime() + TEN_MINUTES);
@@ -324,7 +324,7 @@ describe('GET /auth/google/callback', () => {
     expect(user).toMatchObject({
       email: 'ana@gmail.com',
       password_hash: null,
-      time_zone: 'America/Cordoba',
+      time_zone: 'America/Argentina/Cordoba',
       language: 'en',
     });
     expect(user?.email_verified_at).toBeInstanceOf(Date);
@@ -335,7 +335,12 @@ describe('GET /auth/google/callback', () => {
     const session = await currentSession(harness.app, sessionFrom(response));
     expect(session.status).toBe(200);
     expect(session.body).toMatchObject({
-      user: { id: user?.id, emailVerified: true, language: 'en', timeZone: 'America/Cordoba' },
+      user: {
+        id: user?.id,
+        emailVerified: true,
+        language: 'en',
+        timeZone: 'America/Argentina/Cordoba',
+      },
     });
     expect(await stateRows()).toEqual([]);
   });

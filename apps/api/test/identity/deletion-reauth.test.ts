@@ -233,7 +233,7 @@ describe('POST /profile/delete/google/start', () => {
       session_family_id: await familyOf(member),
       state_hash: sha256(url.searchParams.get('state') ?? ''),
       binding_hash: sha256(binding?.value ?? ''),
-      time_zone: 'America/Cordoba',
+      time_zone: 'America/Argentina/Cordoba',
       language: 'en',
     });
     expect((state?.expires_at as Date).getTime()).toBe(harness.clock.now().getTime() + 600_000);
