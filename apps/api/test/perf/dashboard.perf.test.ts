@@ -30,7 +30,9 @@ import { removeDataset, seedDataset, type SeededDataset } from './movements-seed
 const RUNS = 20;
 const WARM_UP_RUNS = 2;
 const MAX_P95_MS = 1000;
-const MAX_STATEMENTS = 40;
+// 40 from DISC-001-09b NFR-05, plus 4 for the available money and 2 for the budgets' card spending
+// (FEAT-011 NFR-07, AC-28).
+const MAX_STATEMENTS = 46;
 const MAX_BODY_BYTES = 32 * 1024;
 const CATEGORIES = 40;
 const BUDGETS = 50;
@@ -366,7 +368,7 @@ async function seedRecurring(userId: string, categoryId: string): Promise<void> 
 }
 
 describe('dashboard latency (NFR-01, NFR-05, NFR-06, AC-50, AC-54, AC-55)', () => {
-  it('answers under 1 s at p95 with 40 statements or fewer and a body of 32 KB or less', async () => {
+  it('answers under 1 s at p95 with 46 statements or fewer and a body of 32 KB or less', async () => {
     const harness = createIdentityHarness(connection, {
       realSessions: true,
       routerFactories: [

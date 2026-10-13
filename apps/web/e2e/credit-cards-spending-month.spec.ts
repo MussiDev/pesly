@@ -1,7 +1,9 @@
 import { DEFAULT_CATEGORIES, defaultCategoryName } from '@pesly/shared';
 import { expect, test, type Page } from '@playwright/test';
+import { backdateBudgets, createBudget } from './support/budgets';
 import { catalogs } from './support/catalogs';
 import { moveFirstStatementDueToThisMonth, resetAttemptLimits } from './support/database';
+import { ars } from './support/group-expenses';
 import { emailLink } from './support/mailpit';
 
 const PASSWORD = 'correct horse battery staple';
@@ -114,4 +116,48 @@ test('a card purchase counts as spending in the month its statement is due (FEAT
   await page.goto('/es/reports/categories');
   await expect(page.getByText(es.reports.states.emptyTitle)).toHaveCount(0);
   await expect(page.getByText(/30.000,00/).first()).toBeVisible();
+});
+
+test('a budget counts a card purchase in the month its statement is due, not in the month of the purchase (FEAT-011 AC-01, AC-07)', async ({
+  page,
+}) => {
+  const email = await signedInUser(page, 'card-budget-month');
+  await createBank(page);
+  const cardId = await createVisa(page);
+  await spend(page, cardId, '30.000,00');
+  await createBudget(page, {
+    name: 'Tarjeta',
+    amount: '100000,00',
+    categories: [EXPENSE_CATEGORY],
+  });
+
+  // Bought today, due in a later month: the budget of this month does not count it yet.
+  await page.goto('/es/budgets');
+  await expect(page.getByRole('listitem', { name: 'Tarjeta' })).toContainText(
+    `${ars(0n)} de ${ars(10000000n)}`,
+  );
+  await expect(page.getByText(note)).toBeVisible();
+
+  // The statement becomes due this month and the purchase is from last month: this month's budget
+  // counts it and last month's does not.
+  await moveFirstStatementDueToThisMonth(email, 'Visa');
+  await backdateBudgets(email, 1);
+  await page.goto('/es/budgets');
+  await expect(page.getByRole('listitem', { name: 'Tarjeta' })).toContainText(
+    `${ars(3000000n)} de ${ars(10000000n)}`,
+  );
+  await expect(page.getByText(note)).toBeVisible();
+
+  await page.getByRole('button', { name: es.budgets.list.month.previous }).click();
+  await expect(page.getByText(es.budgets.list.month.current)).toHaveCount(0);
+  await expect(page.getByRole('listitem', { name: 'Tarjeta' })).toContainText(
+    `${ars(0n)} de ${ars(10000000n)}`,
+  );
+
+  // The detail screen of the current month carries the same figure and the same note.
+  await page.goto('/es/budgets');
+  await page.getByRole('listitem', { name: 'Tarjeta' }).getByRole('link').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Tarjeta' })).toBeVisible();
+  await expect(page.getByText(ars(3000000n))).toBeVisible();
+  await expect(page.getByText(note)).toBeVisible();
 });
