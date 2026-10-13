@@ -76,6 +76,20 @@ describe('toDashboardView', () => {
     expect(view({ currency: 'USD' }).currency).toBe('USD');
   });
 
+  it('maps the available money into bigint with its parts (AC-18, AC-20)', () => {
+    expect(view().available).toEqual({
+      total: 67000000n,
+      reason: null,
+      ars: 60000000n,
+      usd: 50000n,
+    });
+  });
+
+  it('keeps both available parts and no total on no_rate (AC-21)', () => {
+    const result = view({ available: { ars: '5', usd: '7', total: null, reason: 'no_rate' } });
+    expect(result.available).toEqual({ total: null, reason: 'no_rate', ars: 5n, usd: 7n });
+  });
+
   it('keeps both parts and no total on no_rate, and a null change null (AC-05, AC-09)', () => {
     const result = view({
       netWorth: {

@@ -160,6 +160,11 @@ describe('dashboard api client', () => {
     ['a fractional percent', { categories: [{ ...dashboard.categories[0], sharePercent: 60.5 }] }],
     ['an unknown action kind', { actions: [{ ...dashboard.actions[0], kind: 'nope' }] }],
     ['a missing today', { today: undefined }],
+    ['a missing available section', { available: undefined }],
+    [
+      'an available total without its reason',
+      { available: { ars: '1', usd: '1', total: null, reason: null } },
+    ],
     ['an unknown currency', { currency: 'EUR' }],
     ['an impossible calendar day', { today: '2026-02-31' }],
   ])('rejects %s as a generic failure with no view', async (_name, patch) => {

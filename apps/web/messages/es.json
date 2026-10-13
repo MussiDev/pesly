@@ -2262,6 +2262,9 @@
   },
   "dashboard": {
     "title": "Inicio",
+    "available": {
+      "label": "Disponible"
+    },
     "netWorth": {
       "label": "Patrimonio neto",
       "ars": "En pesos",

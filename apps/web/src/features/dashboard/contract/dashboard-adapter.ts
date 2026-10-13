@@ -70,9 +70,15 @@ function toCategoryViews(raw: DashboardResponse, options: AdapterOptions): Categ
 }
 
 export function toDashboardView(raw: DashboardResponse, options: AdapterOptions): DashboardView {
-  const { netWorth, month, groups } = raw;
+  const { netWorth, available, month, groups } = raw;
   return {
     currency: raw.currency,
+    available: {
+      total: available.total === null ? null : BigInt(available.total),
+      reason: available.reason,
+      ars: BigInt(available.ars),
+      usd: BigInt(available.usd),
+    },
     netWorth: {
       total: netWorth.total === null ? null : BigInt(netWorth.total),
       reason: netWorth.reason,

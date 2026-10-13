@@ -21,6 +21,7 @@ function flatten(catalog: Catalog, prefix = ''): Record<string, string> {
 const REQUIRED = [
   'dashboard.title',
   'dashboard.netWorth.label',
+  'dashboard.available.label',
   'dashboard.netWorth.ars',
   'dashboard.netWorth.usd',
   'dashboard.netWorth.conversionUnavailable',

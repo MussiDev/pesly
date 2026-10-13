@@ -2256,6 +2256,9 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "available": {
+      "label": "Available"
+    },
     "netWorth": {
       "label": "Net worth",
       "ars": "In pesos",

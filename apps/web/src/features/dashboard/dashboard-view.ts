@@ -11,6 +11,14 @@ export interface NetWorthView {
   holdingsWithoutPrice: number;
 }
 
+/** The money the user can spend now; `total` is null when a part has no rate to convert it. */
+export interface AvailableView {
+  total: bigint | null;
+  reason: 'no_rate' | null;
+  ars: bigint;
+  usd: bigint;
+}
+
 export interface ChangedAmount {
   value: bigint;
   /** Whole percent against the same period of the previous month; null when there is none. */
@@ -89,6 +97,7 @@ export interface SeriesView {
 
 export interface DashboardView {
   currency: Currency;
+  available: AvailableView;
   netWorth: NetWorthView;
   month: MonthView;
   categories: CategoryView[];

@@ -32,7 +32,7 @@ export type SlotName =
 /** Each slot reserves the height of its card, so the skeleton and the loaded cards do not move. */
 export const SLOT_CLASS: Record<SlotName, string> = {
   firstSteps: 'grid min-w-0 min-h-40',
-  netWorth: 'grid min-w-0 min-h-80',
+  netWorth: 'grid min-w-0 min-h-120 md:min-h-80',
   kpis: 'grid min-w-0 min-h-32',
   quickActions: 'grid min-w-0 min-h-24',
   categories: 'grid min-w-0 min-h-56',
@@ -110,6 +110,7 @@ export function DashboardScreen({ locale, view, series, attention }: DashboardSc
             locale={locale}
             currency={view.currency}
             netWorth={view.netWorth}
+            available={view.available}
             series={series}
           />
         ),

@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from '@/i18n/navigation';
@@ -10,7 +10,7 @@ import { formatMoney } from '@/lib/format-amount';
 import { drawnPoints } from '../chart/chart-geometry';
 import { NetWorthChart } from '../chart/net-worth-chart';
 import { NetWorthPointsList } from '../chart/net-worth-points-list';
-import type { Currency, NetWorthView, SeriesPointView } from '../dashboard-view';
+import type { AvailableView, Currency, NetWorthView, SeriesPointView } from '../dashboard-view';
 import { NetWorthNotice } from './net-worth-notice';
 
 export type SeriesState =
@@ -26,11 +26,13 @@ export function NetWorthCard({
   locale,
   currency,
   netWorth,
+  available,
   series,
 }: {
   locale: Locale;
   currency: Currency;
   netWorth: NetWorthView;
+  available: AvailableView;
   series: SeriesState;
 }) {
   const t = useTranslations('dashboard');
@@ -40,33 +42,34 @@ export function NetWorthCard({
 
   return (
     <section aria-labelledby="net-worth-title" className="grid min-w-0 content-start gap-3">
-      <div className="grid min-w-0 gap-4 rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground">
-        <div className="grid min-w-0 gap-1">
-          <h2 id="net-worth-title" className="text-small font-normal text-hero-muted">
-            {t('netWorth.label')}
-          </h2>
-          {netWorth.total === null ? (
-            <p className="text-small text-hero-muted">{t('netWorth.conversionUnavailable')}</p>
-          ) : (
-            <p className="min-w-0 break-words text-display">
-              {formatMoney(netWorth.total, currency, locale)}
-            </p>
-          )}
-        </div>
-        <dl className="flex min-w-0 flex-wrap gap-2">
-          <div className={PART_CLASS}>
-            <dt className="text-caption text-hero-muted">{t('netWorth.ars')}</dt>
-            <dd className="break-words text-body font-semibold">
-              {formatMoney(netWorth.ars, 'ARS', locale)}
-            </dd>
-          </div>
-          <div className={PART_CLASS}>
-            <dt className="text-caption text-hero-muted">{t('netWorth.usd')}</dt>
-            <dd className="break-words text-body font-semibold">
-              {formatMoney(netWorth.usd, 'USD', locale)}
-            </dd>
-          </div>
-        </dl>
+      <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-5 rounded-card bg-hero px-5 pt-4.5 pb-5 text-hero-foreground">
+        <FigureBlock
+          locale={locale}
+          currency={currency}
+          title={
+            <h2 id="net-worth-title" className="text-small font-normal text-hero-muted">
+              {t('netWorth.label')}
+            </h2>
+          }
+          total={netWorth.total}
+          ars={netWorth.ars}
+          usd={netWorth.usd}
+          figureClass="text-display"
+        />
+        <FigureBlock
+          locale={locale}
+          currency={currency}
+          groupLabelId="available-title"
+          title={
+            <h2 id="available-title" className="text-small font-normal text-hero-muted">
+              {t('available.label')}
+            </h2>
+          }
+          total={available.total}
+          ars={available.ars}
+          usd={available.usd}
+          figureClass="text-heading"
+        />
       </div>
       <Card className="min-w-0">
         <CardContent className="flex min-w-0 flex-col gap-4">
@@ -95,6 +98,57 @@ export function NetWorthCard({
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+/** A label, its converted figure (or the notice) and the ARS and USD parts, on the navy card. */
+function FigureBlock({
+  locale,
+  currency,
+  title,
+  total,
+  ars,
+  usd,
+  figureClass,
+  groupLabelId,
+}: {
+  locale: Locale;
+  currency: Currency;
+  title: ReactNode;
+  total: bigint | null;
+  ars: bigint;
+  usd: bigint;
+  figureClass: string;
+  groupLabelId?: string;
+}) {
+  const t = useTranslations('dashboard');
+  return (
+    <div
+      role={groupLabelId === undefined ? undefined : 'group'}
+      aria-labelledby={groupLabelId}
+      className="grid min-w-0 flex-1 basis-64 content-start gap-3"
+    >
+      <div className="grid min-w-0 gap-1">
+        {title}
+        {total === null ? (
+          <p className="text-small text-hero-muted">{t('netWorth.conversionUnavailable')}</p>
+        ) : (
+          <p className={`min-w-0 break-words ${figureClass}`}>
+            {formatMoney(total, currency, locale)}
+          </p>
+        )}
+      </div>
+      <dl className="flex min-w-0 flex-wrap gap-2">
+        <div className={PART_CLASS}>
+          <dt className="text-caption text-hero-muted">{t('netWorth.ars')}</dt>
+          <dd className="break-words text-body font-semibold">{formatMoney(ars, 'ARS', locale)}</dd>
+        </div>
+        <div className={PART_CLASS}>
+          <dt className="text-caption text-hero-muted">{t('netWorth.usd')}</dt>
+          <dd className="break-words text-body font-semibold">{formatMoney(usd, 'USD', locale)}</dd>
+        </div>
+      </dl>
+    </div>
   );
 }
 

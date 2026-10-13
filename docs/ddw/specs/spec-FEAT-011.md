@@ -373,13 +373,13 @@ and the parts. The labels come from the `dashboard` catalog in both languages.
 - `total` null: the tile shows the notice and the parts, no converted figure.
 
 **Required tests**
-- [ ] The home screen shows the available money with its ARS and USD parts — validates AC-18.
-- [ ] With a converted total the tile shows it in the display currency — validates AC-20.
-- [ ] With the total missing the tile shows the notice and the two parts — validates AC-21.
-- [ ] The label is read from the Spanish and the English catalog and both carry the same keys —
+- [x] The home screen shows the available money with its ARS and USD parts — validates AC-18.
+- [x] With a converted total the tile shows it in the display currency — validates AC-20.
+- [x] With the total missing the tile shows the notice and the two parts — validates AC-21.
+- [x] The label is read from the Spanish and the English catalog and both carry the same keys —
       validates AC-26.
-- [ ] The home screen issues the same requests as before — validates AC-25.
-- [ ] A response missing `available` shows the failure state.
+- [x] The home screen issues the same requests as before — validates AC-25.
+- [x] A response missing `available` shows the failure state.
 
 **Completion criterion**
 The listed web tests pass and the home screen renders the tile in both languages.

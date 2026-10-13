@@ -214,6 +214,27 @@ describe('DashboardContainer loading and requests', () => {
   });
 });
 
+describe('DashboardContainer available money (FEAT-011)', () => {
+  it('shows the available money beside the net worth with its parts, with no extra request (AC-18, AC-25)', async () => {
+    const { calls } = stubApi(OK);
+    renderApp(<DashboardContainer />, { locale: 'en' });
+    const tile = await screen.findByRole('group', { name: en.dashboard.available.label });
+    expect(within(tile).getByText(money(67000000n, 'ARS', 'en'))).toBeDefined();
+    expect(within(tile).getByText(money(60000000n, 'ARS', 'en'))).toBeDefined();
+    expect(within(tile).getByText(money(50000n, 'USD', 'en'))).toBeDefined();
+    expect(calls.map((call) => call.path).sort()).toEqual(['/dashboard', '/reports/net-worth']);
+  });
+
+  it('shows the failure state when the response has no available section', async () => {
+    const body: Record<string, unknown> = dashboardBody();
+    delete body.available;
+    stubApi({ [DASHBOARD]: { status: 200, body }, [SERIES]: { status: 200, body: seriesBody() } });
+    renderApp(<DashboardContainer />, { locale: 'en' });
+    await screen.findByText(en.dashboard.states.error);
+    expect(screen.queryByRole('group', { name: en.dashboard.available.label })).toBeNull();
+  });
+});
+
 describe('DashboardContainer ready screen', () => {
   it('renders every card with the amounts of the response (AC-47, Spanish)', async () => {
     stubApi(OK);
