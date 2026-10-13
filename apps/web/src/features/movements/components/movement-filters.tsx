@@ -1,8 +1,8 @@
 'use client';
 
-import { MOVEMENT_TYPES } from '@pesly/shared';
+import { MOVEMENT_TYPES, movementFilterShape } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
-import { useId, useState, type ReactNode, type Ref } from 'react';
+import { useEffect, useId, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,6 +46,44 @@ export interface MovementFiltersProps {
 }
 
 const INDENT = '   ';
+
+interface DateFieldProps {
+  id: string;
+  value: string | undefined;
+  disabled: boolean;
+  invalid: boolean;
+  describedBy: string | undefined;
+  onCommit: (value: string) => void;
+}
+
+/**
+ * A date input that keeps what is being typed. The browser reports partial dates while the year is
+ * typed (`0002-09-01`); those stay in the box and only a real day (or an empty box) becomes a
+ * filter, because the URL round trip would drop the partial one and wipe the box.
+ */
+function DateField({ id, value, disabled, invalid, describedBy, onCommit }: DateFieldProps) {
+  const [draft, setDraft] = useState(value ?? '');
+  useEffect(() => {
+    setDraft(value ?? '');
+  }, [value]);
+
+  return (
+    <Input
+      id={id}
+      disabled={disabled}
+      type="date"
+      className="min-w-0"
+      value={draft}
+      aria-invalid={invalid}
+      aria-describedby={describedBy}
+      onChange={(event) => {
+        const next = event.currentTarget.value;
+        setDraft(next);
+        if (next === '' || movementFilterShape.from.safeParse(next).success) onCommit(next);
+      }}
+    />
+  );
+}
 
 /** A copy of `filters` with `key` set, or unset when `value` is empty. */
 function withValue<K extends keyof MovementFilterValues>(
@@ -167,31 +205,27 @@ export function MovementFilters({
             <div className="grid gap-3 min-[26rem]:grid-cols-2">
               <div className="grid min-w-0 gap-2">
                 <Label htmlFor={`${id}-from`}>{t('filters.from')}</Label>
-                <Input
+                <DateField
                   id={`${id}-from`}
                   disabled={disabled}
-                  type="date"
-                  className="min-w-0"
-                  value={filters.from ?? ''}
-                  aria-invalid={rangeInvalid}
-                  aria-describedby={rangeInvalid ? rangeMessageId : undefined}
-                  onChange={(event) => {
-                    onChange(withValue(filters, 'from', event.currentTarget.value));
+                  value={filters.from}
+                  invalid={rangeInvalid}
+                  describedBy={rangeInvalid ? rangeMessageId : undefined}
+                  onCommit={(value) => {
+                    onChange(withValue(filters, 'from', value));
                   }}
                 />
               </div>
               <div className="grid min-w-0 gap-2">
                 <Label htmlFor={`${id}-to`}>{t('filters.to')}</Label>
-                <Input
+                <DateField
                   id={`${id}-to`}
                   disabled={disabled}
-                  type="date"
-                  className="min-w-0"
-                  value={filters.to ?? ''}
-                  aria-invalid={rangeInvalid}
-                  aria-describedby={rangeInvalid ? rangeMessageId : undefined}
-                  onChange={(event) => {
-                    onChange(withValue(filters, 'to', event.currentTarget.value));
+                  value={filters.to}
+                  invalid={rangeInvalid}
+                  describedBy={rangeInvalid ? rangeMessageId : undefined}
+                  onCommit={(value) => {
+                    onChange(withValue(filters, 'to', value));
                   }}
                 />
               </div>
