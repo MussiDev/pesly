@@ -1,5 +1,46 @@
 import { randomUUID } from 'node:crypto';
 import type pg from 'pg';
+import type {
+  StatementCardPurchaseRow,
+  StatementInstallmentRow,
+} from '../../src/budgets/application/ports/spending-reader';
+
+/** A card purchase row on the September statement (closing 24, due 5 Oct), 30,000.00 ARS. */
+export function cardPurchaseRow(
+  categoryId: string,
+  overrides: Partial<StatementCardPurchaseRow> = {},
+): StatementCardPurchaseRow {
+  return {
+    categoryId,
+    currency: 'ARS',
+    rate: 14000000n,
+    sum: 3000000n,
+    count: 1,
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
+    ...overrides,
+  };
+}
+
+/** An installment row on the September statement, 10,000.00 ARS. */
+export function installmentRow(
+  categoryId: string,
+  overrides: Partial<StatementInstallmentRow> = {},
+): StatementInstallmentRow {
+  return {
+    categoryId,
+    currency: 'ARS',
+    sum: 1000000n,
+    count: 1,
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
+    ...overrides,
+  };
+}
 
 function firstId(rows: { id: string }[]): string {
   const row = rows[0];

@@ -9,6 +9,7 @@ const { en, es } = CATALOGS;
 function view(leftOutCount: number): DashboardView {
   return {
     currency: 'ARS',
+    available: { total: 900n, reason: null, ars: 900n, usd: 0n },
     netWorth: { total: 1000n, reason: null, ars: 1000n, usd: 0n, holdingsWithoutPrice: 0 },
     month: {
       expenses: { value: 100n, change: null },

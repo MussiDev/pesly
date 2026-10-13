@@ -7,6 +7,13 @@ export { notices } from '../../../notices/infrastructure/db/schema';
 // Read-only sources of the spending read (DISC-001-06c D4, D5); this module writes none of them.
 export { accounts } from '../../../accounts/infrastructure/db/schema';
 export { movements } from '../../../movements/infrastructure/db/schema';
+// Card statements and installments place card spending in the month its statement is due (FEAT-011).
+export {
+  creditCardStatements,
+  creditCards,
+  installmentPurchases,
+  installments,
+} from '../../../credit-cards/infrastructure/db/schema';
 export {
   groupCategories,
   groupExpenseShares,

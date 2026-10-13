@@ -8,11 +8,14 @@ import autocannon from 'autocannon';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createBudgetRoutes } from '../../src/budgets';
+import { DrizzleSpendingReader } from '../../src/budgets/infrastructure/db/drizzle-spending-reader';
+import { monthBounds, previousMonth } from '../../src/budgets/domain/month';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
 import { createIdentityHarness } from '../helpers/identity-harness';
 import { cookieHeader, seedUser, sessionFrom, signIn } from '../helpers/session-client';
 import { assertIsTestDatabase, testDatabaseUrl } from '../helpers/test-database';
+import { readScope } from '../movements/db-fixtures';
 import { removeDataset, seedDataset } from './movements-seed';
 
 /**
@@ -61,6 +64,7 @@ afterAll(async () => {
     // Budgets first: their category keys restrict the category delete. Groups cascade their rows.
     for (const id of seededUsers) {
       await pool.query('delete from budgets where owner_id = $1', [id]);
+      await pool.query('delete from credit_cards where owner_id = $1', [id]);
       await pool.query(
         'delete from groups where id in (select group_id from group_members where user_id = $1)',
         [id],
@@ -273,6 +277,75 @@ async function seedGroup(userId: string): Promise<void> {
   await pool.query('analyze group_members');
 }
 
+/**
+ * A card with its own two accounts, 4 stored statements, 2,000 card purchases and 200 installment
+ * purchases of 6 installments, all in 'Spend 1' and 'Spend 3' so the controlled budgets (2, 4, 10,
+ * 50) keep their SQL control. The two card reads of the budgets answer from these rows.
+ */
+async function seedCards(userId: string): Promise<void> {
+  const accounts = await pool.query<{ id: string; currency: string }>(
+    `insert into accounts (owner_id, name, type, currency, opening_balance, include_in_available)
+     select $1, 'Card ' || c, 'cash', c, 0, false from unnest(array['ARS', 'USD']) as c
+     returning id, currency`,
+    [userId],
+  );
+  const ars = accounts.rows.find((row) => row.currency === 'ARS')?.id;
+  const usd = accounts.rows.find((row) => row.currency === 'USD')?.id;
+  if (!ars || !usd) throw new Error('The card accounts were not inserted');
+  const card = await pool.query<{ id: string }>(
+    `insert into credit_cards (owner_id, name, closing_day, due_day, ars_account_id, usd_account_id)
+     values ($1, 'Perf Visa', 20, 5, $2, $3) returning id`,
+    [userId, ars, usd],
+  );
+  const cardId = card.rows[0]?.id;
+  if (!cardId) throw new Error('The card insert returned no row');
+  await pool.query(
+    `insert into credit_card_statements (card_id, owner_id, period, closing_date, due_date)
+     select $1, $2, to_char(date_trunc('month', timezone($3, now())) - make_interval(months => m), 'YYYY-MM'),
+            (date_trunc('month', timezone($3, now())) - make_interval(months => m))::date + 19,
+            (date_trunc('month', timezone($3, now())) - make_interval(months => m))::date + 34
+       from generate_series(0, 3) as m`,
+    [cardId, userId, TIME_ZONE],
+  );
+  await pool.query(
+    `with cats as (
+       select id, substring(name from 7)::int as k from categories
+        where owner_id = $1 and name in ('Spend 1', 'Spend 3')
+     )
+     insert into movements (owner_id, type, account_id, category_id, amount, occurred_at, rate, rate_source)
+     select $1, 'expense', case when g % 5 = 0 then $4::uuid else $3::uuid end, cats.id,
+            ((g % 900) + 1)::bigint * 100,
+            (date_trunc('month', timezone($2, now())) - make_interval(months => (g % 3)::int)
+             + make_interval(days => (g % 28)::int, secs => (g % 3600)::int)) at time zone $2,
+            14000000, 'manual'
+       from generate_series(1, 2000) as g join cats on cats.k = case when g % 2 = 0 then 1 else 3 end`,
+    [userId, TIME_ZONE, ars, usd],
+  );
+  await pool.query(
+    `insert into installment_purchases (owner_id, card_id, category_id, total_amount, currency,
+                                        installment_count, purchased_on)
+     select $1, $2, c.id, (1000 + p) * 600, case when p % 4 = 0 then 'USD' else 'ARS' end, 6,
+            current_date - (p % 3) * 30
+       from generate_series(1, 200) as p
+       join categories c on c.owner_id = $1 and c.name = case when p % 2 = 0 then 'Spend 1' else 'Spend 3' end`,
+    [userId, cardId],
+  );
+  await pool.query(
+    `insert into installments (purchase_id, owner_id, number, period, amount)
+     select ip.id, $1, n,
+            to_char(date_trunc('month', timezone($3, now())) - make_interval(months => (rn % 3)::int)
+                    + make_interval(months => n - 1), 'YYYY-MM'),
+            ip.total_amount / 6
+       from (select id, total_amount, row_number() over (order by id) as rn
+               from installment_purchases where owner_id = $1 and card_id = $2) ip
+      cross join generate_series(1, 6) as n`,
+    [userId, cardId, TIME_ZONE],
+  );
+  for (const table of ['credit_card_statements', 'installment_purchases', 'installments']) {
+    await pool.query(`analyze ${table}`);
+  }
+}
+
 interface Control {
   spent: bigint;
   available: bigint;
@@ -338,6 +411,7 @@ describe('budget spending latency (NFR-01)', () => {
     await seedDataset(pool, userId);
     await seedBudgets(userId);
     await seedGroup(userId);
+    await seedCards(userId);
     for (const table of [
       'movements',
       'categories',
@@ -349,6 +423,31 @@ describe('budget spending latency (NFR-01)', () => {
     ]) {
       await pool.query(`analyze ${table}`);
     }
+
+    // The two card reads must have something to read, or this benchmark would not measure them.
+    const month = new Intl.DateTimeFormat('en-CA', {
+      timeZone: TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+    })
+      .format(new Date())
+      .slice(0, 7);
+    const window = {
+      current: monthBounds(month, TIME_ZONE),
+      previous: monthBounds(previousMonth(month), TIME_ZONE),
+    };
+    const reader = new DrizzleSpendingReader(connection.db);
+    const scope = await readScope(userId);
+    const spendIds = (
+      await pool.query<{ id: string }>(
+        "select id from categories where owner_id = $1 and name in ('Spend 1', 'Spend 3')",
+        [userId],
+      )
+    ).rows.map((row) => row.id);
+    expect(
+      (await reader.cardPurchaseSpending(scope, window, spendIds, TIME_ZONE)).length,
+    ).toBeGreaterThan(0);
+    expect((await reader.installmentSpending(scope, window, spendIds)).length).toBeGreaterThan(0);
 
     const url = await listen(harness.app);
     const cookie = cookieHeader(cookies);

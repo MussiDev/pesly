@@ -38,6 +38,7 @@ function base(): DashboardResponse {
       holdingsWithoutPrice: 0,
       parts: { ...NO_PARTS, accounts: { ars: '100000000', usd: '100000' } },
     },
+    available: { ars: '60000000', usd: '50000', total: '67000000', reason: null },
     month: {
       from: `${isoDay(0).slice(0, 7)}-01`,
       to: isoDay(0),
@@ -111,6 +112,7 @@ function base(): DashboardResponse {
 
 /** What a user with no account and no movement gets: zeros everywhere and the guide on. */
 export const FIRST_STEPS_DASHBOARD: Partial<DashboardResponse> = {
+  available: { ars: '0', usd: '0', total: '0', reason: null },
   netWorth: {
     ars: '0',
     usd: '0',
@@ -140,6 +142,7 @@ export const FIRST_STEPS_DASHBOARD: Partial<DashboardResponse> = {
 
 /** Both parts of the net worth are known but no rate converts them into one figure. */
 export const NO_RATE_DASHBOARD: Partial<DashboardResponse> = {
+  available: { ars: '60000000', usd: '50000', total: null, reason: 'no_rate' },
   netWorth: {
     ars: '100000000',
     usd: '100000',

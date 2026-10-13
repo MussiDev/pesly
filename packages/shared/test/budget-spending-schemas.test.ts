@@ -24,6 +24,7 @@ const response = {
   percentUsed: 70,
   thresholds: [80, 100],
   unconvertedShareCount: 0,
+  unconvertedInstallmentCount: 0,
 };
 
 describe('budgetSpendingQuerySchema (AC-15, AC-16)', () => {
@@ -90,6 +91,22 @@ describe('budgetSpendingResponseSchema (AC-14, AC-28)', () => {
     expect(budgetSpendingResponseSchema.safeParse({ ...response, month: '2026-13' }).success).toBe(
       false,
     );
+  });
+
+  it('requires a non-negative integer unconvertedInstallmentCount (AC-27)', () => {
+    const without: Partial<typeof response> = { ...response };
+    delete without.unconvertedInstallmentCount;
+    expect(budgetSpendingResponseSchema.safeParse(without).success).toBe(false);
+    for (const bad of [-1, 1.5, '2']) {
+      expect(
+        budgetSpendingResponseSchema.safeParse({ ...response, unconvertedInstallmentCount: bad })
+          .success,
+      ).toBe(false);
+    }
+    expect(
+      budgetSpendingResponseSchema.parse({ ...response, unconvertedInstallmentCount: 3 })
+        .unconvertedInstallmentCount,
+    ).toBe(3);
   });
 
   it('parses the list envelope', () => {

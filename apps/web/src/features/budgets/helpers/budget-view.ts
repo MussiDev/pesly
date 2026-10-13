@@ -27,6 +27,7 @@ export interface BudgetView {
   overBudget: boolean;
   markers: BudgetMarker[];
   unconvertedShareCount: number;
+  unconvertedInstallmentCount: number;
 }
 
 function clampPercent(value: number): number {
@@ -56,5 +57,6 @@ export function toBudgetView(spending: BudgetSpendingResponse): BudgetView {
       label: `${value}`,
     })),
     unconvertedShareCount: spending.unconvertedShareCount,
+    unconvertedInstallmentCount: spending.unconvertedInstallmentCount,
   };
 }

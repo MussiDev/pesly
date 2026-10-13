@@ -2,7 +2,11 @@
 import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { NetWorthCard } from '../src/features/dashboard/components/net-worth-card';
-import type { NetWorthView, SeriesPointView } from '../src/features/dashboard/dashboard-view';
+import type {
+  AvailableView,
+  NetWorthView,
+  SeriesPointView,
+} from '../src/features/dashboard/dashboard-view';
 import { formatCalendarDate } from '../src/features/credit-cards/format-dates';
 import { formatMoney } from '../src/lib/format-amount';
 import { CATALOGS, renderApp } from './support/render-app';
@@ -26,6 +30,10 @@ function netWorth(overrides: Partial<NetWorthView> = {}): NetWorthView {
   };
 }
 
+function available(overrides: Partial<AvailableView> = {}): AvailableView {
+  return { total: 67_000_000n, reason: null, ars: 60_000_000n, usd: 50_000n, ...overrides };
+}
+
 function series(count: number, total: (index: number) => bigint | null): SeriesPointView[] {
   return Array.from({ length: count }, (_, index) => {
     const month = String(index + 1).padStart(2, '0');
@@ -47,7 +55,12 @@ const ready = (points: SeriesPointView[], currency: 'ARS' | 'USD' = 'ARS'): Seri
 });
 
 function renderCard(
-  props: { netWorth?: NetWorthView; series?: SeriesProp; currency?: 'ARS' | 'USD' } = {},
+  props: {
+    netWorth?: NetWorthView;
+    available?: AvailableView;
+    series?: SeriesProp;
+    currency?: 'ARS' | 'USD';
+  } = {},
   locale: 'es' | 'en' = 'en',
 ) {
   return renderApp(
@@ -55,6 +68,7 @@ function renderCard(
       locale={locale}
       currency={props.currency ?? 'ARS'}
       netWorth={props.netWorth ?? netWorth()}
+      available={props.available ?? available()}
       series={props.series ?? ready(series(12, (i) => BigInt(i + 1) * 1_000_000n))}
     />,
     { locale },
@@ -81,8 +95,9 @@ describe('NetWorthCard figures', () => {
     const usd = screen.getByText(hasText('1,000.00 USD'));
     expect(ars).not.toBe(usd);
     expect(ars.parentElement).not.toBe(usd.parentElement);
-    expect(screen.getByText('In pesos')).toBeDefined();
-    expect(screen.getByText('In dollars')).toBeDefined();
+    // One pair of part labels for the net worth, one for the available tile.
+    expect(screen.getAllByText('In pesos')).toHaveLength(2);
+    expect(screen.getAllByText('In dollars')).toHaveLength(2);
   });
 
   it('with a null total and no_rate shows both parts, the message and no total (AC-05)', () => {
@@ -149,7 +164,7 @@ describe('NetWorthCard figures', () => {
       screen.getByRole('heading', { level: 2, name: CATALOGS.es.dashboard.netWorth.label }),
     ).toBeDefined();
     expect(screen.getByText(hasText('1.420.000,00 ARS'))).toBeDefined();
-    expect(screen.getByText(CATALOGS.es.dashboard.netWorth.ars)).toBeDefined();
+    expect(screen.getAllByText(CATALOGS.es.dashboard.netWorth.ars)).toHaveLength(2);
     expect(document.querySelector('caption')?.textContent).toBe(
       CATALOGS.es.dashboard.chart.pointsCaption,
     );
@@ -396,6 +411,7 @@ describe('series failure', () => {
         locale="en"
         currency="ARS"
         netWorth={netWorth()}
+        available={available()}
         series={{ kind: 'failed', retrying, onRetry }}
       />
     );
@@ -403,5 +419,50 @@ describe('series failure', () => {
     view.rerender(next(false));
     fireEvent.click(screen.getByRole('button', { name: CATALOGS.en.dashboard.chart.retry }));
     expect(onRetry).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('NetWorthCard available tile (FEAT-011)', () => {
+  const tile = () => screen.getByRole('group', { name: CATALOGS.en.dashboard.available.label });
+
+  it('shows the available money with its ARS and USD parts (AC-18)', () => {
+    renderCard();
+    const scope = within(tile());
+    expect(scope.getByText(hasText('600,000.00 ARS'))).toBeDefined();
+    expect(scope.getByText(hasText('500.00 USD'))).toBeDefined();
+    expect(scope.getByText(CATALOGS.en.dashboard.netWorth.ars)).toBeDefined();
+    expect(scope.getByText(CATALOGS.en.dashboard.netWorth.usd)).toBeDefined();
+  });
+
+  it('shows the converted total in the display currency (AC-20)', () => {
+    renderCard({ currency: 'ARS' });
+    expect(within(tile()).getByText(hasText('670,000.00 ARS'))).toBeDefined();
+  });
+
+  it('prints the converted total in USD for a USD display currency (AC-20)', () => {
+    renderCard({ currency: 'USD', available: available({ total: 123_400n }) });
+    expect(within(tile()).getByText(hasText('1,234.00 USD'))).toBeDefined();
+  });
+
+  it('with no total shows the notice and the two parts, no converted figure (AC-21)', () => {
+    renderCard({ available: available({ total: null, reason: 'no_rate' }) });
+    const scope = within(tile());
+    expect(scope.getByText(CATALOGS.en.dashboard.netWorth.conversionUnavailable)).toBeDefined();
+    expect(scope.getByText(hasText('600,000.00 ARS'))).toBeDefined();
+    expect(scope.getByText(hasText('500.00 USD'))).toBeDefined();
+    expect(screen.queryByText(hasText('670,000.00'))).toBeNull();
+  });
+
+  it('reads the label from the Spanish catalog (AC-26)', () => {
+    renderCard({}, 'es');
+    expect(
+      screen.getByRole('group', { name: CATALOGS.es.dashboard.available.label }),
+    ).toBeDefined();
+  });
+
+  it('wraps on a narrow screen instead of overflowing (NFR-04)', () => {
+    renderCard();
+    expect(tile().className).toMatch(/min-w-0/);
+    expect(tile().className).toMatch(/basis-/);
   });
 });

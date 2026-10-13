@@ -120,6 +120,29 @@ describe('budgets catalog (DISC-001-06f Block 0)', () => {
     expect([...es, ...en].filter(([, v]) => v.trim() === '')).toEqual([]);
   });
 
+  it.each([
+    ['es', /cuota/i],
+    ['en', /installment/i],
+  ] as const)(
+    'words the unconverted notice to cover installments too (%s, AC-27)',
+    (locale, word) => {
+      const text = readString(loadCatalog(locale), 'budgets.card.unconvertedShares');
+      expect(text).toMatch(word);
+      expect(text).toContain('{count, plural');
+    },
+  );
+
+  it.each(LOCALES)(
+    'adds no card purchases note key to the budgets namespace (%s, AC-13)',
+    (locale) => {
+      const keys = flatten(loadCatalog(locale)['budgets'] as Catalog).map(([k]) => k);
+      expect(keys.filter((k) => /cardPurchases/i.test(k))).toEqual([]);
+      expect(
+        readString(loadCatalog(locale), 'cardPurchasesNote.text')?.trim().length,
+      ).toBeGreaterThan(0);
+    },
+  );
+
   it('has the same budgets keys in es and en', () => {
     const es = flatten(loadCatalog('es')['budgets'] as Catalog);
     const en = flatten(loadCatalog('en')['budgets'] as Catalog);

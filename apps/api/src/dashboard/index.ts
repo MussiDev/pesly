@@ -1,3 +1,4 @@
+import { DrizzleAccountRepository, GetAvailableTotals } from '../accounts';
 import type { RouterFactory } from '../app';
 import {
   DrizzleBudgetVersionReader,
@@ -10,7 +11,7 @@ import {
   DrizzlePortfolioRepository,
   ListPortfolios,
 } from '../investments';
-import { createCardPayments, createCardPurchases } from '../movements';
+import { createAccountMovements, createCardPayments, createCardPurchases } from '../movements';
 import {
   DrizzleOccurrenceRepository,
   DrizzleRecurringPaymentRepository,
@@ -73,6 +74,12 @@ function composeUseCase({ db, clock }: Pick<DashboardRouterOptions, 'db' | 'cloc
           reportsClock,
         ),
       ),
+    },
+    available: {
+      accounts: new GetAvailableTotals({
+        accounts: new DrizzleAccountRepository(db),
+        movements: createAccountMovements(db),
+      }),
     },
     flows: { flows: new DrizzleFlowReader(db) },
     budgets: {

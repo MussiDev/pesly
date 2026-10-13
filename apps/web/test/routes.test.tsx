@@ -74,6 +74,7 @@ describe('routes', () => {
         body: {
           currency: 'ARS',
           today: '2026-10-12',
+          available: { ars: '0', usd: '0', total: '0', reason: null },
           netWorth: {
             ars: '0',
             usd: '0',

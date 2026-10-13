@@ -13,6 +13,8 @@ import {
   namesMatch,
   percentUsed,
   spendingOf,
+  type CardPurchaseRow,
+  type InstallmentSpendingRow,
   type PersonalRow,
   type ShareRow,
 } from '../../src/budgets/domain/spending';
@@ -36,6 +38,34 @@ function share(overrides: Partial<ShareRow> = {}): ShareRow {
     currency: 'ARS',
     rate: null,
     sum: 1000000n,
+    ...overrides,
+  };
+}
+
+function cardPurchase(overrides: Partial<CardPurchaseRow> = {}): CardPurchaseRow {
+  return {
+    categoryId: FOOD,
+    currency: 'ARS',
+    rate: 15000000n,
+    sum: 3000000n,
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
+    ...overrides,
+  };
+}
+
+function installment(overrides: Partial<InstallmentSpendingRow> = {}): InstallmentSpendingRow {
+  return {
+    categoryId: FOOD,
+    currency: 'ARS',
+    sum: 1000000n,
+    count: 1,
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
     ...overrides,
   };
 }
@@ -150,7 +180,11 @@ describe('convertAmount (AC-07, AC-08, AC-28)', () => {
 describe('spendingOf (AC-01, AC-04, AC-05, AC-12)', () => {
   it('adds a personal expense and a share', () => {
     const result = spendingOf('ARS', coveredIds, coveredNames, [personal()], [share()]);
-    expect(result).toEqual({ spent: 6000000n, unconvertedShareCount: 0 });
+    expect(result).toEqual({
+      spent: 6000000n,
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
+    });
   });
 
   it('ignores categories outside the covered set and unmatched share names', () => {
@@ -180,6 +214,7 @@ describe('spendingOf (AC-01, AC-04, AC-05, AC-12)', () => {
     expect(spendingOf('ARS', coveredIds, coveredNames, [], [])).toEqual({
       spent: 0n,
       unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
     });
   });
 
@@ -202,7 +237,11 @@ describe('spendingOf (AC-01, AC-04, AC-05, AC-12)', () => {
       [],
       [share({ currency: 'USD', rate: null, sum: 2000n })],
     );
-    expect(result).toEqual({ spent: 0n, unconvertedShareCount: 1 });
+    expect(result).toEqual({
+      spent: 0n,
+      unconvertedShareCount: 1,
+      unconvertedInstallmentCount: 0,
+    });
   });
 
   it('converts a USD share that carries a rate', () => {
@@ -213,13 +252,90 @@ describe('spendingOf (AC-01, AC-04, AC-05, AC-12)', () => {
       [],
       [share({ currency: 'USD', rate: 15000000n, sum: 2000n })],
     );
-    expect(result).toEqual({ spent: 3000000n, unconvertedShareCount: 0 });
+    expect(result).toEqual({
+      spent: 3000000n,
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
+    });
   });
 
   it('throws on a personal row in another currency with no rate', () => {
     expect(() =>
       spendingOf('ARS', coveredIds, coveredNames, [personal({ currency: 'USD', rate: null })], []),
     ).toThrow();
+  });
+});
+
+describe('spendingOf with card purchases and installments (AC-01, AC-09, AC-27)', () => {
+  const spend = (cards: CardPurchaseRow[], installments: InstallmentSpendingRow[]) =>
+    spendingOf('ARS', coveredIds, coveredNames, [], [], cards, installments);
+
+  it('adds a card purchase in the budget currency (AC-01)', () => {
+    const result = spend([cardPurchase({ sum: 3000000n })], []);
+    expect(result).toEqual({
+      spent: 3000000n,
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
+    });
+  });
+
+  it('converts a card purchase in USD with its frozen rate (AC-09)', () => {
+    const result = spend([cardPurchase({ currency: 'USD', sum: 2000n, rate: 15000000n })], []);
+    expect(result.spent).toBe(3000000n);
+  });
+
+  it('adds a card purchase on top of a personal row', () => {
+    const result = spendingOf('ARS', coveredIds, coveredNames, [personal()], [], [cardPurchase()]);
+    expect(result.spent).toBe(8000000n);
+  });
+
+  it('adds an installment in the budget currency and counts one in the other (AC-27)', () => {
+    const result = spend(
+      [],
+      [installment({ sum: 500000n }), installment({ currency: 'USD', sum: 1000n, count: 1 })],
+    );
+    expect(result).toEqual({
+      spent: 500000n,
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 1,
+    });
+  });
+
+  it('adds the count of an unconverted installment row, not 1 per row', () => {
+    const result = spend([], [installment({ currency: 'USD', sum: 3000n, count: 3 })]);
+    expect(result.unconvertedInstallmentCount).toBe(3);
+    expect(result.spent).toBe(0n);
+  });
+
+  it('counts an ARS installment as unconverted in a USD budget', () => {
+    const result = spendingOf('USD', coveredIds, coveredNames, [], [], [], [installment()]);
+    expect(result).toMatchObject({ spent: 0n, unconvertedInstallmentCount: 1 });
+  });
+
+  it('throws on a card purchase in another currency with no frozen rate', () => {
+    expect(() => spend([cardPurchase({ currency: 'USD', rate: null })], [])).toThrow(
+      new RangeError('A personal expense needs a frozen rate'),
+    );
+  });
+
+  it('does not throw for an installment in the other currency', () => {
+    expect(() => spend([], [installment({ currency: 'USD' })])).not.toThrow();
+  });
+
+  it('adds nothing for a row whose category the budget does not cover', () => {
+    const result = spend(
+      [cardPurchase({ categoryId: OTHER })],
+      [installment({ categoryId: OTHER }), installment({ categoryId: OTHER, currency: 'USD' })],
+    );
+    expect(result).toEqual({
+      spent: 0n,
+      unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
+    });
+  });
+
+  it('keeps the old five-argument call working', () => {
+    expect(spendingOf('ARS', coveredIds, coveredNames, [], []).unconvertedInstallmentCount).toBe(0);
   });
 });
 

@@ -19,7 +19,10 @@ export function BudgetCard({ budget }: { budget: BudgetView }) {
         </span>
         <BudgetProgress view={budget} />
       </Link>
-      <UnconvertedNotice count={budget.unconvertedShareCount} />
+      <UnconvertedNotice
+        shares={budget.unconvertedShareCount}
+        installments={budget.unconvertedInstallmentCount}
+      />
     </li>
   );
 }

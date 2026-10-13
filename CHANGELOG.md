@@ -453,6 +453,9 @@ All notable changes to this project are documented in this file. The format foll
   page lets an admin create, edit and archive group categories. Spanish and English, 360 px layouts, web
   only, no new dependency. Expenses, balances, settlements and the activity log screens arrive in DISC-001-05f
   to 05h.
+- FEAT-011 The home screen shows the available money, the balances of the accounts marked "include in
+  available", next to the net worth, in the same currency and with the same rate, from the same totals
+  as the accounts screen. It arrives in the existing `GET /dashboard` response.
 
 ### Changed
 
@@ -484,6 +487,13 @@ All notable changes to this project are documented in this file. The format foll
   variation, balance history, monthly flow bars) are not drawn and belong to PRD 10; the top
   navigation scrolls away with the page on purpose, because a sticky one covered scrolled-to
   controls; a merchant is recognized only from the note, with no per-movement override.
+- FEAT-011 Budgets count card spending in the month its statement is due, as the reports and the
+  dashboard do since FEAT-010: a purchase in one payment moves from its purchase month to the month of
+  its statement, and installments, which no budget counted before, now count in the month of their
+  statement. Rollover and alerts read the same figures. An installment in a currency other than the
+  budget's is left out and counted in a notice. The budget screens say so with the note the reports use.
+- FEAT-011 The ceiling of SQL statements of a dashboard request moves from 40 to 46 (the available
+  money adds 4 and the budgets 2); the latency and size thresholds do not change.
 
 ### Fixed
 

@@ -107,6 +107,7 @@ describe('Dashboard links to reports (AC-06, AC-07)', () => {
       <NetWorthCard
         locale="es"
         currency="ARS"
+        available={{ total: 90n, reason: null, ars: 90n, usd: 0n }}
         netWorth={{ total: 100n, reason: null, ars: 100n, usd: 0n, holdingsWithoutPrice: 0 }}
         series={{ kind: 'ready', currency: 'ARS', points: [] }}
       />,

@@ -27,6 +27,8 @@ import type {
   BucketedShareRow,
   SpendingReader,
   SpendingWindow,
+  StatementCardPurchaseRow,
+  StatementInstallmentRow,
 } from '../../src/budgets/application/ports/spending-reader';
 import type { UserTimeZone } from '../../src/budgets/application/ports/user-time-zone';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
@@ -260,6 +262,39 @@ export class FakeSpendingReader implements SpendingReader {
   readonly shares = new Map<string, BucketedShareRow[]>();
   readonly personalCalls: { window: SpendingWindow; categoryIds: readonly string[] }[] = [];
   readonly shareCalls: { window: SpendingWindow }[] = [];
+  readonly cardPurchases = new Map<string, StatementCardPurchaseRow[]>();
+  readonly installments = new Map<string, StatementInstallmentRow[]>();
+  readonly cardPurchaseCalls: {
+    window: SpendingWindow;
+    categoryIds: readonly string[];
+    timeZone: string;
+  }[] = [];
+  readonly installmentCalls: { window: SpendingWindow; categoryIds: readonly string[] }[] = [];
+
+  async cardPurchaseSpending(
+    scope: AccessScope,
+    window: SpendingWindow,
+    categoryIds: readonly string[],
+    timeZone: string,
+  ): Promise<StatementCardPurchaseRow[]> {
+    await Promise.resolve();
+    this.cardPurchaseCalls.push({ window, categoryIds, timeZone });
+    return (this.cardPurchases.get(scope.userId) ?? []).filter((row) =>
+      categoryIds.includes(row.categoryId),
+    );
+  }
+
+  async installmentSpending(
+    scope: AccessScope,
+    window: SpendingWindow,
+    categoryIds: readonly string[],
+  ): Promise<StatementInstallmentRow[]> {
+    await Promise.resolve();
+    this.installmentCalls.push({ window, categoryIds });
+    return (this.installments.get(scope.userId) ?? []).filter((row) =>
+      categoryIds.includes(row.categoryId),
+    );
+  }
 
   async personalSpending(
     scope: AccessScope,

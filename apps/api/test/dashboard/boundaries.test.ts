@@ -6,6 +6,7 @@ const srcRoot = resolve(__dirname, '..', '..', 'src');
 const moduleRoot = join(srcRoot, 'dashboard');
 /** The modules the dashboard reads; each is reached through its barrel only (D1). */
 const SOURCE_MODULES = [
+  'accounts',
   'reports',
   'budgets',
   'recurring',

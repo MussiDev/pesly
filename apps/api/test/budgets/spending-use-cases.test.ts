@@ -11,6 +11,7 @@ import type {
   BucketedPersonalRow,
   BucketedShareRow,
 } from '../../src/budgets/application/ports/spending-reader';
+import { cardPurchaseRow, installmentRow } from './spending-fixtures';
 import { ResourceNotFound } from '../../src/shared/access';
 import {
   FakeCategories,
@@ -210,6 +211,7 @@ describe('budget spending use cases', () => {
       percentUsed: 0,
       rolloverAmount: 0n,
       unconvertedShareCount: 0,
+      unconvertedInstallmentCount: 0,
     });
   });
 
@@ -316,5 +318,144 @@ describe('budget spending use cases', () => {
     });
     expect(wire.remaining).toBe('-3000000');
     expect(wire.thresholds).toEqual([80, 100]);
+  });
+});
+
+describe('budget spending with credit card statements', () => {
+  // The September statement (closing 24 Sep) is due on 5 Oct, so its rows belong to October.
+  it('counts the September-dated purchase and the first installment in October (AC-01, AC-02)', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id]);
+    reader.cardPurchases.set(ALICE, [cardPurchaseRow(food.id, { sum: 3000000n })]);
+    reader.installments.set(ALICE, [installmentRow(food.id, { sum: 1000000n })]);
+    reader.personal.set(ALICE, [personal(food.id, 500000n)]);
+
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+
+    expect(result.spent).toBe(4500000n);
+    expect(reader.cardPurchaseCalls).toHaveLength(1);
+    expect(reader.cardPurchaseCalls[0]?.timeZone).toBe('America/Argentina/Buenos_Aires');
+    expect(reader.installmentCalls).toHaveLength(1);
+  });
+
+  it('counts a purchase once across September and October: the two months add to the purchase (AC-07)', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id], {}, SEPTEMBER);
+    const scope = await readScopeFor(ALICE);
+    reader.cardPurchases.set(ALICE, [
+      // Due 5 Sep (August statement) and due 5 Oct (September statement).
+      cardPurchaseRow(food.id, { sum: 2000000n, period: '2026-08', dueDate: '2026-09-05' }),
+      cardPurchaseRow(food.id, { sum: 3000000n }),
+    ]);
+
+    const september = await get.execute(scope, created.id, '2026-09');
+    const october = await get.execute(scope, created.id, '2026-10');
+
+    expect([september.spent, october.spent]).toEqual([2000000n, 3000000n]);
+    expect(september.spent + october.spent).toBe(5000000n);
+  });
+
+  it('computes the due month from the card days when no statement is stored (AC-05)', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id]);
+    reader.cardPurchases.set(ALICE, [cardPurchaseRow(food.id, { dueDate: null })]);
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+    expect(result.spent).toBe(3000000n);
+  });
+
+  it('ignores a statement row due in neither the month nor the previous one', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id], { rollover: true }, SEPTEMBER);
+    reader.cardPurchases.set(ALICE, [
+      cardPurchaseRow(food.id, { period: '2026-07', dueDate: '2026-08-05' }),
+      cardPurchaseRow(food.id, { period: '2026-10', dueDate: '2026-11-05' }),
+    ]);
+    reader.installments.set(ALICE, [
+      installmentRow(food.id, { period: '2026-07', dueDate: '2026-08-05' }),
+    ]);
+
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+
+    expect([result.spent, result.rolloverAmount]).toEqual([0n, 15000000n]);
+  });
+
+  it('puts a row due last month in the previous bucket, so rollover carries its leftover (AC-10)', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id], { rollover: true }, SEPTEMBER);
+    reader.cardPurchases.set(ALICE, [
+      cardPurchaseRow(food.id, { sum: 13000000n, period: '2026-08', dueDate: '2026-09-05' }),
+      cardPurchaseRow(food.id, { sum: 1000000n }),
+    ]);
+
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+
+    expect(result).toMatchObject({
+      rolloverAmount: 2000000n,
+      available: 17000000n,
+      spent: 1000000n,
+      remaining: 16000000n,
+    });
+  });
+
+  it('does not count a previous-month statement row when no budget carries a rollover', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id], { rollover: false }, SEPTEMBER);
+    reader.cardPurchases.set(ALICE, [
+      cardPurchaseRow(food.id, { sum: 13000000n, period: '2026-08', dueDate: '2026-09-05' }),
+    ]);
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+    expect([result.spent, result.rolloverAmount]).toEqual([0n, 0n]);
+  });
+
+  it('reports a USD installment in an ARS budget as not converted and leaves it out (AC-27)', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id]);
+    reader.installments.set(ALICE, [
+      installmentRow(food.id, { sum: 500000n }),
+      installmentRow(food.id, { currency: 'USD', sum: 1000n, count: 2 }),
+    ]);
+
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+
+    expect([result.spent, result.unconvertedInstallmentCount]).toEqual([500000n, 2]);
+    const wire = budgetSpendingResponseSchema.parse({
+      ...result,
+      amount: result.amount.toString(),
+      rolloverAmount: result.rolloverAmount.toString(),
+      available: result.available.toString(),
+      spent: result.spent.toString(),
+      remaining: result.remaining.toString(),
+    });
+    expect(wire.unconvertedInstallmentCount).toBe(2);
+  });
+
+  it('counts the installments left out only for the current month', async () => {
+    const food = categories.add(ALICE, { name: 'Food' });
+    const created = await budget(ALICE, [food.id], { rollover: true }, SEPTEMBER);
+    reader.installments.set(ALICE, [
+      installmentRow(food.id, { currency: 'USD', period: '2026-08', dueDate: '2026-09-05' }),
+    ]);
+    const result = await get.execute(await readScopeFor(ALICE), created.id);
+    expect(result.unconvertedInstallmentCount).toBe(0);
+  });
+
+  it('answers 404 for a budget of another user and reads no card rows (AC-23)', async () => {
+    const food = categories.add(ALICE);
+    const created = await budget(ALICE, [food.id]);
+    await expect(get.execute(await readScopeFor(BOB), created.id)).rejects.toBeInstanceOf(
+      ResourceNotFound,
+    );
+    expect(reader.cardPurchaseCalls).toHaveLength(0);
+    expect(reader.installmentCalls).toHaveLength(0);
+  });
+
+  it('rejects a future month and reads no card rows', async () => {
+    const food = categories.add(ALICE);
+    await budget(ALICE, [food.id]);
+    await expect(list.execute(await readScopeFor(ALICE), '2026-11')).rejects.toBeInstanceOf(
+      BudgetMonthInFuture,
+    );
+    expect(reader.cardPurchaseCalls).toHaveLength(0);
+    expect(reader.installmentCalls).toHaveLength(0);
   });
 });

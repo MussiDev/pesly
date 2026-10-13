@@ -74,6 +74,21 @@ describe('no float money in the budget spending feature (NFR-02, AC-28)', () => 
     for (const [, pattern] of FORBIDDEN) expect(pattern.test(code(allowed))).toBe(false);
   });
 
+  it('the new card and installment rows type every money value as bigint', () => {
+    const source = code(
+      readFileSync(join(apiRoot, 'src', 'budgets', 'domain', 'spending.ts'), 'utf8'),
+    );
+    const block = (name: string) =>
+      new RegExp(`export interface ${name} [^{]*{([^}]*)}`).exec(source)?.[1] ?? '';
+    expect(block('CardPurchaseRow')).toMatch(/rate: bigint( \| null)?;/);
+    expect(block('CardPurchaseRow')).toMatch(/sum: bigint;/);
+    expect(block('InstallmentSpendingRow')).toMatch(/sum: bigint;/);
+    expect(block('InstallmentSpendingRow')).not.toMatch(/ rate: /);
+    for (const name of ['CardPurchaseRow', 'InstallmentSpendingRow']) {
+      expect(block(name), name).not.toMatch(/(rate|sum): number/);
+    }
+  });
+
   it('the 0035 migration declares no float, numeric or money column', () => {
     const sql = readFileSync(
       join(apiRoot, 'drizzle', '0035_group_expense_payer_movement_idx.sql'),

@@ -1,4 +1,9 @@
-import { todayInTimeZone, type BudgetCurrency } from '@pesly/shared';
+import {
+  statementDueMonth,
+  todayInTimeZone,
+  type BudgetCurrency,
+  type InstallmentDueInput,
+} from '@pesly/shared';
 import type { AccessScope } from '../../shared/access';
 import { BudgetMonthInFuture } from '../domain/errors';
 import { monthBounds, monthOf, previousMonth } from '../domain/month';
@@ -23,7 +28,11 @@ export interface BudgetSpending extends BudgetSpendingResult {
   spent: bigint;
   thresholds: number[];
   unconvertedShareCount: number;
+  unconvertedInstallmentCount: number;
 }
+
+type Bucket = 'current' | 'previous';
+type StatementRowDates = InstallmentDueInput;
 
 /** The covered categories of a version as the pair the domain matches on. */
 function coverage(categories: readonly CoveredCategory[]) {
@@ -84,6 +93,22 @@ export async function computeSpending(
 
   const personal = await deps.spending.personalSpending(scope, window, [...categoryIds]);
   const shares = await deps.spending.shareSpending(scope, window);
+  const cardPurchases = await deps.spending.cardPurchaseSpending(
+    scope,
+    window,
+    [...categoryIds],
+    timeZone,
+  );
+  const installments = await deps.spending.installmentSpending(scope, window, [...categoryIds]);
+
+  // Statement rows count in the month their statement is due, not the month of the purchase.
+  const bucketOf = (row: StatementRowDates): Bucket | null => {
+    const dueMonth = statementDueMonth(row);
+    if (dueMonth === month) return 'current';
+    return window.previous !== null && dueMonth === before ? 'previous' : null;
+  };
+  const inBucket = <Row extends StatementRowDates>(rows: readonly Row[], bucket: Bucket) =>
+    rows.filter((row) => bucketOf(row) === bucket);
 
   const budgets = entries.map(({ entry, current, previous, carries }): BudgetSpending => {
     const now = coverage(current.covered);
@@ -93,6 +118,8 @@ export async function computeSpending(
       now.names,
       personal.filter((row) => row.bucket === 'current'),
       shares.filter((row) => row.bucket === 'current'),
+      inBucket(cardPurchases, 'current'),
+      inBucket(installments, 'current'),
     );
     let spentPrevious = 0n;
     if (carries && previous) {
@@ -103,6 +130,8 @@ export async function computeSpending(
         then.names,
         personal.filter((row) => row.bucket === 'previous'),
         shares.filter((row) => row.bucket === 'previous'),
+        inBucket(cardPurchases, 'previous'),
+        inBucket(installments, 'previous'),
       ).spent;
     }
     const result = computeBudgetSpending({
@@ -123,6 +152,7 @@ export async function computeSpending(
       spent: spentNow.spent,
       thresholds: [...current.version.thresholds],
       unconvertedShareCount: spentNow.unconvertedShareCount,
+      unconvertedInstallmentCount: spentNow.unconvertedInstallmentCount,
     };
   });
   return { month, budgets };

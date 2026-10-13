@@ -40,7 +40,12 @@ function amountFields(value: unknown, path = ''): [string, unknown][] {
   return Object.entries(value).flatMap(([key, child]) => {
     const here = path === '' ? key : `${path}.${key}`;
     // The three changes are whole percentages, not amounts.
-    const isAmount = AMOUNT_KEYS.has(key) && child !== null && !here.startsWith('month.change');
+    // `available` is also the key of the available section: only its leaves are amounts.
+    const isAmount =
+      AMOUNT_KEYS.has(key) &&
+      child !== null &&
+      typeof child !== 'object' &&
+      !here.startsWith('month.change');
     const own: [string, unknown][] = isAmount ? [[here, child]] : [];
     return [...own, ...amountFields(child, here)];
   });
@@ -157,7 +162,9 @@ describe('GET /dashboard over the real routes and PostgreSQL', () => {
     ]);
 
     expect(body.budgets.map((row) => [row.budgetId, row.percentUsed, row.status])).toEqual([
-      [world.foodBudgetId, 160, 'over'],
+      // 5,300,000 of 3,000,000: the same food total as the categories above, now that the
+      // 5,000.00 installment of the statement due 2026-10-09 counts in October.
+      [world.foodBudgetId, 176, 'over'],
       [world.funBudgetId, 80, 'close'],
     ]);
 

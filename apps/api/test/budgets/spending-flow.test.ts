@@ -9,6 +9,7 @@ import { createDatabase, type DatabaseConnection } from '../../src/shared/db/cli
 import { seedUser, sessionFrom, signIn } from '../helpers/session-client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { newAccount } from '../movements/db-fixtures';
+import { newCard, newInstallmentPurchase, newStatement } from '../reports/flow-fixtures';
 import { buildApp, call, MovableClock, PASSWORD, type Owner } from './route-harness';
 import {
   newGroup,
@@ -155,6 +156,75 @@ describe('budget spending flow over PostgreSQL', () => {
       percentUsed: 20,
     });
     expect(await budgetSpending(app, ana, foodBudget, '2026-10')).toEqual(byName.get('Groceries'));
+  });
+
+  it('counts card purchases and installments in the month their statement is due, once, with rollover and the left-out USD installment (AC-01, AC-02, AC-07, AC-10, AC-27)', async () => {
+    const clock = new MovableClock(new Date('2026-08-15T16:00:00.000Z'));
+    const { app, ana } = await world(clock);
+    const pool = connection.pool;
+    const cash = await newAccount(pool, ana.id, false, 'ARS');
+    const cardArs = await newAccount(pool, ana.id, false, 'ARS');
+    const cardUsd = await newAccount(pool, ana.id, false, 'USD');
+    const food = await newNamedCategory(pool, ana.id, { name: 'Food' });
+    const budgetId = await createBudget(app, ana, {
+      name: 'Groceries',
+      amount: '15000000',
+      currency: 'ARS',
+      categoryIds: [food],
+      rollover: true,
+    });
+    const cardId = await newCard(pool, {
+      ownerId: ana.id,
+      arsAccountId: cardArs,
+      usdAccountId: cardUsd,
+      closingDay: 24,
+      dueDay: 5,
+    });
+    for (const [period, closingDate, dueDate] of [
+      ['2026-08', '2026-08-24', '2026-09-05'],
+      ['2026-09', '2026-09-24', '2026-10-05'],
+      ['2026-10', '2026-10-24', '2026-11-05'],
+    ] as const) {
+      await newStatement(pool, { cardId, ownerId: ana.id, period, closingDate, dueDate });
+    }
+    const spend = (accountId: string, amount: bigint, occurredAt: string) =>
+      newMovementAt(pool, { ownerId: ana.id, accountId, categoryId: food, amount, occurredAt });
+    // The August statement is due 5 Sep; the September one, 5 Oct.
+    await spend(cardArs, 13000000n, '2026-08-20T15:00:00Z');
+    await spend(cardArs, 3000000n, '2026-09-20T15:00:00Z');
+    await spend(cash, 500000n, '2026-10-02T15:00:00Z');
+    await newInstallmentPurchase(pool, {
+      ownerId: ana.id,
+      cardId,
+      categoryId: food,
+      installments: [
+        { period: '2026-09', amount: 1000000n },
+        { period: '2026-10', amount: 1000000n },
+      ],
+    });
+    await newInstallmentPurchase(pool, {
+      ownerId: ana.id,
+      cardId,
+      categoryId: food,
+      currency: 'USD',
+      installments: [{ period: '2026-09', amount: 1000n }],
+    });
+
+    clock.current = OCTOBER;
+    const october = await budgetSpending(app, ana, budgetId, '2026-10');
+    const september = await budgetSpending(app, ana, budgetId, '2026-09');
+
+    // October: the 30,000.00 purchase of 20 Sep, the first 10,000.00 installment and the cash expense.
+    expect(october).toMatchObject({
+      spent: '4500000',
+      rolloverAmount: '2000000',
+      available: '17000000',
+      unconvertedInstallmentCount: 1,
+    });
+    // September: only the purchase of 20 Aug, whose statement is due 5 Sep.
+    expect(september).toMatchObject({ spent: '13000000', unconvertedInstallmentCount: 0 });
+    const listed = (await listSpending(app, ana, '2026-10')).budgets[0];
+    expect(listed).toEqual(october);
   });
 
   it('converts at the frozen rate in both directions and ignores later changes of the stored rates (AC-07, AC-08, AC-09)', async () => {

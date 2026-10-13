@@ -8,7 +8,7 @@ function amounts(value: PerCurrency): { ars: string; usd: string } {
 
 /** The only place where `bigint` becomes a string; the route validates the result. */
 export function presentDashboard(sections: DashboardSections): DashboardResponse {
-  const { context, netWorth, month, budgets, agenda, groups, firstSteps } = sections;
+  const { context, netWorth, available, month, budgets, agenda, groups, firstSteps } = sections;
   return {
     currency: context.preferences.displayCurrency,
     today: context.today,
@@ -24,6 +24,12 @@ export function presentDashboard(sections: DashboardSections): DashboardResponse
         groups: amounts(netWorth.parts.groups),
         installmentDebt: amounts(netWorth.parts.installmentDebt),
       },
+    },
+    available: {
+      ars: available.ars.toString(),
+      usd: available.usd.toString(),
+      total: available.total === null ? null : available.total.toString(),
+      reason: available.reason,
     },
     month: {
       from: month.month.from,

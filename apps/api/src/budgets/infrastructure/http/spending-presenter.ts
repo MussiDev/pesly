@@ -17,5 +17,6 @@ export function presentBudgetSpending(spending: BudgetSpending): BudgetSpendingR
     percentUsed: spending.percentUsed,
     thresholds: spending.thresholds,
     unconvertedShareCount: spending.unconvertedShareCount,
+    unconvertedInstallmentCount: spending.unconvertedInstallmentCount,
   };
 }

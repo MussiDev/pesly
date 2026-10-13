@@ -1,4 +1,4 @@
-import { statementDatesFor } from '@pesly/shared';
+import { installmentDueDate, statementDueMonth, type InstallmentDueInput } from '@pesly/shared';
 import { convertAmount, effectiveNames, namesMatch, type FlowCurrency } from './conversion';
 
 /** A grouped row that can be converted: personal rows, share rows and installment rows. */
@@ -79,18 +79,7 @@ export function matchShareCategory(
   return first?.id ?? null;
 }
 
-export interface InstallmentDueInput {
-  period: string;
-  /** The stored statement's due date, or null when the statement is not stored yet. */
-  dueDate: string | null;
-  closingDay: number;
-  dueDay: number;
-}
-
-/** The stored due date, or the one derived from the card days (D8). */
-export function installmentDueDate(row: InstallmentDueInput): string {
-  return row.dueDate ?? statementDatesFor(row.period, row.closingDay, row.dueDay).dueDate;
-}
+export { installmentDueDate, type InstallmentDueInput };
 
 /** The `YYYY-MM` of the due date when it is inside `[from, to]` (both `YYYY-MM-DD`), else null. */
 export function installmentMonthOf(
@@ -99,5 +88,5 @@ export function installmentMonthOf(
   to: string,
 ): string | null {
   const due = installmentDueDate(row);
-  return due >= from && due <= to ? due.slice(0, 7) : null;
+  return due >= from && due <= to ? statementDueMonth(row) : null;
 }

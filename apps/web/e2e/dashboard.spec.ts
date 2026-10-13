@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signIn } from './support/accounts';
+import { catalogs } from './support/catalogs';
 import { probeContrast } from './support/contrast';
 import { resetAttemptLimits, withoutStoredRates } from './support/database';
 import {
@@ -28,6 +29,7 @@ import {
   type FigureRequests,
 } from './support/dashboard';
 import { createAccount } from './support/offline-visit';
+import { formatMoney } from '../src/lib/format-amount';
 
 // Spec DISC-001-09c, Block 8. `GET /dashboard` (slice 09b) is not on this branch yet, so it is
 // served by `stubDashboard`; accounts, movements and `GET /reports/net-worth` are real.
@@ -286,8 +288,13 @@ test.describe('states (AC-03, AC-05, AC-29, AC-30, AC-34, AC-35)', () => {
       const card = page.getByRole('region', { name: t.netWorth.label });
       // The screen-reader points table repeats the message per row; the first match is the card's.
       await expect(card.getByText(t.netWorth.conversionUnavailable).first()).toBeVisible();
-      await expect(card.getByText(t.netWorth.ars, { exact: true })).toBeVisible();
-      await expect(card.getByText(t.netWorth.usd, { exact: true })).toBeVisible();
+      // The available tile repeats the two part labels; the net worth block comes first.
+      await expect(card.getByText(t.netWorth.ars, { exact: true }).first()).toBeVisible();
+      await expect(card.getByText(t.netWorth.usd, { exact: true }).first()).toBeVisible();
+      const available = card.getByRole('group', { name: t.available.label, exact: true });
+      await expect(available.getByText(t.netWorth.conversionUnavailable)).toBeVisible();
+      await expect(available.getByText(t.netWorth.ars, { exact: true })).toBeVisible();
+      await expect(available.getByText(t.netWorth.usd, { exact: true })).toBeVisible();
     });
   });
 
@@ -363,7 +370,14 @@ test.describe('states (AC-03, AC-05, AC-29, AC-30, AC-34, AC-35)', () => {
 
     const actions = page.getByRole('list', { name: es.home.quickActions.label });
     await expect(actions.getByRole('link')).toHaveCount(4);
-    await expect(page.getByText(es.accounts.headline.available, { exact: true })).toHaveCount(0);
+    // The only "Available" on the home is the tile next to the net worth (FEAT-011), not the
+    // accounts balance summary.
+    await expect(page.getByText(es.accounts.headline.available, { exact: true })).toHaveCount(1);
+    await expect(
+      page
+        .getByRole('region', { name: t.netWorth.label })
+        .getByRole('group', { name: t.available.label, exact: true }),
+    ).toHaveCount(1);
   });
 });
 
@@ -433,4 +447,51 @@ test.describe('the contrast probe (NFR-03)', () => {
       await probeContrast(page, name('offline'));
     });
   }
+});
+
+test.describe('the available tile (FEAT-011 AC-18, AC-26)', () => {
+  // The fixture answers an available of 600,000.00 ARS and 500.00 USD.
+  const AVAILABLE_ARS = 60000000n;
+  const AVAILABLE_USD = 50000n;
+
+  for (const [locale, copy] of [
+    ['es', catalogs.es.dashboard],
+    ['en', catalogs.en.dashboard],
+  ] as const) {
+    test(`the home shows the available tile with its pesos and dollars parts in ${locale}`, async ({
+      page,
+    }) => {
+      await signedIn(page);
+      await page.goto(`/${locale}`);
+      await expect(page.getByRole('region', { name: copy.netWorth.label })).toBeVisible();
+
+      const tile = page.getByRole('group', { name: copy.available.label, exact: true });
+      await expect(tile).toBeVisible();
+      await expect(tile.getByText(copy.netWorth.ars, { exact: true })).toBeVisible();
+      await expect(tile.getByText(copy.netWorth.usd, { exact: true })).toBeVisible();
+      await expect(tile).toContainText(formatMoney(AVAILABLE_ARS, 'ARS', locale));
+      await expect(tile).toContainText(formatMoney(AVAILABLE_USD, 'USD', locale));
+    });
+  }
+
+  test('at 360 by 740 the page has no horizontal scroll and the net worth and available figures are visible', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await signedIn(page);
+    await page.goto('/es');
+    await expectReady(page);
+
+    const netWorth = page.getByRole('region', { name: t.netWorth.label });
+    const available = page.getByRole('group', { name: t.available.label, exact: true });
+    await expect(netWorth).toContainText(formatMoney(142000000n, 'ARS', 'es'));
+    await expect(available).toBeVisible();
+    await expect(available).toContainText(formatMoney(67000000n, 'ARS', 'es'));
+    await expectWithinWidth(available, 360);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+  });
 });
