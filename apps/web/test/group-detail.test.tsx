@@ -3,7 +3,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { GroupDetailContainer } from '../src/features/groups/containers/group-detail-container';
-import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { CATALOGS, renderApp, stubApi as stubRoutes } from './support/render-app';
 
 const { en, es } = CATALOGS;
 const GROUP_ID = '55555555-5555-4555-8555-555555555555';
@@ -13,6 +13,29 @@ const CARLA = '33333333-3333-4333-8333-333333333333';
 const DIEGO = '44444444-4444-4444-8444-444444444444';
 const GET_GROUP = `GET /groups/${GROUP_ID}`;
 const GET_BALANCES = `GET /groups/${GROUP_ID}/balances`;
+const GET_RECENT = `GET /groups/${GROUP_ID}/expenses?limit=5`;
+const GET_OPTIONS = `GET /groups/${GROUP_ID}/expense-options`;
+const FOUR_LOAD_CALLS = [GET_BALANCES, GET_GROUP, GET_OPTIONS, GET_RECENT].sort();
+
+const EMPTY_OPTIONS = {
+  selfMemberId: '11111111-1111-4111-8111-111111111111',
+  members: [],
+  categories: [],
+  defaultSplit: { mode: 'equal' },
+  defaultRateType: 'blue',
+};
+
+/** The detail also loads the recent expenses; these tests answer them empty unless they say otherwise. */
+const stubApi: typeof stubRoutes = (routes) =>
+  stubRoutes({
+    [GET_RECENT]: { status: 200, body: { items: [], nextCursor: null } },
+    [GET_OPTIONS]: { status: 200, body: EMPTY_OPTIONS },
+    [GET_BALANCES]: {
+      status: 200,
+      body: { ARS: { members: [], payments: [] }, USD: { members: [], payments: [] } },
+    },
+    ...routes,
+  });
 const PATCH_GROUP = `PATCH /groups/${GROUP_ID}`;
 const LEAVE = `POST /groups/${GROUP_ID}/leave`;
 const PROMOTE = `POST /groups/${GROUP_ID}/members/${BRUNO}/admin`;
@@ -68,10 +91,8 @@ describe('GroupDetailContainer', () => {
     expect(within(rowOf('Bruno')).getByText(en.groups.detail.roles.member)).toBeTruthy();
     expect(within(rowOf('Bruno')).queryByText(en.groups.detail.ghost)).toBeNull();
     expect(within(rowOf('Carla')).getByText(en.groups.detail.ghost)).toBeTruthy();
-    expect(calls.length).toBeLessThanOrEqual(2);
-    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(
-      [GET_BALANCES, GET_GROUP].sort(),
-    );
+    expect(calls.length).toBeLessThanOrEqual(4);
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(FOUR_LOAD_CALLS);
   });
 
   it('lists former members apart from the current ones', async () => {
@@ -387,14 +408,14 @@ describe('GroupDetailContainer balances', () => {
     expect(screen.getByRole('link', { name: en.groups.detail.balancesLink })).toBeTruthy();
   });
 
-  it('loads with at most 2 requests', async () => {
+  it('loads with at most 4 requests', async () => {
     const { calls } = stubApi({
       [GET_GROUP]: { status: 200, body: detail() },
       [GET_BALANCES]: { status: 200, body: balances('0', '0') },
     });
     open();
     await screen.findByRole('region', { name: en.groups.detail.ownBalance.title });
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(4);
   });
 
   it('renders Spanish strings for the link and the summary', async () => {
@@ -476,9 +497,7 @@ describe('GroupDetailContainer activity link', () => {
     open();
     const link = await screen.findByRole('link', { name: en.groups.detail.activityLink });
     expect(link.getAttribute('href')).toBe(`/en/groups/${encodeURIComponent(GROUP_ID)}/activity`);
-    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(
-      [GET_BALANCES, GET_GROUP].sort(),
-    );
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(FOUR_LOAD_CALLS);
   });
 
   it('shows the link to a plain member too', async () => {

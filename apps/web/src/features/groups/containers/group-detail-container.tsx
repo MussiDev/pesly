@@ -2,8 +2,8 @@
 
 import { rateTypeSchema, type GroupDetailResponse } from '@pesly/shared';
 import { Users } from 'lucide-react';
-import { useTranslations } from 'next-intl';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLocale, useTimeZone, useTranslations } from 'next-intl';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
@@ -12,10 +12,23 @@ import { useApiClient } from '@/lib/api-client-provider';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
 import { GroupAdminActions } from '../components/group-admin-actions';
 import { OwnBalanceSummary, type OwnBalanceLine } from '../components/own-balance-summary';
+import { GroupRecentExpenses } from '../components/group-recent-expenses';
 import { GroupShortcuts } from '../components/group-shortcuts';
 import { GroupMembers } from '../components/group-members';
+import { GroupSuggestedPaymentsSection } from '../components/group-suggested-payments-section';
 import { GroupsLoadStateView, type GroupsLoadState } from '../components/groups-load-state';
 import { LeaveGroupPanel } from '../components/leave-group-panel';
+import { buildRecentExpenseItems } from '../detail/recent-expense-items';
+import { useGroupBalances } from '../detail/use-group-balances';
+import {
+  RECENT_EXPENSES_LIMIT,
+  useRecentExpenses,
+  type FatalCode,
+} from '../detail/use-recent-expenses';
+import {
+  SettlementFormContainer,
+  type SettlementPrefill,
+} from '../settlement-form/settlement-form-container';
 import { buildBalanceView } from '../settlements/balance-view';
 import { GroupGhostContainer } from './group-ghost-container';
 import { GroupInviteContainer } from './group-invite-container';
@@ -57,38 +70,71 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
   const [rateIssue, setRateIssue] = useState<ApiFailure>();
   const [rateSaved, setRateSaved] = useState(false);
   const [leaveIssue, setLeaveIssue] = useState<ApiFailure>();
+  /** A 404 from a secondary call: sticky, so a later answer of the group call cannot undo it. */
+  const [gone, setGone] = useState(false);
+  const [form, setForm] = useState<{ key: number; initial: SettlementPrefill } | null>(null);
+  const tExpenses = useTranslations('groups.expenses');
+  const language = useLocale() === 'en' ? 'en' : 'es';
+  const timeZone = useTimeZone() ?? 'UTC';
+
+  // A 401 or 404 on a secondary call is decided here, like on the group call (AC-12).
+  const onFatal = (code: FatalCode) => {
+    if (code === 'UNAUTHENTICATED') router.replace('/sign-in');
+    else setGone(true);
+  };
+  const balances = useGroupBalances(groupId, onFatal);
+  const recent = useRecentExpenses(groupId, onFatal);
+
+  const balanceViews = useMemo(
+    () =>
+      state.kind === 'ready' && balances.state.kind === 'ready'
+        ? buildBalanceView(balances.state.balances, state.group, state.group.selfMemberId)
+        : [],
+    [state, balances.state],
+  );
   /** Undefined while loading, null when the balances could not be loaded (secondary information). */
-  const [ownBalance, setOwnBalance] = useState<OwnBalanceLine[] | null | undefined>();
+  const ownBalance: OwnBalanceLine[] | null | undefined =
+    balances.state.kind === 'ready'
+      ? balanceViews.map((view) => ({
+          currency: view.currency,
+          balance: view.rows.find((row) => row.isSelf)?.balance ?? 0n,
+        }))
+      : balances.state.kind === 'failed'
+        ? null
+        : undefined;
+  const recentItems = useMemo(
+    () =>
+      recent.state.kind === 'ready'
+        ? buildRecentExpenseItems(
+            // The API honours the limit; the cap keeps the section at 5 even if it did not.
+            recent.state.expenses.slice(0, RECENT_EXPENSES_LIMIT),
+            recent.state.options,
+            {
+              language,
+              timeZone,
+              uncategorizedLabel: tExpenses('uncategorized'),
+              unnamedLabel: tExpenses('unnamedMember'),
+            },
+          )
+        : [],
+    [recent.state, language, timeZone, tExpenses],
+  );
 
   useEffect(() => {
     let active = true;
-    setOwnBalance(undefined);
-    void Promise.all([api.getGroup(groupId), api.getGroupBalances(groupId)]).then(
-      ([result, balances]) => {
-        if (!active) return;
-        if (result.ok) {
-          setState({ kind: 'ready', group: result.data });
-          setOwnBalance(
-            balances.ok
-              ? buildBalanceView(balances.data, result.data, result.data.selfMemberId).map(
-                  (view) => ({
-                    currency: view.currency,
-                    balance: view.rows.find((row) => row.isSelf)?.balance ?? 0n,
-                  }),
-                )
-              : null,
-          );
-        } else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
-        else if (result.code === 'NOT_FOUND') setState({ kind: 'not-found' });
-        else setState({ kind: 'failed', error: result.messageKey });
-      },
-    );
+    void api.getGroup(groupId).then((result) => {
+      if (!active) return;
+      if (result.ok) setState({ kind: 'ready', group: result.data });
+      else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+      else if (result.code === 'NOT_FOUND') setState({ kind: 'not-found' });
+      else setState({ kind: 'failed', error: result.messageKey });
+    });
     return () => {
       active = false;
     };
   }, [api, groupId, router, attempt]);
 
-  if (state.kind === 'not-found') {
+  if (gone || state.kind === 'not-found') {
     return (
       <EmptyState
         icon={<Users aria-hidden="true" />}
@@ -215,6 +261,44 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
       />
       <OwnBalanceSummary groupId={group.id} lines={ownBalance} />
       <GroupShortcuts groupId={group.id} />
+      <GroupSuggestedPaymentsSection
+        status={balances.state.kind}
+        views={balanceViews}
+        onRetry={() => void balances.retry()}
+        onRecord={(currency, payment) => {
+          setForm((current) => ({
+            key: (current?.key ?? 0) + 1,
+            initial: {
+              fromMemberId: payment.fromMemberId,
+              toMemberId: payment.toMemberId,
+              amount: payment.amount,
+              currency,
+            },
+          }));
+        }}
+      />
+      {form === null ? null : (
+        <SettlementFormContainer
+          key={form.key}
+          groupId={group.id}
+          selfMemberId={group.selfMemberId}
+          members={group.members}
+          initial={form.initial}
+          onRecorded={() => {
+            setForm(null);
+            void balances.reload();
+          }}
+          onCancel={() => {
+            setForm(null);
+          }}
+        />
+      )}
+      <GroupRecentExpenses
+        groupId={group.id}
+        status={recent.state.kind}
+        items={recentItems}
+        onRetry={recent.retry}
+      />
       <GroupMembers
         members={group.members}
         formerMembers={group.formerMembers}

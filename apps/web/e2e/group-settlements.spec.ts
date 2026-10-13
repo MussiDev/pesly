@@ -407,3 +407,67 @@ test('a member who left meanwhile is rejected by the server with a message (inva
     await pair.close();
   }
 });
+
+test('the group detail records a suggested payment and lists the recent expenses (FEAT-007 AC-01 to AC-04, AC-07)', async ({
+  browser,
+}) => {
+  const pair = await pairInGroup(browser, 'gs-detail', 'Casa del lago');
+  const { pageB, groupId } = pair;
+  try {
+    await seedBothDebts(pair, 'detail');
+    await pageB.goto(`/es/groups/${groupId}`);
+
+    // The recent expenses of both members, newest first, with the link to the full list.
+    await expect(pageB.getByRole('heading', { name: t.detail.recentTitle })).toBeVisible();
+    await expect(pageB.getByText('Cena detail')).toBeVisible();
+    await expect(pageB.getByText('Hotel detail')).toBeVisible();
+    await expect(pageB.getByRole('link', { name: t.detail.seeAll })).toHaveAttribute(
+      'href',
+      `/es/groups/${groupId}/expenses`,
+    );
+
+    // The suggested payment is on the detail; Record opens the form there.
+    const recordName = t.detail.recordFor.replace('{payer}', BRUNO).replace('{payee}', ANA);
+    await expect(
+      pageB.getByText(
+        t.balances.payment
+          .replace('{payer}', BRUNO)
+          .replace('{payee}', ANA)
+          .replace('{amount}', ars(500000n)),
+      ),
+    ).toBeVisible();
+    await pageB.getByRole('button', { name: recordName }).click();
+    await expect(pageB).toHaveURL(new RegExp(`/es/groups/${groupId}$`));
+    const recorded = pageB.waitForRequest(
+      (request) =>
+        request.method() === 'POST' && request.url() === `${API_URL}/groups/${groupId}/settlements`,
+    );
+    await pageB.getByRole('button', { name: t.settlement.submit, exact: true }).click();
+    expect(((await recorded).postDataJSON() as Record<string, unknown>).amount).toBe('500000');
+
+    // The form closes and the detail shows the new balance: the ARS payment is gone.
+    await expect(pageB.getByRole('button', { name: recordName })).toHaveCount(0);
+    await expect(pageB.getByRole('heading', { name: t.settlement.title })).toHaveCount(0);
+  } finally {
+    await pair.close();
+  }
+});
+
+test('the group detail fits 320 px with both new sections (FEAT-007 AC-15)', async ({
+  browser,
+}) => {
+  const pair = await pairInGroup(browser, 'gs-narrow', 'Casa angosta');
+  const { pageB, groupId } = pair;
+  try {
+    await seedBothDebts(pair, 'narrow');
+    await pageB.setViewportSize({ width: 320, height: 740 });
+    await pageB.goto(`/es/groups/${groupId}`);
+
+    await expect(pageB.getByRole('heading', { name: t.detail.suggestedTitle })).toBeVisible();
+    await expect(pageB.getByRole('heading', { name: t.detail.recentTitle })).toBeVisible();
+    await expect(pageB.getByText('Cena narrow')).toBeVisible();
+    expect(await scrollsHorizontally(pageB)).toBe(false);
+  } finally {
+    await pair.close();
+  }
+});

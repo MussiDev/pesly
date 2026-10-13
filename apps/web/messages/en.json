@@ -1831,6 +1831,14 @@
       }
     },
     "detail": {
+      "suggestedTitle": "Suggested payments",
+      "allSettled": "All settled. Nobody owes anything.",
+      "recentTitle": "Recent expenses",
+      "seeAll": "See all",
+      "recentEmpty": "No expenses yet.",
+      "recentEmptyLink": "Add an expense",
+      "sectionFailed": "This section could not be loaded.",
+      "recordFor": "Record payment from {payer} to {payee}",
       "defaultRate": "Default exchange rate: {rateType}",
       "membersTitle": "Members",
       "formerTitle": "Former members",
