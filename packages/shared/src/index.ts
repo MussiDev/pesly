@@ -36,6 +36,7 @@ export * from './movements/rate-age';
 export * from './movements/rate-input';
 export * from './time/zoned-time';
 export * from './credit-cards/statement-cycle';
+export * from './credit-cards/statement-month';
 export * from './credit-cards/credit-card';
 export * from './credit-cards/installment';
 export * from './credit-cards/statement-payment';
