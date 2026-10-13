@@ -62,6 +62,23 @@ export const dashboardNetWorthSchema = z
   });
 export type DashboardNetWorth = z.infer<typeof dashboardNetWorthSchema>;
 
+/**
+ * The money the user can spend now: the active accounts marked "include in available". `ars` and
+ * `usd` are in their own currencies; `total` is in the display currency. Exactly one of `total`
+ * and `reason` is set, as in `netWorth`.
+ */
+export const dashboardAvailableSchema = z
+  .object({
+    ars: exactIntegerStringSchema,
+    usd: exactIntegerStringSchema,
+    total: exactIntegerStringSchema.nullable(),
+    reason: z.literal('no_rate').nullable(),
+  })
+  .refine((available) => (available.total === null) === (available.reason !== null), {
+    message: 'Exactly one of total and reason must be set',
+  });
+export type DashboardAvailable = z.infer<typeof dashboardAvailableSchema>;
+
 export const dashboardMonthSchema = z.object({
   from: localDateSchema,
   to: localDateSchema,
@@ -164,6 +181,7 @@ export const dashboardResponseSchema = z.object({
   currency: dashboardCurrencySchema,
   today: localDateSchema,
   netWorth: dashboardNetWorthSchema,
+  available: dashboardAvailableSchema,
   month: dashboardMonthSchema,
   categories: z.array(dashboardCategorySchema),
   budgets: z.array(dashboardBudgetSchema).max(DASHBOARD_MAX_BUDGETS),

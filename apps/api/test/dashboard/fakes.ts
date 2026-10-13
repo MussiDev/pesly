@@ -43,6 +43,7 @@ export const EMPTY_DASHBOARD_RESPONSE: DashboardResponse = {
     holdingsWithoutPrice: 0,
     parts: { accounts: ZERO, investments: ZERO, groups: ZERO, installmentDebt: ZERO },
   },
+  available: { ars: '0', usd: '0', total: '0', reason: null },
   month: {
     from: '2026-10-01',
     to: '2026-10-06',

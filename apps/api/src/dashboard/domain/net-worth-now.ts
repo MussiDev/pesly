@@ -18,6 +18,8 @@ export interface NetWorthParts {
   usd: bigint;
   total: bigint | null;
   reason: 'no_rate' | null;
+  /** The stored sell rate the conversion used (scaled by 10,000); null when there was none. */
+  rate: bigint | null;
   holdingsWithoutPrice: number;
   parts: {
     accounts: CurrencyAmounts;
@@ -81,6 +83,7 @@ export function netWorthPartsNow(input: NetWorthPartsInput): NetWorthParts {
     usd: assembled.usd,
     total: assembled.total,
     reason: assembled.reason,
+    rate: input.rate,
     holdingsWithoutPrice: input.investments.holdingsWithoutPrice,
     parts: {
       accounts: accountPart,

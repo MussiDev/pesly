@@ -4,6 +4,11 @@ import type { AccessScope } from '../../shared/access';
 import type { Agenda } from '../domain/agenda';
 import type { BudgetHighlight } from '../domain/budget-highlights';
 import type { NetWorthParts } from '../domain/net-worth-now';
+import {
+  buildAvailable,
+  type AvailableParts,
+  type BuildAvailableDependencies,
+} from './build-available';
 import { buildAgenda, type AgendaDependencies } from './build-agenda';
 import { buildBudgets, type BuildBudgetsDependencies } from './build-budgets';
 import { buildFirstSteps, type FirstStepsDependencies } from './build-first-steps';
@@ -21,6 +26,7 @@ import type { DashboardUseCase } from './ports/dashboard-use-case';
 export interface DashboardSections {
   context: DashboardContext;
   netWorth: NetWorthParts;
+  available: AvailableParts;
   month: MonthFlowsResult;
   budgets: BudgetHighlight[];
   agenda: Agenda;
@@ -32,6 +38,7 @@ export interface GetDashboardDependencies {
   clock: Clock;
   preferences: ReportPreferencesReader;
   netWorth: BuildNetWorthDependencies;
+  available: BuildAvailableDependencies;
   flows: MonthFlowsDependencies;
   budgets: BuildBudgetsDependencies;
   agenda: AgendaDependencies;
@@ -52,17 +59,29 @@ export class GetDashboard implements DashboardUseCase {
     const context = await prepareDashboard(deps, scope);
     // The group balances feed the net worth and the groups section: one read for both.
     const groups = loadGroups(deps.groups, scope);
-    const [netWorth, month, budgets, agenda, groupsSection, firstSteps] = await Promise.all([
-      groups.then((section) => buildNetWorth(deps.netWorth, scope, context, section.net)),
-      buildMonthFlows(deps.flows, scope, context),
-      buildBudgets(deps.budgets, scope, context),
-      buildAgenda(deps.agenda, scope, context),
-      groups,
-      buildFirstSteps(deps.firstSteps, scope),
-    ]);
+    const netWorthPromise = groups.then((section) =>
+      buildNetWorth(deps.netWorth, scope, context, section.net),
+    );
+    const [netWorth, available, month, budgets, agenda, groupsSection, firstSteps] =
+      await Promise.all([
+        netWorthPromise,
+        // The accounts read runs now; the rate is the one the net worth read, never a second query.
+        buildAvailable(
+          deps.available,
+          scope,
+          context,
+          netWorthPromise.then((parts) => parts.rate),
+        ),
+        buildMonthFlows(deps.flows, scope, context),
+        buildBudgets(deps.budgets, scope, context),
+        buildAgenda(deps.agenda, scope, context),
+        groups,
+        buildFirstSteps(deps.firstSteps, scope),
+      ]);
     return deps.present({
       context,
       netWorth,
+      available,
       month,
       budgets,
       agenda,

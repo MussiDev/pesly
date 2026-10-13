@@ -43,6 +43,11 @@ function setup(overrides: Partial<GetDashboardDependencies> = {}) {
         valueNow: () => Promise.resolve({ ARS: 500n, USD: 0n, holdingsWithoutPrice: 2 }),
       },
     },
+    available: {
+      accounts: {
+        execute: () => Promise.resolve({ availableTotals: { ARS: 400n, USD: 0n } }),
+      },
+    },
     flows: {
       flows: {
         personalRows: () => Promise.resolve([]),
@@ -101,6 +106,7 @@ describe('GetDashboard', () => {
     expect(response.netWorth.ars).toBe('1500');
     expect(response.netWorth.parts.investments).toEqual({ ars: '500', usd: '0' });
     expect(response.netWorth.holdingsWithoutPrice).toBe(2);
+    expect(response.available).toEqual({ ars: '400', usd: '0', total: '400', reason: null });
     expect(response.firstSteps).toEqual({ hasAccount: true, hasMovement: false, show: true });
     expect(response.actions).toEqual([
       {
@@ -160,6 +166,12 @@ describe('GetDashboard', () => {
           ...setup().deps.netWorth,
           investments: { valueNow: () => Promise.reject(new Error('boom')) },
         },
+      }),
+    ],
+    [
+      'available',
+      () => ({
+        available: { accounts: { execute: () => Promise.reject(new Error('boom')) } },
       }),
     ],
     [

@@ -12,3 +12,5 @@ export * from './application/set-include-in-available';
 export * from './application/set-opening-balance';
 export * from './application/delete-account';
 export * from './infrastructure/http/account-routes';
+// Only the adapter ListAccounts needs; other modules compose it without reaching into infrastructure.
+export { DrizzleAccountRepository } from './infrastructure/db/drizzle-account-repository';

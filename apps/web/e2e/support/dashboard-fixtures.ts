@@ -38,6 +38,7 @@ function base(): DashboardResponse {
       holdingsWithoutPrice: 0,
       parts: { ...NO_PARTS, accounts: { ars: '100000000', usd: '100000' } },
     },
+    available: { ars: '60000000', usd: '50000', total: '67000000', reason: null },
     month: {
       from: `${isoDay(0).slice(0, 7)}-01`,
       to: isoDay(0),

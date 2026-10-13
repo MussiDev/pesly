@@ -21,6 +21,12 @@ function base() {
         installmentDebt: { ...pair },
       },
     },
+    available: {
+      ars: '10000000',
+      usd: '5000',
+      total: '17000000' as string | null,
+      reason: null as string | null,
+    },
     month: {
       from: '2026-10-01',
       to: '2026-10-12',
@@ -106,6 +112,7 @@ describe('dashboard contracts', () => {
     const parsed = dashboardResponseSchema.parse(base());
     for (const key of [
       'netWorth',
+      'available',
       'month',
       'categories',
       'budgets',
@@ -142,6 +149,7 @@ describe('dashboard contracts', () => {
 
   const amountFields: Array<[string, (v: Dashboard) => Record<string, unknown>, string[]]> = [
     ['netWorth', (v) => v.netWorth, ['ars', 'usd', 'total']],
+    ['available', (v) => v.available, ['ars', 'usd', 'total']],
     ['parts', (v) => v.netWorth.parts.accounts, ['ars', 'usd']],
     ['month', (v) => v.month, ['expenses', 'income', 'net']],
     ['category', (v) => first(v.categories), ['amount']],
@@ -185,6 +193,29 @@ describe('dashboard contracts', () => {
     noRate.netWorth.total = null;
     noRate.netWorth.reason = 'no_rate';
     expect(valid(noRate)).toBe(true);
+  });
+
+  it('requires exactly one of total and reason in the available section (AC-21)', () => {
+    const both = base();
+    both.available.reason = 'no_rate';
+    expect(valid(both)).toBe(false);
+    const neither = base();
+    neither.available.total = null;
+    expect(valid(neither)).toBe(false);
+    const noRate = base();
+    noRate.available.total = null;
+    noRate.available.reason = 'no_rate';
+    expect(valid(noRate)).toBe(true);
+    const unknownReason = base();
+    unknownReason.available.total = null;
+    unknownReason.available.reason = 'other';
+    expect(valid(unknownReason)).toBe(false);
+  });
+
+  it('requires the available section (AC-18)', () => {
+    const without: Partial<Dashboard> = base();
+    delete without.available;
+    expect(valid(without)).toBe(false);
   });
 
   it('caps budgets at 3, upcoming at 20 and actions at 20', () => {

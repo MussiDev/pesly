@@ -42,6 +42,7 @@ function dashboardBody(patch: Record<string, unknown> = {}) {
   return {
     currency: 'ARS',
     today: '2026-10-12',
+    available: { ars: '60000000', usd: '50000', total: '67000000', reason: null },
     netWorth: {
       ars: '100000000',
       usd: '100000',

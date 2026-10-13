@@ -40,7 +40,12 @@ function amountFields(value: unknown, path = ''): [string, unknown][] {
   return Object.entries(value).flatMap(([key, child]) => {
     const here = path === '' ? key : `${path}.${key}`;
     // The three changes are whole percentages, not amounts.
-    const isAmount = AMOUNT_KEYS.has(key) && child !== null && !here.startsWith('month.change');
+    // `available` is also the key of the available section: only its leaves are amounts.
+    const isAmount =
+      AMOUNT_KEYS.has(key) &&
+      child !== null &&
+      typeof child !== 'object' &&
+      !here.startsWith('month.change');
     const own: [string, unknown][] = isAmount ? [[here, child]] : [];
     return [...own, ...amountFields(child, here)];
   });

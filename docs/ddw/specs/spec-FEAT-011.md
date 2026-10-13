@@ -318,7 +318,7 @@ is missing the section returns the two parts, `total: null` and the same reason 
 - Method + path: `GET /dashboard` (existing; the response is modified).
 - Request: unchanged.
 - Response: unchanged sections plus `available: { ars: string, usd: string, total: string | null,
-  reason: 'rate_unavailable' | null }`, amounts as exact integer strings in minor units, `total` and
+  reason: 'no_rate' | null }`, amounts as exact integer strings in minor units, `total` and
   `reason` both null or both set, as `netWorth` does.
 - Error codes: unchanged (`401`, `403` unverified email).
 - Auth: session and verified email, as today; the data is the caller's own.
@@ -329,20 +329,20 @@ is missing the section returns the two parts, `total: null` and the same reason 
 - The rate is missing: the section answers `total: null` with its reason and the two parts.
 
 **Required tests**
-- [ ] 100,000.00 ARS in a bank account and 50.00 USD in a wallet, both included, give those two parts —
+- [x] 100,000.00 ARS in a bank account and 50.00 USD in a wallet, both included, give those two parts —
       validates AC-18.
-- [ ] The home section and `ListAccounts` give equal available parts for the same data — validates
+- [x] The home section and `ListAccounts` give equal available parts for the same data — validates
       AC-19.
-- [ ] With the rate present the total is the parts converted with that rate — validates AC-20.
-- [ ] With the rate missing the response has the two parts, `total: null` and the reason — validates
+- [x] With the rate present the total is the parts converted with that rate — validates AC-20.
+- [x] With the rate missing the response has the two parts, `total: null` and the reason — validates
       AC-21.
-- [ ] An archived account and an account not marked "include in available" add 0 — validates AC-22.
-- [ ] A credit card with debt and an investment portfolio do not change the available — validates
+- [x] An archived account and an account not marked "include in available" add 0 — validates AC-22.
+- [x] A credit card with debt and an investment portfolio do not change the available — validates
       AC-23.
-- [ ] Another user's included account never counts — validates AC-24.
-- [ ] The endpoint adds no request and the dashboard perf test keeps its threshold — validates AC-25.
-- [ ] An accounts read error fails the dashboard section and is not swallowed.
-- [ ] The dashboard boundaries test accepts `accounts` only through its barrel.
+- [x] Another user's included account never counts — validates AC-24.
+- [x] The endpoint adds no request and the dashboard perf test keeps its threshold — validates AC-25.
+- [x] An accounts read error fails the dashboard section and is not swallowed.
+- [x] The dashboard boundaries test accepts `accounts` only through its barrel.
 
 **Completion criterion**
 The dashboard API tests and `dashboard-contracts.test.ts` pass, `pnpm typecheck` is clean, and
