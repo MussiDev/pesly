@@ -45,7 +45,7 @@ function setup(overrides: Partial<GetDashboardDependencies> = {}) {
     },
     available: {
       accounts: {
-        execute: () => Promise.resolve({ availableTotals: { ARS: 400n, USD: 0n } }),
+        execute: () => Promise.resolve({ ARS: 400n, USD: 0n }),
       },
     },
     flows: {

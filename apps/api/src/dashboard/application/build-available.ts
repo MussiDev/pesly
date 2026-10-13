@@ -1,18 +1,13 @@
-import type { AccountList, ListAccountsOptions } from '../../accounts';
+import type { GetAvailableTotals } from '../../accounts';
 import type { AccessScope } from '../../shared/access';
 import { netWorthPartsNow } from '../domain/net-worth-now';
 import type { DashboardContext } from './dashboard-context';
 
 const ZERO = { ARS: 0n, USD: 0n };
 
-/** The one method of `ListAccounts` the dashboard uses. */
+/** The one method of `GetAvailableTotals` the dashboard uses. */
 export interface BuildAvailableDependencies {
-  accounts: {
-    execute(
-      scope: AccessScope,
-      options: ListAccountsOptions,
-    ): Promise<Pick<AccountList, 'availableTotals'>>;
-  };
+  accounts: Pick<GetAvailableTotals, 'execute'>;
 }
 
 export interface AvailableParts {
@@ -33,12 +28,7 @@ export async function buildAvailable(
   context: DashboardContext,
   rate: Promise<bigint | null>,
 ): Promise<AvailableParts> {
-  const [list, currentRate] = await Promise.all([
-    // The page is irrelevant: the totals cover every active account.
-    deps.accounts.execute(scope, { archived: false, limit: 1, offset: 0 }),
-    rate,
-  ]);
-  const { ARS, USD } = list.availableTotals;
+  const [{ ARS, USD }, currentRate] = await Promise.all([deps.accounts.execute(scope), rate]);
   // The same conversion as the net worth, over a value that has only the available balances.
   const converted = netWorthPartsNow({
     context,

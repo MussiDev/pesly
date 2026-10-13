@@ -1,4 +1,4 @@
-import { DrizzleAccountRepository, ListAccounts } from '../accounts';
+import { DrizzleAccountRepository, GetAvailableTotals } from '../accounts';
 import type { RouterFactory } from '../app';
 import {
   DrizzleBudgetVersionReader,
@@ -76,7 +76,7 @@ function composeUseCase({ db, clock }: Pick<DashboardRouterOptions, 'db' | 'cloc
       ),
     },
     available: {
-      accounts: new ListAccounts({
+      accounts: new GetAvailableTotals({
         accounts: new DrizzleAccountRepository(db),
         movements: createAccountMovements(db),
       }),

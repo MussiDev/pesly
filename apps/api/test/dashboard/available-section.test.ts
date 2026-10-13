@@ -43,9 +43,9 @@ function listing(ars: bigint, usd: bigint) {
     calls,
     deps: {
       accounts: {
-        execute: (_scope: unknown, options: unknown) => {
-          calls.push(options);
-          return Promise.resolve({ availableTotals: { ARS: ars, USD: usd } });
+        execute: (scope: unknown) => {
+          calls.push(scope);
+          return Promise.resolve({ ARS: ars, USD: usd });
         },
       },
     },
@@ -56,15 +56,12 @@ describe('buildAvailable', () => {
   it('(AC-18) returns the two parts of the accounts totals', async () => {
     const { deps, calls } = listing(10_000_000n, 5_000n);
 
-    const section = await buildAvailable(
-      deps,
-      await readScope(ME),
-      context(),
-      Promise.resolve(null),
-    );
+    const scope = await readScope(ME);
+
+    const section = await buildAvailable(deps, scope, context(), Promise.resolve(null));
 
     expect(section).toMatchObject({ ars: 10_000_000n, usd: 5_000n });
-    expect(calls).toEqual([{ archived: false, limit: 1, offset: 0 }]);
+    expect(calls).toEqual([scope]);
   });
 
   it('(AC-20) converts the USD part with the rate the net worth read', async () => {

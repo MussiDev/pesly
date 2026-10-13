@@ -5,6 +5,7 @@ export * from './application/ports/account-movements';
 export * from './application/ports/account-links';
 export * from './application/create-account';
 export * from './application/get-account';
+export * from './application/get-available-totals';
 export * from './application/list-accounts';
 export * from './application/rename-account';
 export * from './application/set-account-archived';
