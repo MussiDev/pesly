@@ -8,10 +8,20 @@ interface SuggestedPaymentsProps {
   currency: AccountCurrency;
   payments: PaymentRow[];
   onRecord: (payment: PaymentRow) => void;
+  /** False when the caller already titles the list, e.g. one list per currency under one heading. */
+  showTitle?: boolean;
+  /** An accessible name for a Record button; absent, the button keeps its visible text as its name. */
+  recordLabel?: (payment: PaymentRow) => string;
 }
 
 /** The payments that would settle the currency, each with a button that opens the form on it. */
-export function SuggestedPayments({ currency, payments, onRecord }: SuggestedPaymentsProps) {
+export function SuggestedPayments({
+  currency,
+  payments,
+  onRecord,
+  showTitle = true,
+  recordLabel,
+}: SuggestedPaymentsProps) {
   const t = useTranslations('groups.balances');
   const tDetail = useTranslations('groups.detail');
   const language = useLocale() === 'en' ? 'en' : 'es';
@@ -20,7 +30,7 @@ export function SuggestedPayments({ currency, payments, onRecord }: SuggestedPay
 
   return (
     <div className="grid gap-2">
-      <h3 className="text-base font-semibold">{t('suggestedTitle')}</h3>
+      {showTitle ? <h3 className="text-base font-semibold">{t('suggestedTitle')}</h3> : null}
       <ul className="grid gap-2">
         {payments.map((payment) => (
           <li
@@ -37,6 +47,7 @@ export function SuggestedPayments({ currency, payments, onRecord }: SuggestedPay
             <Button
               variant="outline"
               size="sm"
+              aria-label={recordLabel?.(payment)}
               onClick={() => {
                 onRecord(payment);
               }}
