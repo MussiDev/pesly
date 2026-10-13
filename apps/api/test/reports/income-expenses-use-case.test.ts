@@ -4,6 +4,7 @@ import { presentIncomeExpenses } from '../../src/reports/infrastructure/http/pre
 import type {
   FlowReader,
   FlowWindow,
+  CardPurchaseFlowRow,
   InstallmentFlowRow,
   PersonalFlowRow,
   ShareFlowRow,
@@ -21,6 +22,8 @@ class FakeFlowReader implements FlowReader {
   windows: FlowWindow[] = [];
   shareCalls = 0;
   installmentCalls = 0;
+  cardPurchaseCalls = 0;
+  cardPurchases: CardPurchaseFlowRow[] = [];
   personal: PersonalFlowRow[] = [];
   shares: ShareFlowRow[] = [];
   installments: InstallmentFlowRow[] = [];
@@ -40,6 +43,11 @@ class FakeFlowReader implements FlowReader {
   installmentRows(): Promise<InstallmentFlowRow[]> {
     this.installmentCalls += 1;
     return Promise.resolve(this.installments);
+  }
+
+  cardPurchaseRows(): Promise<CardPurchaseFlowRow[]> {
+    this.cardPurchaseCalls += 1;
+    return Promise.resolve(this.cardPurchases);
   }
 
   topCategories(): Promise<never[]> {
@@ -238,5 +246,44 @@ describe('GetIncomeExpenses', () => {
     await expect(
       useCase.execute(scope, { accountId: '3f0c1c9e-5c53-4a53-9a55-0d6a4c0f0aff' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('GetIncomeExpenses card purchases', () => {
+  const NOW = new Date('2026-12-15T16:00:00.000Z');
+  const row = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+    period: '2026-09',
+    dueDate: '2026-10-05',
+    closingDay: 24,
+    dueDay: 5,
+    topCategoryId: CATEGORY,
+    currency: 'ARS',
+    rate: 14000000n,
+    sum: 3000000n,
+    count: 1,
+    ...fields,
+  });
+
+  it('counts a card purchase in the month of its due date, also under a filter', async () => {
+    const { flows, useCase, scope } = await setup(undefined, NOW);
+    flows.cardPurchases = [row({})];
+
+    const filtered = await useCase.execute(scope, {
+      from: '2026-09-01',
+      to: '2026-10-31',
+      accountId: ACCOUNT,
+    });
+
+    expect(filtered.months.map((month) => month.expenses)).toEqual(['0', '3000000']);
+    expect(flows.cardPurchaseCalls).toBe(1);
+  });
+
+  it('fails the report with an error when a card purchase row has no frozen rate', async () => {
+    const { flows, useCase, scope } = await setup(undefined, NOW);
+    flows.cardPurchases = [row({ currency: 'USD', rate: null as unknown as bigint })];
+
+    await expect(
+      useCase.execute(scope, { from: '2026-09-01', to: '2026-10-31' }),
+    ).rejects.toThrow();
   });
 });

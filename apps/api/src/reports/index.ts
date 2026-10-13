@@ -82,7 +82,12 @@ export type { TopCategory } from './domain/flows';
 export { installmentDebt } from './domain/installment-debt';
 export type { CurrencyAmounts } from './domain/installment-debt';
 export { accumulate, assemblePoints } from './domain/net-worth';
-export type { FlowReader, FlowWindow } from './application/ports/flow-reader';
+export type {
+  CardPurchaseFlowRow,
+  CardPurchaseOptions,
+  FlowReader,
+  FlowWindow,
+} from './application/ports/flow-reader';
 export type { NetWorthRateReader } from './application/ports/net-worth-rate-reader';
 export type {
   AccountFlows,

@@ -313,6 +313,44 @@ export async function archiveAccount(email: string, name: string): Promise<void>
 }
 
 /**
+ * Makes the oldest statement of the card named `cardName` of `email` close on the last day of last
+ * month and fall due on the first day of this month (in the users' time zone), and dates its purchases
+ * two days before the start of this month, because a flow cannot wait
+ * for the days to pass. The purchases are then from last month and their statement is due this
+ * month, the case where the month of the purchase and the month of the due date differ.
+ */
+export async function moveFirstStatementDueToThisMonth(
+  email: string,
+  cardName: string,
+): Promise<void> {
+  const result = await withE2eDatabase((client) =>
+    client.query(
+      `update credit_card_statements s
+          set closing_date = date_trunc('month', (now() at time zone 'America/Cordoba'))::date - 1,
+              due_date = date_trunc('month', (now() at time zone 'America/Cordoba'))::date
+         from credit_cards c join users u on u.id = c.owner_id
+        where s.card_id = c.id and u.email = $1 and c.name = $2
+          and s.id = (select id from credit_card_statements
+                       where card_id = c.id order by closing_date limit 1)
+       returning s.id`,
+      [email, cardName],
+    ),
+  );
+  if (result.rows.length !== 1) throw new Error(`No statement of ${cardName} for ${email}`);
+  await withE2eDatabase((client) =>
+    client.query(
+      `update movements m
+          set occurred_at = (date_trunc('month', (now() at time zone 'America/Cordoba')) - interval '2 days' + interval '12 hours') at time zone 'UTC'
+         from credit_cards c join users u on u.id = c.owner_id
+        where u.email = $1 and c.name = $2 and m.owner_id = u.id
+          and m.account_id in (c.ars_account_id, c.usd_account_id)
+          and m.type = 'expense'`,
+      [email, cardName],
+    ),
+  );
+}
+
+/**
  * Closes the oldest statement of the card named `cardName` of `email` by moving its dates into the
  * past, because a statement only closes as days pass and a flow cannot wait for them.
  */

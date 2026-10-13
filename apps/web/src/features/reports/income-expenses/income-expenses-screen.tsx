@@ -6,6 +6,7 @@ import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import { CurrencyNote } from '../components/currency-note';
 import { ChartFigure, FiguresList, type FigureRow } from '../components/figures-list';
+import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { ReportNotices } from '../components/report-notices';
 import {
   FilterGoneAlert,
@@ -69,11 +70,14 @@ export function IncomeExpensesScreen({
         const view = state.data;
         const months = view.months.slice(0, MAX_DRAWN_MONTHS);
         const notices = (
-          <ReportNotices
-            unconvertedShares={view.unconvertedShareCount}
-            unconvertedInstallments={view.unconvertedInstallmentCount}
-            filtered={filtered}
-          />
+          <>
+            <ReportNotices
+              unconvertedShares={view.unconvertedShareCount}
+              unconvertedInstallments={view.unconvertedInstallmentCount}
+              filtered={filtered}
+            />
+            <CardPurchasesNote />
+          </>
         );
         if (months.every((month) => month.income === 0n && month.expenses === 0n)) {
           return (

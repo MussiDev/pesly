@@ -70,7 +70,7 @@ export async function buildMonthFlows(
   const mainWindow: FlowWindow = { ...main, timeZone };
   const previousWindow: FlowWindow = { ...previous, timeZone };
 
-  const [personal, shares, previousPersonal, previousShares, installments, known] =
+  const [personal, shares, previousPersonal, previousShares, installmentRows, cardRows, known] =
     await Promise.all([
       flows.personalRows(scope, mainWindow),
       flows.shareRows(scope, mainWindow),
@@ -81,8 +81,16 @@ export async function buildMonthFlows(
         addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
         addMonths(periods.month, PERIOD_MARGIN),
       ),
+      // A card purchase counts in the month its statement is due, like an installment (FEAT-010).
+      flows.cardPurchaseRows(
+        scope,
+        addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
+        addMonths(periods.month, PERIOD_MARGIN),
+        { timeZone },
+      ),
       flows.topCategories(scope),
     ]);
+  const installments = [...installmentRows, ...cardRows];
   const byId = new Map(known.map((category) => [category.id, category]));
   const requireKnown = (id: string): void => {
     if (!byId.has(id)) throw new RangeError(`Top-level category ${id} is missing`);

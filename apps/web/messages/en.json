@@ -2312,6 +2312,9 @@
       "retry": "Try again"
     }
   },
+  "cardPurchasesNote": {
+    "text": "Card purchases count in the month their statement is due."
+  },
   "reports": {
     "title": "Reports",
     "tabs": {

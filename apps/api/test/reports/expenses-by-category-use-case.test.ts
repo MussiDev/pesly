@@ -3,6 +3,7 @@ import { GetExpensesByCategory } from '../../src/reports/application/get-expense
 import type {
   FlowReader,
   FlowWindow,
+  CardPurchaseFlowRow,
   InstallmentFlowRow,
   PersonalFlowRow,
   ShareFlowRow,
@@ -43,6 +44,7 @@ class FakeFlows implements FlowReader {
       personal?: PersonalFlowRow[];
       shares?: ShareFlowRow[];
       installments?: InstallmentFlowRow[];
+      cardPurchases?: CardPurchaseFlowRow[];
       categories?: TopCategory[];
       fail?: boolean;
     } = {},
@@ -63,6 +65,11 @@ class FakeFlows implements FlowReader {
   installmentRows(): Promise<InstallmentFlowRow[]> {
     this.calls.push('installments');
     return Promise.resolve(this.data.installments ?? []);
+  }
+
+  cardPurchaseRows(): Promise<CardPurchaseFlowRow[]> {
+    this.calls.push('card-purchases');
+    return Promise.resolve(this.data.cardPurchases ?? []);
   }
 
   topCategories(): Promise<TopCategory[]> {
@@ -299,5 +306,60 @@ describe('GetExpensesByCategory', () => {
 
   it('rethrows a reader error with no response', async () => {
     await expect(run(new FakeFlows({ fail: true }))).rejects.toThrow('db down');
+  });
+});
+
+const cardPurchase = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+  period: '2026-09',
+  dueDate: '2026-10-05',
+  closingDay: 24,
+  dueDay: 5,
+  topCategoryId: FOOD,
+  currency: 'ARS',
+  rate: 14000000n,
+  sum: 3000000n,
+  count: 1,
+  ...fields,
+});
+
+describe('GetExpensesByCategory card purchases', () => {
+  const NOW = { now: new Date('2026-12-15T16:00:00.000Z') };
+
+  it('counts the purchases whose statement is due in the range, with and without a filter', async () => {
+    const flows = new FakeFlows({
+      cardPurchases: [
+        cardPurchase({ sum: 300n }),
+        cardPurchase({ dueDate: '2026-11-05', period: '2026-10', sum: 70n }),
+      ],
+    });
+
+    const october = await run(flows, { from: '2026-10-01', to: '2026-10-31' }, NOW);
+    const filtered = await run(
+      new FakeFlows({ cardPurchases: [cardPurchase({ sum: 300n })] }),
+      { from: '2026-10-01', to: '2026-10-31', accountId: ACCOUNT },
+      NOW,
+    );
+
+    expect(october.categories.map((row) => row.amount)).toEqual(['300']);
+    expect(filtered.categories.map((row) => row.amount)).toEqual(['300']);
+    expect(flows.calls).toContain('card-purchases');
+  });
+
+  it('fails the report with an error when a card purchase row has no frozen rate', async () => {
+    const flows = new FakeFlows({
+      cardPurchases: [cardPurchase({ currency: 'USD', rate: null as unknown as bigint })],
+    });
+
+    await expect(run(flows, { from: '2026-10-01', to: '2026-10-31' }, NOW)).rejects.toThrow();
+  });
+
+  it('fails the report with a RangeError when the top category of a card purchase is unknown', async () => {
+    const flows = new FakeFlows({
+      cardPurchases: [cardPurchase({ topCategoryId: '9f000000-0000-4000-8000-000000000009' })],
+    });
+
+    await expect(run(flows, { from: '2026-10-01', to: '2026-10-31' }, NOW)).rejects.toThrow(
+      /missing/,
+    );
   });
 });
