@@ -228,6 +228,38 @@ export const sendMovementToGroupResponseSchema = groupExpenseResponseSchema.exte
 
 export type SendMovementToGroupResponse = z.infer<typeof sendMovementToGroupResponseSchema>;
 
+/**
+ * Links an expense that has no movement of its payer to one: `create` records the movement from an
+ * account and a personal expense category, `adopt` takes one the payer already registered (FEAT-008).
+ * Any key of the other mode, or any other key, is invalid.
+ */
+export const linkPayerMovementRequestSchema = z.discriminatedUnion('mode', [
+  z.strictObject({ mode: z.literal('create'), accountId: z.uuid(), categoryId: z.uuid() }),
+  z.strictObject({ mode: z.literal('adopt'), movementId: z.uuid() }),
+]);
+
+export type LinkPayerMovementRequest = z.infer<typeof linkPayerMovementRequestSchema>;
+
+/** The payer's own expense movements that could be adopted by an expense: at most 20. */
+export const MOVEMENT_CANDIDATES_MAX = 20;
+
+export const movementCandidateSchema = z.strictObject({
+  id: z.uuid(),
+  amount: amountStringSchema,
+  occurredAt: z.iso.datetime(),
+  note: z.string().nullable(),
+  accountId: z.uuid(),
+  accountName: z.string(),
+});
+
+export type MovementCandidate = z.infer<typeof movementCandidateSchema>;
+
+export const movementCandidatesResponseSchema = z.strictObject({
+  items: z.array(movementCandidateSchema).max(MOVEMENT_CANDIDATES_MAX),
+});
+
+export type MovementCandidatesResponse = z.infer<typeof movementCandidatesResponseSchema>;
+
 export const groupExpensePageSchema = z.object({
   items: z.array(groupExpenseResponseSchema),
   nextCursor: z.string().nullable(),

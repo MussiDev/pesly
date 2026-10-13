@@ -309,6 +309,9 @@ export type ApiErrorKey =
   | 'groupMovementNotExpense'
   | 'groupMovementAlreadySent'
   | 'groupMovementChanged'
+  | 'groupPayerOnly'
+  | 'groupExpenseAlreadyLinked'
+  | 'groupMovementMismatch'
   | 'movementLockedByGroupExpense'
   | 'offlineNoCopy'
   | 'offlineSaveFailed';
@@ -424,6 +427,9 @@ const MESSAGE_KEY_BY_CODE: Record<ApiFailureCode, ApiErrorKey> = {
   GROUP_MOVEMENT_NOT_EXPENSE: 'groupMovementNotExpense',
   GROUP_MOVEMENT_ALREADY_SENT: 'groupMovementAlreadySent',
   GROUP_MOVEMENT_CHANGED: 'groupMovementChanged',
+  GROUP_PAYER_ONLY: 'groupPayerOnly',
+  GROUP_EXPENSE_ALREADY_LINKED: 'groupExpenseAlreadyLinked',
+  GROUP_MOVEMENT_MISMATCH: 'groupMovementMismatch',
   MOVEMENT_LOCKED_BY_GROUP_EXPENSE: 'movementLockedByGroupExpense',
 };
 
