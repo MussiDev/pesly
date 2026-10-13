@@ -79,12 +79,12 @@ due date. `installmentMonthOf(row, from, to)` keeps its inclusive range filter b
   `period` month and does not throw (the purchase is then counted in its own statement month).
 
 **Required tests**
-- [ ] A stored due date in a later month than the period gives that month — validates AC-04.
-- [ ] No stored due date uses the card's closing and due days — validates AC-05.
-- [ ] A statement due in the month after its period (closing 24 Sep, due 5 Oct) gives `2026-10` —
+- [x] A stored due date in a later month than the period gives that month — validates AC-04.
+- [x] No stored due date uses the card's closing and due days — validates AC-05.
+- [x] A statement due in the month after its period (closing 24 Sep, due 5 Oct) gives `2026-10` —
       validates AC-01 (rule level).
-- [ ] The row with unusable days falls back to the period month and does not fail — validates AC-14.
-- [ ] The reports' existing placement tests pass through the wrapper unchanged — validates AC-12
+- [x] The row with unusable days falls back to the period month and does not fail — validates AC-14.
+- [x] The reports' existing placement tests pass through the wrapper unchanged — validates AC-12
       (no behaviour change for reports).
 
 **Completion criterion**
@@ -120,14 +120,14 @@ exactly as its date-based sum does today.
 - An installment row in the other currency: not an error; it is left out and counted.
 
 **Required tests**
-- [ ] A card purchase row in the budget currency adds its sum — validates AC-01 (calculation level).
-- [ ] A card purchase in USD with a frozen rate is converted with that rate — validates AC-09.
-- [ ] An installment in the budget currency is added; one in the other currency is left out and counted
+- [x] A card purchase row in the budget currency adds its sum — validates AC-01 (calculation level).
+- [x] A card purchase in USD with a frozen rate is converted with that rate — validates AC-09.
+- [x] An installment in the budget currency is added; one in the other currency is left out and counted
       (5,000.00 ARS counted, 10.00 USD counted as 1 not converted) — validates AC-27.
-- [ ] A card purchase row with a missing frozen rate fails with `RangeError`.
-- [ ] An installment in the other currency raises no error: it is left out and counted.
-- [ ] A row whose category the budget does not cover adds nothing.
-- [ ] No money value in the new rows is a float — validates NFR-03.
+- [x] A card purchase row with a missing frozen rate fails with `RangeError`.
+- [x] An installment in the other currency raises no error: it is left out and counted.
+- [x] A row whose category the budget does not cover adds nothing.
+- [x] No money value in the new rows is a float — validates NFR-03.
 
 **Completion criterion**
 `spending-domain.test.ts`, `no-float-spending.test.ts` and the fake-backed tests pass; the domain
@@ -165,23 +165,23 @@ category and purchase currency. Both read only `movements.categoryId` and
 - An empty `categoryIds`: returns no rows without querying, as `personalSpending` does.
 
 **Required tests**
-- [ ] The 30,000.00 ARS purchase of 2026-09-20 on a card closing 24 Sep and due 5 Oct is returned in the
+- [x] The 30,000.00 ARS purchase of 2026-09-20 on a card closing 24 Sep and due 5 Oct is returned in the
       October bucket and not in the September bucket — validates AC-01, AC-07.
-- [ ] A purchase dated 2026-09-25 is returned for the next statement — validates AC-03.
-- [ ] An edited stored due date moves its purchases and installments to that month — validates AC-04.
-- [ ] A purchase on a statement not stored yet uses the computed due date — validates AC-05.
-- [ ] A 60,000.00 ARS purchase in 6 installments returns 10,000.00 ARS for each statement — validates
+- [x] A purchase dated 2026-09-25 is returned for the next statement — validates AC-03.
+- [x] An edited stored due date moves its purchases and installments to that month — validates AC-04.
+- [x] A purchase on a statement not stored yet uses the computed due date — validates AC-05.
+- [x] A 60,000.00 ARS purchase in 6 installments returns 10,000.00 ARS for each statement — validates
       AC-02.
-- [ ] An 8,000.00 ARS expense on a bank account is still returned by `personalSpending` in September —
+- [x] An 8,000.00 ARS expense on a bank account is still returned by `personalSpending` in September —
       validates AC-06.
-- [ ] A statement payment (transfer to the card) appears in no read — validates AC-08.
-- [ ] A purchase of 20.00 USD returns its frozen rate — validates AC-09.
-- [ ] A card with a missing statement and no resolvable cycle returns the purchase and does not fail —
+- [x] A statement payment (transfer to the card) appears in no read — validates AC-08.
+- [x] A purchase of 20.00 USD returns its frozen rate — validates AC-09.
+- [x] A card with a missing statement and no resolvable cycle returns the purchase and does not fail —
       validates AC-14.
-- [ ] Another user's card purchase and installment in the same period never appear — validates AC-16.
-- [ ] Already stored purchases are read under the new rule with no migration — validates AC-12.
-- [ ] An empty category list returns no rows and issues no query, without raising an error.
-- [ ] The query plan of the new reads uses the card and statement indexes (no sequential scan of
+- [x] Another user's card purchase and installment in the same period never appear — validates AC-16.
+- [x] Already stored purchases are read under the new rule with no migration — validates AC-12.
+- [x] An empty category list returns no rows and issues no query, without raising an error.
+- [x] The query plan of the new reads uses the card and statement indexes (no sequential scan of
       movements by row) — validates NFR-01.
 
 **Completion criterion**
