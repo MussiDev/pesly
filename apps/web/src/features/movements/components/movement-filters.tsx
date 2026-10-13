@@ -130,7 +130,11 @@ export function MovementFilters({
       }}
     >
       <fieldset disabled={disabled} className="m-0 grid min-w-0 gap-3 border-0 p-0">
-        <div role="group" aria-label={t('filters.type')} className="flex gap-2 overflow-x-auto pb-1">
+        <div
+          role="group"
+          aria-label={t('filters.type')}
+          className="flex gap-2 overflow-x-auto pb-1"
+        >
           {[undefined, ...MOVEMENT_TYPES].map((type) => {
             const pressed = filters.type === type;
             return (
