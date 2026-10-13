@@ -71,7 +71,9 @@ export function MovementFilters({
   const t = useTranslations('movements');
   const id = useId();
   const rangeMessageId = `${id}-range`;
-  const [userOpen, setUserOpen] = useState(false);
+  // Until the person toggles the panel it follows the filters (open while one is set); after that it
+  // stays where they left it, so an active filter no longer locks it open.
+  const [userOpen, setUserOpen] = useState<boolean | undefined>(undefined);
   const extraActive =
     filters.accountId !== undefined ||
     filters.categoryId !== undefined ||
@@ -90,7 +92,7 @@ export function MovementFilters({
       }}
     >
       <fieldset disabled={disabled} className="m-0 grid min-w-0 gap-3 border-0 p-0">
-        <div role="group" aria-label={t('filters.type')} className="flex gap-2 overflow-x-auto">
+        <div role="group" aria-label={t('filters.type')} className="flex gap-2 overflow-x-auto pb-1">
           {[undefined, ...MOVEMENT_TYPES].map((type) => {
             const pressed = filters.type === type;
             return (
@@ -115,7 +117,7 @@ export function MovementFilters({
           })}
         </div>
         <details
-          open={userOpen || extraActive}
+          open={userOpen ?? extraActive}
           onToggle={(event) => {
             setUserOpen(event.currentTarget.open);
           }}
@@ -162,13 +164,14 @@ export function MovementFilters({
                 ))}
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
+            <div className="grid gap-3 min-[26rem]:grid-cols-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor={`${id}-from`}>{t('filters.from')}</Label>
                 <Input
                   id={`${id}-from`}
                   disabled={disabled}
                   type="date"
+                  className="min-w-0"
                   value={filters.from ?? ''}
                   aria-invalid={rangeInvalid}
                   aria-describedby={rangeInvalid ? rangeMessageId : undefined}
@@ -177,12 +180,13 @@ export function MovementFilters({
                   }}
                 />
               </div>
-              <div className="grid gap-2">
+              <div className="grid min-w-0 gap-2">
                 <Label htmlFor={`${id}-to`}>{t('filters.to')}</Label>
                 <Input
                   id={`${id}-to`}
                   disabled={disabled}
                   type="date"
+                  className="min-w-0"
                   value={filters.to ?? ''}
                   aria-invalid={rangeInvalid}
                   aria-describedby={rangeInvalid ? rangeMessageId : undefined}
