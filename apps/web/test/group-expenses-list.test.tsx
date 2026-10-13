@@ -794,3 +794,68 @@ describe('GroupExpensesContainer category views (DISC-001-05j Block 7)', () => {
     expect(await screen.findByText(es.groups.categoryViews.list.monthEmpty.title)).toBeTruthy();
   });
 });
+
+describe('GroupExpensesContainer link to the payer account (FEAT-008)', () => {
+  const linkAction = en.groups.expenses.linkAction;
+  const linkedMarker = en.groups.expenses.linkedMarker;
+
+  it('offers the link only on the rows the caller paid that have no movement (AC-20)', async () => {
+    stubOne('member', [mine(1), expense(2), mine(3)]);
+    open();
+
+    const own = within(await rowOf('Expense 1'));
+    const other = within(await rowOf('Expense 2'));
+
+    expect(own.getByRole('link', { name: linkAction }).getAttribute('href')).toBe(
+      `/en/groups/${GROUP_ID}/expenses/${mine(1).id}/link`,
+    );
+    expect(other.queryByRole('link', { name: linkAction })).toBeNull();
+    expect(other.queryByText(linkedMarker)).toBeNull();
+  });
+
+  it('shows the linked marker, and no action, on an expense the caller paid that has a movement (AC-20)', async () => {
+    stubOne('member', [{ ...mine(1), payerMovementId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' }]);
+    open();
+
+    const row = within(await rowOf('Expense 1'));
+
+    expect(row.getByText(linkedMarker)).toBeTruthy();
+    expect(row.queryByRole('link', { name: linkAction })).toBeNull();
+  });
+
+  it('does not offer the link on a row that waits for the device queue to sync (AC-20)', async () => {
+    await seed((database) =>
+      queueGroupUpdate(database, {
+        kind: 'expense',
+        base: mine(1),
+        request: editRequest('2000000'),
+      }),
+    );
+    stubOne('member', [mine(1)]);
+    open();
+
+    const row = within(await rowOf('Expense 1'));
+
+    expect(await row.findByText(common.sync.pending)).toBeTruthy();
+    expect(row.queryByRole('link', { name: linkAction })).toBeNull();
+  });
+
+  it('reads the texts from the Spanish catalog (AC-26)', async () => {
+    stubOne('member', [mine(1)]);
+    open('es');
+
+    const row = within(await rowOf('Expense 1'));
+
+    expect(row.getByRole('link', { name: es.groups.expenses.linkAction })).toBeTruthy();
+  });
+
+  it('loads the list with the same three requests as before (AC-30)', async () => {
+    const { calls } = stubOne('member', [mine(1), expense(2)]);
+    open();
+    await rowOf('Expense 1');
+
+    expect(calls.map((call) => `${call.method} ${call.path}`).sort()).toEqual(
+      [LIST, OPTIONS, GROUP_KEY].sort(),
+    );
+  });
+});

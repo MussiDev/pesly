@@ -66,6 +66,10 @@ import {
   movementDetailResponseSchema,
   sendMovementToGroupRequestSchema,
   sendMovementToGroupResponseSchema,
+  linkPayerMovementRequestSchema,
+  movementCandidatesResponseSchema,
+  type LinkPayerMovementRequest,
+  type MovementCandidatesResponse,
   type MovementDetailResponse,
   type SendMovementToGroupRequest,
   type SendMovementToGroupResponse,
@@ -788,6 +792,17 @@ export interface ApiClient {
     query: Pick<PersonalSharesQuery, 'from' | 'to' | 'limit' | 'cursor'>,
   ): Promise<ApiResult<PersonalSharesPage>>;
   getGroupExpense(groupId: string, expenseId: string): Promise<ApiResult<GroupExpenseResponse>>;
+  /** The payer links an expense that has no movement of theirs; an invalid body sends no request. */
+  linkPayerMovement(
+    groupId: string,
+    expenseId: string,
+    body: LinkPayerMovementRequest,
+  ): Promise<ApiResult<GroupExpenseResponse>>;
+  /** The payer's own movements an unlinked expense could adopt: at most 20, newest first. */
+  getMovementCandidates(
+    groupId: string,
+    expenseId: string,
+  ): Promise<ApiResult<MovementCandidatesResponse>>;
   /** A full replacement based on `body.baseVersion`; a stale one answers a conflict outcome. */
   updateGroupExpense(
     groupId: string,
@@ -1907,6 +1922,27 @@ export function createApiClient({
           method: 'GET',
           path,
           response: groupExpenseResponseSchema,
+          refreshOnUnauthenticated: true,
+        }),
+      ),
+    linkPayerMovement: (groupId, expenseId, body) =>
+      onGroupRecord(groupId, 'expenses', expenseId, (path) =>
+        linkPayerMovementRequestSchema.safeParse(body).success
+          ? request({
+              method: 'POST',
+              path: `${path}/payer-movement`,
+              body,
+              response: groupExpenseResponseSchema,
+              refreshOnUnauthenticated: true,
+            })
+          : Promise.resolve(failure('VALIDATION_FAILED')),
+      ),
+    getMovementCandidates: (groupId, expenseId) =>
+      onGroupRecord(groupId, 'expenses', expenseId, (path) =>
+        request({
+          method: 'GET',
+          path: `${path}/movement-candidates`,
+          response: movementCandidatesResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),
