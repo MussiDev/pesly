@@ -2,7 +2,7 @@ import {
   MOVEMENT_AMOUNT_MAX_MINOR_UNITS,
   MOVEMENT_TAGS_MAX_COUNT,
   MOVEMENT_TAG_MAX_LENGTH,
-  MOVEMENT_TYPES,
+  CREATABLE_MOVEMENT_TYPES,
   dateInTimeZone,
   formatMinorUnitsString,
   movementNoteSchema,
@@ -11,7 +11,7 @@ import {
   parseRateInput,
   todayInTimeZone,
   zonedLocalToInstant,
-  type MovementType,
+  type CreatableMovementType,
 } from '@pesly/shared';
 import type { CreateMovementInput, UpdateMovementInput } from '@/lib/api-client';
 import type { MovementFormValues } from './components/movement-form';
@@ -34,7 +34,7 @@ export interface MovementRequestAccount {
 
 export interface MovementRequestCategory {
   id: string;
-  kind: MovementType;
+  kind: CreatableMovementType;
   archived: boolean;
 }
 
@@ -76,8 +76,8 @@ export type EditMovementRequestResult =
   | { request: UpdateMovementInput; fields?: undefined }
   | { request?: undefined; fields: FieldErrors };
 
-function toMovementType(value: string): MovementType | undefined {
-  return MOVEMENT_TYPES.find((type) => type === value);
+function toMovementType(value: string): CreatableMovementType | undefined {
+  return CREATABLE_MOVEMENT_TYPES.find((type) => type === value);
 }
 
 /** Positive, up to 2 decimals (the parser), at most 10^15 minor units: the message or the amount. */

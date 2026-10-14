@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { AccountsContainer } from '../src/features/accounts/containers/accounts-container';
 import { CreateAccountContainer } from '../src/features/accounts/containers/create-account-container';
-import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 
 const { es, en } = CATALOGS;
 
@@ -229,115 +229,309 @@ describe('AccountsContainer', () => {
     expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
   });
 
-  describe('edit opening balance (FEAT-006)', () => {
-    const PATCH = 'PATCH /accounts/a1/opening-balance';
-    const fieldLabel = es.accounts.openingEdit.field.replace('{name}', 'Caja');
+  describe('set balance (FEAT-012)', () => {
+    const POST = 'POST /accounts/a1/balance';
+    const STATUS = 'GET /auth/2fa';
+    const TWO_FACTOR_OFF = { status: 200, body: { enabled: false, recoveryCodesRemaining: 0 } };
+    const TWO_FACTOR_ON = { status: 200, body: { enabled: true, recoveryCodesRemaining: 8 } };
+    const t = es.accounts.setBalance;
 
-    async function openForm() {
+    const ADJUSTMENT = {
+      id: 'm1',
+      type: 'adjustment',
+      accountId: 'a1',
+      categoryId: null,
+      destinationAccountId: null,
+      amount: '50000',
+      destinationAmount: null,
+      occurredAt: '2026-10-13T12:00:00.000Z',
+      note: null,
+      rate: null,
+      rateSource: null,
+      rateType: null,
+      createdAt: '2026-10-13T12:00:00.000Z',
+      tags: [],
+    };
+
+    async function openDialog() {
       const user = userEvent.setup();
-      await user.click(await screen.findByRole('button', { name: /^Editar saldo inicial/ }));
-      return { user, field: screen.getByLabelText(fieldLabel) };
+      await user.click(await screen.findByRole('button', { name: /^Fijar saldo/ }));
+      const dialog = await screen.findByRole('dialog');
+      return { user, dialog };
     }
 
-    it('sends the parsed amount, shows the updated row, closes the form and reads the totals again (AC-19)', async () => {
-      const updated = account({ openingBalance: '500000', balance: '650000' });
+    function confirmButton() {
+      return screen.getByRole<HTMLButtonElement>('button', { name: t.confirm });
+    }
+
+    const posts = (calls: ApiCall[]) => calls.filter((call) => call.method === 'POST');
+
+    it('sends the target, shows the new balance, closes the dialog and reads the totals again (AC-01, AC-10)', async () => {
+      const updated = account({ balance: '200000' });
       const { calls } = stubApi({
         [ACTIVE]: [list([CAJA]), list([updated])],
-        [PATCH]: { status: 200, body: updated },
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 200, body: { account: updated, adjustment: ADJUSTMENT } },
       });
       renderApp(<AccountsContainer />);
 
-      const { user, field } = await openForm();
-      await user.clear(field);
-      await user.type(field, '5000');
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
 
       const row = await screen.findByRole('listitem', { name: 'Caja' });
-      expect(await within(row).findByText(money(650000n, 'ARS', 'es'))).toBeDefined();
-      expect(screen.queryByLabelText(fieldLabel)).toBeNull();
-      expect(calls.find((call) => call.method === 'PATCH')?.body).toEqual({
-        openingBalance: '500000',
+      expect(await within(row).findByText(money(200000n, 'ARS', 'es'))).toBeDefined();
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(posts(calls).map((call) => call.body)).toEqual([{ balance: '200000' }]);
+      await waitFor(() => {
+        expect(
+          calls.filter((call) => call.method === 'GET' && call.path.startsWith('/accounts')),
+        ).toHaveLength(2);
+      });
+    });
+
+    it('asks nothing of the user with 2FA off and checks the status once per opening (AC-19)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: TWO_FACTOR_OFF });
+      renderApp(<AccountsContainer />);
+
+      await openDialog();
+
+      expect(screen.queryByLabelText(t.code)).toBeNull();
+      expect(calls.filter((call) => call.path === '/auth/2fa')).toHaveLength(1);
+    });
+
+    it('asks for the code with 2FA on and sends it with the balance (AC-19)', async () => {
+      const updated = account({ balance: '200000' });
+      const { calls } = stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_ON,
+        [POST]: { status: 200, body: { account: updated, adjustment: ADJUSTMENT } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(await screen.findByLabelText(t.code), '123456');
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(posts(calls).map((call) => call.body)).toEqual([
+        { balance: '200000', secondFactorCode: '123456' },
+      ]);
+    });
+
+    it('error: a wrong code shows the invalid-code message on the code field and keeps the dialog open (AC-20)', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_ON,
+        [POST]: { status: 401, body: { code: 'TOTP_INVALID' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      const code = await screen.findByLabelText(t.code);
+      await user.type(code, '123456');
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(es.errors.codeInvalid)).toBeDefined();
+      expect(code.getAttribute('aria-invalid')).toBe('true');
+      expect(screen.getByRole('dialog')).toBeDefined();
+      expect(screen.getByLabelText<HTMLInputElement>(t.target).value).toBe('2.000');
+    });
+
+    it('error: exhausted attempts show the too-many-attempts message and keep the dialog open (AC-20)', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_ON,
+        [POST]: { status: 429, body: { code: 'RATE_LIMITED' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(await screen.findByLabelText(t.code), '123456');
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(es.errors.retryLater)).toBeDefined();
+      expect(screen.getByRole('dialog')).toBeDefined();
+    });
+
+    it('does not send an equal target, invalid text or an out-of-range amount (AC-11, AC-12)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: TWO_FACTOR_OFF });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      const target = screen.getByLabelText(t.target);
+      await user.type(target, '1500');
+      expect(screen.getByText(t.noDifference)).toBeDefined();
+      await user.clear(target);
+      await user.type(target, '-');
+      expect(screen.getByText(es.accounts.errors.amountInvalid)).toBeDefined();
+      await user.clear(target);
+      await user.type(target, '10000000000000,01');
+      expect(screen.getByText(/no puede superar/)).toBeDefined();
+
+      expect(confirmButton().disabled).toBe(true);
+      expect(posts(calls)).toHaveLength(0);
+    });
+
+    it('error: an archived account answers 409 with the archived message and keeps the dialog (AC-14)', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 409, body: { code: 'ACCOUNT_ARCHIVED' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(t.errors.archived)).toBeDefined();
+      expect(screen.getByRole('dialog')).toBeDefined();
+    });
+
+    it('error: a credit card answers 422 on the id and says so', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 422, body: { code: 'VALIDATION_FAILED', fields: ['params.id'] } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(t.errors.creditCard)).toBeDefined();
+    });
+
+    it('error: a refused balance shows the amount message on the target field', async () => {
+      stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 400, body: { code: 'VALIDATION_FAILED', fields: ['body.balance'] } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(/no puede superar/)).toBeDefined();
+      expect(screen.getByLabelText(t.target).getAttribute('aria-invalid')).toBe('true');
+    });
+
+    it('error: a 404 closes the dialog and reads the list again (AC-16)', async () => {
+      const { calls } = stubApi({
+        [ACTIVE]: [list([CAJA]), list([])],
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 404, body: { code: 'NOT_FOUND' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
       });
       await waitFor(() => {
-        expect(calls.filter((call) => call.method === 'GET')).toHaveLength(2);
+        expect(screen.queryByRole('listitem', { name: 'Caja' })).toBeNull();
       });
+      expect(calls.filter((call) => call.path.startsWith('/accounts?'))).toHaveLength(2);
     });
 
-    it('error: does not send an empty or malformed amount and says why (AC-17)', async () => {
-      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
-      renderApp(<AccountsContainer />);
-
-      const { user, field } = await openForm();
-      await user.clear(field);
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
-      expect(await screen.findByText(es.accounts.errors.amountInvalid)).toBeDefined();
-      expect(field.getAttribute('aria-invalid')).toBe('true');
-
-      await user.type(field, 'abc');
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
-      expect(screen.getByText(es.accounts.errors.amountInvalid)).toBeDefined();
-      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
-    });
-
-    it('error: does not send an amount above the limit and shows the formatted limit (AC-18)', async () => {
-      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
-      renderApp(<AccountsContainer />);
-
-      const { user, field } = await openForm();
-      await user.clear(field);
-      await user.type(field, '10000000000000,01');
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
-
-      const message = await screen.findByText(/no puede superar/);
-      expect(message.textContent.replace(/\s/g, ' ')).toContain(
-        money(1_000_000_000_000_000n, 'ARS', 'es'),
-      );
-      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
-    });
-
-    it('error: keeps the form open and shows the mapped message when the API refuses (AC-20)', async () => {
+    it('error: a network failure shows an inline error and changes no state', async () => {
       stubApi({
         [ACTIVE]: list([CAJA]),
-        [PATCH]: { status: 400, body: { code: 'VALIDATION_FAILED' } },
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: 'network-error',
       });
       renderApp(<AccountsContainer />);
 
-      const { user, field } = await openForm();
-      await user.clear(field);
-      await user.type(field, '10');
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
 
-      expect(await screen.findByText(es.errors.validationFailed)).toBeDefined();
-      expect(screen.getByLabelText(fieldLabel)).toBeDefined();
+      expect(await screen.findByText(es.errors.network)).toBeDefined();
+      expect(screen.getByRole('dialog')).toBeDefined();
+      const row = screen.getByRole('listitem', { name: 'Caja' });
+      expect(within(row).getByText(money(150000n, 'ARS', 'es'))).toBeDefined();
     });
 
-    it('error: sends the user to sign-in when the session is gone (AC-20)', async () => {
+    it('error: sends the user to sign-in when the session is gone', async () => {
       stubApi({
         [ACTIVE]: list([CAJA]),
-        [PATCH]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
+        [STATUS]: TWO_FACTOR_OFF,
+        [POST]: { status: 401, body: { code: 'UNAUTHENTICATED' } },
         'POST /auth/refresh': { status: 401, body: { code: 'UNAUTHENTICATED' } },
       });
       const { router } = renderApp(<AccountsContainer />);
 
-      const { user, field } = await openForm();
-      await user.clear(field);
-      await user.type(field, '10');
-      await user.click(screen.getByRole('button', { name: es.accounts.actions.save }));
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
 
       await waitFor(() => {
         expect(router.replace).toHaveBeenCalledWith('/es/sign-in');
       });
     });
 
-    it('cancels without calling the API (AC-21)', async () => {
-      const { calls } = stubApi({ [ACTIVE]: list([CAJA]) });
+    it('error: cannot confirm when the 2FA status could not be read, and says why', async () => {
+      stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: 'network-error' });
       renderApp(<AccountsContainer />);
 
-      const { user } = await openForm();
+      const { user } = await openDialog();
+      await user.type(screen.getByLabelText(t.target), '2000');
+
+      expect(await screen.findByText(es.errors.network)).toBeDefined();
+      expect(confirmButton().disabled).toBe(true);
+    });
+
+    it('offline: confirm is disabled with the connection message and nothing is sent or queued (AC-18)', async () => {
+      Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
+      try {
+        const { calls } = stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: TWO_FACTOR_OFF });
+        renderApp(<AccountsContainer />);
+
+        const { user } = await openDialog();
+        await user.type(screen.getByLabelText(t.target), '2000');
+        await user.click(confirmButton());
+
+        expect(screen.getByText(t.offline)).toBeDefined();
+        expect(confirmButton().disabled).toBe(true);
+        expect(posts(calls)).toHaveLength(0);
+      } finally {
+        Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+      }
+    });
+
+    it('cancels without calling the API and gives focus back to the row action (NFR-05)', async () => {
+      const { calls } = stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: TWO_FACTOR_OFF });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      const opener = screen.getByRole('button', { name: /^Fijar saldo/ });
       await user.click(screen.getByRole('button', { name: es.accounts.actions.cancel }));
 
-      expect(screen.queryByLabelText(fieldLabel)).toBeNull();
-      expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(document.activeElement).toBe(opener);
+      expect(posts(calls)).toHaveLength(0);
+    });
+
+    it('closes the dialog when another row action starts', async () => {
+      stubApi({ [ACTIVE]: list([CAJA]), [STATUS]: TWO_FACTOR_OFF });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      await user.click(screen.getByRole('button', { name: /^Renombrar/ }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 

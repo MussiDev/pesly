@@ -134,6 +134,15 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     expect(requestAt(fetch, 0).init.method).toBe('GET');
   });
 
+  it('listMovements sends hideAdjustments when given (AC-06)', async () => {
+    const page = { items: [], total: 0, limit: 100, offset: 0, groupLinks: {} };
+    const { client, fetch } = clientWith(jsonResponse(200, page));
+
+    await client.listMovements({ limit: 100, hideAdjustments: 'true' });
+
+    expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements?limit=100&hideAdjustments=true`);
+  });
+
   it('createMovement sends the tags in the body (AC-03)', async () => {
     const { client, fetch } = clientWith(jsonResponse(201, { ...MOVEMENT, tags: ['Viaje'] }));
 

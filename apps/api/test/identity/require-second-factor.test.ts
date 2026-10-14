@@ -59,7 +59,10 @@ class InMemoryLimiter implements AttemptLimiter {
   }
 }
 
-function build({ enabled = true, currentUser = user } = {}) {
+function build({
+  enabled = true,
+  currentUser = user,
+}: { enabled?: boolean; currentUser?: typeof user | null } = {}) {
   const limiter = new InMemoryLimiter();
   const verified: string[] = [];
   const users = { findById: () => Promise.resolve(currentUser) } as unknown as UserRepository;

@@ -1727,3 +1727,63 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
     expect(screen.getByText('Almuerzo')).toBeDefined();
   });
 });
+
+describe('MovementsContainer: balance adjustments (FEAT-012)', () => {
+  const adjustment = movement({
+    id: uuid(500),
+    type: 'adjustment',
+    categoryId: null,
+    amount: '-50000',
+    rate: null,
+    rateSource: null,
+    rateType: null,
+    note: 'Recount',
+  });
+  const regular = movement({ id: uuid(501), note: 'Almuerzo' });
+  const actions = es.movements.list.actions;
+  const hideLabel = es.movements.filters.hideAdjustments;
+
+  it('shows the adjustment row without an edit link, and hides adjustments through the control (AC-06, AC-07)', async () => {
+    const { calls } = stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([adjustment, regular]),
+        [`GET /movements?limit=100&hideAdjustments=true`]: movementPage([regular]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    expect(await screen.findByText('Recount')).toBeDefined();
+    expect(
+      screen.queryByRole('link', { name: `${actions.edit} ${es.movements.types.adjustment}` }),
+    ).toBeNull();
+    await user.click(screen.getByLabelText(hideLabel));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Recount')).toBeNull();
+    });
+    expect(screen.getByText('Almuerzo')).toBeDefined();
+    expect(calls.map((call) => call.path)).toContain('/movements?limit=100&hideAdjustments=true');
+  });
+
+  it('error: a failed delete of an adjustment shows the usual delete error and keeps the row (AC-08)', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([adjustment]),
+        [`DELETE /movements/${uuid(500)}`]: { status: 500, body: { code: 'INTERNAL' } },
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await screen.findByText('Recount');
+    await user.click(
+      screen.getByRole('button', { name: `${actions.delete} ${es.movements.types.adjustment}` }),
+    );
+    expect(screen.getByText(actions.confirmDeleteAdjustment)).toBeDefined();
+    await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
+
+    expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
+    expect(screen.getByText('Recount')).toBeDefined();
+  });
+});

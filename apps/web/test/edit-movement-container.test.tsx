@@ -321,6 +321,24 @@ describe('EditMovementContainer: loading failures', () => {
     expect(screen.queryByLabelText(es.movements.fields.amount)).toBeNull();
   });
 
+  it('shows the not-found state for a balance adjustment: it is never edited (FEAT-012 AC-07)', async () => {
+    stubApi(
+      routes({
+        ...STORED,
+        type: 'adjustment',
+        categoryId: null,
+        amount: '-50000',
+        rate: null,
+        rateSource: null,
+        tags: [],
+      }),
+    );
+    renderApp(<EditMovementContainer movementId={MOVEMENT_ID} />);
+
+    expect(await screen.findByText(es.movements.edit.notFound)).toBeDefined();
+    expect(screen.queryByLabelText(es.movements.fields.amount)).toBeNull();
+  });
+
   it('shows the generic message with a retry when loading fails, and loads on retry (error path)', async () => {
     stubApi(
       routes(STORED, {

@@ -421,7 +421,7 @@
     "actions": {
       "rename": "Renombrar",
       "renameField": "Nuevo nombre de {name}",
-      "editOpeningBalance": "Editar saldo inicial",
+      "setBalance": "Fijar saldo",
       "save": "Guardar",
       "cancel": "Cancelar",
       "archive": "Archivar",
@@ -431,11 +431,24 @@
       "confirmDeleteYes": "Sí, eliminar",
       "archiveInstead": "Archivar en vez de eliminar"
     },
-    "openingEdit": {
-      "current": "Saldo inicial actual: {amount}",
-      "field": "Nuevo saldo inicial de {name}",
-      "hint": "El saldo cambia por la diferencia. Los movimientos no se modifican.",
-      "preview": "Nuevo saldo: {amount}"
+    "setBalance": {
+      "title": "Fijar saldo de {name}",
+      "description": "Indica el saldo que debería tener la cuenta. Se registra un ajuste por la diferencia y tus movimientos no se modifican.",
+      "current": "Saldo actual: {amount}",
+      "target": "Nuevo saldo",
+      "targetHint": "Usa un signo menos para un saldo negativo.",
+      "difference": "Diferencia: {amount}",
+      "noDifference": "Sin diferencia: el saldo ya es ese.",
+      "note": "Nota (opcional)",
+      "code": "Código de verificación",
+      "codeHint": "Ingresa el código de 6 dígitos de tu app o un código de recuperación.",
+      "offline": "Fijar el saldo necesita conexión. Conéctate e inténtalo de nuevo.",
+      "confirm": "Registrar ajuste",
+      "errors": {
+        "archived": "Esta cuenta está archivada. Desarchívala para fijar su saldo.",
+        "creditCard": "El saldo de una tarjeta de crédito no se puede fijar.",
+        "noteInvalid": "La nota contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo."
+      }
     },
     "errors": {
       "nameRequired": "Ingresa un nombre.",
@@ -444,7 +457,7 @@
       "typeRequired": "Elige un tipo de cuenta.",
       "currencyRequired": "Elige una moneda.",
       "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
-      "amountOutOfRange": "El saldo inicial no puede superar {max} en valor absoluto."
+      "amountOutOfRange": "El monto no puede superar {max} en valor absoluto."
     }
   },
   "creditCards": {
@@ -714,6 +727,7 @@
         "edit": "Editar",
         "delete": "Eliminar",
         "confirmDelete": "¿Eliminar este movimiento? Tus saldos se actualizarán.",
+        "confirmDeleteAdjustment": "¿Eliminar este ajuste? Los saldos posteriores a su fecha cambiarán.",
         "confirmDeleteYes": "Sí, eliminar",
         "cancel": "Cancelar",
         "retry": "Reintentar",
@@ -736,7 +750,8 @@
       "clear": "Limpiar filtros",
       "showAll": "Ver todos los movimientos",
       "noMatch": "Ningún movimiento coincide con estos filtros.",
-      "invalidRange": "La fecha «Desde» no puede ser posterior a «Hasta»."
+      "invalidRange": "La fecha «Desde» no puede ser posterior a «Hasta».",
+      "hideAdjustments": "Ocultar ajustes"
     },
     "new": {
       "title": "Nuevo movimiento",
@@ -773,7 +788,8 @@
       "expense": "Gasto",
       "income": "Ingreso",
       "transfer": "Transferencia",
-      "exchange": "Cambio de moneda"
+      "exchange": "Cambio de moneda",
+      "adjustment": "Ajuste"
     },
     "rate": {
       "automatic": "Cotización {rateType} guardada. Edítala para usar la tuya.",
@@ -1816,7 +1832,6 @@
       "accountsFailed": "No pudimos cargar tus cuentas. Igual podés registrar el pago sin una.",
       "accountsRetry": "Reintentar",
       "submit": "Registrar pago",
-      "pending": "Registrando…",
       "cancel": "Cancelar",
       "notFound": "Este grupo no existe o no sos miembro.",
       "errors": {

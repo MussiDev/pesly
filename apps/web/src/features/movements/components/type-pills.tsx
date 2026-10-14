@@ -1,12 +1,12 @@
 'use client';
 
-import { MOVEMENT_TYPES, type MovementType } from '@pesly/shared';
+import { CREATABLE_MOVEMENT_TYPES, type CreatableMovementType } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface TypePillsProps {
-  value: MovementType;
-  onChange: (type: MovementType) => void;
+  value: CreatableMovementType;
+  onChange: (type: CreatableMovementType) => void;
   /** The type is locked, as when editing a movement. */
   disabled?: boolean;
 }
@@ -21,7 +21,7 @@ export function TypePills({ value, onChange, disabled = false }: TypePillsProps)
       aria-label={t('fields.type')}
       className="grid grid-cols-4 gap-1 rounded-pill bg-surface p-1"
     >
-      {MOVEMENT_TYPES.map((type) => {
+      {CREATABLE_MOVEMENT_TYPES.map((type) => {
         const pressed = type === value;
         return (
           <button

@@ -1,17 +1,26 @@
 'use client';
 
-import { renameAccountRequestSchema, type AccountResponse } from '@pesly/shared';
-import { useLocale } from 'next-intl';
+import {
+  renameAccountRequestSchema,
+  type AccountResponse,
+  type SetAccountBalanceRequest,
+} from '@pesly/shared';
 import { useEffect, useState } from 'react';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiFailure } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
+import { useOnlineStatus } from '@/lib/connectivity';
 import { nameErrorMessage, type AccountFieldMessage } from '../account-form-errors';
-import { buildOpeningBalanceRequest } from '../opening-balance-request';
+import { ACCOUNT_GONE, mapSetBalanceFailure } from '../set-balance-failure';
 import type { CurrencyTotals } from '../totals';
 import { AccountList } from '../components/account-list';
 import { AccountsLoadStateView, type AccountsLoadState } from '../components/accounts-load-state';
+import {
+  SetBalanceDialog,
+  type SetBalanceFailure,
+  type SetBalanceTwoFactor,
+} from '../components/set-balance-dialog';
 
 /** The API's largest page; there is no pagination control yet (personal scale). */
 const PAGE_SIZE = 100;
@@ -27,6 +36,12 @@ type ListState =
       creditCardCount: number;
     };
 
+interface BalanceDialogState {
+  id: string;
+  twoFactor: SetBalanceTwoFactor;
+  failure: SetBalanceFailure | undefined;
+}
+
 /**
  * Lists the active or the archived accounts and runs the row actions. After an action the row
  * leaves the view at once and the list is read again, so balances and totals stay the API's.
@@ -34,7 +49,7 @@ type ListState =
 export function AccountsContainer() {
   const api = useApiClient();
   const router = useRouter();
-  const locale = useLocale();
+  const online = useOnlineStatus();
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [showArchived, setShowArchived] = useState(false);
   // `silent` reloads (after an action) keep the list on screen and report failures as an alert.
@@ -44,8 +59,7 @@ export function AccountsContainer() {
   const [confirmingDeleteId, setConfirmingDeleteId] = useState<string | undefined>();
   const [blockedDeleteId, setBlockedDeleteId] = useState<string | undefined>();
   const [renameError, setRenameError] = useState<AccountFieldMessage | undefined>();
-  const [editingOpeningId, setEditingOpeningId] = useState<string | undefined>();
-  const [openingError, setOpeningError] = useState<AccountFieldMessage | undefined>();
+  const [balanceDialog, setBalanceDialog] = useState<BalanceDialogState | undefined>();
   const [actionError, setActionError] = useState<ErrorMessageKey | undefined>();
 
   useEffect(() => {
@@ -79,8 +93,7 @@ export function AccountsContainer() {
     setConfirmingDeleteId(undefined);
     setBlockedDeleteId(undefined);
     setRenameError(undefined);
-    setEditingOpeningId(undefined);
-    setOpeningError(undefined);
+    setBalanceDialog(undefined);
     setActionError(undefined);
   }
 
@@ -143,19 +156,35 @@ export function AccountsContainer() {
     }
   }
 
-  async function setOpeningBalance(id: string, text: string) {
-    const built = buildOpeningBalanceRequest(text, locale);
-    if (built.request === undefined) {
-      setOpeningError(built.error);
-      return;
-    }
+  /** Opens the dialog at once and reads whether 2FA is on, which decides if a code is asked. */
+  async function startSetBalance(id: string) {
+    clearTransient();
+    setBalanceDialog({ id, twoFactor: 'loading', failure: undefined });
+    const result = await api.getTwoFactorStatus();
+    if (!result.ok && handleSharedFailure(result)) return;
+    const next: Pick<BalanceDialogState, 'twoFactor' | 'failure'> = result.ok
+      ? { twoFactor: result.data.enabled ? 'enabled' : 'disabled', failure: undefined }
+      : {
+          twoFactor: 'unavailable',
+          failure: { field: 'form', message: `errors.${result.messageKey}` },
+        };
+    setBalanceDialog((current) => (current?.id === id ? { ...current, ...next } : current));
+  }
+
+  function closeBalanceDialog() {
+    setBalanceDialog(undefined);
+  }
+
+  async function setBalance(id: string, body: SetAccountBalanceRequest) {
     setPending(true);
-    setOpeningError(undefined);
     setActionError(undefined);
-    const result = await api.setAccountOpeningBalance(id, built.request);
+    setBalanceDialog((current) =>
+      current?.id === id ? { ...current, failure: undefined } : current,
+    );
+    const result = await api.setAccountBalance(id, body);
     setPending(false);
     if (result.ok) {
-      const updated = result.data;
+      const updated = result.data.account;
       setState((current) =>
         current.kind === 'ready'
           ? {
@@ -164,11 +193,21 @@ export function AccountsContainer() {
             }
           : current,
       );
-      setEditingOpeningId(undefined);
+      closeBalanceDialog();
       // The totals are the API's: read them again instead of adding up on the client.
       setRequest((current) => ({ id: current.id + 1, silent: true }));
-    } else if (!handleSharedFailure(result)) {
-      setActionError(result.messageKey);
+    } else if (handleSharedFailure(result)) {
+      return;
+    } else {
+      const mapped = mapSetBalanceFailure(result);
+      if (mapped === ACCOUNT_GONE) {
+        closeBalanceDialog();
+        setRequest((current) => ({ id: current.id + 1, silent: true }));
+      } else {
+        setBalanceDialog((current) =>
+          current?.id === id ? { ...current, failure: mapped } : current,
+        );
+      }
     }
   }
 
@@ -229,6 +268,10 @@ export function AccountsContainer() {
     return <AccountsLoadStateView state={state} onRetry={retry} />;
   }
 
+  const dialogAccount = balanceDialog
+    ? state.accounts.find((account) => account.id === balanceDialog.id)
+    : undefined;
+
   return (
     <AccountList
       accounts={state.accounts}
@@ -245,18 +288,24 @@ export function AccountsContainer() {
       confirmingDeleteId={confirmingDeleteId}
       blockedDeleteId={blockedDeleteId}
       renameError={renameError}
-      editingOpeningId={editingOpeningId}
-      openingError={openingError}
-      onStartEditOpening={(id) => {
-        clearTransient();
-        setEditingOpeningId(id);
-      }}
-      onCancelEditOpening={() => {
-        setEditingOpeningId(undefined);
-        setOpeningError(undefined);
-      }}
-      onSetOpening={(id, text) => {
-        void setOpeningBalance(id, text);
+      settingBalanceId={dialogAccount?.id}
+      balanceDialog={
+        balanceDialog && dialogAccount ? (
+          <SetBalanceDialog
+            account={dialogAccount}
+            twoFactor={balanceDialog.twoFactor}
+            online={online}
+            pending={pending}
+            failure={balanceDialog.failure}
+            onConfirm={(body) => {
+              void setBalance(dialogAccount.id, body);
+            }}
+            onCancel={closeBalanceDialog}
+          />
+        ) : undefined
+      }
+      onStartSetBalance={(id) => {
+        void startSetBalance(id);
       }}
       actionError={actionError}
       onToggleArchived={toggleArchived}
