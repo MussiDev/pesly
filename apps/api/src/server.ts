@@ -17,6 +17,7 @@ import { createInvestmentsRoutes } from './investments';
 import {
   BestEffortExpenseSavedHook,
   createAccountMovements,
+  createBalanceAdjuster,
   createCardPayments,
   createCardPurchases,
   createCategoryUsage,
@@ -80,6 +81,7 @@ const app = createApp({
       logger,
       movements: createAccountMovements(db),
       links: createCardAccountLinks(db),
+      balanceAdjuster: createBalanceAdjuster(db),
     }),
     createBudgetRoutes({ db, logger }),
     createCategoryRoutes({ db, logger, usage: categoryUsage }),

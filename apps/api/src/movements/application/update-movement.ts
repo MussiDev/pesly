@@ -30,7 +30,10 @@ export class UpdateMovement {
     options?: UpdateMovementOptions,
   ): Promise<Movement> {
     const existing = notFoundUnlessAllowed(await this.deps.movements.findById(scope, id));
-    if (existing.type !== input.type) throw new MovementTypeImmutable();
+    // An adjustment is a record of a count: it is deleted, never edited (the edit types never include it).
+    if (existing.type === 'adjustment' || existing.type !== input.type) {
+      throw new MovementTypeImmutable();
+    }
 
     const data = await buildNewMovement(this.deps, scope, input, existing);
     // `null`: the movement vanished between the read and the write.

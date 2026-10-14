@@ -1,4 +1,4 @@
-import { and, isNull, sql } from 'drizzle-orm';
+import { and, isNull, ne, sql } from 'drizzle-orm';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
 import type { Database } from '../../../shared/db/client';
@@ -18,7 +18,7 @@ export class DrizzleFirstStepsReader implements FirstStepsReader {
         ) as has_account,
         exists (
           select 1 from ${movements}
-          where ${scopedTo(scope, { owner: movements.ownerId })}
+          where ${and(scopedTo(scope, { owner: movements.ownerId }), ne(movements.type, 'adjustment'))}
         ) as has_movement
     `);
     const row = result.rows[0];

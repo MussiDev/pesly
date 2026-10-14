@@ -52,6 +52,16 @@ export function presentMovement(movement: Movement): MovementResponse {
         rateSource: movement.rateSource,
         rateType: null,
       };
+    case 'adjustment':
+      return {
+        ...base,
+        categoryId: null,
+        destinationAccountId: null,
+        destinationAmount: null,
+        rate: null,
+        rateSource: null,
+        rateType: null,
+      };
   }
 }
 

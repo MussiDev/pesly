@@ -92,7 +92,11 @@ export const movements = pgTable(
       foreignColumns: [accounts.id, accounts.ownerId],
     }).onDelete('restrict'),
     check('movements_type_check', oneOf(table.type, MOVEMENT_TYPES)),
-    check('movements_amount_range_check', sql`${table.amount} between 1 and ${AMOUNT_MAX_LITERAL}`),
+    // An adjustment is signed (a correction up or down) and never zero; every other type is positive.
+    check(
+      'movements_amount_range_check',
+      sql`(${table.type} = 'adjustment' and ${table.amount} <> 0 and abs(${table.amount}) <= ${AMOUNT_MAX_LITERAL}) or (${table.type} <> 'adjustment' and ${table.amount} between 1 and ${AMOUNT_MAX_LITERAL})`,
+    ),
     check(
       'movements_occurred_at_check',
       sql`${table.occurredAt} >= '1970-01-01T00:00:00Z'::timestamptz`,
@@ -110,11 +114,11 @@ export const movements = pgTable(
       'movements_destination_differs_check',
       sql`${table.destinationAccountId} <> ${table.accountId}`,
     ),
-    // The three allowed shapes; the currencies of the two accounts are checked by the use case.
+    // The four allowed shapes; the currencies of the two accounts are checked by the use case.
     // A check passes on null, so each column a shape relies on is also guarded with `is not null`.
     check(
       'movements_shape_check',
-      sql`(${table.type} in ('expense', 'income') and ${table.categoryId} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} in ('automatic', 'manual') and ${table.destinationAccountId} is null and ${table.destinationAmount} is null) or (${table.type} = 'transfer' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.destinationAmount} = ${table.amount} and ${table.rate} is null and ${table.rateSource} is null and ${table.rateType} is null) or (${table.type} = 'exchange' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} = 'implied' and ${table.rateType} is null)`,
+      sql`(${table.type} in ('expense', 'income') and ${table.categoryId} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} in ('automatic', 'manual') and ${table.destinationAccountId} is null and ${table.destinationAmount} is null) or (${table.type} = 'transfer' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.destinationAmount} = ${table.amount} and ${table.rate} is null and ${table.rateSource} is null and ${table.rateType} is null) or (${table.type} = 'exchange' and ${table.categoryId} is null and ${table.destinationAccountId} is not null and ${table.destinationAmount} is not null and ${table.rate} is not null and ${table.rateSource} is not null and ${table.rateSource} = 'implied' and ${table.rateType} is null) or (${table.type} = 'adjustment' and ${table.categoryId} is null and ${table.rate} is null and ${table.rateSource} is null and ${table.rateType} is null and ${table.destinationAccountId} is null and ${table.destinationAmount} is null)`,
     ),
     check('movements_rate_source_check', oneOf(table.rateSource, MOVEMENT_RATE_SOURCES)),
     // A null rate type passes (a check on null is not violated); the pairing check below ties it to the source.

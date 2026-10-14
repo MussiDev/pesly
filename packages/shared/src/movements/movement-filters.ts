@@ -29,7 +29,7 @@ export const localDateSchema = z
  * this shape and an import back would be circular. A probe test fails when `MOVEMENT_TYPES` holds a
  * value this list does not accept.
  */
-const FILTER_MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange'] as const;
+const FILTER_MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange', 'adjustment'] as const;
 
 /** The optional filter fields of `GET /movements`; all are absent by default. */
 export const movementFilterShape = {
@@ -39,4 +39,6 @@ export const movementFilterShape = {
   tag: movementTagSchema.optional(),
   from: localDateSchema.optional(),
   to: localDateSchema.optional(),
+  /** `"true"` leaves adjustments out of the list; kept as text so URL state and query share it. */
+  hideAdjustments: z.enum(['true', 'false']).optional(),
 };

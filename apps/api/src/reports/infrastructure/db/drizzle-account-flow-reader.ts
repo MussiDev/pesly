@@ -17,7 +17,7 @@ interface AccountRow extends BucketedSumRow {
 
 /**
  * The signed effects on the owner's non-archived accounts, one statement: source legs of
- * movements (income positive, the rest negative), destination legs of transfers and exchanges,
+ * movements (income and adjustments with their own sign, the rest negative), destination legs of transfers and exchanges,
  * settlement payments by the `account_member_id` rule, and the opening balances.
  */
 export class DrizzleAccountFlowReader {
@@ -30,7 +30,7 @@ export class DrizzleAccountFlowReader {
     const result = await this.db.execute<AccountRow>(sql`
       with legs as (
         select a.currency, m.occurred_at as at,
-               case when m.type = 'income' then m.amount else -m.amount end as amount,
+               case when m.type in ('income', 'adjustment') then m.amount else -m.amount end as amount,
                false as opening
         from movements m
         join accounts a on a.id = m.account_id and a.owner_id = m.owner_id

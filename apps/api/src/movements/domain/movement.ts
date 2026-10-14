@@ -12,7 +12,7 @@ interface MovementBase {
   ownerId: string;
   /** The source account of a transfer or exchange. */
   accountId: string;
-  /** Positive minor units of the source account's currency. */
+  /** Positive minor units of the source account's currency (signed for an adjustment). */
   amount: bigint;
   occurredAt: Date;
   note: string | null;
@@ -52,7 +52,15 @@ export interface Exchange extends MovementBase {
   rateType: null;
 }
 
-export type Movement = CategorizedMovement | Transfer | Exchange;
+/**
+ * A correction of an account's balance: a signed, non-zero amount in the account's currency, with
+ * no category, no rate and no destination. Neither an expense nor an income.
+ */
+export interface Adjustment extends MovementBase {
+  type: 'adjustment';
+}
+
+export type Movement = CategorizedMovement | Transfer | Exchange | Adjustment;
 
 /** A plain `Omit` over a union collapses it; this one keeps each member. */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -63,6 +71,8 @@ export interface MovementFilters {
   categoryId?: string;
   type?: MovementType;
   tag?: string;
+  /** `true` leaves adjustments out; absent or `false` keeps them. */
+  hideAdjustments?: boolean;
   occurredFrom?: Date;
   occurredBefore?: Date;
 }

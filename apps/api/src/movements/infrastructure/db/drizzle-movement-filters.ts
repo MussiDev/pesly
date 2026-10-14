@@ -1,4 +1,4 @@
-import { and, eq, gte, lt, or, sql, type SQL } from 'drizzle-orm';
+import { and, eq, gte, lt, ne, or, sql, type SQL } from 'drizzle-orm';
 import type { MovementFilters } from '../../domain/movement';
 import type { AccessScope } from '../../../shared/access';
 import { scopedTo } from '../../../shared/access/infrastructure/drizzle-access-scope';
@@ -23,6 +23,7 @@ export function movementConditions(scope: AccessScope, filters: MovementFilters)
     );
   }
   if (filters.type !== undefined) conditions.push(eq(movements.type, filters.type));
+  if (filters.hideAdjustments === true) conditions.push(ne(movements.type, 'adjustment'));
   if (filters.occurredFrom !== undefined) {
     conditions.push(gte(movements.occurredAt, filters.occurredFrom));
   }

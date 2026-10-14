@@ -18,7 +18,7 @@ import {
 } from '../helpers/session-client';
 import { testDatabaseUrl } from '../helpers/test-database';
 import { trustedHeaders } from '../helpers/test-env';
-import { newAccount, newCategory } from './db-fixtures';
+import { newAccount, newAdjustment, newCategory } from './db-fixtures';
 
 /** PUT and DELETE /movements/:id through the real stack (spec 03e, Block 5). */
 
@@ -462,6 +462,104 @@ describe('DELETE /movements/:id', () => {
     expect((await stored(s, created.id)).amount).toBe('150000');
     expect((await del(s.app, created.id, s.ana)).status).toBe(204);
     expect((await del(s.app, created.id, s.ana)).status).toBe(404);
+  });
+});
+
+describe('adjustments on the movements routes (FEAT-012)', () => {
+  async function netWorthOf(s: Setup): Promise<string> {
+    const response = await getJson(s.app, '/accounts', s.ana);
+    expect(response.status).toBe(200);
+    return (response.body as { netWorthTotals: { ARS: string } }).netWorthTotals.ARS;
+  }
+
+  async function rawAdjustment(id: string) {
+    const { rows } = await connection.pool.query(
+      'select type, amount::text as amount, note, account_id, occurred_at from movements where id = $1',
+      [id],
+    );
+    return rows[0] as Record<string, unknown> | undefined;
+  }
+
+  it('answers 409 MOVEMENT_TYPE_IMMUTABLE to an edit of an adjustment and leaves the row unchanged (AC-08)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const id = await newAdjustment(connection.pool, {
+      ownerId: s.anaId,
+      accountId: f.ars1,
+      amount: -250n,
+      note: 'cash count',
+    });
+    const before = await rawAdjustment(id);
+
+    const response = await put(s.app, id, expenseBody(f), s.ana);
+
+    expect(response.status).toBe(409);
+    expect(response.body).toEqual({ code: 'MOVEMENT_TYPE_IMMUTABLE' });
+    expect(await rawAdjustment(id)).toEqual(before);
+    expect(await balanceOf(s, f.ars1)).toBe('-250');
+  });
+
+  it('answers 400 to the creation of a movement of type adjustment and stores nothing (AC-08)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+
+    const response = await request(s.app)
+      .post('/movements')
+      .set(trustedHeaders)
+      .set('Cookie', cookieHeader(s.ana))
+      .send({
+        type: 'adjustment',
+        accountId: f.ars1,
+        amount: '500',
+        occurredAt: hoursAgo(1),
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    const { rows } = await connection.pool.query(
+      "select 1 from movements where owner_id = $1 and type = 'adjustment'",
+      [s.anaId],
+    );
+    expect(rows).toEqual([]);
+    expect(await balanceOf(s, f.ars1)).toBe('0');
+  });
+
+  it('deleting an adjustment restores the balance and the net worth (AC-07)', async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    await create(s, expenseBody(f));
+    const balanceBefore = await balanceOf(s, f.ars1);
+    const netWorthBefore = await netWorthOf(s);
+    const id = await newAdjustment(connection.pool, {
+      ownerId: s.anaId,
+      accountId: f.ars1,
+      amount: 7000n,
+    });
+    expect(await balanceOf(s, f.ars1)).toBe('-143000');
+    expect(await netWorthOf(s)).not.toBe(netWorthBefore);
+
+    const response = await del(s.app, id, s.ana);
+
+    expect(response.status).toBe(204);
+    expect(await balanceOf(s, f.ars1)).toBe(balanceBefore);
+    expect(await netWorthOf(s)).toBe(netWorthBefore);
+    expect(await rawAdjustment(id)).toBeUndefined();
+  });
+
+  it("answers 404 to the deletion of another user's adjustment and keeps it (AC-16)", async () => {
+    const s = await setup();
+    const f = await fixture(s.anaId);
+    const id = await newAdjustment(connection.pool, {
+      ownerId: s.anaId,
+      accountId: f.ars1,
+      amount: 900n,
+    });
+
+    const response = await del(s.app, id, s.bob);
+
+    expect(response.status).toBe(404);
+    expect(response.body).toEqual({ code: 'NOT_FOUND' });
+    expect(await rawAdjustment(id)).toMatchObject({ type: 'adjustment', amount: '900' });
   });
 });
 

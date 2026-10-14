@@ -3,7 +3,9 @@ import {
   type AccountCurrency,
   type AccountResponse,
   type ListAccountsResponse,
+  type MovementResponse,
 } from '@pesly/shared';
+import type { RecordedAdjustment } from '../../application/ports/balance-adjuster';
 import type { AccountList } from '../../application/list-accounts';
 import type { AccountWithBalance } from '../../domain/account';
 
@@ -44,5 +46,25 @@ export function presentAccountList(
     total: list.total,
     limit: page.limit,
     offset: page.offset,
+  };
+}
+
+/** A balance adjustment as a movement: no category, tags, rate or destination. */
+export function presentAdjustment(adjustment: RecordedAdjustment): MovementResponse {
+  return {
+    id: adjustment.id,
+    type: 'adjustment',
+    accountId: adjustment.accountId,
+    categoryId: null,
+    destinationAccountId: null,
+    amount: formatMinorUnitsString(adjustment.amount),
+    destinationAmount: null,
+    occurredAt: adjustment.occurredAt.toISOString(),
+    note: adjustment.note,
+    rate: null,
+    rateSource: null,
+    rateType: null,
+    createdAt: adjustment.createdAt.toISOString(),
+    tags: [],
   };
 }

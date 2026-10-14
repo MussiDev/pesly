@@ -43,3 +43,22 @@ export class AccountArchived extends AppError {
     super('ACCOUNT_ARCHIVED');
   }
 }
+
+/**
+ * A credit card's balance is its statements, so it cannot be adjusted. The HTTP layer answers 422;
+ * the code is the same one the other card restrictions of this module use.
+ */
+export class AccountIsCreditCard extends AppError {
+  constructor() {
+    super('VALIDATION_FAILED', 'credit card accounts cannot have their balance adjusted', [
+      'params.id',
+    ]);
+  }
+}
+
+/** The difference between the target and the current balance is larger than a movement can hold. */
+export class BalanceDifferenceOutOfRange extends AppError {
+  constructor() {
+    super('VALIDATION_FAILED', 'the balance difference is out of range', ['body.balance']);
+  }
+}

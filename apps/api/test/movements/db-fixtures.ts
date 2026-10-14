@@ -146,3 +146,28 @@ export async function linkTag(
     [link.movementId, link.tagId, link.ownerId, link.position],
   );
 }
+
+/** A raw adjustment row: signed non-zero amount, no category, no rate, no destination. */
+export async function newAdjustment(
+  pool: pg.Pool,
+  fixture: {
+    ownerId: string;
+    accountId: string;
+    amount: bigint;
+    occurredAt?: Date | string;
+    note?: string | null;
+  },
+): Promise<string> {
+  const result = await pool.query<{ id: string }>(
+    `insert into movements (owner_id, type, account_id, amount, occurred_at, note)
+     values ($1, 'adjustment', $2, $3, $4, $5) returning id`,
+    [
+      fixture.ownerId,
+      fixture.accountId,
+      fixture.amount.toString(),
+      fixture.occurredAt ?? new Date(),
+      fixture.note ?? null,
+    ],
+  );
+  return firstId(result.rows);
+}

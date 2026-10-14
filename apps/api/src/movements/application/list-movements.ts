@@ -23,6 +23,8 @@ export interface ListMovementsOptions {
   categoryId?: string;
   type?: MovementType;
   tag?: string;
+  /** The query text: only `"true"` hides adjustments. */
+  hideAdjustments?: 'true' | 'false';
   from?: string;
   to?: string;
 }
@@ -38,7 +40,7 @@ export class ListMovements {
     total: number;
     groupLinks: Record<string, MovementGroupLink>;
   }> {
-    const { limit, offset, accountId, categoryId, type, tag, from, to } = options;
+    const { limit, offset, accountId, categoryId, type, tag, hideAdjustments, from, to } = options;
     if (
       !Number.isInteger(limit) ||
       limit < 1 ||
@@ -58,6 +60,7 @@ export class ListMovements {
       ...(categoryId === undefined ? {} : { categoryId }),
       ...(type === undefined ? {} : { type }),
       ...(tag === undefined ? {} : { tag }),
+      ...(hideAdjustments === 'true' ? { hideAdjustments: true } : {}),
     };
     if (from !== undefined || to !== undefined) {
       const { timeZone } = await this.deps.preferences.find(scope.userId);

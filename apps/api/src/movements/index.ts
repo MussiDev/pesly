@@ -1,5 +1,6 @@
 export * from './infrastructure/http/movement-routes';
 export { createAccountMovements } from './infrastructure/accounts/drizzle-account-movements';
+export { createBalanceAdjuster } from './infrastructure/accounts/drizzle-balance-adjuster';
 export { createCardPurchases } from './infrastructure/credit-cards/drizzle-card-purchases';
 export { createExpenseCategoryGuard } from './infrastructure/credit-cards/drizzle-expense-category-guard';
 export { createInstallmentWriteLimit } from './infrastructure/credit-cards/drizzle-installment-write-limit';

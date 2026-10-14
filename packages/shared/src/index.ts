@@ -11,6 +11,7 @@ export * from './auth/google';
 export * from './auth/two-factor';
 export * from './money';
 export * from './accounts/account';
+export * from './accounts/set-account-balance';
 export * from './categories/default-categories';
 export * from './categories/category';
 export * from './profile/profile';

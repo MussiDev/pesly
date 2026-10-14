@@ -5,8 +5,9 @@ import {
   listAccountsQuerySchema,
   listAccountsResponseSchema,
   renameAccountRequestSchema,
+  setAccountBalanceRequestSchema,
+  setAccountBalanceResponseSchema,
   setIncludeInAvailableRequestSchema,
-  setOpeningBalanceRequestSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
 import type { RouterFactory } from '../../../app';
@@ -24,19 +25,22 @@ import { requireVerifiedEmail } from '../../../shared/http/require-verified-emai
 import { validate } from '../../../shared/http/validate';
 import type { Logger } from '../../../shared/logging/logger';
 import type { AccountMovements } from '../../application/ports/account-movements';
+import type { BalanceAdjuster } from '../../application/ports/balance-adjuster';
 import { CreateAccount } from '../../application/create-account';
 import { DeleteAccount } from '../../application/delete-account';
 import { GetAccount } from '../../application/get-account';
 import { ListAccounts } from '../../application/list-accounts';
 import { RenameAccount } from '../../application/rename-account';
 import { SetAccountArchived } from '../../application/set-account-archived';
+import { SetAccountBalance } from '../../application/set-account-balance';
 import { SetIncludeInAvailable } from '../../application/set-include-in-available';
-import { SetOpeningBalance } from '../../application/set-opening-balance';
+import { AccountIsCreditCard } from '../../domain/errors';
 import { DrizzleAccountRepository } from '../db/drizzle-account-repository';
 import type { AccountLinks } from '../../application/ports/account-links';
 import { NoLinksAdapter } from '../links/no-links-adapter';
+import { NoBalanceAdjusterAdapter } from '../movements/no-balance-adjuster-adapter';
 import { NoMovementsAdapter } from '../movements/no-movements-adapter';
-import { presentAccount, presentAccountList } from './account-presenter';
+import { presentAccount, presentAccountList, presentAdjustment } from './account-presenter';
 
 export interface AccountRoutesOptions {
   db: Database;
@@ -44,6 +48,8 @@ export interface AccountRoutesOptions {
   movements?: AccountMovements;
   /** Defaults to the adapter that reports no links; the credit-cards module provides the real one. */
   links?: AccountLinks;
+  /** Defaults to an adapter that fails loudly; the movements module provides the real one. */
+  balanceAdjuster?: BalanceAdjuster;
   /** Required so the audit trail cannot silently disappear. */
   logger: Logger;
 }
@@ -63,6 +69,7 @@ export function createAccountRoutes({
   db,
   movements = new NoMovementsAdapter(),
   links = new NoLinksAdapter(),
+  balanceAdjuster = new NoBalanceAdjusterAdapter(),
   logger,
 }: AccountRoutesOptions): RouterFactory {
   const policy = new OwnerOrGroupMemberAccessPolicy(new DenyAllGroupMembershipReader());
@@ -73,7 +80,6 @@ export function createAccountRoutes({
   const renameAccount = new RenameAccount({ accounts, movements });
   const setArchived = new SetAccountArchived({ accounts, movements });
   const setIncludeInAvailable = new SetIncludeInAvailable({ accounts, movements });
-  const setOpeningBalance = new SetOpeningBalance({ accounts, movements });
   const deleteAccount = new DeleteAccount({ accounts, movements, links });
 
   // Audit lines carry ids only: never the name or any amount.
@@ -86,7 +92,12 @@ export function createAccountRoutes({
     logger.info({ requestId, userId: auth?.userId, accountId: id }, message);
   };
 
-  return ({ requireSession }) => {
+  return ({ requireSession, secondFactorGate }) => {
+    const setAccountBalance = new SetAccountBalance({
+      accounts,
+      adjuster: balanceAdjuster,
+      secondFactor: secondFactorGate,
+    });
     const router = Router();
     router.use('/accounts', requireSession, requireVerifiedEmail);
 
@@ -149,24 +160,36 @@ export function createAccountRoutes({
       ),
     );
 
-    router.patch(
-      '/accounts/:id/opening-balance',
+    router.post(
+      '/accounts/:id/balance',
       validate(
         {
           params: accountIdParamsSchema,
-          body: setOpeningBalanceRequestSchema,
-          response: accountResponseSchema,
+          body: setAccountBalanceRequestSchema,
+          response: setAccountBalanceResponseSchema,
         },
         async ({ params, body }, { res, auth, requestId }) => {
           const scope = await scopeOf(policy, auth, 'write');
-          const account = await setOpeningBalance.execute(
-            scope,
-            params.id,
-            BigInt(body.openingBalance),
-          );
-          // Ids only: the old and the new amount are financial data and stay out of the log.
-          audit('account opening balance changed', requestId, auth, account.id);
-          res.json(presentAccount(account));
+          try {
+            const result = await setAccountBalance.execute(scope, {
+              accountId: params.id,
+              balance: BigInt(body.balance),
+              note: body.note,
+              secondFactorCode: body.secondFactorCode,
+            });
+            // Ids only: neither the target, the difference nor the note goes to the log.
+            audit('account balance adjusted', requestId, auth, result.account.id);
+            res.json({
+              account: presentAccount(result.account),
+              adjustment: result.adjustment ? presentAdjustment(result.adjustment) : null,
+            });
+          } catch (error) {
+            // The module raises a domain error; the contract of this route answers 422 for a card.
+            if (error instanceof AccountIsCreditCard) {
+              throw new HttpError(422, 'VALIDATION_FAILED', ['params.id']);
+            }
+            throw error;
+          }
         },
       ),
     );

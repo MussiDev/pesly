@@ -139,6 +139,22 @@ export function toMovement(row: MovementRow, tags: readonly string[] = []): Move
         rateType: null,
       };
     }
+    case 'adjustment': {
+      if (
+        row.categoryId !== null ||
+        row.destinationAccountId !== null ||
+        row.destinationAmount !== null ||
+        row.rate !== null ||
+        row.rateSource !== null ||
+        row.rateType !== null
+      ) {
+        throw inconsistent(row);
+      }
+      return { ...base, type: 'adjustment' };
+    }
+    default:
+      // The column is text: a value this code does not know is a missed migration or corruption.
+      throw new Error(`Movement ${row.id} has an unknown type`);
   }
 }
 
