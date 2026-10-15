@@ -4,7 +4,7 @@
 |---|---|
 | Ticket | FEAT-012 |
 | Date | 2026-10-14 |
-| Scope | the set-balance use case, ports, route and balance adjuster under `apps/api/src/accounts` and `apps/api/src/movements`, the shared second-factor check under `apps/api/src/identity`, the adjustment-aware readers under `apps/api/src/reports` and `apps/api/src/dashboard`, migration 0040, the shared schemas, and the accounts and movements features under `apps/web` with both catalogs; the opening-balance edit was removed; no dependency or lockfile changed |
+| Scope | the set-balance use case, ports, route and balance adjuster under `apps/api/src/accounts` and `apps/api/src/movements`, the shared second-factor check under `apps/api/src/identity`, the adjustment-aware readers under `apps/api/src/reports` and `apps/api/src/dashboard`, migration 0040, the shared schemas, and the accounts and movements features under `apps/web` with both catalogs; the opening-balance edit was removed; no dependency or lockfile changed; re-scanned after the verifier round, which touched `apps/web/src/features/accounts/containers/accounts-container.tsx`, `apps/api/src/movements/application/update-movement.ts` and the two catalogs, with no new finding |
 
 ## Categories
 
