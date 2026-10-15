@@ -464,6 +464,12 @@ All notable changes to this project are documented in this file. The format foll
   later balances change, and a "Hide adjustments" control (`hideAdjustments` filter). Adjustments count in
   account balances and net worth, and not in income or expense reports, budgets or groups. Spanish and
   English, web and API, no new dependency.
+- FEAT-013 The card purchase form shows the payments before the purchase is saved: as the amount, the
+  number of payments and the date are typed, a table lists each payment with its amount, its statement
+  and the statement's closing and due dates, and a note explains that a purchase made on a statement's
+  closing day belongs to that statement while one made after it goes to the next. A warning appears when
+  the statement of the purchase date has already closed. The preview uses the same rule as the API (now
+  shared), so what the form shows is what is saved. Spanish and English, web only, no new dependency.
 
 ### Changed
 
