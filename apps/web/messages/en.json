@@ -1826,6 +1826,7 @@
       "accountsFailed": "Could not load your accounts. You can still record the payment without one.",
       "accountsRetry": "Try again",
       "submit": "Record payment",
+      "pending": "Recording…",
       "cancel": "Cancel",
       "notFound": "This group does not exist or you are not a member of it.",
       "errors": {

@@ -342,6 +342,25 @@ describe('AccountsContainer', () => {
       expect(screen.getByLabelText<HTMLInputElement>(t.target).value).toBe('2.000');
     });
 
+    it('error: a code refusal while no code field is shown says so and reads the 2FA status again', async () => {
+      const { calls } = stubApi({
+        [ACTIVE]: list([CAJA]),
+        [STATUS]: [TWO_FACTOR_OFF, TWO_FACTOR_ON],
+        [POST]: { status: 401, body: { code: 'TOTP_INVALID' } },
+      });
+      renderApp(<AccountsContainer />);
+
+      const { user } = await openDialog();
+      expect(screen.queryByLabelText(t.code)).toBeNull();
+      await user.type(screen.getByLabelText(t.target), '2000');
+      await user.click(confirmButton());
+
+      expect(await screen.findByText(es.errors.codeInvalid)).toBeDefined();
+      expect(await screen.findByLabelText(t.code)).toBeDefined();
+      expect(calls.filter((call) => call.path === '/auth/2fa')).toHaveLength(2);
+      expect(screen.getByRole('dialog')).toBeDefined();
+    });
+
     it('error: exhausted attempts show the too-many-attempts message and keep the dialog open (AC-20)', async () => {
       stubApi({
         [ACTIVE]: list([CAJA]),

@@ -332,6 +332,19 @@ describe('single settlement form', () => {
     expect(calls.filter((call) => call.path.startsWith('/accounts'))).toHaveLength(2);
   });
 
+  it('shows the localized pending label on the submit button while the request is in flight', async () => {
+    const { fetch } = stubApi({ [ACCOUNTS]: { status: 200, body: accountList } });
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) =>
+      init?.method === 'POST' ? new Promise<Response>(() => undefined) : fetch(url, init),
+    );
+    open();
+
+    await userEvent.click(submit());
+
+    const button = await screen.findByRole('button', { name: en.groups.settlement.pending });
+    expect(button.hasAttribute('disabled')).toBe(true);
+  });
+
   it('shows the not-found message on a 404', async () => {
     stubApi({
       [ACCOUNTS]: { status: 200, body: accountList },

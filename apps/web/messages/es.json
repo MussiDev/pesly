@@ -1832,6 +1832,7 @@
       "accountsFailed": "No pudimos cargar tus cuentas. Igual podés registrar el pago sin una.",
       "accountsRetry": "Reintentar",
       "submit": "Registrar pago",
+      "pending": "Registrando…",
       "cancel": "Cancelar",
       "notFound": "Este grupo no existe o no sos miembro.",
       "errors": {

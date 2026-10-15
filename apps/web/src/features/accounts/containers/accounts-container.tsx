@@ -175,6 +175,17 @@ export function AccountsContainer() {
     setBalanceDialog(undefined);
   }
 
+  /** Re-reads the 2FA status so the code field appears (or goes) as the account now requires. */
+  async function refreshTwoFactor(id: string) {
+    const result = await api.getTwoFactorStatus();
+    if (!result.ok) {
+      handleSharedFailure(result);
+      return;
+    }
+    const twoFactor = result.data.enabled ? 'enabled' : 'disabled';
+    setBalanceDialog((current) => (current?.id === id ? { ...current, twoFactor } : current));
+  }
+
   async function setBalance(id: string, body: SetAccountBalanceRequest) {
     setPending(true);
     setActionError(undefined);
@@ -204,9 +215,12 @@ export function AccountsContainer() {
         closeBalanceDialog();
         setRequest((current) => ({ id: current.id + 1, silent: true }));
       } else {
-        setBalanceDialog((current) =>
-          current?.id === id ? { ...current, failure: mapped } : current,
-        );
+        // A code refusal with no code field means 2FA was turned on after the dialog opened: say it
+        // at form level (the field is not there to carry it) and read the status so the field shows.
+        const staleTwoFactor = mapped.field === 'code' && balanceDialog?.twoFactor !== 'enabled';
+        const failure: SetBalanceFailure = staleTwoFactor ? { ...mapped, field: 'form' } : mapped;
+        setBalanceDialog((current) => (current?.id === id ? { ...current, failure } : current));
+        if (staleTwoFactor) await refreshTwoFactor(id);
       }
     }
   }

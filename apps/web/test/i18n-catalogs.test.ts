@@ -413,6 +413,33 @@ describe('set balance strings (FEAT-012 NFR-05)', () => {
   });
 });
 
+describe('settlement form strings', () => {
+  const FILES = [
+    'settlement-form.tsx',
+    'settlement-account-field.tsx',
+    'settlement-direction-summary.tsx',
+  ];
+
+  // Every `t('key')` of the form's components (all bound to `groups.settlement`) must exist in both catalogs.
+  const usedKeys = FILES.flatMap((file) => {
+    const path = fileURLToPath(
+      new URL(`../src/features/groups/settlement-form/${file}`, import.meta.url),
+    );
+    return [...readFileSync(path, 'utf8').matchAll(/\bt\('([\w.]+)'/g)].map(
+      (match) => `groups.settlement.${match[1] ?? ''}`,
+    );
+  });
+
+  it('finds the keys the components use', () => {
+    expect(usedKeys).toContain('groups.settlement.pending');
+  });
+
+  it.each(LOCALES)('has every key the settlement form uses in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+    expect(usedKeys.filter((key) => !readString(catalog, key))).toEqual([]);
+  });
+});
+
 describe('investments catalog (DISC-001-07a)', () => {
   it.each(LOCALES)('has the investments namespace and the navigation label in %s', (locale) => {
     const catalog = loadCatalog(locale);

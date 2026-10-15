@@ -31,7 +31,7 @@ export class UpdateMovement {
   ): Promise<Movement> {
     const existing = notFoundUnlessAllowed(await this.deps.movements.findById(scope, id));
     // An adjustment is a record of a count: it is deleted, never edited (the edit types never include it).
-    if (existing.type === 'adjustment' || existing.type !== input.type) {
+    if (existing.type !== input.type) {
       throw new MovementTypeImmutable();
     }
 
