@@ -1,5 +1,5 @@
 import type { MovementType } from '@pesly/shared';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, SlidersHorizontal } from 'lucide-react';
 import { Avatar } from '@/components/ui/avatar';
 import { CategoryVisual } from '@/features/categories/components/category-visual';
 import { resolveMerchant } from '@/lib/logos/resolve-merchant';
@@ -14,9 +14,13 @@ export interface MovementAvatarProps {
 
 /**
  * The leading visual of a movement row. A transfer or an exchange shows its type icon and never a
- * logo; an income or expense shows the logo of the merchant its note names, or else its category.
+ * logo; an adjustment shows its own icon; an income or expense shows the logo of the merchant its
+ * note names, or else its category.
  */
 export function MovementAvatar({ type, note, categoryIcon, categoryColor }: MovementAvatarProps) {
+  if (type === 'adjustment') {
+    return <Avatar fallback={<SlidersHorizontal />} />;
+  }
   if (type === 'transfer' || type === 'exchange') {
     return <Avatar fallback={<ArrowLeftRight />} />;
   }

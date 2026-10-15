@@ -304,32 +304,56 @@ test('rename, archive, unarchive and delete update the list (AC-06, AC-07, AC-08
   await expect(page.getByText(t.list.empty)).toBeVisible();
 });
 
-test('editing the opening balance changes the balance and the headline (FEAT-006 AC-14, AC-15, AC-16, AC-19)', async ({
+test('setting a balance records an adjustment, keeps the opening balance read-only and shows the new balance (FEAT-012 AC-01, AC-09, AC-10, AC-11)', async ({
   page,
 }) => {
-  await signedInUser(page, 'opening-balance');
+  await signedInUser(page, 'set-balance');
   await createAccount(page, {
     name: 'Billetera',
     type: 'digital_wallet',
     currency: 'ARS',
     openingBalance: '100,00',
   });
+  await expect(row(page, 'Billetera').getByText(t.fields.openingBalance)).toBeVisible();
+  await expect(rowButton(page, t.actions.setBalance, 'Billetera')).toBeVisible();
 
-  await rowButton(page, t.actions.editOpeningBalance, 'Billetera').click();
-  const field = page.getByLabel(t.openingEdit.field.replace('{name}', 'Billetera'));
-  await expect(field).toHaveValue('100,00');
-  await field.fill('250,50');
+  await rowButton(page, t.actions.setBalance, 'Billetera').click();
+  const dialog = page.getByRole('dialog');
+  const target = dialog.getByLabel(t.setBalance.target);
+  await expect(target).toBeFocused();
+  await target.fill('100,00');
+  await expect(dialog.getByText(t.setBalance.noDifference)).toBeVisible();
+  await expect(dialog.getByRole('button', { name: t.setBalance.confirm })).toBeDisabled();
+
+  await target.fill('250,50');
   await expect(
-    page.getByText(t.openingEdit.preview.replace('{amount}', money(25_050n, 'ARS'))),
+    dialog.getByText(t.setBalance.difference.replace('{amount}', `+${money(15_050n, 'ARS')}`)),
   ).toBeVisible();
-  await page.getByRole('button', { name: t.actions.save }).click();
+  await dialog.getByRole('button', { name: t.setBalance.confirm }).click();
 
-  await expect(page.getByLabel(t.openingEdit.field.replace('{name}', 'Billetera'))).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(row(page, 'Billetera').getByText(money(25_050n, 'ARS'))).toBeVisible();
   await expect(headline(page, 'ARS', 'netWorth')).toHaveText(money(25_050n, 'ARS'));
 
   await page.reload();
   await expect(row(page, 'Billetera').getByText(money(25_050n, 'ARS'))).toBeVisible();
+
+  // The adjustment shows in the movements list, can be hidden, and deleting it restores the balance (FEAT-012 AC-06, AC-07).
+  const movementsT = es.movements;
+  await page.goto('/es/movements');
+  await expect(page.getByText(movementsT.types.adjustment, { exact: true }).first()).toBeVisible();
+  await page.getByLabel(movementsT.filters.hideAdjustments).check();
+  await expect(page.getByText(movementsT.types.adjustment, { exact: true })).toHaveCount(0);
+  await page.getByLabel(movementsT.filters.hideAdjustments).uncheck();
+  await expect(page.getByText(movementsT.types.adjustment, { exact: true }).first()).toBeVisible();
+  await page
+    .getByRole('button', { name: new RegExp(`^${movementsT.list.actions.delete}`) })
+    .first()
+    .click();
+  await expect(page.getByText(movementsT.list.actions.confirmDeleteAdjustment)).toBeVisible();
+  await page.getByRole('button', { name: movementsT.list.actions.confirmDeleteYes }).click();
+  await page.goto('/es/accounts');
+  await expect(row(page, 'Billetera').getByText(money(10_000n, 'ARS')).first()).toBeVisible();
 });
 
 test('a duplicate name shows an error message (AC-13)', async ({ page }) => {

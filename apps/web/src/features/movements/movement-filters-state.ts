@@ -7,12 +7,14 @@ export interface MovementFilterValues {
   categoryId?: string | undefined;
   type?: MovementType | undefined;
   tag?: string | undefined;
+  /** Leaves balance adjustments out of the list; only "true" or "false" ever pass. */
+  hideAdjustments?: 'true' | 'false' | undefined;
   from?: string | undefined;
   to?: string | undefined;
 }
 
 /** The order the keys are written in the URL and in the list request. */
-const KEYS = ['accountId', 'categoryId', 'from', 'to', 'type', 'tag'] as const;
+const KEYS = ['accountId', 'categoryId', 'from', 'to', 'type', 'tag', 'hideAdjustments'] as const;
 
 /** Only the part of `URLSearchParams` this file reads, so Next's read-only copy fits too. */
 interface ParamsReader {

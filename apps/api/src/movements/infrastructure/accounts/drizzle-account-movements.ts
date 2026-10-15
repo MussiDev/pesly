@@ -15,8 +15,11 @@ const CHUNK_SIZE = 500;
  * UNSCOPED BY DESIGN (see the port): every result is keyed by the ids it was given, and rows of
  * other accounts are never selected.
  */
+/** The connection or a transaction of it: the balance read also runs inside the adjuster's lock. */
+export type AccountMovementsExecutor = Pick<Database, 'select' | 'execute'>;
+
 class DrizzleAccountMovements implements AccountMovements {
-  constructor(private readonly db: Database) {}
+  constructor(private readonly db: AccountMovementsExecutor) {}
 
   async sumsByAccount(accountIds: readonly string[]): Promise<ReadonlyMap<string, bigint>> {
     const sums = new Map<string, bigint>();
@@ -26,7 +29,7 @@ class DrizzleAccountMovements implements AccountMovements {
       const sources = await this.db
         .select({
           accountId: movements.accountId,
-          total: sql<string>`sum(case ${movements.type} when 'income' then ${movements.amount} else -${movements.amount} end)::text`,
+          total: sql<string>`sum(case ${movements.type} when 'income' then ${movements.amount} when 'adjustment' then ${movements.amount} else -${movements.amount} end)::text`,
         })
         .from(movements)
         .where(inArray(movements.accountId, chunk))
@@ -79,6 +82,6 @@ function addTo(sums: Map<string, bigint>, accountId: string, amount: bigint): vo
   sums.set(accountId, (sums.get(accountId) ?? 0n) + amount);
 }
 
-export function createAccountMovements(db: Database): AccountMovements {
+export function createAccountMovements(db: AccountMovementsExecutor): AccountMovements {
   return new DrizzleAccountMovements(db);
 }

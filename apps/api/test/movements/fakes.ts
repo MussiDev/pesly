@@ -92,6 +92,7 @@ export class InMemoryMovementRepository implements MovementRepository {
           ('categoryId' in row && row.categoryId === filters.categoryId),
       )
       .filter((row) => filters.type === undefined || row.type === filters.type)
+      .filter((row) => filters.hideAdjustments !== true || row.type !== 'adjustment')
       .filter(
         (row) =>
           filters.tag === undefined ||

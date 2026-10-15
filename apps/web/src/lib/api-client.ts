@@ -57,6 +57,7 @@ import {
   listActivityQuerySchema,
   type ActivityPage,
   listAccountsResponseSchema,
+  setAccountBalanceResponseSchema,
   listCategoriesResponseSchema,
   addHoldingResponseSchema,
   importHoldingsResponseSchema,
@@ -135,7 +136,8 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type RenameAccountRequest,
-  type SetOpeningBalanceRequest,
+  type SetAccountBalanceRequest,
+  type SetAccountBalanceResponse,
   cardExpenseResponseSchema,
   statementImportResponseSchema,
   creditCardResponseSchema,
@@ -517,8 +519,11 @@ export type CreateAccountInput = z.input<typeof createAccountRequestSchema>;
 /** Only `name` is renameable; type and currency are immutable. */
 export type RenameAccountInput = Pick<RenameAccountRequest, 'name'>;
 
-/** Only the opening balance, as a minor-units integer string. */
-export type SetOpeningBalanceInput = SetOpeningBalanceRequest;
+/**
+ * The target balance as a minor-units integer string, an optional note and, when the user has 2FA
+ * on, the second-factor code. The difference is never sent: the server computes it.
+ */
+export type SetAccountBalanceInput = SetAccountBalanceRequest;
 
 export type ListAccountsParams = Partial<Pick<ListAccountsQuery, 'archived' | 'limit' | 'offset'>>;
 
@@ -542,7 +547,15 @@ export type UpdateMovementInput = z.input<typeof updateMovementRequestSchema>;
 export type ListMovementsParams = Partial<
   Pick<
     ListMovementsQuery,
-    'limit' | 'offset' | 'accountId' | 'categoryId' | 'from' | 'to' | 'type' | 'tag'
+    | 'limit'
+    | 'offset'
+    | 'accountId'
+    | 'categoryId'
+    | 'from'
+    | 'to'
+    | 'type'
+    | 'tag'
+    | 'hideAdjustments'
   >
 >;
 
@@ -589,6 +602,7 @@ const LIST_MOVEMENTS_QUERY_KEYS = [
   'to',
   'type',
   'tag',
+  'hideAdjustments',
 ] as const satisfies readonly (keyof ListMovementsParams)[];
 
 /** Only a positive whole number of seconds is a usable wait; HTTP dates and junk are ignored. */
@@ -630,11 +644,14 @@ export interface ApiClient {
   createAccount(body: CreateAccountInput): Promise<ApiResult<AccountResponse>>;
   getAccount(id: string): Promise<ApiResult<AccountResponse>>;
   renameAccount(id: string, body: RenameAccountInput): Promise<ApiResult<AccountResponse>>;
-  /** Changes the opening balance; the balance moves by the difference and no movement is touched. */
-  setAccountOpeningBalance(
+  /**
+   * Records an adjustment so the balance becomes the target; `adjustment` is `null` when it already
+   * was. Needs a connection: it is never queued offline.
+   */
+  setAccountBalance(
     id: string,
-    body: SetOpeningBalanceInput,
-  ): Promise<ApiResult<AccountResponse>>;
+    body: SetAccountBalanceInput,
+  ): Promise<ApiResult<SetAccountBalanceResponse>>;
   archiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   unarchiveAccount(id: string): Promise<ApiResult<AccountResponse>>;
   setIncludeInAvailable(
@@ -1258,13 +1275,17 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
-    setAccountOpeningBalance: (id, body) =>
+    setAccountBalance: (id, { balance, note, secondFactorCode }) =>
       onAccount(id, (path) =>
         request({
-          method: 'PATCH',
-          path: `${path}/opening-balance`,
-          body,
-          response: accountResponseSchema,
+          method: 'POST',
+          path: `${path}/balance`,
+          body: {
+            balance,
+            ...(note === undefined ? {} : { note }),
+            ...(secondFactorCode === undefined ? {} : { secondFactorCode }),
+          },
+          response: setAccountBalanceResponseSchema,
           refreshOnUnauthenticated: true,
         }),
       ),

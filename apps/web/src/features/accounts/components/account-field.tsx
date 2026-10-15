@@ -4,7 +4,6 @@ import { ACCOUNT_NAME_MAX_LENGTH } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useId, type ReactNode } from 'react';
 import { Label } from '@/components/ui/label';
-import type { AccountFieldMessage } from '../account-form-errors';
 
 export interface AccountFieldControlProps {
   id: string;
@@ -15,7 +14,8 @@ export interface AccountFieldControlProps {
 interface AccountFieldProps {
   label: string;
   hint?: string;
-  error: AccountFieldMessage | undefined;
+  /** A full catalog path (`accounts.errors.…`, `errors.…`); `undefined` when the field is fine. */
+  error: string | undefined;
   /** The `{max}` of the message when it is not the name length (the formatted amount limit). */
   max?: string;
   /** Renders the input or select with the id and ARIA attributes that tie it to label and message. */

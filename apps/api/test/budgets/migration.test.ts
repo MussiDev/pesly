@@ -80,6 +80,7 @@ describe('0034_budgets migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0036 and 0035 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
@@ -90,7 +91,7 @@ describe('0034_budgets migration', () => {
 
     expect(await existingTables()).toEqual([]);
     expect(await publicTableCount()).toBe(tablesBefore - 8);
-    expect(await appliedMigrations()).toBe(countBefore - 6);
+    expect(await appliedMigrations()).toBe(countBefore - 7);
 
     await runMigrations(throwawayUrl);
 
@@ -100,6 +101,7 @@ describe('0034_budgets migration', () => {
 
   it('applies on top of the previous schema when it already holds data', async () => {
     // 0036 and 0035 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));

@@ -10,6 +10,13 @@ import type {
 } from '../../src/accounts/application/ports/account-repository';
 import type { AccountLinks } from '../../src/accounts/application/ports/account-links';
 import type { AccountMovements } from '../../src/accounts/application/ports/account-movements';
+import type {
+  BalanceAdjuster,
+  BalanceAdjustmentRequest,
+  BalanceAdjustmentResult,
+  RecordedAdjustment,
+} from '../../src/accounts/application/ports/balance-adjuster';
+import type { SecondFactorGate } from '../../src/accounts/application/ports/second-factor-gate';
 import { OwnerOrGroupMemberAccessPolicy, type AccessScope } from '../../src/shared/access';
 import { DenyAllGroupMembershipReader } from '../../src/shared/access/infrastructure/deny-all-group-membership-reader';
 
@@ -90,18 +97,6 @@ export class InMemoryAccountRepository implements AccountRepository {
     if (!row) return null;
     this.assertNameFree(scope.userId, name, id);
     row.account = { ...row.account, name };
-    return row.account;
-  }
-
-  async setOpeningBalance(
-    scope: AccessScope<'write'>,
-    id: string,
-    openingBalance: bigint,
-  ): Promise<Account | null> {
-    await Promise.resolve();
-    const row = this.visible(scope, id);
-    if (!row) return null;
-    row.account = { ...row.account, openingBalance };
     return row.account;
   }
 
@@ -227,5 +222,55 @@ export class FakeAccountMovements implements AccountMovements {
     await Promise.resolve();
     if (this.failure) throw this.failure;
     return this.used.has(accountId);
+  }
+}
+
+/** Records every check; throws the configured error instead of passing. */
+export class FakeSecondFactorGate implements SecondFactorGate {
+  readonly calls: { userId: string; code: string | undefined }[] = [];
+  failure: Error | null = null;
+
+  async require(userId: string, code: string | undefined): Promise<void> {
+    await Promise.resolve();
+    this.calls.push({ userId, code });
+    if (this.failure) throw this.failure;
+  }
+}
+
+/**
+ * In-memory adjuster: the balance is `opening + movements.sums`, read after the "lock" as the real
+ * adapter does; an adjustment is added to the movement sums so the next call sees it.
+ */
+export class FakeBalanceAdjuster implements BalanceAdjuster {
+  readonly requests: BalanceAdjustmentRequest[] = [];
+  readonly recorded: RecordedAdjustment[] = [];
+
+  constructor(
+    private readonly accounts: InMemoryAccountRepository,
+    private readonly movements: FakeAccountMovements,
+  ) {}
+
+  async adjust(request: BalanceAdjustmentRequest): Promise<BalanceAdjustmentResult> {
+    await Promise.resolve();
+    this.requests.push(request);
+    const row = this.accounts.rows.get(request.accountId);
+    if (!row || row.ownerId !== request.ownerId) return { status: 'not_found' };
+    if (row.account.type === 'credit_card') return { status: 'credit_card' };
+    if (row.account.archivedAt !== null) return { status: 'archived' };
+    const sum = this.movements.sums.get(row.account.id) ?? 0n;
+    const current = row.account.openingBalance + sum;
+    const difference = request.target - current;
+    if (difference === 0n) return { status: 'adjusted', balance: current, adjustment: null };
+    const adjustment: RecordedAdjustment = {
+      id: randomUUID(),
+      accountId: row.account.id,
+      amount: difference,
+      occurredAt: new Date(Date.UTC(2026, 9, 13)),
+      note: request.note,
+      createdAt: new Date(Date.UTC(2026, 9, 13)),
+    };
+    this.recorded.push(adjustment);
+    this.movements.sums.set(row.account.id, sum + difference);
+    return { status: 'adjusted', balance: request.target, adjustment };
   }
 }

@@ -421,7 +421,7 @@
     "actions": {
       "rename": "Rename",
       "renameField": "New name for {name}",
-      "editOpeningBalance": "Edit opening balance",
+      "setBalance": "Set balance",
       "save": "Save",
       "cancel": "Cancel",
       "archive": "Archive",
@@ -431,11 +431,24 @@
       "confirmDeleteYes": "Yes, delete",
       "archiveInstead": "Archive instead"
     },
-    "openingEdit": {
-      "current": "Current opening balance: {amount}",
-      "field": "New opening balance for {name}",
-      "hint": "The balance changes by the difference. Movements are not touched.",
-      "preview": "New balance: {amount}"
+    "setBalance": {
+      "title": "Set the balance of {name}",
+      "description": "Enter the balance the account should have. An adjustment is recorded for the difference and your movements are not changed.",
+      "current": "Current balance: {amount}",
+      "target": "New balance",
+      "targetHint": "Use a minus sign for a negative balance.",
+      "difference": "Difference: {amount}",
+      "noDifference": "No difference: the balance is already that.",
+      "note": "Note (optional)",
+      "code": "Verification code",
+      "codeHint": "Enter the 6-digit code from your app or a recovery code.",
+      "offline": "Setting the balance needs a connection. Connect and try again.",
+      "confirm": "Record adjustment",
+      "errors": {
+        "archived": "This account is archived. Unarchive it to set its balance.",
+        "creditCard": "The balance of a credit card cannot be set.",
+        "noteInvalid": "The note contains characters that cannot be shown. Remove them and try again."
+      }
     },
     "errors": {
       "nameRequired": "Enter a name.",
@@ -444,7 +457,7 @@
       "typeRequired": "Choose an account type.",
       "currencyRequired": "Choose a currency.",
       "amountInvalid": "Enter a valid amount, for example 1,500.00.",
-      "amountOutOfRange": "The opening balance cannot exceed {max} in absolute value."
+      "amountOutOfRange": "The amount cannot exceed {max} in absolute value."
     }
   },
   "creditCards": {
@@ -714,6 +727,7 @@
         "edit": "Edit",
         "delete": "Delete",
         "confirmDelete": "Delete this movement? Your balances will update.",
+        "confirmDeleteAdjustment": "Delete this adjustment? Balances after its date will change.",
         "confirmDeleteYes": "Yes, delete",
         "cancel": "Cancel",
         "retry": "Retry",
@@ -736,7 +750,8 @@
       "clear": "Clear filters",
       "showAll": "Show all movements",
       "noMatch": "No movements match these filters.",
-      "invalidRange": "The From date cannot be after the To date."
+      "invalidRange": "The From date cannot be after the To date.",
+      "hideAdjustments": "Hide adjustments"
     },
     "new": {
       "title": "New movement",
@@ -773,7 +788,8 @@
       "expense": "Expense",
       "income": "Income",
       "transfer": "Transfer",
-      "exchange": "Currency exchange"
+      "exchange": "Currency exchange",
+      "adjustment": "Adjustment"
     },
     "rate": {
       "automatic": "Stored {rateType} rate. Edit it to use your own.",

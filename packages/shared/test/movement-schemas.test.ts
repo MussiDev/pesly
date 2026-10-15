@@ -146,8 +146,8 @@ const exchange = {
 };
 
 describe('transfer and exchange create requests', () => {
-  it('lists the four types and the two categorized ones', () => {
-    expect(MOVEMENT_TYPES).toEqual(['expense', 'income', 'transfer', 'exchange']);
+  it('lists the five types and the two categorized ones', () => {
+    expect(MOVEMENT_TYPES).toEqual(['expense', 'income', 'transfer', 'exchange', 'adjustment']);
     expect(CATEGORIZED_MOVEMENT_TYPES).toEqual(['expense', 'income']);
   });
 

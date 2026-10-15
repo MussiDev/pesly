@@ -8,6 +8,7 @@ import {
   type BreachedPasswordChecker,
   type Clock,
   type IdentityDb,
+  type RequireSecondFactor,
   type UserCreatedHook,
   type UserErasureStep,
 } from './identity';
@@ -45,6 +46,8 @@ export interface IdentityModuleOptions {
 export interface AppModules {
   /** The identity module's real session middleware; sets `req.auth` or answers 401. */
   requireSession: RequestHandler;
+  /** Asks the second-factor code of a user who has 2FA on, before a sensitive write. */
+  secondFactorGate: RequireSecondFactor;
 }
 
 /** Builds a module's router once the modules it depends on exist. */
@@ -155,7 +158,10 @@ export function createApp({
     });
     for (const router of identityModule.routers) app.use(router);
     for (const router of routers) app.use(router);
-    const modules: AppModules = { requireSession: identityModule.requireSession };
+    const modules: AppModules = {
+      requireSession: identityModule.requireSession,
+      secondFactorGate: identityModule.secondFactorGate,
+    };
     for (const factory of routerFactories) app.use(factory(modules));
     if (env.NODE_ENV === 'test') {
       for (const factory of testRouterFactories) app.use(factory(modules));

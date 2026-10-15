@@ -5,9 +5,15 @@ import { rateTypeSchema } from '../rate-types';
 import { movementFilterShape } from './movement-filters';
 import { movementTagsSchema } from './tag';
 
-export const MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange'] as const;
+/** Every stored type. An `adjustment` is created only by setting an account balance. */
+export const MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange', 'adjustment'] as const;
 export const movementTypeSchema = z.enum(MOVEMENT_TYPES);
 export type MovementType = z.infer<typeof movementTypeSchema>;
+
+/** The types a user may create or edit through `POST /movements` and the create form. */
+export const CREATABLE_MOVEMENT_TYPES = ['expense', 'income', 'transfer', 'exchange'] as const;
+export const creatableMovementTypeSchema = z.enum(CREATABLE_MOVEMENT_TYPES);
+export type CreatableMovementType = z.infer<typeof creatableMovementTypeSchema>;
 
 /** The types that carry a category (and so a category kind). */
 export const CATEGORIZED_MOVEMENT_TYPES = ['expense', 'income'] as const;
@@ -30,6 +36,25 @@ export const movementAmountSchema = z
     z.string().refine((text) => BigInt(text) <= MOVEMENT_AMOUNT_MAX_MINOR_UNITS, {
       message: `Amount must not exceed ${MOVEMENT_AMOUNT_MAX_MINOR_UNITS} minor units`,
     }),
+  );
+
+/**
+ * A signed, non-zero minor-units integer string with absolute value at most 10^15, no leading zeros
+ * and no plus sign. The response amount of any movement, since an adjustment may be negative.
+ */
+export const signedMovementAmountSchema = z
+  .string()
+  .regex(/^-?[1-9]\d{0,15}$/, 'Amount must be a non-zero integer string')
+  .pipe(
+    z.string().refine(
+      (text) => {
+        const value = BigInt(text);
+        return (value < 0n ? -value : value) <= MOVEMENT_AMOUNT_MAX_MINOR_UNITS;
+      },
+      {
+        message: `Amount must be within plus or minus ${MOVEMENT_AMOUNT_MAX_MINOR_UNITS} minor units`,
+      },
+    ),
   );
 
 const YEAR_MIN = 1970;
@@ -187,7 +212,7 @@ export const movementResponseSchema = z.object({
   accountId: z.string(),
   categoryId: z.string().nullable(),
   destinationAccountId: z.string().nullable(),
-  amount: movementAmountSchema,
+  amount: signedMovementAmountSchema,
   destinationAmount: movementAmountSchema.nullable(),
   occurredAt: z.iso.datetime(),
   note: z.string().nullable(),

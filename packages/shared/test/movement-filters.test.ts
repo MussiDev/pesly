@@ -7,7 +7,7 @@ const OTHER_UUID = '5d7c2b1a-9e84-4f3a-8b61-0c2d4e6f8a10';
 describe('movement list filters', () => {
   it('exposes the filter shape', () => {
     expect(Object.keys(movementFilterShape).sort()).toEqual(
-      ['accountId', 'categoryId', 'from', 'tag', 'to', 'type'].sort(),
+      ['accountId', 'categoryId', 'from', 'hideAdjustments', 'tag', 'to', 'type'].sort(),
     );
   });
 

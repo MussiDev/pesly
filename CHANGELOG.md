@@ -456,6 +456,14 @@ All notable changes to this project are documented in this file. The format foll
 - FEAT-011 The home screen shows the available money, the balances of the accounts marked "include in
   available", next to the net worth, in the same currency and with the same rate, from the same totals
   as the accounts screen. It arrives in the existing `GET /dashboard` response.
+- FEAT-012 Setting an account balance: the user types the balance the account should show now and the
+  system records the difference as a dated "Adjustment" movement (`POST /accounts/:id/balance`), in one
+  transaction that locks the account row. Nothing is recorded when the balance already matches. Archived
+  accounts and credit card accounts are refused, and a user with two-factor authentication confirms with a
+  code. The movements list shows the adjustment with its signed amount, no edit link, a delete that warns
+  later balances change, and a "Hide adjustments" control (`hideAdjustments` filter). Adjustments count in
+  account balances and net worth, and not in income or expense reports, budgets or groups. Spanish and
+  English, web and API, no new dependency.
 
 ### Changed
 
@@ -494,6 +502,11 @@ All notable changes to this project are documented in this file. The format foll
   budget's is left out and counted in a notice. The budget screens say so with the note the reports use.
 - FEAT-011 The ceiling of SQL statements of a dashboard request moves from 40 to 46 (the available
   money adds 4 and the budgets 2); the latency and size thresholds do not change.
+- FEAT-012 The opening balance of an account is read-only once the account exists:
+  `PATCH /accounts/:id/opening-balance` and its "Edit opening balance" form are removed in favor of the
+  balance adjustment. The net-worth history no longer moves when a balance is corrected, because the
+  correction is a dated entry. Adjustments are never offered by the new-movement form and cannot be
+  edited, created through `POST /movements` or sent to a group.
 
 ### Fixed
 

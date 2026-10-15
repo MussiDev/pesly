@@ -970,49 +970,119 @@ describe('api client: accounts', () => {
     expect(JSON.parse(init.body as string)).toEqual({ name: 'Wallet' });
   });
 
-  it('sets the opening balance with PATCH on the encoded id path and a JSON body (AC-19)', async () => {
-    const updated = { ...ACCOUNT, openingBalance: '2500', balance: '2500' };
-    const { client, fetch } = clientWith(jsonResponse(200, updated));
+  describe('setAccountBalance (FEAT-012)', () => {
+    const ADJUSTMENT = {
+      id: 'm1',
+      type: 'adjustment',
+      accountId: ID,
+      categoryId: null,
+      destinationAccountId: null,
+      amount: '-500',
+      destinationAmount: null,
+      occurredAt: '2026-10-13T12:00:00.000Z',
+      note: 'Cash count',
+      rate: null,
+      rateSource: null,
+      rateType: null,
+      createdAt: '2026-10-13T12:00:00.000Z',
+      tags: [],
+    };
 
-    const result = await client.setAccountOpeningBalance('a/b', { openingBalance: '2500' });
+    it('posts the balance to the encoded id path and returns the account and the adjustment (AC-01)', async () => {
+      const updated = { ...ACCOUNT, balance: '2500' };
+      const { client, fetch } = clientWith(
+        jsonResponse(200, { account: updated, adjustment: ADJUSTMENT }),
+      );
 
-    expect(result).toEqual({ ok: true, data: updated });
-    const { url, init } = requestAt(fetch, 0);
-    expect(url).toBe(`${BASE_URL}/accounts/a%2Fb/opening-balance`);
-    expect(init.method).toBe('PATCH');
-    expect(init.credentials).toBe('include');
-    expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
-    expect(JSON.parse(init.body as string)).toEqual({ openingBalance: '2500' });
-  });
+      const result = await client.setAccountBalance('a/b', { balance: '2500', note: 'Cash count' });
 
-  it.each([
-    [404, 'NOT_FOUND', 'unexpected'],
-    [400, 'VALIDATION_FAILED', 'validationFailed'],
-    [403, 'EMAIL_NOT_VERIFIED', 'emailNotVerified'],
-  ] as const)(
-    'maps a %i %s answer of the opening balance change to %s like rename does (AC-20)',
-    async (status, code, messageKey) => {
-      const { client } = clientWith(jsonResponse(status, { code }), jsonResponse(status, { code }));
+      expect(result).toEqual({ ok: true, data: { account: updated, adjustment: ADJUSTMENT } });
+      const { url, init } = requestAt(fetch, 0);
+      expect(url).toBe(`${BASE_URL}/accounts/a%2Fb/balance`);
+      expect(init.method).toBe('POST');
+      expect(init.credentials).toBe('include');
+      expect(new Headers(init.headers).get('X-Requested-With')).toBe('argent');
+      expect(JSON.parse(init.body as string)).toEqual({ balance: '2500', note: 'Cash count' });
+    });
 
-      const renamed = await client.renameAccount(ID, { name: 'Wallet' });
-      const changed = await client.setAccountOpeningBalance(ID, { openingBalance: '1' });
+    it('leaves secondFactorCode out of the body unless one is given, and sends it when it is (AC-19)', async () => {
+      const answer = { account: ACCOUNT, adjustment: null };
+      const { client, fetch } = clientWith(jsonResponse(200, answer), jsonResponse(200, answer));
 
-      expect(changed).toEqual(renamed);
-      expect(changed).toEqual({ ok: false, code, messageKey });
-    },
-  );
+      const without = await client.setAccountBalance(ID, {
+        balance: '0',
+        secondFactorCode: undefined,
+      });
+      await client.setAccountBalance(ID, { balance: '0', secondFactorCode: '123456' });
 
-  it('gives up with UNAUTHENTICATED when the session cannot be refreshed on an opening balance change (AC-20)', async () => {
-    const { client } = clientWith(
-      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
-      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
-      jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      expect(without).toEqual({ ok: true, data: answer });
+      expect(
+        Object.keys(JSON.parse(requestAt(fetch, 0).init.body as string) as Record<string, unknown>),
+      ).toEqual(['balance']);
+      expect(JSON.parse(requestAt(fetch, 1).init.body as string)).toEqual({
+        balance: '0',
+        secondFactorCode: '123456',
+      });
+    });
+
+    it.each([
+      [404, 'NOT_FOUND', 'unexpected'],
+      [400, 'VALIDATION_FAILED', 'validationFailed'],
+      [401, 'TOTP_INVALID', 'codeInvalid'],
+      [429, 'RATE_LIMITED', 'retryLater'],
+      [409, 'ACCOUNT_ARCHIVED', 'accountArchived'],
+    ] as const)(
+      'maps a %i %s answer to the %s message (AC-14, AC-20)',
+      async (status, code, messageKey) => {
+        const { client } = clientWith(jsonResponse(status, { code }));
+
+        expect(await client.setAccountBalance(ID, { balance: '1' })).toEqual({
+          ok: false,
+          code,
+          messageKey,
+        });
+      },
     );
 
-    expect(await client.setAccountOpeningBalance(ID, { openingBalance: '1' })).toEqual({
-      ok: false,
-      code: 'UNAUTHENTICATED',
-      messageKey: 'unauthenticated',
+    it('keeps the invalid field names of a 422 so the credit-card refusal can be told apart', async () => {
+      const { client } = clientWith(
+        jsonResponse(422, { code: 'VALIDATION_FAILED', fields: ['params.id'] }),
+      );
+
+      expect(await client.setAccountBalance(ID, { balance: '1' })).toEqual({
+        ok: false,
+        code: 'VALIDATION_FAILED',
+        messageKey: 'validationFailed',
+        fields: ['params.id'],
+      });
+    });
+
+    it('refuses an answer that does not match the contract', async () => {
+      const { client } = clientWith(jsonResponse(200, { account: ACCOUNT }));
+
+      const result = await client.setAccountBalance(ID, { balance: '1' });
+
+      expect(result.ok).toBe(false);
+    });
+
+    it('gives up with UNAUTHENTICATED when the session cannot be refreshed (error path)', async () => {
+      const { client } = clientWith(
+        jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+        jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+        jsonResponse(401, { code: 'UNAUTHENTICATED' }),
+      );
+
+      expect(await client.setAccountBalance(ID, { balance: '1' })).toEqual({
+        ok: false,
+        code: 'UNAUTHENTICATED',
+        messageKey: 'unauthenticated',
+      });
+    });
+
+    it('no longer offers the opening-balance call (AC-09)', () => {
+      const { client } = clientWith();
+
+      expect('setAccountOpeningBalance' in client).toBe(false);
     });
   });
 

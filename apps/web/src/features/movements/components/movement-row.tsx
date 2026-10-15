@@ -130,16 +130,19 @@ export function MovementRow({
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
   const amount = exactIntegerStringSchema.safeParse(movement.amount);
   const moving = movement.type === 'transfer' || movement.type === 'exchange';
+  const adjustment = movement.type === 'adjustment';
   const incoming =
     movement.type === 'exchange' && movement.destinationAmount !== null
       ? exactIntegerStringSchema.safeParse(movement.destinationAmount)
       : undefined;
   const title =
-    movement.type === 'transfer'
-      ? t('transferTitle')
-      : movement.type === 'exchange'
-        ? t('exchangeTitle')
-        : (categoryName ?? t('unknownCategory'));
+    movement.type === 'adjustment'
+      ? tTypes('adjustment')
+      : movement.type === 'transfer'
+        ? t('transferTitle')
+        : movement.type === 'exchange'
+          ? t('exchangeTitle')
+          : (categoryName ?? t('unknownCategory'));
 
   const marker =
     syncState === 'synced' ? (
@@ -221,7 +224,12 @@ export function MovementRow({
                 kind={
                   movement.type === 'income' || movement.type === 'expense'
                     ? movement.type
-                    : 'neutral'
+                    : adjustment
+                      ? // The stored sign is the direction: money added to or taken off the balance.
+                        BigInt(amount.data) < 0n
+                        ? 'expense'
+                        : 'income'
+                      : 'neutral'
                 }
                 directionLabel={tTypes(movement.type)}
                 className="text-small font-bold"
@@ -271,7 +279,7 @@ export function MovementRow({
         <div className="grid gap-2 pb-2">
           {marker}
           <p role="status" className="px-1 text-small">
-            {tActions('confirmDelete')}
+            {adjustment ? tActions('confirmDeleteAdjustment') : tActions('confirmDelete')}
           </p>
           <div className="flex gap-2 px-1">
             <Button
@@ -317,7 +325,7 @@ export function MovementRow({
             {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
             {failure?.operation === 'delete' ? null : (
               <>
-                {groupAction?.kind === 'send' ? (
+                {groupAction?.kind === 'send' && !adjustment ? (
                   <Link
                     href={`/movements/send?id=${movement.id}`}
                     title={tActions('sendToGroup')}
@@ -329,16 +337,19 @@ export function MovementRow({
                     </span>
                   </Link>
                 ) : null}
-                <Link
-                  href={`/movements/edit?id=${movement.id}`}
-                  title={tActions('edit')}
-                  className={buttonVariants({ size: 'icon', variant: 'ghost' })}
-                >
-                  <Pencil aria-hidden />
-                  <span className="sr-only">
-                    {tActions('edit')} {title}
-                  </span>
-                </Link>
+                {/* An adjustment is changed by setting the balance again, never edited. */}
+                {adjustment ? null : (
+                  <Link
+                    href={`/movements/edit?id=${movement.id}`}
+                    title={tActions('edit')}
+                    className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+                  >
+                    <Pencil aria-hidden />
+                    <span className="sr-only">
+                      {tActions('edit')} {title}
+                    </span>
+                  </Link>
+                )}
                 <IconAction
                   label={tActions('delete')}
                   subject={title}

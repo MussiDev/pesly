@@ -1,9 +1,10 @@
 'use client';
 
-import { MOVEMENT_TYPES, movementFilterShape } from '@pesly/shared';
+import { CREATABLE_MOVEMENT_TYPES, movementFilterShape } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -135,7 +136,7 @@ export function MovementFilters({
           aria-label={t('filters.type')}
           className="flex gap-2 overflow-x-auto pb-1"
         >
-          {[undefined, ...MOVEMENT_TYPES].map((type) => {
+          {[undefined, ...CREATABLE_MOVEMENT_TYPES].map((type) => {
             const pressed = filters.type === type;
             return (
               <button
@@ -157,6 +158,24 @@ export function MovementFilters({
               </button>
             );
           })}
+        </div>
+        <div className="flex min-h-11 items-center gap-3">
+          <Checkbox
+            id={`${id}-hide-adjustments`}
+            disabled={disabled}
+            checked={filters.hideAdjustments === 'true'}
+            onChange={(event) => {
+              onChange(
+                withValue(filters, 'hideAdjustments', event.currentTarget.checked ? 'true' : ''),
+              );
+            }}
+          />
+          <Label
+            htmlFor={`${id}-hide-adjustments`}
+            className="min-h-11 cursor-pointer items-center"
+          >
+            {t('filters.hideAdjustments')}
+          </Label>
         </div>
         <details
           open={userOpen ?? extraActive}

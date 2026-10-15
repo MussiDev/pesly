@@ -331,3 +331,48 @@ describe('movements.filters catalogs', () => {
     expect(catalog.movements.list.tags.length).toBeGreaterThan(0);
   });
 });
+
+describe('MovementFilters: hide adjustments (FEAT-012)', () => {
+  it('offers an unchecked Hide adjustments control and no adjustment type chip (AC-06)', () => {
+    renderBar();
+
+    const box = screen.getByLabelText<HTMLInputElement>(es.movements.filters.hideAdjustments);
+    expect(box.checked).toBe(false);
+    expect(
+      within(screen.getByRole('group', { name: es.movements.filters.type })).queryByText(
+        es.movements.types.adjustment,
+      ),
+    ).toBeNull();
+  });
+
+  it('sets hideAdjustments to "true" when checked (AC-06)', async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderBar();
+
+    await user.click(screen.getByLabelText(es.movements.filters.hideAdjustments));
+
+    expect(onChange).toHaveBeenLastCalledWith({ hideAdjustments: 'true' });
+  });
+
+  it('shows the control checked and unsets the filter when unchecked (AC-06)', async () => {
+    const user = userEvent.setup();
+    const { onChange } = renderBar({ filters: { hideAdjustments: 'true' } });
+    const box = screen.getByLabelText<HTMLInputElement>(es.movements.filters.hideAdjustments);
+
+    expect(box.checked).toBe(true);
+    await user.click(box);
+
+    expect(onChange).toHaveBeenLastCalledWith({ hideAdjustments: undefined });
+  });
+
+  it('reads, writes and sends only "true" or "false" (AC-06)', () => {
+    expect(parseFilters(new URLSearchParams('hideAdjustments=true'))).toEqual({
+      hideAdjustments: 'true',
+    });
+    expect(parseFilters(new URLSearchParams('hideAdjustments=yes'))).toEqual({});
+    expect(parseFilters(new URLSearchParams('hideAdjustments=1'))).toEqual({});
+    expect(serializeFilters({ hideAdjustments: 'true' }).toString()).toBe('hideAdjustments=true');
+    expect(filtersToListParams({ hideAdjustments: 'true' })).toEqual({ hideAdjustments: 'true' });
+    expect(hasActiveFilters({ hideAdjustments: 'true' })).toBe(true);
+  });
+});

@@ -182,7 +182,9 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
         setMovementState(
           saved === undefined
             ? { kind: 'notAvailableOffline' }
-            : { kind: 'ready', movement: saved, queued: false, groupExpense: null },
+            : saved.type === 'adjustment'
+              ? { kind: 'notFound' }
+              : { kind: 'ready', movement: saved, queued: false, groupExpense: null },
         );
       };
       if (isOffline()) {
@@ -193,7 +195,12 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
       if (!isActive()) return;
       if (result.ok) {
         const { groupExpense, ...movement } = result.data;
-        setMovementState({ kind: 'ready', movement, queued: false, groupExpense });
+        // A balance adjustment is never edited: the screen treats it as not found.
+        setMovementState(
+          movement.type === 'adjustment'
+            ? { kind: 'notFound' }
+            : { kind: 'ready', movement, queued: false, groupExpense },
+        );
       } else if (result.code === 'NETWORK') {
         await showCopy();
       } else if (result.code === 'UNAUTHENTICATED') {

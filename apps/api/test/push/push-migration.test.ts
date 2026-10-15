@@ -189,6 +189,8 @@ describe('0039_push_notifications migration', () => {
   });
 
   it('marks the notices that exist before the migration as handled and leaves new ones unhandled', async () => {
+    // 0040 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const owner = await userId('before@push.test');
     const before = await noticeId(owner, '00000000-0000-4000-8000-000000000003');
@@ -211,6 +213,8 @@ describe('0039_push_notifications migration', () => {
     const tablesBefore = await publicTableCount();
     const script = await fileOf(`rollback/${TAG}.down.sql`);
 
+    // 0040 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(script);
     await client.query(script);
 
@@ -224,7 +228,7 @@ describe('0039_push_notifications migration', () => {
       "select 1 from pg_indexes where indexname = 'notices_push_unhandled_idx'",
     );
     expect(index.rowCount).toBe(0);
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
     expect(await publicTableCount()).toBe(tablesBefore - 2);
 
     await runMigrations(throwawayUrl);
@@ -243,7 +247,7 @@ describe('0039_push_notifications migration', () => {
     expect(script).toContain(`"created_at" = ${WHEN}`);
   });
 
-  it('has the journal entry at idx 39 with the greatest when, chained to 0038', async () => {
+  it('has the journal entry at idx 39 with the greatest when up to its idx, chained to 0038', async () => {
     const journal = JSON.parse(await fileOf('meta/_journal.json')) as {
       entries: { idx: number; when: number; tag: string }[];
     };
@@ -251,7 +255,13 @@ describe('0039_push_notifications migration', () => {
 
     expect(own?.idx).toBe(39);
     expect(own?.when).toBeGreaterThan(PREVIOUS_MAX_WHEN);
-    expect(own?.when).toBe(Math.max(...journal.entries.map((entry) => entry.when)));
+    expect(own?.when).toBe(
+      Math.max(
+        ...journal.entries
+          .filter((entry) => entry.idx <= (own?.idx ?? 0))
+          .map((entry) => entry.when),
+      ),
+    );
     const snapshot = JSON.parse(await fileOf('meta/0039_snapshot.json')) as { prevId: string };
     const previous = JSON.parse(await fileOf('meta/0038_snapshot.json')) as { id: string };
     expect(snapshot.prevId).toBe(previous.id);

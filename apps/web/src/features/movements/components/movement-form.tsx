@@ -2,9 +2,9 @@
 
 import {
   formatMoney,
-  MOVEMENT_TYPES,
+  CREATABLE_MOVEMENT_TYPES,
   parseAmountInput,
-  type MovementType,
+  type CreatableMovementType,
   type RateType,
 } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
@@ -76,7 +76,7 @@ export interface MovementAccountOption {
 
 export interface MovementCategoryOption {
   id: string;
-  kind: MovementType;
+  kind: CreatableMovementType;
   label: string;
 }
 
@@ -97,7 +97,7 @@ export interface MovementFormProps {
   /** `edit` fills the form from `initialValues`, locks the type and keeps the stored rate until edited. */
   mode?: 'create' | 'edit';
   /** The type a new movement opens on, e.g. from a quick action; edit mode keeps the stored type. */
-  initialType?: MovementType;
+  initialType?: CreatableMovementType;
   initialValues?: MovementFormInitialValues;
   /**
    * Amount, account and date show as read-only text (an adopted group movement); their stored
@@ -109,8 +109,8 @@ export interface MovementFormProps {
   onSubmit: (values: MovementFormValues) => void;
 }
 
-function toMovementType(value: string): MovementType {
-  return MOVEMENT_TYPES.find((type) => type === value) ?? 'expense';
+function toMovementType(value: string): CreatableMovementType {
+  return CREATABLE_MOVEMENT_TYPES.find((type) => type === value) ?? 'expense';
 }
 
 export function MovementForm({
@@ -141,7 +141,7 @@ export function MovementForm({
   const destinationAmountRef = useRef<HTMLInputElement>(null);
   // The keypad types into the amount that was touched last; the first one until another is.
   const activeAmountRef = useRef<'amount' | 'destinationAmount'>('amount');
-  const [type, setType] = useState<MovementType>(
+  const [type, setType] = useState<CreatableMovementType>(
     toMovementType(initialValues?.type ?? initialType ?? 'expense'),
   );
   const [rateEdited, setRateEdited] = useState(false);
@@ -181,7 +181,7 @@ export function MovementForm({
     writeLikeTyping(input, applyKey(input.value, key, locale === 'en' ? '.' : ','));
   }
 
-  function handleTypeChange(next: MovementType) {
+  function handleTypeChange(next: CreatableMovementType) {
     setType(next);
     setDestinationId('');
     // The rate field is unmounted for a transfer or an exchange, so its edit flag must not outlive it.
@@ -441,7 +441,7 @@ export function MovementForm({
 
 /** The destinations a source allows: another account of the same currency, or of the other one. */
 function destinationsFor(
-  type: MovementType,
+  type: CreatableMovementType,
   source: MovementAccountOption | undefined,
   accounts: readonly MovementAccountOption[],
 ): MovementAccountOption[] {
@@ -457,7 +457,7 @@ function destinationsFor(
 
 /** Whether any account can be the source of a movement that has a destination. */
 function hasDestinationPair(
-  type: MovementType,
+  type: CreatableMovementType,
   accounts: readonly MovementAccountOption[],
 ): boolean {
   return accounts.some((account) => destinationsFor(type, account, accounts).length > 0);

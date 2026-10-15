@@ -15,6 +15,7 @@ import { GetTwoFactorStatus } from './application/get-two-factor-status';
 import { RefreshSession } from './application/refresh-session';
 import { RegisterUser } from './application/register-user';
 import { RequestPasswordReset } from './application/request-password-reset';
+import { RequireSecondFactor } from './application/require-second-factor';
 import { ResendVerification } from './application/resend-verification';
 import { SignIn } from './application/sign-in';
 import { SignOut } from './application/sign-out';
@@ -129,6 +130,7 @@ export * from './application/ports/unit-of-work';
 export * from './application/ports/user-deletion-repository';
 export * from './application/ports/user-identity-repository';
 export * from './application/ports/user-repository';
+export { RequireSecondFactor } from './application/require-second-factor';
 export type { IdentityDb } from './infrastructure/db/schema';
 export type { UserCreatedHook } from './infrastructure/db/user-created-hook';
 export type { UserErasureStep } from './infrastructure/db/user-erasure-step';
@@ -267,6 +269,11 @@ export interface IdentityModule {
    * authenticated routes. Sets `req.auth`; answers 401 `UNAUTHENTICATED` otherwise.
    */
   requireSession: RequestHandler;
+  /**
+   * For other modules' sensitive writes: asks a valid second-factor code of a user who has 2FA on,
+   * with the limits of disabling 2FA, and nothing of a user who has it off.
+   */
+  secondFactorGate: RequireSecondFactor;
 }
 
 /**
@@ -558,7 +565,24 @@ export function createIdentityModule({
       logger: dependencies.logger,
     }),
   ];
-  return { routers, requireSession };
+  const secondFactorGate = new RequireSecondFactor({
+    users: identity.users,
+    twoFactor: identity.twoFactor,
+    recoveryCodes: identity.recoveryCodes,
+    totp: identity.totp,
+    secretBox: identity.secretBox,
+    passwordHasher: identity.passwordHasher,
+    attemptLimiter: identity.attemptLimiter,
+    clock: identity.clock,
+    reportRefundFailure: (error) => {
+      dependencies.logger.warn(
+        { err: error },
+        'second-factor limit refund failed; the reserved units stay counted',
+      );
+    },
+    reportRecordFailure,
+  });
+  return { routers, requireSession, secondFactorGate };
 }
 
 export interface EmailWorkerFactoryDependencies {

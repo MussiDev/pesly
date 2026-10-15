@@ -373,18 +373,70 @@ describe('available balance labels (FEAT-003 AC-23, NFR-05)', () => {
   });
 });
 
-describe('opening balance edit strings (FEAT-006 AC-22)', () => {
+describe('set balance strings (FEAT-012 NFR-05)', () => {
   const KEYS = [
-    'accounts.actions.editOpeningBalance',
-    'accounts.openingEdit.current',
-    'accounts.openingEdit.field',
-    'accounts.openingEdit.hint',
-    'accounts.openingEdit.preview',
+    'accounts.actions.setBalance',
+    'accounts.setBalance.title',
+    'accounts.setBalance.description',
+    'accounts.setBalance.current',
+    'accounts.setBalance.target',
+    'accounts.setBalance.targetHint',
+    'accounts.setBalance.difference',
+    'accounts.setBalance.noDifference',
+    'accounts.setBalance.note',
+    'accounts.setBalance.code',
+    'accounts.setBalance.codeHint',
+    'accounts.setBalance.offline',
+    'accounts.setBalance.confirm',
+    'accounts.setBalance.errors.archived',
+    'accounts.setBalance.errors.creditCard',
+    'accounts.setBalance.errors.noteInvalid',
   ];
 
   it.each(LOCALES)('has every new string in %s', (locale) => {
     const catalog = loadCatalog(locale);
     expect(KEYS.filter((key) => !readString(catalog, key))).toEqual([]);
+  });
+
+  it.each(LOCALES)('no longer has the opening balance edit strings in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+    expect(readString(catalog, 'accounts.actions.editOpeningBalance')).toBeUndefined();
+    expect(catalog.accounts).not.toHaveProperty('openingEdit');
+  });
+
+  it('keeps the Spanish and English key sets identical under accounts', () => {
+    const keysOf = (locale: string) =>
+      stringsOf(loadCatalog(locale).accounts as Catalog, 'accounts')
+        .map(([key]) => key)
+        .sort();
+    expect(keysOf('es')).toEqual(keysOf('en'));
+  });
+});
+
+describe('settlement form strings', () => {
+  const FILES = [
+    'settlement-form.tsx',
+    'settlement-account-field.tsx',
+    'settlement-direction-summary.tsx',
+  ];
+
+  // Every `t('key')` of the form's components (all bound to `groups.settlement`) must exist in both catalogs.
+  const usedKeys = FILES.flatMap((file) => {
+    const path = fileURLToPath(
+      new URL(`../src/features/groups/settlement-form/${file}`, import.meta.url),
+    );
+    return [...readFileSync(path, 'utf8').matchAll(/\bt\('([\w.]+)'/g)].map(
+      (match) => `groups.settlement.${match[1] ?? ''}`,
+    );
+  });
+
+  it('finds the keys the components use', () => {
+    expect(usedKeys).toContain('groups.settlement.pending');
+  });
+
+  it.each(LOCALES)('has every key the settlement form uses in %s', (locale) => {
+    const catalog = loadCatalog(locale);
+    expect(usedKeys.filter((key) => !readString(catalog, key))).toEqual([]);
   });
 });
 

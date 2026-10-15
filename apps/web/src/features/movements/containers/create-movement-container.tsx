@@ -1,6 +1,6 @@
 'use client';
 
-import { type CategoryLanguage, type MovementType } from '@pesly/shared';
+import { type CategoryLanguage, type CreatableMovementType } from '@pesly/shared';
 import { useLocale } from 'next-intl';
 import { useState } from 'react';
 import { AccountsLoadStateView } from '@/features/accounts/components/accounts-load-state';
@@ -31,7 +31,7 @@ interface SavedMovement {
 
 export interface CreateMovementContainerProps {
   /** The type the form opens on, already validated by `parseInitialType`. */
-  initialType?: MovementType;
+  initialType?: CreatableMovementType;
 }
 
 export function CreateMovementContainer({ initialType }: CreateMovementContainerProps) {

@@ -126,6 +126,7 @@ const noticeKinds = async (owner: string): Promise<string[]> =>
 
 describe('0032_card_statement_reminders migration', () => {
   it('gives existing cards 3 after a rollback re-apply, and a new card without the field 3 (AC-01)', async () => {
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
@@ -183,6 +184,7 @@ describe('0032_card_statement_reminders migration', () => {
     const before = await cardColumns();
     const countBefore = await appliedMigrations();
 
+    await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
     await client.query(await fileOf('rollback/0038_exchange_rate_history.down.sql'));
     await client.query(await fileOf('rollback/0037_group_expense_from_movement.down.sql'));
@@ -196,7 +198,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await cardColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticeKinds(owner)).toEqual(['not_recorded', 'recorded', 'reminder']);
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBe('23514');
-    expect(await appliedMigrations()).toBe(countBefore - 8);
+    expect(await appliedMigrations()).toBe(countBefore - 9);
 
     await runMigrations(throwawayUrl);
 
@@ -205,7 +207,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBeUndefined();
   });
 
-  it('has the journal entry at idx 32 with the greatest when before 0033 to 0037, and chains its snapshot onto 0031', async () => {
+  it('has the journal entry at idx 32 with the greatest when before 0033 to 0040, and chains its snapshot onto 0031', async () => {
     const read = async <T>(name: string) => JSON.parse(await fileOf(`meta/${name}`)) as T;
     const journal = await read<{ entries: { idx: number; when: number; tag: string }[] }>(
       '_journal.json',
@@ -227,6 +229,7 @@ describe('0032_card_statement_reminders migration', () => {
                 '0037_group_expense_from_movement',
                 '0038_exchange_rate_history',
                 '0039_push_notifications',
+                '0040_balance_adjustments',
               ].includes(entry.tag),
           )
           .map((entry) => entry.when),
