@@ -260,9 +260,11 @@ describe('POST /accounts/:id/balance with 2FA on', () => {
   async function withTwoFactor() {
     const s = await setup();
     const two = await seedTwoFactor(connection, s.anaId, s.harness.clock);
-    // Start of a 15-minute window, so the counters never straddle two windows.
+    // Never straddle two 15-minute counter windows: when the current one is about to end, move to
+    // the next. The jump stays under a minute so the session signed in above does not expire.
     const window = 15 * 60 * 1000;
-    s.harness.clock.advance(window - (s.harness.clock.now().getTime() % window) + STEP_MS);
+    const left = window - (s.harness.clock.now().getTime() % window);
+    s.harness.clock.advance(STEP_MS + (left < 60_000 ? left : 0));
     const id = await createAccount(s);
     return { s, two, id };
   }
