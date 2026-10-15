@@ -159,7 +159,7 @@ export function MovementFilters({
             );
           })}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex min-h-11 items-center gap-3">
           <Checkbox
             id={`${id}-hide-adjustments`}
             disabled={disabled}
@@ -170,7 +170,7 @@ export function MovementFilters({
               );
             }}
           />
-          <Label htmlFor={`${id}-hide-adjustments`}>{t('filters.hideAdjustments')}</Label>
+          <Label htmlFor={`${id}-hide-adjustments`} className="min-h-11 cursor-pointer items-center">{t('filters.hideAdjustments')}</Label>
         </div>
         <details
           open={userOpen ?? extraActive}
