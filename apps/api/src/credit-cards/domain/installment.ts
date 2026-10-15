@@ -1,21 +1,16 @@
 import {
+  datesOfPeriod,
   isStatementClosed,
   type InstallmentCurrency,
-  nextPeriod,
-  splitInstallments,
-  statementDatesFor,
+  type PlannedInstallment,
+  planInstallments,
   type StatementStatus,
 } from '@pesly/shared';
 import type { CreditCard, Statement } from './credit-card';
 import type { StatementTotals } from './statement-assignment';
 
-export interface PlannedInstallment {
-  /** 1-based position inside the purchase. */
-  number: number;
-  /** The statement the installment belongs to, `YYYY-MM` (spec D1). */
-  period: string;
-  amount: bigint;
-}
+export { datesOfPeriod, planInstallments };
+export type { PlannedInstallment };
 
 export interface InstallmentPurchase {
   id: string;
@@ -74,34 +69,6 @@ export interface MonthlyInstallmentExpense {
   categoryId: string;
   currency: InstallmentCurrency;
   amount: bigint;
-}
-
-/**
- * The installments of a purchase (FR-03, FR-04): equal parts with the leftover on the first one,
- * the first assigned to `firstPeriod` and each following one to the next period.
- */
-export function planInstallments(
-  total: bigint,
-  count: number,
-  firstPeriod: string,
-): PlannedInstallment[] {
-  let period = firstPeriod;
-  return splitInstallments(total, count).map((amount, index) => {
-    if (index > 0) period = nextPeriod(period);
-    return { number: index + 1, period, amount };
-  });
-}
-
-/** The stored statement's dates, or the cycle's default dates when it is not stored yet (spec D1). */
-export function datesOfPeriod(
-  period: string,
-  statements: readonly Statement[],
-  card: Pick<CreditCard, 'closingDay' | 'dueDay'>,
-): { closingDate: string; dueDate: string } {
-  const stored = statements.find((statement) => statement.period === period);
-  return stored
-    ? { closingDate: stored.closingDate, dueDate: stored.dueDate }
-    : statementDatesFor(period, card.closingDay, card.dueDay);
 }
 
 export function viewPurchase(

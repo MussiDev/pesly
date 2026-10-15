@@ -653,7 +653,22 @@
       "delete": "Eliminar",
       "confirmDelete": "Confirmar eliminación",
       "cancel": "Cancelar",
-      "deleteHint": "Las cuotas de los resúmenes que ya cerraron se conservan."
+      "deleteHint": "Las cuotas de los resúmenes que ya cerraron se conservan.",
+      "preview": {
+        "title": "Cronograma de pagos",
+        "expenseLabel": "Pago único",
+        "installmentsLabel": "Cuotas",
+        "columns": {
+          "number": "N.º",
+          "amount": "Monto",
+          "statement": "Resumen",
+          "closes": "Cierra",
+          "due": "Vence"
+        },
+        "closedBadge": "Cerrado",
+        "closingDayNote": "El primer pago va al resumen que cierra el {date}. Una compra hecha el día de cierre de un resumen pertenece a ese resumen; una hecha después va al siguiente.",
+        "closedWarning": "El resumen de la fecha de esta compra ya cerró, por lo que el primer pago caerá en un resumen ya emitido."
+      }
     },
     "payments": {
       "title": "Pagar un resumen",

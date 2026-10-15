@@ -9,6 +9,7 @@ import {
   zonedLocalToInstant,
   type CreateCardExpenseRequest,
   type CreateInstallmentPurchaseRequest,
+  type InstallmentCurrency,
 } from '@pesly/shared';
 import type { MovementFieldMessage } from '@/features/movements/movement-form-errors';
 import { parseAmountField } from '@/features/movements/movement-request';
@@ -38,12 +39,16 @@ export interface InstallmentFormValues {
   note: string;
 }
 
-export interface InstallmentRequestContext {
-  /** The open expense categories the person can pick. */
-  categories: readonly { id: string; archived: boolean }[];
+/** What the parser needs from the screen. */
+export interface InstallmentDraftContext {
   timeZone: string;
   locale: string;
   now: Date;
+}
+
+export interface InstallmentRequestContext extends InstallmentDraftContext {
+  /** The open expense categories the person can pick. */
+  categories: readonly { id: string; archived: boolean }[];
 }
 
 /** The fewest payments the form accepts: one payment is a plain card expense (10b). */
@@ -58,7 +63,7 @@ export type InstallmentRequestResult =
   | { purchase: PurchaseRequest; fields?: undefined }
   | { purchase?: undefined; fields: InstallmentFieldErrors };
 
-function toCurrency(value: string): 'ARS' | 'USD' | undefined {
+function toCurrency(value: string): InstallmentCurrency | undefined {
   return value === 'ARS' || value === 'USD' ? value : undefined;
 }
 
@@ -66,6 +71,63 @@ function toCurrency(value: string): 'ARS' | 'USD' | undefined {
 function instantOfDay(purchasedOn: string, timeZone: string, now: Date): string | undefined {
   if (dateInTimeZone(now, timeZone) === purchasedOn) return now.toISOString();
   return zonedLocalToInstant(`${purchasedOn}T12:00`, timeZone)?.toISOString();
+}
+
+/** What the form holds once parsed; a field that is invalid has no value in the draft. */
+export interface InstallmentDraft {
+  currency?: InstallmentCurrency;
+  /** Minor units. */
+  amount?: bigint;
+  count?: number;
+  /** `YYYY-MM-DD`. */
+  purchasedOn?: string;
+  fields: InstallmentFieldErrors;
+}
+
+/**
+ * The currency, amount, payment count and purchase date of the form, each parsed or explained by
+ * a field message. Shared by the live preview and the save path, so both accept the same input.
+ */
+export function parseInstallmentDraft(
+  values: Pick<InstallmentFormValues, 'currency' | 'amount' | 'installments' | 'purchasedOn'>,
+  context: InstallmentDraftContext,
+): InstallmentDraft {
+  const { timeZone, locale, now } = context;
+  const fields: InstallmentFieldErrors = {};
+
+  const currency = toCurrency(values.currency);
+  if (currency === undefined) fields.currency = 'creditCards.expense.errors.currencyRequired';
+
+  const parsedAmount = parseAmountField(values.amount, locale);
+  let amount = parsedAmount.amount;
+  if (parsedAmount.message !== undefined) fields.amount = parsedAmount.message;
+
+  const trimmed = values.installments.trim();
+  const parsedCount = INTEGER.test(trimmed) ? Number(trimmed) : Number.NaN;
+  let count: number | undefined;
+  if (!(parsedCount >= PURCHASE_PAYMENTS_MIN && parsedCount <= INSTALLMENTS_MAX)) {
+    fields.installments = 'creditCards.installments.errors.installmentsInvalid';
+  } else {
+    count = parsedCount;
+    if (count >= INSTALLMENTS_MIN && amount !== undefined && amount < BigInt(count)) {
+      fields.amount = 'creditCards.installments.errors.amountTooSmall';
+      amount = undefined;
+    }
+  }
+
+  let purchasedOn: string | undefined;
+  if (!isCalendarDate(values.purchasedOn)) fields.purchasedOn = 'movements.errors.dateInvalid';
+  else if (values.purchasedOn > todayInTimeZone(now, timeZone)) {
+    fields.purchasedOn = 'errors.movementDateInFuture';
+  } else purchasedOn = values.purchasedOn;
+
+  return {
+    ...(currency === undefined ? {} : { currency }),
+    ...(amount === undefined ? {} : { amount }),
+    ...(count === undefined ? {} : { count }),
+    ...(purchasedOn === undefined ? {} : { purchasedOn }),
+    fields,
+  };
 }
 
 /**
@@ -77,34 +139,13 @@ export function buildInstallmentPurchaseRequest(
   values: InstallmentFormValues,
   context: InstallmentRequestContext,
 ): InstallmentRequestResult {
-  const { categories, timeZone, locale, now } = context;
-  const fields: InstallmentFieldErrors = {};
-
-  const currency = toCurrency(values.currency);
-  if (currency === undefined) fields.currency = 'creditCards.expense.errors.currencyRequired';
-
-  const amount = parseAmountField(values.amount, locale);
-  if (amount.message !== undefined) fields.amount = amount.message;
-
-  const trimmed = values.installments.trim();
-  const count = INTEGER.test(trimmed) ? Number(trimmed) : Number.NaN;
-  if (!(count >= PURCHASE_PAYMENTS_MIN && count <= INSTALLMENTS_MAX)) {
-    fields.installments = 'creditCards.installments.errors.installmentsInvalid';
-  } else if (
-    count >= INSTALLMENTS_MIN &&
-    amount.amount !== undefined &&
-    amount.amount < BigInt(count)
-  ) {
-    fields.amount = 'creditCards.installments.errors.amountTooSmall';
-  }
+  const { categories, timeZone, now } = context;
+  const draft = parseInstallmentDraft(values, context);
+  const fields: InstallmentFieldErrors = { ...draft.fields };
+  const { currency, amount, count, purchasedOn } = draft;
 
   const category = categories.find((item) => item.id === values.categoryId && !item.archived);
   if (category === undefined) fields.category = 'movements.errors.categoryRequired';
-
-  if (!isCalendarDate(values.purchasedOn)) fields.purchasedOn = 'movements.errors.dateInvalid';
-  else if (values.purchasedOn > todayInTimeZone(now, timeZone)) {
-    fields.purchasedOn = 'errors.movementDateInFuture';
-  }
 
   const note = movementNoteSchema.safeParse(values.note);
   if (!note.success) {
@@ -116,17 +157,19 @@ export function buildInstallmentPurchaseRequest(
   if (
     Object.keys(fields).length > 0 ||
     currency === undefined ||
-    amount.amount === undefined ||
+    amount === undefined ||
+    count === undefined ||
+    purchasedOn === undefined ||
     category === undefined ||
     !note.success
   ) {
     return { fields };
   }
 
-  const money = formatMinorUnitsString(amount.amount);
+  const money = formatMinorUnitsString(amount);
   const noteField = note.data === undefined ? {} : { note: note.data };
   if (count < INSTALLMENTS_MIN) {
-    const occurredAt = instantOfDay(values.purchasedOn, timeZone, now);
+    const occurredAt = instantOfDay(purchasedOn, timeZone, now);
     if (occurredAt === undefined)
       return { fields: { purchasedOn: 'movements.errors.dateSkipped' } };
     return {
@@ -151,7 +194,7 @@ export function buildInstallmentPurchaseRequest(
         categoryId: category.id,
         amount: money,
         installments: count,
-        purchasedOn: values.purchasedOn,
+        purchasedOn,
         ...noteField,
       },
     },

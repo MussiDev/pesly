@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildInstallmentPurchaseRequest,
+  parseInstallmentDraft,
   type InstallmentFormValues,
   type InstallmentRequestContext,
 } from '../src/features/credit-cards/installment-request';
@@ -29,6 +30,75 @@ function values(overrides: Partial<InstallmentFormValues> = {}): InstallmentForm
     ...overrides,
   };
 }
+
+describe('parseInstallmentDraft', () => {
+  it('returns the parsed currency, amount, count and date with no fields (AC-01)', () => {
+    expect(parseInstallmentDraft(values(), context)).toEqual({
+      currency: 'ARS',
+      amount: 12000000n,
+      count: 12,
+      purchasedOn: '2026-10-02',
+      fields: {},
+    });
+  });
+
+  it('accepts one payment and one cent', () => {
+    expect(parseInstallmentDraft(values({ amount: '0,01', installments: '1' }), context)).toEqual({
+      currency: 'ARS',
+      amount: 1n,
+      count: 1,
+      purchasedOn: '2026-10-02',
+      fields: {},
+    });
+  });
+
+  it('needs no category or note to parse', () => {
+    const draft = parseInstallmentDraft(values({ categoryId: '', note: 'a'.repeat(501) }), context);
+    expect(draft.fields).toEqual({});
+  });
+
+  it('carries no currency when it is invalid', () => {
+    const draft = parseInstallmentDraft(values({ currency: 'EUR' }), context);
+    expect(draft.currency).toBeUndefined();
+    expect(draft.fields).toEqual({ currency: 'creditCards.expense.errors.currencyRequired' });
+  });
+
+  it('carries no amount when it is empty', () => {
+    const draft = parseInstallmentDraft(values({ amount: '' }), context);
+    expect(draft.amount).toBeUndefined();
+    expect(draft.fields).toEqual({ amount: 'movements.errors.amountInvalid' });
+  });
+
+  it.each(['0', '61', '', '2,5', 'doce'])('carries no count for %j', (installments) => {
+    const draft = parseInstallmentDraft(values({ installments }), context);
+    expect(draft.count).toBeUndefined();
+    expect(draft.fields).toEqual({
+      installments: 'creditCards.installments.errors.installmentsInvalid',
+    });
+  });
+
+  it.each([
+    ['', 'movements.errors.dateInvalid'],
+    ['2027-02-29', 'movements.errors.dateInvalid'],
+    ['2026-10-03', 'errors.movementDateInFuture'],
+  ])('carries no date for %j', (purchasedOn, key) => {
+    const draft = parseInstallmentDraft(values({ purchasedOn }), context);
+    expect(draft.purchasedOn).toBeUndefined();
+    expect(draft.fields).toEqual({ purchasedOn: key });
+  });
+
+  it('returns amountTooSmall and no amount when the amount is below the count (AC-13)', () => {
+    const draft = parseInstallmentDraft(values({ amount: '0,05', installments: '12' }), context);
+    expect(draft.amount).toBeUndefined();
+    expect(draft.count).toBe(12);
+    expect(draft.fields).toEqual({ amount: 'creditCards.installments.errors.amountTooSmall' });
+  });
+
+  it('keeps the valid values next to the invalid ones', () => {
+    const draft = parseInstallmentDraft(values({ amount: '' }), context);
+    expect(draft).toMatchObject({ currency: 'ARS', count: 12, purchasedOn: '2026-10-02' });
+  });
+});
 
 describe('buildInstallmentPurchaseRequest', () => {
   it('turns "120.000,00", 12 and a category into an amount of 12000000 and 12 installments (AC-01)', () => {

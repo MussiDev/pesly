@@ -1,6 +1,6 @@
 'use client';
 
-import { INSTALLMENTS_MAX } from '@pesly/shared';
+import { INSTALLMENTS_MAX, type InstallmentSchedule } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, type SubmitEvent } from 'react';
@@ -18,6 +18,7 @@ import {
   type InstallmentFieldErrors,
   type InstallmentFormValues,
 } from '../installment-request';
+import { InstallmentSchedulePreview } from './installment-schedule-preview';
 
 /** A full catalog path, plus the wait in seconds for the write limit message. */
 export interface InstallmentAlertMessage {
@@ -35,6 +36,12 @@ export interface InstallmentCategoryOption {
   label: string;
 }
 
+/** The fields the schedule preview depends on, as typed (unparsed). */
+export type InstallmentDraftValues = Pick<
+  InstallmentFormValues,
+  'currency' | 'amount' | 'installments' | 'purchasedOn'
+>;
+
 export interface InstallmentFormProps {
   cardId: string;
   /** The open expense categories, already labelled for the language. */
@@ -44,6 +51,12 @@ export interface InstallmentFormProps {
   pending: boolean;
   errors: InstallmentFormErrors;
   onSubmit: (values: InstallmentFormValues) => void;
+  /** Called on every edit of the fields the preview depends on. */
+  onDraftChange: (draft: InstallmentDraftValues) => void;
+  /** The payments the typed purchase would get, or `null` while the input is not valid. */
+  schedule: InstallmentSchedule | null;
+  /** The typed currency, normalised by the container. */
+  currency: 'ARS' | 'USD';
 }
 
 const CURRENCIES = ['ARS', 'USD'] as const;
@@ -56,10 +69,22 @@ export function InstallmentForm({
   pending,
   errors,
   onSubmit,
+  onDraftChange,
+  schedule,
+  currency,
 }: InstallmentFormProps) {
   const t = useTranslations('creditCards.installments');
   const tAll = useTranslations();
   const formRef = useRef<HTMLFormElement>(null);
+
+  function reportDraft(form: HTMLFormElement) {
+    onDraftChange({
+      currency: readField(form, 'currency'),
+      amount: readField(form, 'amount'),
+      installments: readField(form, 'installments'),
+      purchasedOn: readField(form, 'purchasedOn'),
+    });
+  }
 
   // After a failed submit, focus the first invalid field so its message is announced with it.
   useEffect(() => {
@@ -87,7 +112,15 @@ export function InstallmentForm({
         <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
+        <form
+          ref={formRef}
+          className="grid gap-4"
+          noValidate
+          onSubmit={handleSubmit}
+          onChange={(event) => {
+            reportDraft(event.currentTarget);
+          }}
+        >
           {errors.form ? (
             <Alert variant="destructive">
               <CircleAlert aria-hidden />
@@ -99,9 +132,9 @@ export function InstallmentForm({
           <MovementField label={t('fields.currency')} error={errors.fields?.currency}>
             {(control) => (
               <Select name="currency" defaultValue="ARS" required {...control}>
-                {CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
+                {CURRENCIES.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
                   </option>
                 ))}
               </Select>
@@ -126,6 +159,7 @@ export function InstallmentForm({
               />
             )}
           </MovementField>
+          <InstallmentSchedulePreview schedule={schedule} currency={currency} />
           <MovementField label={t('fields.category')} error={errors.fields?.category}>
             {(control) => (
               <Select name="categoryId" defaultValue="" required {...control}>

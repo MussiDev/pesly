@@ -2,12 +2,14 @@
 
 import {
   dateInTimeZone,
+  previewInstallmentSchedule,
   type CategoryLanguage,
   type CategoryResponse,
   type CreditCardResponse,
+  type StatementResponse,
 } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
@@ -23,10 +25,12 @@ import {
 import {
   InstallmentForm,
   type InstallmentAlertMessage,
+  type InstallmentDraftValues,
   type InstallmentFormErrors,
 } from '../components/installment-form';
 import {
   buildInstallmentPurchaseRequest,
+  parseInstallmentDraft,
   type InstallmentFormValues,
 } from '../installment-request';
 
@@ -40,9 +44,12 @@ type PageState =
       kind: 'ready';
       card: CreditCardResponse;
       categories: CategoryResponse[];
+      statements: StatementResponse[];
       timeZone: string;
       today: string;
     };
+
+type ReadyState = PageState & { kind: 'ready' };
 
 /** Where a failed save is shown: one alert above the form, the typed values stay where they are. */
 function failureAlert(failure: ApiFailure): InstallmentAlertMessage {
@@ -62,14 +69,9 @@ function failureAlert(failure: ApiFailure): InstallmentAlertMessage {
 export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
   const api = useApiClient();
   const router = useRouter();
-  const locale = useLocale();
   const t = useTranslations('creditCards');
-  const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
   const [state, setState] = useState<PageState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
-  const [pending, setPending] = useState(false);
-  const [errors, setErrors] = useState<InstallmentFormErrors>({});
-
   useEffect(() => {
     let active = true;
     void Promise.all([
@@ -83,20 +85,23 @@ export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
         }),
       ),
       api.getProfile(),
-    ]).then(([card, categories, profile]) => {
+      api.listStatements(cardId),
+    ]).then(([card, categories, profile, statements]) => {
       if (!active) return;
-      if (card.ok && categories.ok && profile.ok) {
+      if (card.ok && categories.ok && profile.ok && statements.ok) {
         const { timeZone } = profile.data.preferences;
         setState({
           kind: 'ready',
           card: card.data,
           categories: categories.data,
+          statements: statements.data.items,
           timeZone,
+          // Computed once at load: a screen left open past midnight keeps yesterday until reloaded.
           today: dateInTimeZone(new Date(), timeZone),
         });
         return;
       }
-      const failure = [card, categories, profile].find(
+      const failure = [card, categories, profile, statements].find(
         (result): result is ApiFailure => !result.ok,
       );
       if (failure === undefined) return;
@@ -109,7 +114,84 @@ export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
     };
   }, [api, router, cardId, attempt]);
 
-  async function save(values: InstallmentFormValues, ready: PageState & { kind: 'ready' }) {
+  if (state.kind === 'notFound') {
+    return (
+      <EmptyState
+        title={t('installments.notFound')}
+        action={
+          <Link href="/cards" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
+            {t('detail.back')}
+          </Link>
+        }
+      />
+    );
+  }
+  if (state.kind !== 'ready') {
+    return (
+      <CreditCardsLoadStateView
+        state={state}
+        onRetry={() => {
+          setState({ kind: 'loading' });
+          setAttempt((current) => current + 1);
+        }}
+      />
+    );
+  }
+
+  return (
+    <InstallmentPurchaseReady
+      cardId={cardId}
+      ready={state}
+      onNotFound={() => {
+        setState({ kind: 'notFound' });
+      }}
+    />
+  );
+}
+
+function InstallmentPurchaseReady({
+  cardId,
+  ready,
+  onNotFound,
+}: {
+  cardId: string;
+  ready: ReadyState;
+  onNotFound: () => void;
+}) {
+  const api = useApiClient();
+  const router = useRouter();
+  const locale = useLocale();
+  const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
+  const [pending, setPending] = useState(false);
+  const [errors, setErrors] = useState<InstallmentFormErrors>({});
+  const [draft, setDraft] = useState<InstallmentDraftValues>({
+    currency: 'ARS',
+    amount: '',
+    installments: '',
+    purchasedOn: ready.today,
+  });
+
+  // Editing only recomputes the rows from the statements loaded with the page: no request is sent.
+  const schedule = useMemo(() => {
+    const parsed = parseInstallmentDraft(draft, {
+      timeZone: ready.timeZone,
+      locale,
+      now: new Date(),
+    });
+    const { currency, amount, count, purchasedOn } = parsed;
+    if (currency === undefined || amount === undefined || count === undefined) return null;
+    if (purchasedOn === undefined) return null;
+    return previewInstallmentSchedule({
+      total: amount,
+      count,
+      purchasedOn,
+      today: ready.today,
+      card: { closingDay: ready.card.closingDay, dueDay: ready.card.dueDay },
+      statements: ready.statements,
+    });
+  }, [draft, locale, ready]);
+
+  async function save(values: InstallmentFormValues) {
     if (pending) return;
     // Only open expense categories can be picked, so the request builder never sees an archived one.
     const open = ready.categories.filter((item) => item.kind === 'expense' && !item.archived);
@@ -136,38 +218,13 @@ export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
     } else if (result.code === 'UNAUTHENTICATED') {
       router.replace('/sign-in');
     } else if (result.code === 'NOT_FOUND') {
-      setState({ kind: 'notFound' });
+      onNotFound();
     } else {
       // The form stays mounted, so what the user typed is still there for a retry.
       setErrors({ form: failureAlert(result) });
     }
   }
 
-  if (state.kind === 'notFound') {
-    return (
-      <EmptyState
-        title={t('installments.notFound')}
-        action={
-          <Link href="/cards" className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
-            {t('detail.back')}
-          </Link>
-        }
-      />
-    );
-  }
-  if (state.kind !== 'ready') {
-    return (
-      <CreditCardsLoadStateView
-        state={state}
-        onRetry={() => {
-          setState({ kind: 'loading' });
-          setAttempt((current) => current + 1);
-        }}
-      />
-    );
-  }
-
-  const ready = state;
   return (
     <InstallmentForm
       cardId={cardId}
@@ -177,8 +234,11 @@ export function InstallmentPurchaseContainer({ cardId }: { cardId: string }) {
       defaultPurchasedOn={ready.today}
       pending={pending}
       errors={errors}
+      schedule={schedule}
+      currency={draft.currency === 'USD' ? 'USD' : 'ARS'}
+      onDraftChange={setDraft}
       onSubmit={(values) => {
-        void save(values, ready);
+        void save(values);
       }}
     />
   );

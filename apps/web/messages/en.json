@@ -653,7 +653,22 @@
       "delete": "Delete",
       "confirmDelete": "Confirm delete",
       "cancel": "Cancel",
-      "deleteHint": "Installments in statements that are already closed are kept."
+      "deleteHint": "Installments in statements that are already closed are kept.",
+      "preview": {
+        "title": "Payment schedule",
+        "expenseLabel": "Single payment",
+        "installmentsLabel": "Installments",
+        "columns": {
+          "number": "No.",
+          "amount": "Amount",
+          "statement": "Statement",
+          "closes": "Closes",
+          "due": "Due"
+        },
+        "closedBadge": "Closed",
+        "closingDayNote": "The first payment goes to the statement that closes on {date}. A purchase made on a statement's closing day belongs to that statement; one made after it goes to the next.",
+        "closedWarning": "The statement for this purchase date is already closed, so the first payment will fall in a statement that has been issued."
+      }
     },
     "payments": {
       "title": "Pay a statement",
