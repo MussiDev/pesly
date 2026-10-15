@@ -40,6 +40,8 @@ export * from './credit-cards/statement-cycle';
 export * from './credit-cards/statement-month';
 export * from './credit-cards/credit-card';
 export * from './credit-cards/installment';
+export * from './credit-cards/statement-assignment';
+export * from './credit-cards/installment-schedule';
 export * from './credit-cards/statement-payment';
 export * from './credit-cards/statement-import';
 export * from './recurring';
