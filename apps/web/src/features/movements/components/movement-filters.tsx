@@ -170,7 +170,12 @@ export function MovementFilters({
               );
             }}
           />
-          <Label htmlFor={`${id}-hide-adjustments`} className="min-h-11 cursor-pointer items-center">{t('filters.hideAdjustments')}</Label>
+          <Label
+            htmlFor={`${id}-hide-adjustments`}
+            className="min-h-11 cursor-pointer items-center"
+          >
+            {t('filters.hideAdjustments')}
+          </Label>
         </div>
         <details
           open={userOpen ?? extraActive}
