@@ -94,7 +94,9 @@ describe('InstallmentSchedulePreview', () => {
       rows: [row({ closed: true }), row({ number: 2, period: '2026-12' })],
     });
     renderApp(<InstallmentSchedulePreview schedule={closed} currency="ARS" />, { locale: 'en' });
-    expect(within(screen.getByRole('alert')).getByText(preview.closedWarning)).toBeTruthy();
+    const warning = screen.getByRole('status');
+    expect(within(warning).getByText(preview.closedWarning)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
     expect(screen.getAllByText(preview.closedBadge)).toHaveLength(1);
   });
 

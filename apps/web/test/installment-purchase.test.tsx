@@ -1,14 +1,17 @@
 // @vitest-environment happy-dom
-import type {
-  CreditCardResponse,
-  InstallmentPurchaseResponse,
-  StatementResponse,
+import {
+  planInstallments,
+  type CreditCardResponse,
+  type InstallmentPurchaseResponse,
+  type StatementResponse,
 } from '@pesly/shared';
-import { screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditCardDetailContainer } from '../src/features/credit-cards/containers/credit-card-detail-container';
 import { InstallmentPurchaseContainer } from '../src/features/credit-cards/containers/installment-purchase-container';
+import { formatCalendarDate, formatPeriod } from '../src/features/credit-cards/format-dates';
+import { formatMoney } from '../src/lib/format-amount';
 import { category, page, uuid } from './support/category-fixtures';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
 
@@ -22,6 +25,7 @@ const CARD_PATH = `/credit-cards/${ID}`;
 const CARD = `GET ${CARD_PATH}`;
 const PROFILE = 'GET /profile';
 const CATEGORIES = 'GET /categories?kind=expense&archived=false&limit=100';
+const STATEMENTS = `GET ${CARD_PATH}/statements`;
 const POST = `POST ${CARD_PATH}/installment-purchases`;
 const POST_EXPENSE = `POST ${CARD_PATH}/expenses`;
 const SAVED_EXPENSE = {
@@ -74,6 +78,26 @@ function purchase(
   };
 }
 
+const CLOSED_STATEMENT: StatementResponse = {
+  id: uuid(51),
+  cardId: ID,
+  period: '2026-09',
+  closingDate: '2026-09-24',
+  dueDate: '2026-10-05',
+  status: 'closed',
+  totals: { ARS: '0', USD: '0' },
+  installments: [],
+  payments: null,
+};
+const OPEN_STATEMENT: StatementResponse = {
+  ...CLOSED_STATEMENT,
+  id: uuid(52),
+  period: '2026-10',
+  closingDate: '2026-10-24',
+  dueDate: '2026-11-05',
+  status: 'open',
+};
+
 function formRoutes(overrides: Record<string, Parameters<typeof stubApi>[0][string]> = {}) {
   return {
     [CARD]: { status: 200, body: card },
@@ -96,6 +120,7 @@ function formRoutes(overrides: Record<string, Parameters<typeof stubApi>[0][stri
       category({ id: COMIDA_ID, kind: 'expense', name: 'Comida' }),
       category({ id: uuid(13), kind: 'expense', name: 'Vieja', archived: true }),
     ]),
+    [STATEMENTS]: { status: 200, body: { items: [CLOSED_STATEMENT, OPEN_STATEMENT] } },
     [POST]: { status: 201, body: purchase() },
     [POST_EXPENSE]: { status: 201, body: SAVED_EXPENSE },
     ...overrides,
@@ -269,6 +294,117 @@ describe('InstallmentPurchaseContainer', () => {
     await open(formRoutes(), 'en');
 
     expect(screen.getByRole('button', { name: en.creditCards.installments.submit })).toBeDefined();
+  });
+});
+
+describe('the schedule preview on the purchase form', () => {
+  const preview = t.preview;
+  const rows = () => within(screen.getByRole('table')).getAllByRole('row').length - 1;
+  const typeInto = async (user: ReturnType<typeof userEvent.setup>, name: string, text: string) => {
+    await user.clear(field(name));
+    await user.type(field(name), text);
+  };
+
+  it('shows the schedule for a valid amount, count and date and hides it when the amount is cleared (AC-01)', async () => {
+    await open();
+    expect(screen.queryByRole('table')).toBeNull();
+    const user = await fill('120000', '12');
+
+    expect(rows()).toBe(12);
+    await user.clear(field(t.fields.amount));
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('updates the rows when the count or the date changes without any request (AC-08)', async () => {
+    const { calls } = await open();
+    const user = await fill('120000', '12');
+    const before = calls.length;
+    expect(rows()).toBe(12);
+
+    await typeInto(user, t.fields.installments, '3');
+    expect(rows()).toBe(3);
+    fireEvent.change(field(t.fields.purchasedOn), { target: { value: '2026-09-10' } });
+    expect(screen.getByText(preview.closedWarning)).toBeDefined();
+
+    expect(calls).toHaveLength(before);
+    expect(calls.filter((call) => call.path === `${CARD_PATH}/statements`)).toHaveLength(1);
+  });
+
+  it('warns when the purchase date falls in a statement that already closed (AC-06)', async () => {
+    await open();
+    await fill('120000', '3');
+    expect(screen.queryByText(preview.closedWarning)).toBeNull();
+
+    fireEvent.change(field(t.fields.purchasedOn), { target: { value: '2026-09-10' } });
+
+    expect(screen.getByText(preview.closedWarning)).toBeDefined();
+    expect(screen.getByRole('status').textContent).toContain(preview.closedWarning);
+    expect(screen.getByText(preview.closedBadge)).toBeDefined();
+  });
+
+  it('shows the closing date stored on the statement, not the default cycle date (AC-09)', async () => {
+    await open(
+      formRoutes({
+        [STATEMENTS]: {
+          status: 200,
+          body: {
+            items: [CLOSED_STATEMENT, { ...OPEN_STATEMENT, closingDate: '2026-10-20' }],
+          },
+        },
+      }),
+    );
+    await fill('120000', '3');
+
+    const first = within(screen.getAllByRole('row')[1] as HTMLElement);
+    expect(first.getByText(formatCalendarDate('2026-10-20', 'es'))).toBeDefined();
+    expect(first.queryByText(formatCalendarDate('2026-10-24', 'es'))).toBeNull();
+  });
+
+  it('shows the load error with no form and no schedule when the statements fail (AC-12)', async () => {
+    stubApi(formRoutes({ [STATEMENTS]: { status: 500 } }));
+    renderApp(<InstallmentPurchaseContainer cardId={ID} />);
+
+    expect(await screen.findByText(es.ui.error.title)).toBeDefined();
+    expect(screen.queryByLabelText(t.fields.amount)).toBeNull();
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('shows the amount error on submit and no schedule when the amount is below the count (AC-13)', async () => {
+    const { calls } = await open();
+    const user = await fill('0,05', '12');
+
+    expect(screen.queryByRole('table')).toBeNull();
+    await user.click(submit());
+    expect(await screen.findByText(t.errors.amountTooSmall)).toBeDefined();
+    expect(posts(calls)).toEqual([]);
+    expect(screen.queryByRole('table')).toBeNull();
+  });
+
+  it('saves the same body and stores what the preview showed (AC-11)', async () => {
+    const { calls, router } = await open();
+    const user = await fill('120000', '12');
+    const shown = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    const planned = planInstallments(12_000_000n, 12, '2026-10');
+    expect(shown).toHaveLength(planned.length);
+    planned.forEach((expected, index) => {
+      const cells = within(shown[index] as HTMLElement).getAllByRole('cell');
+      expect(cells[0]?.textContent).toBe(String(expected.number));
+      expect(cells[1]?.textContent).toBe(formatMoney(expected.amount, 'ARS', 'es'));
+      expect(cells[2]?.textContent).toContain(formatPeriod(expected.period, 'es'));
+    });
+
+    await user.click(submit());
+
+    await waitFor(() => {
+      expect(router.push).toHaveBeenCalledWith(`/es/cards/${ID}`);
+    });
+    expect(posts(calls)[0]?.body).toEqual({
+      currency: 'ARS',
+      categoryId: COMIDA_ID,
+      amount: '12000000',
+      installments: 12,
+      purchasedOn: '2026-10-02',
+    });
   });
 });
 

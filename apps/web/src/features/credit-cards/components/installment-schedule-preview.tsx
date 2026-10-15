@@ -1,5 +1,6 @@
 import type { InstallmentSchedule } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
+import { useId } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import type { Locale } from '@/i18n/routing';
@@ -18,16 +19,19 @@ export function InstallmentSchedulePreview({
 }: InstallmentSchedulePreviewProps) {
   const t = useTranslations('creditCards.installments.preview');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
+  const titleId = useId();
   if (schedule === null) return null;
 
   const cell = 'px-3 py-2 text-start';
   return (
     <section className="grid gap-3" data-slot="installment-schedule-preview">
-      <h3 className="text-body font-medium">{t('title')}</h3>
+      <h2 id={titleId} className="text-body font-medium">
+        {t('title')}
+      </h2>
       <div
         className="overflow-x-auto rounded-card bg-card"
         role="region"
-        aria-label={t('title')}
+        aria-labelledby={titleId}
         tabIndex={0}
       >
         <table className="w-full text-small">
@@ -80,7 +84,8 @@ export function InstallmentSchedulePreview({
         {t('closingDayNote', { date: formatCalendarDate(schedule.firstClosingDate, locale) })}
       </p>
       {schedule.firstClosed ? (
-        <Alert variant="destructive">
+        // A polite status: the preview remounts while typing and must not re-announce assertively.
+        <Alert variant="destructive" role="status">
           <AlertDescription>{t('closedWarning')}</AlertDescription>
         </Alert>
       ) : null}
