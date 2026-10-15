@@ -160,7 +160,7 @@ duplicate of the draft checks.
 - `apps/web/test/installment-schedule-preview.test.tsx` (new).
 
 **Logic**
-- Props: `{ schedule: SchedulePreview | null; currency: 'ARS' | 'USD' }`. With `null` it renders
+- Props: `{ schedule: InstallmentSchedule | null; currency: 'ARS' | 'USD' }`. With `null` it renders
   nothing. Otherwise it renders a captioned grid with header cells (expense or installments label as caption; header cells with
   `scope="col"`) and one row per entry showing number, amount, the statement month, the closing
   date and the due date, plus a badge on a closed statement.
@@ -186,7 +186,7 @@ duplicate of the draft checks.
       — validates AC-02
 - [ ] the es and en catalogs keep key and argument parity (`i18n-catalogs.test.ts` stays green)
       — validates AC-02
-- [ ] a value containing markup is rendered as text — validates AC-02
+- [ ] every value is rendered as a plain text cell, with no element children — validates AC-02
 
 **Completion criterion**
 The component tests pass, the catalog parity test passes, and `pnpm lint` reports no hardcoded

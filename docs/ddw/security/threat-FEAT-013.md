@@ -100,7 +100,7 @@
 | R-02 | a large edit burst makes the form slow | D | L | L | rows bounded at 60 and a 100 ms render test (NFR-01) |
 | R-03 | moving the rule to the shared package changes API behavior | T | M | H | the move keeps the signatures, every existing API test stays green and a deterministic parity sweep covers one payment, installments, dates before the first and after the last statement |
 | R-04 | the preview and the save validate differently, so a value is previewed but refused | T | M | L | one extracted draft parser used by both, and the server's own schema stays authoritative |
-| R-05 | injected markup through a value shown in the schedule | E | L | M | values rendered as React text, no raw HTML, component test with markup in the note |
+| R-05 | injected markup through a value shown in the schedule | E | L | M | every value is formatted from typed data and rendered as a React text child, and a component test asserts the cells hold plain text only |
 | R-06 | opening the page repeatedly creates statements and load | D | L | L | the existing list route already creates missing cycles once and sits behind the per-user rate limit; no new route |
 
 ## Supply chain
