@@ -31,7 +31,7 @@ const RUNTIME_DEPENDENCIES = {
   clsx: '^2.1.1',
   esbuild: '0.28.2',
   'lucide-react': '^1.48.0',
-  next: '^16.3.8',
+  next: '^16.4.1',
   'next-intl': '^4.14.7',
   'pdfjs-dist': '6.3.289',
   qrcode: '^1.5.4',
@@ -40,7 +40,7 @@ const RUNTIME_DEPENDENCIES = {
   'read-excel-file': '9.3.10',
   serwist: '9.5.12',
   'tailwind-merge': '^3.7.0',
-  zod: '^4.6.5',
+  zod: '^4.6.6',
 };
 
 const DEV_DEPENDENCIES = {
