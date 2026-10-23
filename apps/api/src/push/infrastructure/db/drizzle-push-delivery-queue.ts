@@ -20,6 +20,7 @@ interface ClaimedRow extends Record<string, unknown> {
   read_at: Date | null;
   notice_created_at: Date | string;
   notice_owner_id: string;
+  group_id: string | null;
   language: 'es' | 'en';
   subscription_id: string;
   subscription_owner_id: string;
@@ -59,7 +60,8 @@ export class DrizzlePushDeliveryQueue implements PushDeliveryQueue {
         returning d.id, d.attempts, d.notice_id, d.subscription_id, d.next_attempt_at
       )
       select c.id, c.attempts, c.notice_id, n.kind, n.text, n.due_date::text as due_date,
-             n.read_at, n.created_at as notice_created_at, n.owner_id as notice_owner_id, u.language,
+             n.read_at, n.created_at as notice_created_at, n.owner_id as notice_owner_id, n.group_id,
+             u.language,
              c.subscription_id, s.user_id as subscription_owner_id, s.endpoint, s.p256dh, s.auth
       from claimed c
       join notices n on n.id = c.notice_id
@@ -77,6 +79,7 @@ export class DrizzlePushDeliveryQueue implements PushDeliveryQueue {
       readAt: row.read_at,
       noticeCreatedAt: new Date(row.notice_created_at),
       noticeOwnerId: row.notice_owner_id,
+      noticeGroupId: row.group_id,
       ownerLanguage: row.language,
       subscriptionId: row.subscription_id,
       subscriptionOwnerId: row.subscription_owner_id,

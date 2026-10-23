@@ -88,6 +88,7 @@ export class DeliverDuePushes {
       language: row.ownerLanguage,
       storedText: row.noticeText,
       dueDate: row.dueDate,
+      groupId: row.noticeGroupId,
     });
     const outcome = await provider.send({
       target: { pushUrl: row.pushUrl, p256dh: row.p256dh, auth: row.auth },

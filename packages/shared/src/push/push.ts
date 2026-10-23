@@ -73,3 +73,8 @@ export type PushPayload = z.infer<typeof pushPayloadSchema>;
 export function pushNoticesLink(language: 'es' | 'en'): string {
   return `/${language}/notices`;
 }
+
+/** The detail of the group a group notice is about. */
+export function pushGroupLink(language: 'es' | 'en', groupId: string): string {
+  return `/${language}/groups/${encodeURIComponent(groupId)}`;
+}

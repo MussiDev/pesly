@@ -7,12 +7,14 @@ export const NOTICE_NAME_MAX_LENGTH = 80;
 export interface NoticeTextInput {
   kind: NoticeKind;
   language: NoticeLanguage;
-  /** The recurring payment name, or the credit card name for `card_statement_due`. */
+  /** The recurring payment name, the credit card name for `card_statement_due`, the group name for the group kinds. */
   subjectName: string;
   dueDate: string;
   daysUntilDue?: number;
   /** The budget threshold percent (1 to 200), required for `budget_alert`. */
   threshold?: number;
+  /** Who recorded the group expense or settlement; null when that member has no display name. */
+  actorName?: string | null;
 }
 
 const MAX_ALERT_THRESHOLD = 200;
@@ -36,13 +38,49 @@ function reminderText(name: string, language: NoticeLanguage, days: number): str
   return `${name} is due in ${days} days`;
 }
 
+const truncateName = (name: string): string =>
+  Array.from(name).slice(0, NOTICE_NAME_MAX_LENGTH).join('');
+
+export interface GroupNoticeTextInput {
+  kind: 'group_expense' | 'group_settlement';
+  language: NoticeLanguage;
+  groupName: string;
+  /** Who recorded it; null when that member has no display name. */
+  actorName: string | null;
+}
+
+/** Takes no amount and no description, so neither can reach the stored text (NFR-05). */
+export function renderGroupNoticeText(input: GroupNoticeTextInput): string {
+  const { kind, language } = input;
+  const group = truncateName(input.groupName);
+  const actor = input.actorName ? truncateName(input.actorName) : null;
+  if (language === 'es') {
+    const who = actor ?? 'Un integrante';
+    return kind === 'group_expense'
+      ? `${who} agregó un gasto en ${group}`
+      : `${who} registró un pago en ${group}`;
+  }
+  const who = actor ?? 'A member';
+  return kind === 'group_expense'
+    ? `${who} added an expense in ${group}`
+    : `${who} recorded a payment in ${group}`;
+}
+
 /**
  * Pure and amount-free on purpose: it receives no amount and no account name, so none can reach
  * the stored text (NFR-05).
  */
 export function renderNoticeText(input: NoticeTextInput): string {
-  const name = Array.from(input.subjectName).slice(0, NOTICE_NAME_MAX_LENGTH).join('');
+  const name = truncateName(input.subjectName);
   const { language } = input;
+  if (input.kind === 'group_expense' || input.kind === 'group_settlement') {
+    return renderGroupNoticeText({
+      kind: input.kind,
+      language,
+      groupName: input.subjectName,
+      actorName: input.actorName ?? null,
+    });
+  }
   if (input.kind === 'reminder') {
     if (input.daysUntilDue === undefined) throw new Error('A reminder needs daysUntilDue');
     return reminderText(name, language, input.daysUntilDue);

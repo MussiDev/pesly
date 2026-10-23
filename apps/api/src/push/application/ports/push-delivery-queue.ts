@@ -13,6 +13,8 @@ export interface DueDelivery {
   readAt: Date | null;
   noticeCreatedAt: Date;
   noticeOwnerId: string;
+  /** Set only for the group notice kinds. */
+  noticeGroupId: string | null;
   ownerLanguage: 'es' | 'en';
   subscriptionId: string;
   subscriptionOwnerId: string;

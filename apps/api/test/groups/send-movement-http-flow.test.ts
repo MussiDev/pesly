@@ -6,6 +6,7 @@ import {
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createBudgetRoutes } from '../../src/budgets';
 import { createGroupRoutes } from '../../src/groups';
+import { renderGroupNoticeText } from '../../src/notices';
 import { createMovementRoutes } from '../../src/movements';
 import { createDatabase, type DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -48,7 +49,12 @@ function buildApi() {
   const harness = createIdentityHarness(connection, {
     realSessions: true,
     routerFactories: [
-      createGroupRoutes({ db: connection.db, logger, clock }),
+      createGroupRoutes({
+        db: connection.db,
+        logger,
+        clock,
+        renderNoticeText: renderGroupNoticeText,
+      }),
       createMovementRoutes({ db: connection.db, logger, clock }),
       createBudgetRoutes({ db: connection.db, logger, clock }),
     ],

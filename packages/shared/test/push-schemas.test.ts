@@ -6,6 +6,7 @@ import {
   PUSH_TTL_SECONDS,
   isAllowedPushUrl,
   pushConfigResponseSchema,
+  pushGroupLink,
   pushNoticesLink,
   pushPayloadSchema,
   pushSubscriptionRequestSchema,
@@ -165,6 +166,20 @@ describe('pushNoticesLink and constants', () => {
   it('builds the localized notices link', () => {
     expect(pushNoticesLink('en')).toBe('/en/notices');
     expect(pushNoticesLink('es')).toBe('/es/notices');
+  });
+  it('builds the localized group link, which the payload schema accepts', () => {
+    const id = '0b9f4c52-6a39-4f0e-9d0a-2a3f4f8d9a11';
+    expect(pushGroupLink('es', id)).toBe(`/es/groups/${id}`);
+    expect(pushGroupLink('en', id)).toBe(`/en/groups/${id}`);
+    expect(pushGroupLink('en', 'a/b')).toBe('/en/groups/a%2Fb');
+    expect(
+      pushPayloadSchema.safeParse({
+        noticeId: id,
+        title: 'Pesly',
+        body: 'x',
+        url: pushGroupLink('es', id),
+      }).success,
+    ).toBe(true);
   });
   it('exposes the contract constants', () => {
     expect(PUSH_MAX_SUBSCRIPTIONS).toBe(10);

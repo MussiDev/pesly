@@ -470,6 +470,11 @@ All notable changes to this project are documented in this file. The format foll
   closing day belongs to that statement while one made after it goes to the next. A warning appears when
   the statement of the purchase date has already closed. The preview uses the same rule as the API (now
   shared), so what the form shows is what is saved. Spanish and English, web only, no new dependency.
+- FEAT-014 Group activity notices: when a member adds a group expense or records a settlement, every
+  other registered member it involves gets a notice ("Bob agregó un gasto en Casa"), pushed to the
+  devices where they enabled notifications; tapping the push opens the group. No amount or
+  description in the text. Migration 0041 adds the two notice kinds and `notices.group_id`, and keys
+  notices by owner. Spanish and English, no new dependency.
 
 ### Changed
 

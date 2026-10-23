@@ -4,3 +4,4 @@ export { users } from '../../../identity/infrastructure/db/schema';
 export { movements } from '../../../movements/infrastructure/db/schema';
 export { accounts } from '../../../accounts/infrastructure/db/schema';
 export { categories } from '../../../categories/infrastructure/db/schema';
+export { notices } from '../../../notices/infrastructure/db/schema';

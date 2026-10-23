@@ -189,7 +189,8 @@ describe('0039_push_notifications migration', () => {
   });
 
   it('marks the notices that exist before the migration as handled and leaves new ones unhandled', async () => {
-    // 0040 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0041 and 0040 have the greater journal `when`, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const owner = await userId('before@push.test');
@@ -213,7 +214,8 @@ describe('0039_push_notifications migration', () => {
     const tablesBefore = await publicTableCount();
     const script = await fileOf(`rollback/${TAG}.down.sql`);
 
-    // 0040 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0041 and 0040 have the greater journal `when`, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(script);
     await client.query(script);
@@ -228,7 +230,7 @@ describe('0039_push_notifications migration', () => {
       "select 1 from pg_indexes where indexname = 'notices_push_unhandled_idx'",
     );
     expect(index.rowCount).toBe(0);
-    expect(await appliedMigrations()).toBe(countBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 3);
     expect(await publicTableCount()).toBe(tablesBefore - 2);
 
     await runMigrations(throwawayUrl);

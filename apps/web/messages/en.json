@@ -1335,8 +1335,8 @@
   },
   "notices": {
     "title": "Notices",
-    "description": "Reminders and results of your recurring payments, and reminders of your card statements.",
-    "empty": "You have no notices yet. Reminders about your recurring payments and your card statements will show up here.",
+    "description": "Reminders and results of your recurring payments, reminders of your card statements and news from your groups.",
+    "empty": "You have no notices yet. Reminders about your recurring payments and your card statements, and news from your groups, will show up here.",
     "markAllRead": "Mark all as read",
     "loadMore": "Load more",
     "retry": "Try again",
@@ -1346,6 +1346,7 @@
     "overflow": "{max}+",
     "dueOn": "Due {date}",
     "alertMonth": "Budget alert for {month}",
+    "recordedOn": "Recorded on {date}",
     "listLabel": "Your notices",
     "errors": {
       "load": "We could not load your notices. Check your connection and try again.",

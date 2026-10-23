@@ -103,6 +103,7 @@ import { DrizzleGroupExpenseRepository } from '../db/drizzle-group-expense-repos
 import { DrizzleGroupExpenseSummaryReader } from '../db/drizzle-group-expense-summary-reader';
 import { DrizzleGroupRepository } from '../db/drizzle-group-repository';
 import { DrizzleGroupSettlementRepository } from '../db/drizzle-group-settlement-repository';
+import type { RenderGroupNoticeText } from '../db/group-notices';
 import { DrizzlePayerMovementRecorder } from '../movements/drizzle-payer-movement-recorder';
 import { DrizzleRateReader } from '../rates/drizzle-rate-reader';
 import { presentGroupExpenseSummary } from './group-expense-summary-presenter';
@@ -134,6 +135,8 @@ export interface GroupRoutesOptions {
   logger: Logger;
   /** Defaults to the system clock; tests move it to cross the 7-day invitation expiry. */
   clock?: Clock;
+  /** Text of the notices that tell the other members about a new expense or settlement. */
+  renderNoticeText: RenderGroupNoticeText;
 }
 
 const groupListResponseSchema = z.array(groupResponseSchema);
@@ -152,10 +155,11 @@ export function createGroupRoutes({
   db,
   logger,
   clock = new SystemClock(),
+  renderNoticeText,
 }: GroupRoutesOptions): RouterFactory {
   const groups = new DrizzleGroupRepository(db);
   const payerMovements = new DrizzlePayerMovementRecorder(db, clock);
-  const expenses = new DrizzleGroupExpenseRepository(db, payerMovements);
+  const expenses = new DrizzleGroupExpenseRepository(db, payerMovements, renderNoticeText);
   const tokens = new RandomTokenSource();
   const createGroup = new CreateGroup({ groups });
   const listGroups = new ListGroups({ groups });
@@ -183,7 +187,7 @@ export function createGroupRoutes({
   const getExpenseOptions = new GetExpenseOptions({ groups, expenses });
   const setDefaultSplit = new SetDefaultSplit({ groups, expenses });
   const listPersonalShares = new ListPersonalShares({ expenses });
-  const settlements = new DrizzleGroupSettlementRepository(db);
+  const settlements = new DrizzleGroupSettlementRepository(db, renderNoticeText);
   const rates = new DrizzleRateReader(db);
   const getBalances = new GetBalances({ groups, settlements });
   const recordSettlement = new RecordSettlement({

@@ -67,3 +67,7 @@ export { eraseUserGroups } from './infrastructure/db/erase-user-groups';
 export { RandomTokenSource } from './infrastructure/crypto/random-token-source';
 export { SystemClock } from './infrastructure/clock/system-clock';
 export { createGroupRoutes, type GroupRoutesOptions } from './infrastructure/http/group-routes';
+export type {
+  GroupNoticeTextParams,
+  RenderGroupNoticeText,
+} from './infrastructure/db/group-notices';

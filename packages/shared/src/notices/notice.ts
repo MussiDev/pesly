@@ -7,6 +7,8 @@ export const NOTICE_KINDS = [
   'not_recorded',
   'card_statement_due',
   'budget_alert',
+  'group_expense',
+  'group_settlement',
 ] as const;
 export const noticeKindSchema = z.enum(NOTICE_KINDS);
 export type NoticeKind = z.infer<typeof noticeKindSchema>;

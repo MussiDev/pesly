@@ -164,6 +164,26 @@ describe('NoticeList', () => {
     },
   );
 
+  it.each([
+    ['en', 'group_expense', 'Recorded on', 'Due'],
+    ['es', 'group_settlement', 'Registrado el', 'Vence'],
+  ] as const)(
+    'shows when a group notice was recorded, not a due date, in %s',
+    (locale, kind, recorded, dueWord) => {
+      renderApp(
+        <NoticeList
+          notices={[notice(1, { kind, text: 'Bob added an expense in Casa' })]}
+          onOpen={() => undefined}
+        />,
+        { locale },
+      );
+
+      expect(screen.getByText('Bob added an expense in Casa')).toBeTruthy();
+      expect(screen.getByText(new RegExp(`^${recorded} `))).toBeTruthy();
+      expect(screen.queryByText(new RegExp(dueWord))).toBeNull();
+    },
+  );
+
   it('keeps "Due {date}" for a notice of another kind (AC-26)', () => {
     renderApp(<NoticeList notices={[notice(1)]} onOpen={() => undefined} />, { locale: 'en' });
 
