@@ -17,9 +17,12 @@ allowBuilds:
 # 1.2.2 was published on 2026-09-30, so no release-age exclusion is needed.
 # sharp <0.35.5 (GHSA-wq5f-xc86-pv6w, CVE-2026-96889, librsvg vulnerability) via next; 0.35.5 was
 # published on 2026-09-27, so no release-age exclusion is needed.
+# zod <4.6.6 (GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized collections) via
+# @serwist/turbopack and @serwist/build, which pin 4.4.3; the direct dependencies ask for ^4.6.6.
 overrides:
   '@esbuild-kit/core-utils>esbuild': ^0.25.12
   'hyperid>uuid': ^11.1.1
   browserslist: ^4.28.7
   source-map-js: ^1.2.2
   sharp: ^0.35.5
+  zod: ^4.6.6
