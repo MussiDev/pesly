@@ -9,6 +9,16 @@ const timestamptz = (name: string) => timestamp(name, { withTimezone: true, mode
  * is stored already rendered. `payment_id` has no foreign key on purpose: the notice outlives the
  * payment, as `movement_id` does in the recurring occurrences.
  */
+const KINDS = [
+  'reminder',
+  'recorded',
+  'not_recorded',
+  'card_statement_due',
+  'budget_alert',
+  'group_expense',
+  'group_settlement',
+] as const;
+
 export const notices = pgTable(
   'notices',
   {
@@ -16,10 +26,8 @@ export const notices = pgTable(
     ownerId: uuid('owner_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    kind: text('kind')
-      .$type<'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due' | 'budget_alert'>()
-      .notNull(),
-    /** A recurring payment id, or a credit card statement id for `card_statement_due` (DISC-001-10f), a budget alert mark id for `budget_alert` (DISC-001-06d); never a foreign key. */
+    kind: text('kind').$type<(typeof KINDS)[number]>().notNull(),
+    /** A recurring payment id, or a credit card statement id for `card_statement_due` (DISC-001-10f), a budget alert mark id for `budget_alert` (DISC-001-06d), a group expense or settlement id for the group kinds; never a foreign key. */
     paymentId: uuid('payment_id').notNull(),
     dueDate: date('due_date', { mode: 'string' }).notNull(),
     text: text('text').notNull(),
@@ -27,14 +35,26 @@ export const notices = pgTable(
     readAt: timestamptz('read_at'),
     /** Set once the push job has fanned the notice out, or at the migration for older notices (DISC-001-08d). */
     pushHandledAt: timestamptz('push_handled_at'),
+    /** The group of a `group_expense` or `group_settlement` notice, for the push link; no foreign key, like `payment_id`. */
+    groupId: uuid('group_id'),
   },
   (table) => [
     check(
       'notices_kind_check',
-      sql`${table.kind} in ('reminder', 'recorded', 'not_recorded', 'card_statement_due', 'budget_alert')`,
+      sql`${table.kind} in (${sql.raw(KINDS.map((kind) => `'${kind}'`).join(', '))})`,
+    ),
+    check(
+      'notices_group_id_check',
+      sql`(${table.kind} in ('group_expense', 'group_settlement')) = (${table.groupId} is not null)`,
     ),
     check('notices_text_length_check', sql`char_length(${table.text}) between 1 and 300`),
-    unique('notices_kind_payment_due_unique').on(table.kind, table.paymentId, table.dueDate),
+    // The owner is part of the key: one group expense is a notice for each member it involves.
+    unique('notices_owner_kind_payment_due_unique').on(
+      table.ownerId,
+      table.kind,
+      table.paymentId,
+      table.dueDate,
+    ),
     index('notices_owner_created_idx').on(table.ownerId, table.createdAt.desc(), table.id.desc()),
     index('notices_owner_unread_idx')
       .on(table.ownerId)

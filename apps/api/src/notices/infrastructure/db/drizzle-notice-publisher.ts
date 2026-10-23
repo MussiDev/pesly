@@ -7,7 +7,7 @@ import type { NewNotice } from '../../domain/notice';
 import { renderNoticeText } from '../../domain/notice-text';
 import { notices } from './schema';
 
-const conflictTarget = [notices.kind, notices.paymentId, notices.dueDate];
+const conflictTarget = [notices.ownerId, notices.kind, notices.paymentId, notices.dueDate];
 
 function toNewNotice(input: PublishNoticeInput): NewNotice {
   return {

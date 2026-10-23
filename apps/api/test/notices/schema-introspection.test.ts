@@ -34,6 +34,7 @@ describe('notices schema introspection (NFR-04)', () => {
         column_default: 'now()',
       },
       { column_name: 'due_date', data_type: 'date', is_nullable: 'NO', column_default: null },
+      { column_name: 'group_id', data_type: 'uuid', is_nullable: 'YES', column_default: null },
       {
         column_name: 'id',
         data_type: 'uuid',
@@ -87,8 +88,9 @@ describe('notices schema introspection (NFR-04)', () => {
     );
 
     expect(result.rows).toEqual([
+      { conname: 'notices_group_id_check', contype: 'c' },
       { conname: 'notices_kind_check', contype: 'c' },
-      { conname: 'notices_kind_payment_due_unique', contype: 'u' },
+      { conname: 'notices_owner_kind_payment_due_unique', contype: 'u' },
       { conname: 'notices_text_length_check', contype: 'c' },
     ]);
   });
@@ -108,6 +110,8 @@ describe('notices schema introspection (NFR-04)', () => {
       'not_recorded',
       'card_statement_due',
       'budget_alert',
+      'group_expense',
+      'group_settlement',
     ]) {
       expect(definition).toContain(`'${kind}'`);
     }
@@ -123,7 +127,9 @@ describe('notices schema introspection (NFR-04)', () => {
     expect(byName.get('notices_owner_unread_idx')).toMatch(
       /\(owner_id\) WHERE \(read_at IS NULL\)/,
     );
-    expect(byName.has('notices_kind_payment_due_unique')).toBe(true);
+    expect(byName.get('notices_owner_kind_payment_due_unique')).toMatch(
+      /\(owner_id, kind, payment_id, due_date\)/,
+    );
   });
 
   it('adds reminder_days to recurring_payments as a not null smallint defaulting to 3', async () => {

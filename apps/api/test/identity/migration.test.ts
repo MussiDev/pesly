@@ -6,9 +6,9 @@ import { DEFAULT_SET_0009 } from '../categories/fixtures/default-set-0009';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const ALL_MIGRATIONS = 40;
+const ALL_MIGRATIONS = 41;
 // The newest migration is named once: heads of the rollback chain and the registry checks use it.
-const NEWEST_MIGRATION = '0040_balance_adjustments';
+const NEWEST_MIGRATION = '0041_group_notices';
 const TABLES_BEFORE_0004 = [
   'auth_attempts',
   'email_outbox',
@@ -230,9 +230,10 @@ function rollback(tag: string): Promise<string> {
   return readFile(`${migrationsFolder}/rollback/${tag}.down.sql`, 'utf8');
 }
 
-/** Rolls back the newest migration, then 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 and 0023, the head of every older rollback chain. */
+/** Rolls back the newest migration, then 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 and 0023, the head of every older rollback chain. */
 async function rollbackFromNewest(): Promise<void> {
   await client.query(await rollback(NEWEST_MIGRATION));
+  await client.query(await rollback('0040_balance_adjustments'));
   await client.query(await rollback('0039_push_notifications'));
   await client.query(await rollback('0038_exchange_rate_history'));
   await client.query(await rollback('0037_group_expense_from_movement'));
@@ -623,7 +624,7 @@ describe('0003_outbox_retry migration', () => {
     expect(await nextAttemptColumn()).toEqual([]);
     expect(await outboxIndexes()).toEqual([PENDING_BY_SENT_AT]);
     expect(await publicTables()).toEqual(TABLES_BEFORE_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 37);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 38);
     const kept = await client.query("select 1 from email_outbox where kind = 'discard'");
     expect(kept.rowCount).toBe(1);
 
@@ -668,7 +669,7 @@ describe('0004_google_identity migration', () => {
     await client.query(await rollback('0005_two_factor'));
     await client.query(await rollback('0004_google_identity'));
     expect(await publicTables()).toEqual(TABLES_BEFORE_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 36);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 37);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -744,7 +745,7 @@ describe('0004_google_identity migration', () => {
     expect(await sqlState(await rollback('0004_google_identity'))).toBe('23502');
 
     expect(await publicTables()).toEqual(TABLES_AT_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 35);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 36);
     expect(
       await countOf("select count(*) as n from auth_attempts where kind = 'google_start_ip'"),
     ).toBe(1);
@@ -760,7 +761,7 @@ describe('0004_google_identity migration', () => {
     await client.query(await rollback('0004_google_identity'));
 
     expect(await publicTables()).toEqual(TABLES_BEFORE_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 36);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 37);
     expect(await passwordHashNullable()).toBe('NO');
     expect(
       await countOf("select count(*) as n from auth_attempts where kind = 'google_start_ip'"),
@@ -829,7 +830,7 @@ describe('0005_two_factor migration', () => {
     await client.query(await rollback('0006_accounts'));
     await client.query(await rollback('0005_two_factor'));
     expect(await publicTables()).toEqual(TABLES_AT_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 35);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 36);
     for (const kind of TWO_FACTOR_ATTEMPT_KINDS) expect(await insertAttempt(kind)).toBe('23514');
     for (const kind of TWO_FACTOR_OUTBOX_KINDS) expect(await insertOutbox(kind)).toBe('23514');
 
@@ -937,7 +938,7 @@ describe('0005_two_factor migration', () => {
     await client.query(await rollback('0005_two_factor'));
 
     expect(await publicTables()).toEqual(TABLES_AT_0004);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 35);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 36);
     const attemptKinds = TWO_FACTOR_ATTEMPT_KINDS.map((kind) => `'${kind}'`).join(', ');
     const outboxKinds = TWO_FACTOR_OUTBOX_KINDS.map((kind) => `'${kind}'`).join(', ');
     expect(
@@ -984,7 +985,7 @@ describe('0006_accounts migration', () => {
     await client.query(await rollback('0009_categories'));
     await client.query(await rollback('0006_accounts'));
     expect(await publicTables()).not.toContain('accounts');
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 33);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 34);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -1083,7 +1084,7 @@ describe('0006_accounts migration', () => {
     await client.query(await rollback('0006_accounts'));
 
     expect(await publicTables()).not.toContain('accounts');
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 33);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 34);
     expect(
       await countOf(
         "select count(*) as n from pg_proc where proname = 'accounts_immutable_fields'",
@@ -1132,7 +1133,7 @@ describe('0007_profile_display_name migration', () => {
     await client.query(await rollback('0006_accounts'));
     await client.query(await rollback('0007_profile_display_name'));
     expect(await displayNameColumn()).toEqual([]);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 34);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 35);
     await insertUser('before@profile.test');
 
     await runMigrations(emptyDatabaseUrl);
@@ -1181,7 +1182,7 @@ describe('0007_profile_display_name migration', () => {
 
     expect(await displayNameColumn()).toEqual([]);
     expect(await publicTables()).toEqual(TABLES_WITHOUT_ACCOUNTS_AND_CATEGORIES);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 34);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 35);
     expect(
       await countOf("select count(*) as n from users where email = 'before@profile.test'"),
     ).toBe(1);
@@ -1333,7 +1334,7 @@ describe('0009_categories migration', () => {
     await client.query(await rollback('0010_account_deletion'));
     await client.query(await rollback('0009_categories'));
     expect(await publicTables()).toEqual(TABLES_BEFORE_0009);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 32);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 33);
     await insertUser('ana@categories.test');
     await insertUser('bob@categories.test');
     await insertUser('carla@categories.test');
@@ -1483,7 +1484,7 @@ describe('0009_categories migration', () => {
     await client.query(await rollback('0009_categories'));
 
     expect(await publicTables()).toEqual(TABLES_BEFORE_0009);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 32);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 33);
     expect(
       await countOf("select count(*) as n from pg_proc where proname = 'categories_guard'"),
     ).toBe(0);
@@ -1511,6 +1512,7 @@ describe('0009_categories migration', () => {
         entry.tag !== '0021_installment_currency' &&
         entry.tag !== '0023_recurring_payments' &&
         entry.tag !== NEWEST_MIGRATION &&
+        entry.tag !== '0040_balance_adjustments' &&
         entry.tag !== '0039_push_notifications' &&
         entry.tag !== '0038_exchange_rate_history' &&
         entry.tag !== '0037_group_expense_from_movement' &&
@@ -1575,7 +1577,7 @@ describe('0010_account_deletion migration', () => {
     await client.query(await rollback('0010_account_deletion'));
     expect(await publicTables()).not.toContain('deletion_grants');
     expect(await oauthStateColumns()).toEqual([]);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 31);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 32);
     await insertState('legacy');
 
     await runMigrations(emptyDatabaseUrl);
@@ -1688,7 +1690,7 @@ describe('0010_account_deletion migration', () => {
 
     expect(await publicTables()).not.toContain('deletion_grants');
     expect(await oauthStateColumns()).toEqual([]);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 31);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 32);
     expect(await countOf("select count(*) as n from oauth_states where state_hash = 'd8'")).toBe(0);
     expect(
       await countOf("select count(*) as n from oauth_states where state_hash = 'legacy'"),
@@ -1722,6 +1724,7 @@ describe('0010_account_deletion migration', () => {
         entry.tag !== '0021_installment_currency' &&
         entry.tag !== '0023_recurring_payments' &&
         entry.tag !== NEWEST_MIGRATION &&
+        entry.tag !== '0040_balance_adjustments' &&
         entry.tag !== '0039_push_notifications' &&
         entry.tag !== '0038_exchange_rate_history' &&
         entry.tag !== '0037_group_expense_from_movement' &&
@@ -1934,7 +1937,7 @@ describe('0011_account_include_in_available migration', () => {
     expect(failed).toBe(true);
     expect(await includeColumn()).toEqual([]);
     expect(await countOf('select count(*) as n from accounts')).toBe(rowsBefore);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 30);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 31);
   });
 
   it('is reverted by its rollback (column and journal row gone) and re-applies, restoring the type default of a non-default value (validates NFR-03)', async () => {
@@ -1964,7 +1967,7 @@ describe('0011_account_include_in_available migration', () => {
     await client.query(await rollback(ROLLBACK_0011));
 
     expect(await includeColumn()).toEqual([]);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 30);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 31);
     expect(await countOf('select count(*) as n from accounts')).toBeGreaterThan(0);
 
     await runMigrations(emptyDatabaseUrl);
@@ -1991,7 +1994,7 @@ describe('0012_exchange_rates migration', () => {
     await client.query(await rollback('0013_investments'));
     await client.query(await rollback('0012_exchange_rates'));
     expect(await publicTables()).toEqual(TABLES_WITHOUT_EXCHANGE_RATES);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 29);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 30);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -2055,7 +2058,7 @@ describe('0012_exchange_rates migration', () => {
     await client.query(await rollback('0012_exchange_rates'));
 
     expect(await publicTables()).toEqual(TABLES_WITHOUT_EXCHANGE_RATES);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 29);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 30);
     expect(await indexDefinition('exchange_rate_refresh_failures_failed_at_idx')).toBeUndefined();
 
     await runMigrations(emptyDatabaseUrl);
@@ -2193,7 +2196,7 @@ describe('0014_movements migration', () => {
           !GOAL_TABLES.includes(name),
       ),
     );
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 27);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 28);
     expect(await accountsOwnerUniqueCount()).toBe(0);
 
     await runMigrations(emptyDatabaseUrl);
@@ -2282,7 +2285,7 @@ describe('0014_movements migration', () => {
           !GOAL_TABLES.includes(name),
       ),
     );
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 27);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 28);
     expect(await accountsOwnerUniqueCount()).toBe(0);
     expect(await countOf('select count(*) as n from accounts')).toBe(accountsBefore);
 
@@ -2297,7 +2300,7 @@ describe('0014_movements migration', () => {
     await client.query(await rollback('0016_transfers_exchanges'));
     await client.query(await rollback('0015_price_snapshots'));
     await client.query(await rollback('0014_movements'));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 27);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 28);
     expect(await countOf('select count(*) as n from accounts')).toBe(accountsBefore);
 
     await runMigrations(emptyDatabaseUrl);
@@ -2436,7 +2439,7 @@ describe('0016_transfers_exchanges migration', () => {
 
     await client.query(await rollback('0017_tags'));
     await client.query(await rollback(TRANSFERS_EXCHANGES_TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 26);
     expect(await columnIsNullable('rate')).toBe(false);
     expect(await insertRow(expenseRow())).toBeUndefined();
     expect(await insertRow({ ...expenseRow(), amount: '7' })).toBeUndefined();
@@ -2490,7 +2493,7 @@ describe('0016_transfers_exchanges migration', () => {
     await client.query(await rollback(TRANSFERS_EXCHANGES_TAG));
 
     expect(await countOf('select count(*) as n from movements')).toBe(expensesBefore);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 26);
     expect(await columnIsNullable('category_id')).toBe(false);
     expect(await columnIsNullable('rate')).toBe(false);
     expect(await columnIsNullable('rate_source')).toBe(false);
@@ -2520,7 +2523,7 @@ describe('0016_transfers_exchanges migration', () => {
     await client.query(await rollback('0018_device_write_limit'));
     await client.query(await rollback('0017_tags'));
     await client.query(await rollback(TRANSFERS_EXCHANGES_TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 26);
     expect(await countOf('select count(*) as n from movements')).toBe(expensesBefore);
 
     await runMigrations(emptyDatabaseUrl);
@@ -2649,7 +2652,7 @@ describe('0017_tags migration', () => {
           !GOAL_TABLES.includes(name),
       ),
     );
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -2719,7 +2722,7 @@ describe('0017_tags migration', () => {
           !GOAL_TABLES.includes(name),
       ),
     );
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
     expect(
       await countOf(
         "select count(*) as n from pg_constraint where conname = 'movements_id_owner_unique'",
@@ -2742,7 +2745,7 @@ describe('0017_tags migration', () => {
     await client.query(await rollback('0018_device_write_limit'));
 
     await client.query(await rollback('0017_tags'));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 25);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -2833,7 +2836,7 @@ describe('0018_device_write_limit migration', () => {
       `insert into movement_rate_limits (owner_id, window_start, count) values ('${owner}', '${WINDOW}', 7)`,
     );
     expect(await hasBucketColumn()).toBe(false);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 23);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -2882,7 +2885,7 @@ describe('0018_device_write_limit migration', () => {
 
     expect(await hasBucketColumn()).toBe(false);
     expect(await primaryKeyColumns()).toEqual(['owner_id', 'window_start']);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 23);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
     expect(
       await countOf(
         `select count(*) as n from movement_rate_limits where owner_id = '${owner}' and count = 7`,
@@ -2900,7 +2903,7 @@ describe('0018_device_write_limit migration', () => {
 
     await client.query(await rollback('0019_credit_cards'));
     await client.query(await rollback(DEVICE_LIMIT_TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 23);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 24);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -2978,7 +2981,7 @@ describe('0019_credit_cards migration', () => {
     await client.query(await rollback('0020_installments'));
     await client.query(await rollback(CREDIT_CARDS_TAG));
     expect((await publicTables()).filter((table) => CARD_TABLES.includes(table))).toEqual([]);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 22);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 23);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -3056,7 +3059,7 @@ describe('0019_credit_cards migration', () => {
 
     expect((await publicTables()).filter((table) => CARD_TABLES.includes(table))).toEqual([]);
     expect(await countOf(`select count(*) as n from accounts where owner_id = '${owner}'`)).toBe(2);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 22);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 23);
     await runMigrations(emptyDatabaseUrl);
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS);
   });
@@ -3119,7 +3122,7 @@ describe('0020_installments migration', () => {
     expect((await publicTables()).filter((table) => INSTALLMENT_TABLES.includes(table))).toEqual(
       [],
     );
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 21);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 22);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -3185,7 +3188,7 @@ describe('0020_installments migration', () => {
     expect(
       await countOf(`select count(*) as n from credit_cards where owner_id = '${owner}'`),
     ).toBe(1);
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 21);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 22);
     await runMigrations(emptyDatabaseUrl);
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS);
   });
@@ -3244,7 +3247,7 @@ describe('0021_installment_currency migration', () => {
 
     await client.query(await rollback('0022_card_statement_import_lines'));
     await client.query(await rollback(TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 20);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 21);
     await client.query(
       `insert into installment_purchases (owner_id, card_id, category_id, total_amount, installment_count, purchased_on)
        values ('${owner}', '${card}', '${category}', 120000, 12, '2026-10-07')`,
@@ -3272,7 +3275,7 @@ describe('0021_installment_currency migration', () => {
     await rollbackFromNewest();
     await client.query(await rollback('0022_card_statement_import_lines'));
     await client.query(await rollback(TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 20);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 21);
     await runMigrations(emptyDatabaseUrl);
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS);
 
@@ -3318,7 +3321,7 @@ describe('0022_card_statement_import_lines migration', () => {
     const card = await insertCard(owner);
     await rollbackFromNewest();
     await client.query(await rollback(TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 20);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -3358,7 +3361,7 @@ describe('0022_card_statement_import_lines migration', () => {
     await client.query(await rollback(TAG));
     await rollbackFromNewest();
     await client.query(await rollback(TAG));
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 20);
     await runMigrations(emptyDatabaseUrl);
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS);
 
@@ -3411,7 +3414,7 @@ describe('0023_recurring_payments migration', () => {
   it('applies on the 0022 schema keeping existing data, and enforces its checks and keys', async () => {
     const owner = await insertUser('ana@recurring-apply.test');
     await rollbackFromNewest();
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 18);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);
 
     await runMigrations(emptyDatabaseUrl);
 
@@ -3458,7 +3461,7 @@ describe('0023_recurring_payments migration', () => {
   it('rolls back twice without failing and has the journal when above 1791510000000 at idx 23', async () => {
     await rollbackFromNewest();
     await rollbackFromNewest();
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 18);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);
     expect(
       await countOf(
         "select count(*) as n from information_schema.tables where table_name like 'recurring%' or table_name = 'notices'",
@@ -3501,13 +3504,13 @@ describe('migration registry head', () => {
 
     expect(() => {
       assertNewestMigration(tags, '0025_notices');
-    }).toThrow(/newest migration is 0040_balance_adjustments/);
+    }).toThrow(/newest migration is 0041_group_notices/);
   });
 
-  it('rolls back 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 then 0023 and finds the schema as before 0023', async () => {
+  it('rolls back 0041, 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 then 0023 and finds the schema as before 0023', async () => {
     await rollbackFromNewest();
 
-    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 18);
+    expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);
     expect(
       await countOf(
         "select count(*) as n from information_schema.tables where table_name like 'recurring%' or table_name = 'notices'",

@@ -35,6 +35,7 @@ import {
   type SettlementLeg,
 } from '../../domain/settlement';
 import { allActiveMembers, lockGroup, type GroupTx } from './group-locks';
+import { publishGroupNotices, type RenderGroupNoticeText } from './group-notices';
 import { decodeCursor, pageOf, type Cursor } from './keyset-cursor';
 import {
   groupActivityLog,
@@ -274,7 +275,11 @@ function afterCursor(cursor: Cursor | null): SQL | undefined {
 }
 
 export class DrizzleGroupSettlementRepository implements GroupSettlementRepository {
-  constructor(private readonly db: Database) {}
+  /** Without `renderNotice` no member is notified; the routes always pass it. */
+  constructor(
+    private readonly db: Database,
+    private readonly renderNotice?: RenderGroupNoticeText,
+  ) {}
 
   async saveSettlement(data: NewGroupSettlement): Promise<GroupSettlement> {
     try {
@@ -333,6 +338,16 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
           subjectId: row.id,
           createdAt: data.activity.createdAt,
         });
+        if (this.renderNotice) {
+          await publishGroupNotices(tx, this.renderNotice, {
+            kind: 'group_settlement',
+            groupId: data.groupId,
+            subjectId: row.id,
+            actorMemberId: data.activity.memberId,
+            memberIds: [data.fromMemberId, data.toMemberId],
+            at: data.activity.createdAt,
+          });
+        }
         return toSettlement(row, legs);
       });
     } catch (error) {

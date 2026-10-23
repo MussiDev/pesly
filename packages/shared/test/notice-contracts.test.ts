@@ -155,13 +155,15 @@ describe('notice response schemas', () => {
     ).toBe(true);
   });
 
-  it('knows the five kinds', () => {
+  it('knows the seven kinds', () => {
     expect(noticeKindSchema.options).toEqual([
       'reminder',
       'recorded',
       'not_recorded',
       'card_statement_due',
       'budget_alert',
+      'group_expense',
+      'group_settlement',
     ]);
   });
 

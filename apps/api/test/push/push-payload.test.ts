@@ -54,6 +54,29 @@ describe('renderPushPayload', () => {
     }
   });
 
+  it('links a group notice to its group and keeps its stored text', () => {
+    const groupId = '5d1c3b8e-1f0a-4c55-8f61-0c2d3e4f5a6b';
+    const expense = render({
+      kind: 'group_expense',
+      language: 'es',
+      storedText: 'Bob agregó un gasto en Casa',
+      groupId,
+    });
+    const settlement = render({ kind: 'group_settlement', language: 'en', groupId });
+
+    expect(expense).toEqual({
+      noticeId: NOTICE_ID,
+      title: 'Pesly',
+      body: 'Bob agregó un gasto en Casa',
+      url: `/es/groups/${groupId}`,
+    });
+    expect(settlement.url).toBe(`/en/groups/${groupId}`);
+  });
+
+  it('links to the notices screen when the group id is null', () => {
+    expect(render({ groupId: null }).url).toBe('/en/notices');
+  });
+
   it('throws for a budget_alert kind (NFR-04)', () => {
     expect(() => render({ kind: 'budget_alert' })).toThrow();
   });

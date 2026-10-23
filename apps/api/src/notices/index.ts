@@ -2,6 +2,8 @@ import type { StatementReminderPublisher } from '../credit-cards/application/por
 import type { NoticePublisher } from '../recurring/application/ports/notice-publisher';
 import type { Database } from '../shared/db/client';
 import { renderNoticeText, type NoticeLanguage } from './domain/notice-text';
+
+export { renderGroupNoticeText, type GroupNoticeTextInput } from './domain/notice-text';
 import { DrizzleNoticePublisher } from './infrastructure/db/drizzle-notice-publisher';
 import { DrizzleStatementReminderPublisher } from './infrastructure/db/drizzle-statement-reminder-publisher';
 

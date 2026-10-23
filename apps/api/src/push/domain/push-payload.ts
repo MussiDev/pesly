@@ -1,7 +1,12 @@
-import { pushNoticesLink, PUSH_PAYLOAD_MAX_BYTES, type PushPayload } from '@pesly/shared';
+import {
+  pushGroupLink,
+  pushNoticesLink,
+  PUSH_PAYLOAD_MAX_BYTES,
+  type NoticeKind,
+  type PushPayload,
+} from '@pesly/shared';
 
-export type PushNoticeKind =
-  'reminder' | 'recorded' | 'not_recorded' | 'card_statement_due' | 'budget_alert';
+export type PushNoticeKind = NoticeKind;
 
 export interface RenderPushPayloadInput {
   noticeId: string;
@@ -10,6 +15,8 @@ export interface RenderPushPayloadInput {
   storedText: string;
   /** `YYYY-MM-DD` */
   dueDate: string;
+  /** The group of a group notice: the push opens it instead of the notices screen. */
+  groupId?: string | null;
 }
 
 const STATEMENT_TEXT = {
@@ -22,7 +29,7 @@ const STATEMENT_TEXT = {
  * notice stores the card name, so its body is re-rendered from the due day alone.
  */
 export function renderPushPayload(input: RenderPushPayloadInput): PushPayload {
-  const { noticeId, kind, language, storedText, dueDate } = input;
+  const { noticeId, kind, language, storedText, dueDate, groupId } = input;
   if (kind === 'budget_alert') throw new Error('A budget alert is never pushed');
 
   const body =
@@ -38,7 +45,11 @@ export function renderPushPayload(input: RenderPushPayloadInput): PushPayload {
         )
       : storedText;
 
-  const payload = { noticeId, title: 'Pesly', body, url: pushNoticesLink(language) };
+  const url =
+    groupId === undefined || groupId === null
+      ? pushNoticesLink(language)
+      : pushGroupLink(language, groupId);
+  const payload = { noticeId, title: 'Pesly', body, url };
   if (new TextEncoder().encode(JSON.stringify(payload)).length > PUSH_PAYLOAD_MAX_BYTES) {
     throw new Error('The push payload exceeds the byte limit');
   }

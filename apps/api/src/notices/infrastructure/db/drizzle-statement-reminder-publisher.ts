@@ -10,7 +10,7 @@ import { renderNoticeText } from '../../domain/notice-text';
 import { notices } from './schema';
 
 const KIND = 'card_statement_due';
-const conflictTarget = [notices.kind, notices.paymentId, notices.dueDate];
+const conflictTarget = [notices.ownerId, notices.kind, notices.paymentId, notices.dueDate];
 
 /** Same format as the credit-cards `reminderKey`, rebuilt here because notices may import only types from it. */
 const keyOf = (statementId: string, dueDate: string): string => `${statementId}|${dueDate}`;

@@ -9,6 +9,7 @@ import request from 'supertest';
 import { expect } from 'vitest';
 import { createAccountRoutes } from '../../src/accounts';
 import { createGroupRoutes } from '../../src/groups';
+import { renderGroupNoticeText } from '../../src/notices';
 import { createAccountMovements, createMovementRoutes } from '../../src/movements';
 import type { DatabaseConnection } from '../../src/shared/db/client';
 import { createLogger } from '../../src/shared/logging/logger';
@@ -60,7 +61,12 @@ export function setupGroupApi(
   const harness = createIdentityHarness(connection, {
     realSessions: true,
     routerFactories: [
-      createGroupRoutes({ db: connection.db, logger, clock }),
+      createGroupRoutes({
+        db: connection.db,
+        logger,
+        clock,
+        renderNoticeText: renderGroupNoticeText,
+      }),
       ...(options.withAccountRoutes
         ? [
             createAccountRoutes({

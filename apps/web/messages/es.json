@@ -1335,8 +1335,8 @@
   },
   "notices": {
     "title": "Avisos",
-    "description": "Recordatorios y resultados de tus pagos recurrentes, y recordatorios de los resúmenes de tus tarjetas.",
-    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes y de los resúmenes de tus tarjetas aparecerán aquí.",
+    "description": "Recordatorios y resultados de tus pagos recurrentes, recordatorios de los resúmenes de tus tarjetas y novedades de tus grupos.",
+    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes y de los resúmenes de tus tarjetas, y las novedades de tus grupos, aparecerán aquí.",
     "markAllRead": "Marcar todos como leídos",
     "loadMore": "Cargar más",
     "retry": "Reintentar",
@@ -1346,6 +1346,7 @@
     "overflow": "{max}+",
     "dueOn": "Vence el {date}",
     "alertMonth": "Alerta de presupuesto de {month}",
+    "recordedOn": "Registrado el {date}",
     "listLabel": "Tus avisos",
     "errors": {
       "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",

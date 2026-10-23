@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderBudgetAlertText } from '../../src/notices';
-import { renderNoticeText } from '../../src/notices/domain/notice-text';
+import { renderGroupNoticeText, renderNoticeText } from '../../src/notices/domain/notice-text';
 
 const DUE = '2026-10-05';
 
@@ -216,6 +216,62 @@ describe('renderNoticeText: privacy and limits', () => {
     });
     expect(text).toContain('N'.repeat(80));
     expect(text).not.toContain('N'.repeat(81));
+    expect(text.length).toBeLessThan(300);
+  });
+});
+
+describe('renderGroupNoticeText', () => {
+  it('names who added an expense and the group, in Spanish and English', () => {
+    const input = { kind: 'group_expense', groupName: 'Casa', actorName: 'Bob' } as const;
+    expect(renderGroupNoticeText({ ...input, language: 'es' })).toBe('Bob agregó un gasto en Casa');
+    expect(renderGroupNoticeText({ ...input, language: 'en' })).toBe(
+      'Bob added an expense in Casa',
+    );
+  });
+
+  it('names who recorded a payment, or a generic member without a display name', () => {
+    const input = { kind: 'group_settlement', groupName: 'Viaje', actorName: null } as const;
+    expect(renderGroupNoticeText({ ...input, language: 'es' })).toBe(
+      'Un integrante registró un pago en Viaje',
+    );
+    expect(renderGroupNoticeText({ ...input, language: 'en' })).toBe(
+      'A member recorded a payment in Viaje',
+    );
+    expect(renderGroupNoticeText({ ...input, actorName: '', language: 'en' })).toBe(
+      'A member recorded a payment in Viaje',
+    );
+  });
+
+  it('is what renderNoticeText gives for the group kinds', () => {
+    expect(
+      renderNoticeText({
+        kind: 'group_expense',
+        language: 'en',
+        subjectName: 'Casa',
+        actorName: 'Bob',
+        dueDate: DUE,
+      }),
+    ).toBe('Bob added an expense in Casa');
+    expect(
+      renderNoticeText({
+        kind: 'group_settlement',
+        language: 'es',
+        subjectName: 'Casa',
+        dueDate: DUE,
+      }),
+    ).toBe('Un integrante registró un pago en Casa');
+  });
+
+  it('cuts both names to 80 characters', () => {
+    const text = renderGroupNoticeText({
+      kind: 'group_expense',
+      language: 'es',
+      groupName: 'G'.repeat(200),
+      actorName: 'A'.repeat(200),
+    });
+    expect(text).toContain('G'.repeat(80));
+    expect(text).not.toContain('G'.repeat(81));
+    expect(text).not.toContain('A'.repeat(81));
     expect(text.length).toBeLessThan(300);
   });
 });

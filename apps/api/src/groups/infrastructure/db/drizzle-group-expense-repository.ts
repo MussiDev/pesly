@@ -39,6 +39,7 @@ import {
 } from '../../domain/group-change';
 import { ensureDefaultCategory, findEquivalentCategory } from './ensure-default-category';
 import { allActiveMembers, lockGroup } from './group-locks';
+import { publishGroupNotices, type RenderGroupNoticeText } from './group-notices';
 import { decodeCursor, pageOf, type Cursor } from './keyset-cursor';
 import {
   groupActivityLog,
@@ -154,9 +155,11 @@ function afterCursor(cursor: Cursor | null): SQL | undefined {
 }
 
 export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
+  /** Without `renderNotice` no member is notified; the routes always pass it. */
   constructor(
     private readonly db: Database,
     private readonly recorder: PayerMovementRecorder<Tx>,
+    private readonly renderNotice?: RenderGroupNoticeText,
   ) {}
 
   async saveExpense(data: NewGroupExpense): Promise<SavedExpense> {
@@ -250,6 +253,16 @@ export class DrizzleGroupExpenseRepository implements GroupExpenseRepository {
           fromMovement: data.activity.fromMovement,
           autoCategory,
         });
+        if (this.renderNotice) {
+          await publishGroupNotices(tx, this.renderNotice, {
+            kind: 'group_expense',
+            groupId: data.groupId,
+            subjectId: row.id,
+            actorMemberId: data.activity.memberId,
+            memberIds: [data.payerMemberId, ...data.shares.map((share) => share.memberId)],
+            at: data.activity.createdAt,
+          });
+        }
         let payerMovementId = row.payerMovementId;
         if (data.payerMovement !== null) {
           payerMovementId = (await this.recorder.record(tx, data.payerMovement)).id;

@@ -28,6 +28,9 @@ export function NoticeList({ notices, onOpen }: NoticeListProps) {
     if (notice.kind === 'budget_alert') {
       return t('alertMonth', { month: formatPeriod(notice.dueDate.slice(0, 7), locale) });
     }
+    if (notice.kind === 'group_expense' || notice.kind === 'group_settlement') {
+      return t('recordedOn', { date: formatCalendarDate(notice.dueDate, locale) });
+    }
     return t('dueOn', { date: formatCalendarDate(notice.dueDate, locale) });
   };
 

@@ -281,6 +281,13 @@
       "when": 1791937632948,
       "tag": "0040_balance_adjustments",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1792780077683,
+      "tag": "0041_group_notices",
+      "breakpoints": true
     }
   ]
 }

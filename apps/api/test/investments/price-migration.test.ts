@@ -32,6 +32,7 @@ const NEWER_TAGS = [
   '0038_exchange_rate_history',
   '0039_push_notifications',
   '0040_balance_adjustments',
+  '0041_group_notices',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

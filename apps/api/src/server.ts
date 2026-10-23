@@ -30,7 +30,7 @@ import {
   createTagRoutes,
   eraseUserMovements,
 } from './movements';
-import { createNoticesRoutes, renderBudgetAlertText } from './notices';
+import { createNoticesRoutes, renderBudgetAlertText, renderGroupNoticeText } from './notices';
 import { createPushRoutes } from './push';
 import { createRecurringRoutes, eraseUserRecurring } from './recurring';
 import { createReportRoutes } from './reports';
@@ -99,7 +99,7 @@ const app = createApp({
     createDashboardRoutes({ db, logger }),
     createExchangeRateRoutes({ db }),
     createGoalRoutes({ db, logger, movements: createAccountMovements(db) }),
-    createGroupRoutes({ db, logger }),
+    createGroupRoutes({ db, logger, renderNoticeText: renderGroupNoticeText }),
     createInvestmentsRoutes({ db, logger }),
     createMovementRoutes({ db, logger, expenseSaved }),
     createNoticesRoutes({ db, logger }),
