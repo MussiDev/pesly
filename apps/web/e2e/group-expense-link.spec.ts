@@ -11,7 +11,7 @@ import {
   groupExpenses,
   senderSetup,
 } from './support/movement-to-group';
-import { openRows } from './support/rows';
+import { openRows, openRowsUntil } from './support/rows';
 
 const t = catalogs.es.groups;
 const link = t.expenses.link;
@@ -72,8 +72,9 @@ test('the payer links an expense that another member recorded, creating the move
     await openRows(bruno);
     await expect(bruno.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(0);
     await ana.goto(`/es/groups/${groupId}/expenses`);
-    await openRows(ana);
-    await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(2);
+    await openRowsUntil(ana, async () => {
+      await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(2);
+    });
 
     // Create the movement from an account and a category (AC-02, AC-07, AC-23).
     const before = await accountBalance(ana, anaFacts.payer.arsAccountId);
@@ -142,8 +143,9 @@ test('the link screen and the row fit 360 px and its controls are reachable by k
     await ana.setViewportSize({ width: 360, height: 740 });
 
     await ana.goto(`/es/groups/${groupId}/expenses`);
-    await openRows(ana);
-    await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toBeVisible();
+    await openRowsUntil(ana, async () => {
+      await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toBeVisible();
+    });
     await expectNoHorizontalScroll(ana);
 
     await ana.getByRole('link', { name: t.expenses.linkAction }).focus();

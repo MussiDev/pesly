@@ -10,7 +10,7 @@ import {
   withoutStoredRates,
 } from './support/database';
 import { chooseCategory, chooseMovementType } from './support/movement-type';
-import { openRows } from './support/rows';
+import { openRowsUntil } from './support/rows';
 
 const API_URL = 'http://localhost:4000';
 const WEB_URL = 'http://localhost:3000';
@@ -224,6 +224,8 @@ test('the entry screen refuses a zero amount and a missing account and saves not
   await createArsAccount(page, '0');
 
   await page.goto('/es/movements/new');
+  // A new movement starts on the only account; taking it off must still be refused (AC-03).
+  await page.getByLabel(t.fields.account, { exact: true }).selectOption('');
   await submit(page).click();
   await expect(page.getByText(t.errors.accountRequired)).toBeVisible();
   await expect(page.getByText(t.errors.categoryRequired)).toBeVisible();
@@ -639,10 +641,14 @@ test('edits an expense from the list, the balance follows, and deletes it after 
 
   // Edit: the screen opens filled in and the type cannot be changed.
   await page.goto('/es/movements');
-  await openRows(page);
-  await page
-    .getByRole('link', { name: `${t.list.actions.edit} ${EXPENSE_CATEGORY}`, exact: true })
-    .click();
+  const edit = page.getByRole('link', {
+    name: `${t.list.actions.edit} ${EXPENSE_CATEGORY}`,
+    exact: true,
+  });
+  await openRowsUntil(page, async () => {
+    await expect(edit).toBeVisible({ timeout: 1000 });
+  });
+  await edit.click();
   await expect(page).toHaveURL(/\/es\/movements\/edit\?id=[0-9a-f-]{36}$/);
   await expect(page.getByLabel(t.fields.amount, { exact: true })).toHaveValue('100,00');
   for (const button of await page
@@ -664,10 +670,14 @@ test('edits an expense from the list, the balance follows, and deletes it after 
 
   // Delete: nothing happens until the confirmation, then the row and its effect are gone.
   await page.goto('/es/movements');
-  await openRows(page);
-  await page
-    .getByRole('button', { name: `${t.list.actions.delete} ${EXPENSE_CATEGORY}`, exact: true })
-    .click();
+  const remove = page.getByRole('button', {
+    name: `${t.list.actions.delete} ${EXPENSE_CATEGORY}`,
+    exact: true,
+  });
+  await openRowsUntil(page, async () => {
+    await expect(remove).toBeVisible({ timeout: 1000 });
+  });
+  await remove.click();
   await expect(page.getByText(t.list.actions.confirmDelete)).toBeVisible();
   expect(await movementsOf(email)).toHaveLength(1);
   await page.getByRole('button', { name: t.list.actions.confirmDeleteYes }).click();

@@ -9,6 +9,12 @@ const ROW_TOGGLE = /^(Acciones de|Actions for) /;
  * still closed: edit, delete and the other row actions only show once a row is tapped.
  */
 export async function openRows(scope: Locator | Page): Promise<void> {
+  // Right after a navigation the rows may not be painted yet; a scope without rows simply times out.
+  await scope
+    .getByRole('button', { name: ROW_TOGGLE })
+    .first()
+    .waitFor({ state: 'attached', timeout: 5000 })
+    .catch(() => undefined);
   const toggles = scope.getByRole('button', { name: ROW_TOGGLE, expanded: false });
   for (let count = await toggles.count(); count > 0; count = await toggles.count()) {
     await toggles.first().click();

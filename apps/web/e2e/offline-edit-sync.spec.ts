@@ -9,7 +9,7 @@ import {
   t,
   trackSameOriginFailures,
 } from './support/offline-visit';
-import { openRows } from './support/rows';
+import { openRowsUntil } from './support/rows';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 // Each flow registers a user, builds a copy of its data on the device and works with a real worker.
@@ -26,13 +26,11 @@ test.beforeEach(async () => {
 const rows = (page: Page) => page.getByRole('listitem').filter({ hasText: ACCOUNT_NAME });
 const waiting = (page: Page) =>
   page.getByRole('status').filter({ hasText: /esperando sincronizarse/ });
-const editLinks = (page: Page) =>
-  page.getByRole('link', { name: new RegExp(`^${t.list.actions.edit} `) });
 
 /** The id in the edit link of the row at `index`: rows carry no id of their own. */
 async function idOfRow(page: Page, index: number): Promise<string> {
-  await openRows(page);
-  const href = await editLinks(page).nth(index).getAttribute('href');
+  // Read from the link itself, which is in the page while its row is folded.
+  const href = await page.locator('a[href*="/movements/edit?id="]').nth(index).getAttribute('href');
   const id = new URL(href ?? '', 'http://localhost').searchParams.get('id');
   if (id === null) throw new Error(`Row ${index} has no edit link`);
   return id;
@@ -90,11 +88,13 @@ test('offline, a user edits one movement and deletes another; both sync with no 
 
   await editAmount(page, edited, '77,00');
   await expect(rows(page).first()).toContainText(t.list.pending);
-  await openRows(rows(page).nth(1));
-  await rows(page)
+  const remove = rows(page)
     .nth(1)
-    .getByRole('button', { name: new RegExp(`^${t.list.actions.delete} `) })
-    .click();
+    .getByRole('button', { name: new RegExp(`^${t.list.actions.delete} `) });
+  await openRowsUntil(rows(page).nth(1), async () => {
+    await expect(remove).toBeVisible({ timeout: 1000 });
+  });
+  await remove.click();
   await page.getByRole('button', { name: t.list.actions.confirmDeleteYes }).click();
   await expect(page.locator(`a[href$="id=${deleted}"]`)).toHaveCount(0);
   await expect(waiting(page)).toHaveText('2 cambios esperando sincronizarse');

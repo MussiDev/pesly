@@ -1,6 +1,5 @@
 'use client';
 
-import { Archive } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
@@ -10,7 +9,7 @@ import { DeleteConfirm } from '../../edit/components/delete-confirm';
 import { FailedChangePanel } from '../../edit/components/failed-change-panel';
 import { RowActions } from '../../edit/components/row-actions';
 import { SyncMarker } from '../../edit/components/sync-marker';
-import { CategoryVisual } from '@/features/categories/components/category-visual';
+import { CategoryChip } from '../../category-views/components/category-chip';
 import type { CategoryDisplay } from '../../category-views/types';
 import type { SyncState } from '../../sync-overlay';
 
@@ -62,7 +61,6 @@ export function ExpenseRow({
 }: ExpenseRowProps) {
   const t = useTranslations('groups.expenses');
   const tCommon = useTranslations('groups.edit.common.actions');
-  const tChip = useTranslations('groups.categoryViews.chip');
   const [expanded, setExpanded] = useState(false);
   const panelId = useId();
   // A failed change or a conflict keeps its way out in view; an open delete confirmation too.
@@ -78,21 +76,12 @@ export function ExpenseRow({
     <ListRow
       wrapDescription
       className="py-2.5"
-      leading={<CategoryVisual icon={category.icon} color={category.color} />}
       title={description}
       description={
         <span className="grid gap-0.5">
-          <span>
-            <span>{category.label}</span>
-            {category.archived ? (
-              <span className="inline-flex items-center gap-1 pl-1">
-                <Archive aria-hidden="true" className="size-3" />
-                {tChip('archived')}
-              </span>
-            ) : null}
-            <span aria-hidden="true"> · </span>
-            <span>{t('paidBy', { name: payer })}</span>
-          </span>
+          {/* The shared chip: icon, colour, name and the archived marker, as on every group view. */}
+          <CategoryChip display={category} size="sm" className="text-caption" />
+          <span>{t('paidBy', { name: payer })}</span>
           <span>{date}</span>
           {linkAction?.kind === 'linked' ? <span>{t('linkedMarker')}</span> : null}
           {edit === undefined ? null : <SyncMarker state={edit.state} />}
