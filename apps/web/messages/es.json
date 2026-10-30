@@ -775,6 +775,13 @@
     },
     "summary": {
       "title": "Resumen",
+      "allCategories": "Todas las categorías",
+      "categoryTotal": "Total",
+      "movementCount": "Movimientos",
+      "breakdownKind": "Ver",
+      "expenses": "Gastos",
+      "incomes": "Ingresos",
+      "bySubcategory": "Por subcategoría",
       "period": "Período",
       "periods": {
         "all": "Todo",
@@ -2368,6 +2375,8 @@
     },
     "categories": {
       "title": "Gastos por categoría",
+      "open": "Ver los gastos de {name}",
+      "total": "Este mes",
       "empty": "No hay gastos este mes.",
       "other": "Otra",
       "viewReport": "Ver reporte"

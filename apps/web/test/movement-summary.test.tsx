@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import type { CategoryResponse, MovementSummaryRow } from '@pesly/shared';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactElement } from 'react';
@@ -124,10 +124,13 @@ describe('movementSummaryView', () => {
   it('adds subcategories into their parent and sorts by the pesos spent', () => {
     const view = movementSummaryView(ROWS, CATEGORIES, options);
 
-    expect(view.categories.map((entry) => [entry.label, entry.count, entry.share])).toEqual([
-      ['Comida', 4, 100],
-      ['Transporte', 3, 50],
+    // Shares of the pesos spent (400000 + 200000), in basis points.
+    expect(view.categories.map((entry) => [entry.label, entry.count, entry.basisPoints])).toEqual([
+      ['Comida', 4, 6666],
+      ['Transporte', 3, 3333],
     ]);
+    expect(view.leadCurrency).toBe('ARS');
+    expect(view.breakdownTotal).toBe(600000n);
     expect(view.categories[1]?.amounts).toEqual([
       { currency: 'ARS', amount: 200000n },
       { currency: 'USD', amount: 1500n },
@@ -174,10 +177,17 @@ describe('movementSummaryView', () => {
   it('is empty, with no share to divide by, when nothing matches', () => {
     const view = movementSummaryView([], CATEGORIES, options);
 
-    expect(view).toEqual({ expense: [], income: [], breakdown: 'expense', categories: [] });
+    expect(view).toEqual({
+      expense: [],
+      income: [],
+      breakdown: 'expense',
+      leadCurrency: undefined,
+      breakdownTotal: 0n,
+      categories: [],
+    });
   });
 
-  it('sorts USD-only categories after peso ones and draws no bar without a lead amount', () => {
+  it('measures the shares in dollars when nothing was in pesos', () => {
     const view = movementSummaryView(
       [
         row(TRANSPORT, '1500', { currency: 'USD' }),
@@ -187,9 +197,10 @@ describe('movementSummaryView', () => {
       options,
     );
 
-    expect(view.categories.map((entry) => [entry.label, entry.share])).toEqual([
-      ['Transporte', 100],
-      ['Comida', 66],
+    expect(view.leadCurrency).toBe('USD');
+    expect(view.categories.map((entry) => [entry.label, entry.basisPoints])).toEqual([
+      ['Transporte', 6000],
+      ['Comida', 4000],
     ]);
   });
 });
@@ -222,8 +233,11 @@ describe('MovementSummary', () => {
     const region = screen.getByRole('region', { name: es.movements.summary.title });
     expect(within(region).getAllByText(es.movements.summary.spent).length).toBeGreaterThan(0);
     expect(within(region).getAllByText(es.movements.summary.earned).length).toBeGreaterThan(0);
-    expect(within(region).getByText(/6000,00/)).toBeDefined();
-    expect(within(region).getByText(/9000,00/)).toBeDefined();
+    expect(within(region).getAllByText(/6000,00/).length).toBeGreaterThan(0);
+    expect(within(region).getAllByText(/9000,00/).length).toBeGreaterThan(0);
+    // The ring draws an arc per category and its legend prints the shares.
+    expect(document.querySelectorAll('circle[data-segment]')).toHaveLength(2);
+    expect(within(region).getByText('67%')).toBeDefined();
     expect(
       within(region).getByRole('heading', { name: es.movements.summary.byCategory }),
     ).toBeDefined();
@@ -238,21 +252,65 @@ describe('MovementSummary', () => {
     expect(props.onSelectCategory).toHaveBeenCalledWith(TRANSPORT);
   });
 
-  it('does not offer the chosen category again, nor a row without a category', () => {
+  it('heads a chosen category with its total and count, and goes back to every category', async () => {
+    const onClearCategory = vi.fn();
     summary({
-      selectedCategoryId: FOOD,
+      selectedCategory: { id: FOOD, label: 'Comida' },
+      onClearCategory,
       state: {
         kind: 'ready',
-        view: movementSummaryView([row(FOOD, '1000'), row(null, '2000')], CATEGORIES, {
+        view: movementSummaryView(
+          [row(GROCERIES, '300000', { count: 2 }), row(RESTAURANTS, '100000')],
+          CATEGORIES,
+          { language: 'es', selectedCategoryId: FOOD, breakdown: 'expense' },
+        ),
+      },
+    });
+
+    expect(screen.getByRole('heading', { name: 'Comida' })).toBeDefined();
+    expect(screen.getAllByText(es.movements.summary.categoryTotal).length).toBeGreaterThan(0);
+    expect(screen.getByText('3')).toBeDefined();
+    expect(screen.getByText(es.movements.summary.bySubcategory)).toBeDefined();
+    // Each subcategory can still be opened on its own.
+    expect(screen.getByRole('button', { name: 'Ver solo Súper' })).toBeDefined();
+    await userEvent.click(screen.getByRole('button', { name: es.movements.summary.allCategories }));
+    expect(onClearCategory).toHaveBeenCalledOnce();
+  });
+
+  it('offers no filter for movements without a category', () => {
+    summary({
+      state: {
+        kind: 'ready',
+        view: movementSummaryView([row(null, '2000')], CATEGORIES, {
           language: 'es',
-          selectedCategoryId: FOOD,
+          selectedCategoryId: undefined,
           breakdown: 'expense',
         }),
       },
     });
 
-    expect(screen.queryByRole('button', { name: /Ver solo/ })).toBeNull();
     expect(screen.getByText(es.movements.summary.uncategorized)).toBeDefined();
+    expect(screen.queryByRole('button', { name: /Ver solo/ })).toBeNull();
+  });
+
+  it('filters by a category from its arc as well as its row', () => {
+    const props = summary();
+
+    fireEvent.click(document.querySelector(`circle[data-segment="${TRANSPORT}"]`) as Element);
+
+    expect(props.onSelectCategory).toHaveBeenCalledWith(TRANSPORT);
+  });
+
+  it('switches the breakdown between expenses and income', async () => {
+    const onBreakdownChange = vi.fn();
+    summary({ onBreakdownChange });
+
+    const toggle = screen.getByRole('group', { name: es.movements.summary.breakdownKind });
+    await userEvent.click(
+      within(toggle).getByRole('button', { name: es.movements.summary.incomes }),
+    );
+
+    expect(onBreakdownChange).toHaveBeenCalledWith('income');
   });
 
   it('changes the period with the quick ranges and marks the current one', async () => {
@@ -278,8 +336,8 @@ describe('MovementSummary', () => {
     expect(custom.hasAttribute('disabled')).toBe(true);
   });
 
-  it('shows three categories, then all of them on request', async () => {
-    const many = [1, 2, 3, 4, 5].map((n) => category({ id: uuid(10 + n), name: `Cat ${n}` }));
+  it('lists five categories, then all of them on request', async () => {
+    const many = [1, 2, 3, 4, 5, 6, 7].map((n) => category({ id: uuid(10 + n), name: `Cat ${n}` }));
     summary({
       state: {
         kind: 'ready',
@@ -291,20 +349,27 @@ describe('MovementSummary', () => {
       },
     });
 
-    expect(screen.getAllByRole('button', { name: /Ver solo/ })).toHaveLength(3);
-    const toggle = screen.getByRole('button', { name: 'Ver las 5 categorías' });
-    await userEvent.click(toggle);
     expect(screen.getAllByRole('button', { name: /Ver solo/ })).toHaveLength(5);
+    const toggle = screen.getByRole('button', { name: 'Ver las 7 categorías' });
+    await userEvent.click(toggle);
+    expect(screen.getAllByRole('button', { name: /Ver solo/ })).toHaveLength(7);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     await userEvent.click(screen.getByRole('button', { name: es.movements.summary.showLess }));
-    expect(screen.getAllByRole('button', { name: /Ver solo/ })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: /Ver solo/ })).toHaveLength(5);
   });
 
   it('shows zero pesos and a note when nothing matches', () => {
     summary({
       state: {
         kind: 'ready',
-        view: { expense: [], income: [], breakdown: 'income', categories: [] },
+        view: {
+          expense: [],
+          income: [],
+          breakdown: 'income',
+          leadCurrency: undefined,
+          breakdownTotal: 0n,
+          categories: [],
+        },
       },
     });
 

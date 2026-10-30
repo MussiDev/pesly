@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { screen, within } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { formatMoney } from '../src/lib/format-amount';
 import { formatCalendarDate } from '../src/features/credit-cards/format-dates';
@@ -61,8 +61,35 @@ describe('CategoriesCard', () => {
     expect(norm(at(rows, 0).textContent)).toContain(money(12000000n, 'ARS', 'en'));
     expect(at(rows, 0).textContent).toContain('60%');
     expect(at(rows, 1).textContent).toContain('40%');
-    const bar = at(rows, 0).querySelector<HTMLElement>('[data-slot="share-bar"]');
-    expect(bar?.style.width).toBe('60%');
+    // The ring draws one arc per category with a share.
+    expect(document.querySelectorAll('circle[data-segment]')).toHaveLength(2);
+  });
+
+  it("links each category to that month's expenses in the movements list, from the row and the arc", () => {
+    const href =
+      '/movements?type=expense&categoryId=00000000-0000-4000-8000-000000000001&from=2026-10-01&to=2026-10-31';
+    const { router } = renderApp(
+      <CategoriesCard
+        locale="en"
+        currency="ARS"
+        total={20000000n}
+        categories={[{ ...FOOD, href }, TRANSPORT]}
+      />,
+      { locale: 'en' },
+    );
+
+    const link = screen.getByRole('link', { name: 'See the expenses of Food' });
+    expect(link.getAttribute('href')).toBe(`/en${href}`);
+    // A row without a link (shares that match no category) only informs.
+    expect(screen.queryByRole('link', { name: /Transport/ })).toBeNull();
+    fireEvent.click(document.querySelector('circle[data-segment="food"]') as Element);
+    expect(router.push).toHaveBeenCalledWith(`/en${href}`);
+    expect(screen.getByText(en.dashboard.categories.total)).toBeDefined();
+    expect(
+      screen.getByText(
+        (_, element) => norm(element?.textContent ?? '') === money(20000000n, 'ARS', 'en'),
+      ),
+    ).toBeDefined();
   });
 
   it('shows the no-spending message and no list for an empty list (AC-16)', () => {

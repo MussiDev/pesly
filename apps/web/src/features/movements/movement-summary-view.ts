@@ -23,8 +23,8 @@ export interface SummaryCategory {
   /** One figure per currency, pesos first; never added across currencies. */
   amounts: SummaryMoney[];
   count: number;
-  /** Width of the bar, 0 to 100, against the largest category in the first currency. */
-  share: number;
+  /** Share of the breakdown in the first currency, in basis points (0 to 10000). */
+  basisPoints: number;
 }
 
 export interface MovementSummaryView {
@@ -32,6 +32,10 @@ export interface MovementSummaryView {
   income: SummaryMoney[];
   /** Which type the category breakdown adds up. */
   breakdown: CategorizedMovementType;
+  /** The currency the shares are measured in: pesos when there are any. */
+  leadCurrency: string | undefined;
+  /** What the breakdown adds up to in that currency. */
+  breakdownTotal: bigint;
   categories: SummaryCategory[];
 }
 
@@ -98,12 +102,17 @@ export function movementSummaryView(
     }
     return b.count - a.count;
   });
-  const largest = lead === undefined ? 0n : amountIn(entries[0]?.amounts ?? [], lead);
+  const breakdownTotal =
+    lead === undefined
+      ? 0n
+      : entries.reduce((sum, entry) => sum + amountIn(entry.amounts, lead), 0n);
 
   return {
     expense: expense.sort(byCurrency),
     income: income.sort(byCurrency),
     breakdown: options.breakdown,
+    leadCurrency: lead,
+    breakdownTotal,
     categories: entries.map((entry) => {
       const category = entry.id === null ? undefined : byId.get(entry.id);
       const own = lead === undefined ? 0n : amountIn(entry.amounts, lead);
@@ -114,7 +123,8 @@ export function movementSummaryView(
         color: category?.color,
         amounts: entry.amounts,
         count: entry.count,
-        share: largest > 0n ? Number((own * 100n) / largest) : 0,
+        // An integer share for drawing; the money itself never leaves bigint.
+        basisPoints: breakdownTotal > 0n ? Number((own * 10000n) / breakdownTotal) : 0,
       };
     }),
   };

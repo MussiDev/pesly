@@ -775,6 +775,13 @@
     },
     "summary": {
       "title": "Summary",
+      "allCategories": "All categories",
+      "categoryTotal": "Total",
+      "movementCount": "Movements",
+      "breakdownKind": "Show",
+      "expenses": "Expenses",
+      "incomes": "Income",
+      "bySubcategory": "By subcategory",
       "period": "Period",
       "periods": {
         "all": "All",
@@ -2362,6 +2369,8 @@
     },
     "categories": {
       "title": "Spending by category",
+      "open": "See the expenses of {name}",
+      "total": "This month",
       "empty": "No spending this month.",
       "other": "Other",
       "viewReport": "View report"

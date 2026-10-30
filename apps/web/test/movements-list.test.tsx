@@ -744,6 +744,38 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     expect(listCalls(calls).at(-1)).toBe(full);
   });
 
+  it('opens a category from the totals: the list narrows to its expenses, and income lets it go', async () => {
+    const summaryRow = { currency: 'ARS', type: 'expense', amount: '150050', count: 1 };
+    const { calls } = stubApi(
+      filteredRoutes({
+        'GET /movements/summary': {
+          status: 200,
+          body: { rows: [{ ...summaryRow, categoryId: COMIDA_ID }] },
+        },
+        [`GET /movements/summary?categoryId=${COMIDA_ID}&type=expense`]: {
+          status: 200,
+          body: { rows: [{ ...summaryRow, categoryId: COMIDA_ID }] },
+        },
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Ver solo Comida' }));
+    await waitFor(() => {
+      expect(listCalls(calls)).toContain(listPath(`categoryId=${COMIDA_ID}&type=expense`));
+    });
+    expect(calls.map((call) => call.path)).toContain(
+      `/movements/summary?categoryId=${COMIDA_ID}&type=expense`,
+    );
+
+    const kind = await screen.findByRole('group', { name: es.movements.summary.breakdownKind });
+    await user.click(within(kind).getByRole('button', { name: es.movements.summary.incomes }));
+    await waitFor(() => {
+      expect(listCalls(calls).at(-1)).toBe(listPath('type=income'));
+    });
+  });
+
   it('a parent category is sent once by its id and the subcategory rows that come back are shown (AC-02)', async () => {
     const byParent = listPath(`categoryId=${TREE_PARENT_ID}`);
     const { calls } = stubApi(

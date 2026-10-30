@@ -40,6 +40,10 @@ export interface CategoryView {
   label: string;
   amount: bigint;
   share: number;
+  /** The colour key of a default category; custom ones take a neutral palette. */
+  color?: string | undefined;
+  /** The month's expenses of this category in the movements list; absent for unmatched shares. */
+  href?: string | undefined;
 }
 
 export interface BudgetView {

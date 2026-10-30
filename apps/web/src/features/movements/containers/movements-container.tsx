@@ -647,6 +647,16 @@ export function MovementsContainer() {
       : [];
 
   const today = dayKey(new Date().toISOString(), reference.data.timeZone);
+  const breakdown = filters.type === 'income' ? 'income' : 'expense';
+  const chosen =
+    filters.categoryId === undefined ? undefined : lookups.categories.get(filters.categoryId);
+  const selectedCategory =
+    filters.categoryId === undefined
+      ? undefined
+      : {
+          id: filters.categoryId,
+          label: chosen === undefined ? tFilters('category') : categoryLabel(chosen, language),
+        };
   const summaryState: MovementSummaryState =
     summary.kind === 'ready'
       ? {
@@ -654,7 +664,7 @@ export function MovementsContainer() {
           view: movementSummaryView(summary.data.rows, reference.data.categories, {
             language,
             selectedCategoryId: filters.categoryId,
-            breakdown: filters.type === 'income' ? 'income' : 'expense',
+            breakdown,
           }),
         }
       : summary;
@@ -673,9 +683,17 @@ export function MovementsContainer() {
               applyFilters({ ...filters, ...periodRange(period, today) });
             }}
             state={summaryState}
-            selectedCategoryId={filters.categoryId}
+            selectedCategory={selectedCategory}
             onSelectCategory={(categoryId) => {
-              applyFilters({ ...filters, categoryId });
+              // A category of the breakdown narrows the list to the same kind of movement.
+              applyFilters({ ...filters, categoryId, type: filters.type ?? breakdown });
+            }}
+            onClearCategory={() => {
+              applyFilters({ ...filters, categoryId: undefined });
+            }}
+            onBreakdownChange={(type) => {
+              // A category belongs to one kind, so switching kind lets it go.
+              applyFilters({ ...filters, type, categoryId: undefined });
             }}
             onRetry={() => {
               setSummaryAttempt((value) => value + 1);

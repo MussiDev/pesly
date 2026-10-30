@@ -123,7 +123,12 @@ export function DashboardScreen({ locale, view, series, attention }: DashboardSc
         ),
         quickActions: <QuickActions />,
         categories: (
-          <CategoriesCard locale={locale} currency={view.currency} categories={view.categories} />
+          <CategoriesCard
+            locale={locale}
+            currency={view.currency}
+            categories={view.categories}
+            total={view.month.expenses.value}
+          />
         ),
         attention: attention.length > 0 ? <DoTheseFirst locale={locale} items={attention} /> : null,
         budgets: <BudgetsCard locale={locale} budgets={view.budgets} />,

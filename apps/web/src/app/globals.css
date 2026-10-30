@@ -13,7 +13,7 @@
   color-scheme: light;
   --radius: 0.75rem;
 
-  --background: oklch(0.975 0.005 264);
+  --background: oklch(0.975 0.006 250);
   --foreground: oklch(0.21 0.03 265);
   --surface: oklch(0.955 0.008 264);
   --card: oklch(1 0 0);
@@ -51,9 +51,14 @@
   /* The balance card: a flat deep navy with light text, the one saturated surface per screen. */
   --hero-from: oklch(0.27 0.065 255);
   --hero-to: oklch(0.27 0.065 255);
-  --hero-glow: oklch(0.33 0.07 258);
+  --hero-glow: oklch(0.36 0.09 262);
+  /* A flat navy with one soft disc in the top corner, as a mark rather than a glow. */
   --hero:
-    radial-gradient(80% 70% at 100% 0%, var(--hero-glow) 0%, transparent 70%),
+    radial-gradient(
+      circle at calc(100% + 1.5rem) -2.5rem,
+      var(--hero-glow) 0 6.5rem,
+      transparent 6.6rem
+    ),
     linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.82 0.04 262);
@@ -121,9 +126,14 @@
 
   --hero-from: oklch(0.25 0.06 258);
   --hero-to: oklch(0.25 0.06 258);
-  --hero-glow: oklch(0.31 0.07 260);
+  --hero-glow: oklch(0.33 0.08 262);
+  /* A flat navy with one soft disc in the top corner, as a mark rather than a glow. */
   --hero:
-    radial-gradient(80% 70% at 100% 0%, var(--hero-glow) 0%, transparent 70%),
+    radial-gradient(
+      circle at calc(100% + 1.5rem) -2.5rem,
+      var(--hero-glow) 0 6.5rem,
+      transparent 6.6rem
+    ),
     linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
@@ -166,6 +176,9 @@
   --font-sans:
     var(--font-plus-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     sans-serif;
+  /* Headings and headline figures; `--font-bricolage` is set by next/font. */
+  --font-display:
+    var(--font-bricolage), var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
 
   --text-display: 2rem;
   --text-display--line-height: 1.15;
@@ -263,6 +276,13 @@
   }
   body {
     @apply bg-background text-body text-foreground font-sans;
+  }
+  /* The display face carries the page and card titles; the small uppercase labels keep the body face. */
+  :where(h1, h2, h3, .text-display, .text-title, .text-heading) {
+    font-family: var(--font-display);
+  }
+  :where(h1, h2, h3).uppercase {
+    font-family: var(--font-sans);
   }
   /* White blocks drawn straight with the utilities get the same hairline as Card; zero specificity, so
      an explicit shadow utility still wins. */
