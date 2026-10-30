@@ -771,7 +771,10 @@
       "hideAdjustments": "Ocultar ajustes",
       "active": "Filtros activos",
       "remove": "Quitar filtro {name}",
-      "activeCount": "{count, plural, one {# filtro activo} other {# filtros activos}}"
+      "activeCount": "{count, plural, one {# filtro activo} other {# filtros activos}}",
+      "rangeBetween": "Del {from} al {to}",
+      "rangeFrom": "Desde el {from}",
+      "rangeTo": "Hasta el {to}"
     },
     "summary": {
       "title": "Resumen",

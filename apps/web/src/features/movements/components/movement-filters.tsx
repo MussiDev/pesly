@@ -1,7 +1,7 @@
 'use client';
 
 import { CREATABLE_MOVEMENT_TYPES, movementFilterShape } from '@pesly/shared';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { X } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
@@ -123,17 +123,60 @@ export function MovementFilters({
   ].filter((value) => value !== undefined).length;
   const accountLabel = accounts.find((account) => account.id === filters.accountId)?.label;
   const categoryLabel = categories.find((category) => category.id === filters.categoryId)?.label;
+  const locale = useLocale();
+  // A filter day is a calendar date, so it is formatted in UTC to stay that same day.
+  const day = (value: string) =>
+    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+      new Date(`${value}T00:00:00Z`),
+    );
+  const rangeLabel =
+    filters.from !== undefined && filters.to !== undefined
+      ? t('filters.rangeBetween', { from: day(filters.from), to: day(filters.to) })
+      : filters.from !== undefined
+        ? t('filters.rangeFrom', { from: day(filters.from) })
+        : filters.to !== undefined
+          ? t('filters.rangeTo', { to: day(filters.to) })
+          : undefined;
   // What is on, besides the type: each one is a chip that takes it off.
-  const activeChips: { key: keyof MovementFilterValues; label: string }[] = [
+  const activeChips: { key: string; label: string; without: MovementFilterValues }[] = [
     ...(filters.categoryId === undefined
       ? []
-      : [{ key: 'categoryId' as const, label: categoryLabel ?? t('filters.category') }]),
+      : [
+          {
+            key: 'categoryId',
+            label: categoryLabel ?? t('filters.category'),
+            without: withValue(filters, 'categoryId', ''),
+          },
+        ]),
     ...(filters.accountId === undefined
       ? []
-      : [{ key: 'accountId' as const, label: accountLabel ?? t('filters.account') }]),
-    ...(filters.tag === undefined ? [] : [{ key: 'tag' as const, label: `#${filters.tag}` }]),
+      : [
+          {
+            key: 'accountId',
+            label: accountLabel ?? t('filters.account'),
+            without: withValue(filters, 'accountId', ''),
+          },
+        ]),
+    ...(rangeLabel === undefined
+      ? []
+      : [
+          {
+            key: 'range',
+            label: rangeLabel,
+            without: { ...filters, from: undefined, to: undefined },
+          },
+        ]),
+    ...(filters.tag === undefined
+      ? []
+      : [{ key: 'tag', label: `#${filters.tag}`, without: withValue(filters, 'tag', '') }]),
     ...(filters.hideAdjustments === 'true'
-      ? [{ key: 'hideAdjustments' as const, label: t('filters.hideAdjustments') }]
+      ? [
+          {
+            key: 'hideAdjustments',
+            label: t('filters.hideAdjustments'),
+            without: withValue(filters, 'hideAdjustments', ''),
+          },
+        ]
       : []),
   ];
 
@@ -186,7 +229,7 @@ export function MovementFilters({
                   aria-label={t('filters.remove', { name: chip.label })}
                   className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-pill bg-primary/10 pr-3 pl-4 text-small font-semibold text-primary transition-colors outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none"
                   onClick={() => {
-                    onChange(withValue(filters, chip.key, ''));
+                    onChange(chip.without);
                   }}
                 >
                   <span className="truncate">{chip.label}</span>

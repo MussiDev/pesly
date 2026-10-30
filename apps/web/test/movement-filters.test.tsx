@@ -402,6 +402,25 @@ describe('MovementFilters: active filter chips', () => {
     expect(onClear).toHaveBeenCalledOnce();
   });
 
+  it('shows a date range as one chip that clears both days, in the active language', async () => {
+    const { onChange, onClear, unmount } = renderBar({
+      filters: { from: '2026-09-10', to: '2026-09-20' },
+    });
+
+    const chip = screen.getByRole('button', {
+      name: /^Quitar filtro Del 10 sept?\.? al 20 sept?\.?$/,
+    });
+    await userEvent.click(chip);
+    expect(onChange).toHaveBeenLastCalledWith({ from: undefined, to: undefined });
+    // With only dates on, the clear action is still offered.
+    await userEvent.click(screen.getByRole('button', { name: es.movements.filters.clear }));
+    expect(onClear).toHaveBeenCalledOnce();
+    unmount();
+
+    renderBar({ filters: { from: '2026-09-10' } }, 'en');
+    expect(screen.getByRole('button', { name: 'Remove filter From Sep 10' })).toBeDefined();
+  });
+
   it('shows no chips and no count with only a type or nothing chosen', () => {
     renderBar({ filters: { type: 'expense' } });
 
