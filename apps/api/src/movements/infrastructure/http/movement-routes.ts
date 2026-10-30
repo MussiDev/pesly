@@ -5,6 +5,8 @@ import {
   movementDetailResponseSchema,
   movementIdParamsSchema,
   movementResponseSchema,
+  movementSummaryQuerySchema,
+  movementSummaryResponseSchema,
   updateMovementRequestSchema,
 } from '@pesly/shared';
 import { Router } from 'express';
@@ -41,15 +43,22 @@ import type { Clock } from '../../application/ports/clock';
 import type { ExpenseSavedHook } from '../../application/ports/expense-saved-listener';
 import { RecordDeviceMovement } from '../../application/record-device-movement';
 import { RecordManualMovement } from '../../application/record-manual-movement';
+import { SummarizeMovements } from '../../application/summarize-movements';
 import { UpdateMovement } from '../../application/update-movement';
 import { DrizzleAccountLookup } from '../db/drizzle-account-lookup';
 import { DrizzleCategoryLookup } from '../db/drizzle-category-lookup';
 import { DrizzleMovementRepository } from '../db/drizzle-movement-repository';
+import { DrizzleMovementSummaryReader } from '../db/drizzle-movement-summary-reader';
 import { DrizzleMovementWriteLimiter } from '../db/drizzle-movement-write-limiter';
 import { DrizzleRateLookup } from '../db/drizzle-rate-lookup';
 import { DrizzleUserPreferences } from '../db/drizzle-user-preferences';
 import { SystemClock } from '../system-clock';
-import { presentMovement, presentMovementDetail, presentMovementList } from './movement-presenter';
+import {
+  presentMovement,
+  presentMovementDetail,
+  presentMovementList,
+  presentMovementSummary,
+} from './movement-presenter';
 
 export interface MovementRoutesOptions {
   db: Database;
@@ -203,6 +212,10 @@ export function createMovementRoutes({
     movements,
     preferences: new DrizzleUserPreferences(db),
   });
+  const summarizeMovements = new SummarizeMovements({
+    summaries: new DrizzleMovementSummaryReader(db),
+    preferences: new DrizzleUserPreferences(db),
+  });
   const getMovement = new GetMovement({ movements });
   const updateMovement = new UpdateMovement({
     movements,
@@ -248,6 +261,18 @@ export function createMovementRoutes({
         async ({ query }, { res, auth }) => {
           const scope = await scopeOf(policy, auth, 'read');
           res.json(presentMovementList(await listMovements.execute(scope, query), query));
+        },
+      ),
+    );
+
+    // Before `/movements/:id`, which would otherwise take "summary" as an id.
+    router.get(
+      '/movements/summary',
+      validate(
+        { query: movementSummaryQuerySchema, response: movementSummaryResponseSchema },
+        async ({ query }, { res, auth }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          res.json(presentMovementSummary(await summarizeMovements.execute(scope, query)));
         },
       ),
     );

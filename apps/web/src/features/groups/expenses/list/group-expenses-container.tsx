@@ -15,7 +15,7 @@ import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ApiResult } from '@/lib/api-client';
 import { useApiClient } from '@/lib/api-client-provider';
-import { formatDateTime, formatMoney } from '@/lib/format-amount';
+import { formatMoney, formatShortDate } from '@/lib/format-amount';
 import { resolveCategory } from '../../category-views/resolve-category';
 import type { CategoryDisplay, FilteredTotal } from '../../category-views/types';
 import { GroupNotFoundView } from '../../components/group-not-found';
@@ -251,7 +251,7 @@ function GroupExpensesScreen({
       category: rowCategory(expense.categoryId),
       payer: memberName(expense.payerMemberId),
       amount: formatMoney(BigInt(expense.amount), expense.currency, language),
-      date: formatDateTime(expense.occurredAt, timeZone, language),
+      date: formatShortDate(expense.occurredAt, timeZone, language),
       share:
         own === undefined ? undefined : formatMoney(BigInt(own.amount), expense.currency, language),
       // Only the payer, and only for a stored expense: a queued one has no server id to link yet.

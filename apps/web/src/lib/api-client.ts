@@ -65,6 +65,8 @@ import {
   latestRatesResponseSchema,
   listMovementsResponseSchema,
   movementDetailResponseSchema,
+  movementSummaryResponseSchema,
+  type MovementSummaryResponse,
   sendMovementToGroupRequestSchema,
   sendMovementToGroupResponseSchema,
   linkPayerMovementRequestSchema,
@@ -605,6 +607,14 @@ const LIST_MOVEMENTS_QUERY_KEYS = [
   'hideAdjustments',
 ] as const satisfies readonly (keyof ListMovementsParams)[];
 
+/** The filters of `GET /movements/summary`: the list filters without paging. */
+export type MovementSummaryParams = Omit<ListMovementsParams, 'limit' | 'offset'>;
+
+const MOVEMENT_SUMMARY_QUERY_KEYS = LIST_MOVEMENTS_QUERY_KEYS.filter(
+  (key): key is Exclude<(typeof LIST_MOVEMENTS_QUERY_KEYS)[number], 'limit' | 'offset'> =>
+    key !== 'limit' && key !== 'offset',
+);
+
 /** Only a positive whole number of seconds is a usable wait; HTTP dates and junk are ignored. */
 function readRetryAfterSeconds(response: Response): number | undefined {
   const header = response.headers.get('Retry-After');
@@ -775,6 +785,8 @@ export interface ApiClient {
   updateMovement(id: string, body: UpdateMovementInput): Promise<ApiResult<MovementResponse>>;
   deleteMovement(id: string): Promise<ApiResult<undefined>>;
   listMovements(query: ListMovementsParams): Promise<ApiResult<ListMovementsResponse>>;
+  /** What the matching expenses and incomes add up to, by category and currency. */
+  getMovementSummary(query: MovementSummaryParams): Promise<ApiResult<MovementSummaryResponse>>;
   /** The caller's stored tags that start with `prefix`, for suggestions. */
   listTags(query: ListTagsParams): Promise<ApiResult<TagSuggestionsResponse>>;
   /** Every tag of the caller, a page at a time: what the device keeps for offline suggestions. */
@@ -1821,6 +1833,20 @@ export function createApiClient({
         method: 'GET',
         path: queryString ? `/movements?${queryString}` : '/movements',
         response: listMovementsResponseSchema,
+        refreshOnUnauthenticated: true,
+      });
+    },
+    getMovementSummary: (params) => {
+      const query = new URLSearchParams();
+      for (const key of MOVEMENT_SUMMARY_QUERY_KEYS) {
+        const value = params[key];
+        if (value !== undefined) query.set(key, value);
+      }
+      const queryString = query.toString();
+      return request({
+        method: 'GET',
+        path: queryString ? `/movements/summary?${queryString}` : '/movements/summary',
+        response: movementSummaryResponseSchema,
         refreshOnUnauthenticated: true,
       });
     },

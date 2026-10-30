@@ -16,7 +16,7 @@ export function CategoryFilter({
   const t = useTranslations('groups.categoryViews.filter');
   if (options.length === 0) return null;
   return (
-    <div role="group" aria-label={t('label')} className="flex flex-wrap gap-2">
+    <div role="group" aria-label={t('label')} className="flex gap-2 overflow-x-auto pb-1">
       {options.map((option) => (
         <Chip
           key={option.id}
@@ -24,7 +24,7 @@ export function CategoryFilter({
           onClick={() => {
             onToggle(option.id);
           }}
-          className="h-auto max-w-full py-1 whitespace-normal"
+          className="h-auto shrink-0 py-1"
         >
           <CategoryChip display={option} size="sm" />
         </Chip>

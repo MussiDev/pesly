@@ -8,6 +8,7 @@ import {
   scrollsHorizontally,
   signedInUser,
 } from './support/groups';
+import { openGroupManagement } from './support/rows';
 
 const t = catalogs.es.groups;
 const tCategories = catalogs.es.categories;
@@ -80,6 +81,7 @@ test('two users: create, invite, join, add a member without an account, add a ca
     ).toBeVisible();
 
     // B has no balance, so B leaves and is back on the list without the group.
+    await openGroupManagement(pageB);
     await pageB.getByRole('button', { name: t.detail.leave.action }).click();
     await expect(pageB).toHaveURL(/\/es\/groups$/);
     await expect(pageB.getByText(t.list.empty.title)).toBeVisible();

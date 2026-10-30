@@ -289,11 +289,13 @@ describe('MovementFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({});
   });
 
-  it('hands the container a ref to the first filter control, the account select', () => {
-    const firstControlRef = createRef<HTMLSelectElement>();
+  it('hands the container a ref to the first filter control, the "all types" chip', () => {
+    const firstControlRef = createRef<HTMLButtonElement>();
     renderBar({ firstControlRef });
 
-    expect(firstControlRef.current).toBe(screen.getByLabelText(es.movements.filters.account));
+    expect(firstControlRef.current).toBe(
+      screen.getByRole('button', { name: es.movements.filters.all }),
+    );
   });
 
   it('shows the English wording', () => {
@@ -374,5 +376,47 @@ describe('MovementFilters: hide adjustments (FEAT-012)', () => {
     expect(serializeFilters({ hideAdjustments: 'true' }).toString()).toBe('hideAdjustments=true');
     expect(filtersToListParams({ hideAdjustments: 'true' })).toEqual({ hideAdjustments: 'true' });
     expect(hasActiveFilters({ hideAdjustments: 'true' })).toBe(true);
+  });
+});
+
+describe('MovementFilters: active filter chips', () => {
+  it('shows each active filter as a chip that takes it off, and counts the ones in the panel', async () => {
+    const { onChange, onClear } = renderBar({
+      filters: { categoryId: COMIDA, accountId: CAJA, tag: 'Viaje', hideAdjustments: 'true' },
+    });
+
+    const chips = screen.getByRole('list', { name: es.movements.filters.active });
+    expect(within(chips).getByRole('button', { name: 'Quitar filtro Comida' })).toBeDefined();
+    expect(within(chips).getByRole('button', { name: 'Quitar filtro Caja' })).toBeDefined();
+    expect(within(chips).getByRole('button', { name: 'Quitar filtro #Viaje' })).toBeDefined();
+    expect(screen.getByText('4 filtros activos')).toBeDefined();
+
+    await userEvent.click(within(chips).getByRole('button', { name: 'Quitar filtro Comida' }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      categoryId: undefined,
+      accountId: CAJA,
+      tag: 'Viaje',
+      hideAdjustments: 'true',
+    });
+    await userEvent.click(within(chips).getByRole('button', { name: es.movements.filters.clear }));
+    expect(onClear).toHaveBeenCalledOnce();
+  });
+
+  it('shows no chips and no count with only a type or nothing chosen', () => {
+    renderBar({ filters: { type: 'expense' } });
+
+    expect(screen.queryByRole('list', { name: es.movements.filters.active })).toBeNull();
+    expect(screen.queryByText(/filtros? activos?/)).toBeNull();
+  });
+
+  it('names a chip by its kind when the chosen id is not among the options', () => {
+    renderBar({ filters: { categoryId: uuid(77), accountId: uuid(78) } });
+
+    expect(
+      screen.getByRole('button', { name: `Quitar filtro ${es.movements.filters.category}` }),
+    ).toBeDefined();
+    expect(
+      screen.getByRole('button', { name: `Quitar filtro ${es.movements.filters.account}` }),
+    ).toBeDefined();
   });
 });

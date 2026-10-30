@@ -35,9 +35,9 @@ export function SuggestedPayments({
         {payments.map((payment) => (
           <li
             key={`${payment.fromMemberId}-${payment.toMemberId}`}
-            className="flex flex-wrap items-center justify-between gap-2"
+            className="flex items-center justify-between gap-3"
           >
-            <span>
+            <span className="min-w-0 text-small">
               {t('payment', {
                 payer: payment.fromName ?? tDetail('unnamed'),
                 payee: payment.toName ?? tDetail('unnamed'),
@@ -47,6 +47,7 @@ export function SuggestedPayments({
             <Button
               variant="outline"
               size="sm"
+              className="shrink-0"
               aria-label={recordLabel?.(payment)}
               onClick={() => {
                 onRecord(payment);

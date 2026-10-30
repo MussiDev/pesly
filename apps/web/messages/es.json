@@ -737,6 +737,7 @@
       "inGroup": "En el grupo {name}",
       "inGroupUnknown": "En un grupo",
       "highlighted": "Movimiento seleccionado",
+      "toggleActions": "Acciones de {title}",
       "actions": {
         "sendToGroup": "Enviar a un grupo",
         "edit": "Editar",
@@ -766,7 +767,33 @@
       "showAll": "Ver todos los movimientos",
       "noMatch": "Ningún movimiento coincide con estos filtros.",
       "invalidRange": "La fecha «Desde» no puede ser posterior a «Hasta».",
-      "hideAdjustments": "Ocultar ajustes"
+      "hideAdjustments": "Ocultar ajustes",
+      "active": "Filtros activos",
+      "remove": "Quitar filtro {name}",
+      "activeCount": "{count, plural, one {# filtro activo} other {# filtros activos}}"
+    },
+    "summary": {
+      "title": "Resumen",
+      "period": "Período",
+      "periods": {
+        "all": "Todo",
+        "thisMonth": "Este mes",
+        "lastMonth": "Mes pasado",
+        "custom": "Personalizado"
+      },
+      "spent": "Gastado",
+      "earned": "Ingresado",
+      "byCategory": "En qué gastaste",
+      "byCategoryIncome": "De dónde vinieron",
+      "count": "{count, plural, one {# movimiento} other {# movimientos}}",
+      "uncategorized": "Sin categoría",
+      "filterBy": "Ver solo {name}",
+      "showAll": "Ver las {count} categorías",
+      "showLess": "Ver menos",
+      "loading": "Calculando totales…",
+      "failed": "No pudimos calcular los totales.",
+      "retry": "Volver a calcular",
+      "empty": "No hay gastos ni ingresos con estos filtros."
     },
     "new": {
       "title": "Nuevo movimiento",
@@ -1629,6 +1656,7 @@
       "label": "Gastos del grupo",
       "add": "Agregar gasto",
       "paidBy": "Pagó {name}",
+      "toggleActions": "Acciones de {description}",
       "yourShare": "Tu parte: {amount}",
       "linkAction": "Vincular a mi cuenta",
       "linkedMarker": "Vinculado a tu cuenta",
@@ -1916,6 +1944,8 @@
       "recordFor": "Registrar pago de {payer} a {payee}",
       "defaultRate": "Cotización por defecto: {rateType}",
       "membersTitle": "Miembros",
+      "manageTitle": "Miembros y ajustes",
+      "manageHint": "{count, plural, one {# miembro} other {# miembros}} · invitar, ajustes y salir",
       "formerTitle": "Ex miembros",
       "roles": { "admin": "Admin", "member": "Miembro" },
       "ghost": "Aún sin cuenta",

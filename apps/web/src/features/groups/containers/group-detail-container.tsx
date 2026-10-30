@@ -1,7 +1,7 @@
 'use client';
 
 import { rateTypeSchema, type GroupDetailResponse } from '@pesly/shared';
-import { Users } from 'lucide-react';
+import { ChevronDown, Users } from 'lucide-react';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { buttonVariants } from '@/components/ui/button';
@@ -299,34 +299,51 @@ export function GroupDetailContainer({ groupId, panels }: GroupDetailContainerPr
         items={recentItems}
         onRetry={recent.retry}
       />
-      <GroupMembers
-        members={group.members}
-        formerMembers={group.formerMembers}
-        canAdmin={isAdmin}
-        busy={busy}
-        issue={memberIssue}
-        onPromote={promote}
-        onRemove={remove}
-      />
-      <div data-slot="group-panels" className="grid gap-6 empty:hidden">
-        <GroupInviteContainer groupId={group.id} />
-        <GroupGhostContainer
-          groupId={group.id}
-          members={group.members}
-          reload={() => void reload()}
-        />
-        {panels?.({ group, isAdmin, reload: () => void reload() })}
-      </div>
-      {isAdmin ? (
-        <GroupAdminActions
-          defaultRateType={group.defaultRateType}
-          pending={busy}
-          saved={rateSaved}
-          issue={rateIssue}
-          onChangeRateType={changeRateType}
-        />
-      ) : null}
-      <LeaveGroupPanel pending={busy} issue={leaveIssue} onLeave={leave} />
+      {/* Who is in the group and how it is run: kept out of the way of the day-to-day figures. */}
+      <details className="group/manage rounded-card bg-card">
+        <summary className="flex min-h-14 cursor-pointer items-center justify-between gap-3 px-4 py-3">
+          <span className="grid gap-0.5">
+            <span className="text-body font-semibold">{t('manageTitle')}</span>
+            <span className="text-caption text-muted-foreground">
+              {t('manageHint', { count: group.members.length })}
+            </span>
+          </span>
+          <ChevronDown
+            aria-hidden
+            className="size-5 shrink-0 text-muted-foreground transition-transform group-open/manage:rotate-180 motion-reduce:transition-none"
+          />
+        </summary>
+        <div className="grid gap-6 px-4 pb-4">
+          <GroupMembers
+            members={group.members}
+            formerMembers={group.formerMembers}
+            canAdmin={isAdmin}
+            busy={busy}
+            issue={memberIssue}
+            onPromote={promote}
+            onRemove={remove}
+          />
+          <div data-slot="group-panels" className="grid gap-6 empty:hidden">
+            <GroupInviteContainer groupId={group.id} />
+            <GroupGhostContainer
+              groupId={group.id}
+              members={group.members}
+              reload={() => void reload()}
+            />
+            {panels?.({ group, isAdmin, reload: () => void reload() })}
+          </div>
+          {isAdmin ? (
+            <GroupAdminActions
+              defaultRateType={group.defaultRateType}
+              pending={busy}
+              saved={rateSaved}
+              issue={rateIssue}
+              onChangeRateType={changeRateType}
+            />
+          ) : null}
+          <LeaveGroupPanel pending={busy} issue={leaveIssue} onLeave={leave} />
+        </div>
+      </details>
     </div>
   );
 }

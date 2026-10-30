@@ -46,6 +46,8 @@ export interface MovementListProps {
   onShowMore: () => void;
   /** The filter bar; it stays mounted while the rows below reload. */
   filterBar?: ReactNode;
+  /** The totals of the filtered movements, between the bar and the rows. */
+  summary?: ReactNode;
   /** Whether any filter is on: an empty list then means "no matches", not "no history". */
   filtersActive?: boolean;
   /** Clears every filter; offered with the no-matches message. */
@@ -139,6 +141,7 @@ export function MovementList({
   rowActions,
   onShowMore,
   filterBar,
+  summary,
   filtersActive = false,
   onClearFilters,
   offlineNotice = false,
@@ -169,6 +172,7 @@ export function MovementList({
         </label>
       )}
       {filterBar}
+      {summary}
       {offlineNotice ? (
         <p role="status" className="text-small text-muted-foreground">
           {t('offlineNotice')}
@@ -201,12 +205,6 @@ export function MovementList({
         )
       ) : (
         <>
-          <div className="flex justify-end">
-            <Link href="/movements/new" className={buttonVariants({ size: 'sm' })}>
-              <Plus aria-hidden />
-              {t('newMovement')}
-            </Link>
-          </div>
           {shown.length === 0 ? (
             <p className="rounded-card bg-card px-4 py-8 text-center text-small text-muted-foreground">
               {tFilters('noMatch')}

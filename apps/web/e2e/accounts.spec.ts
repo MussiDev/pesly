@@ -3,6 +3,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { catalogs } from './support/catalogs';
 import { resetAttemptLimits } from './support/database';
 import { emailLink } from './support/mailpit';
+import { openRows } from './support/rows';
 
 const API_URL = 'http://localhost:4000';
 const PASSWORD = 'correct horse battery staple';
@@ -342,10 +343,13 @@ test('setting a balance records an adjustment, keeps the opening balance read-on
   const movementsT = es.movements;
   await page.goto('/es/movements');
   await expect(page.getByText(movementsT.types.adjustment, { exact: true }).first()).toBeVisible();
+  // The adjustments switch lives in the folded filters panel.
+  await page.locator('summary', { hasText: movementsT.filters.title }).click();
   await page.getByLabel(movementsT.filters.hideAdjustments).check();
   await expect(page.getByText(movementsT.types.adjustment, { exact: true })).toHaveCount(0);
   await page.getByLabel(movementsT.filters.hideAdjustments).uncheck();
   await expect(page.getByText(movementsT.types.adjustment, { exact: true }).first()).toBeVisible();
+  await openRows(page);
   await page
     .getByRole('button', { name: new RegExp(`^${movementsT.list.actions.delete}`) })
     .first()

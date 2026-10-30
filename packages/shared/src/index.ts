@@ -33,6 +33,7 @@ export * from './movements/movement';
 export * from './movements/implied-rate';
 export * from './movements/tag';
 export * from './movements/movement-filters';
+export * from './movements/movement-summary';
 export * from './movements/rate-age';
 export * from './movements/rate-input';
 export * from './time/zoned-time';

@@ -737,6 +737,7 @@
       "inGroup": "In group {name}",
       "inGroupUnknown": "In a group",
       "highlighted": "Selected movement",
+      "toggleActions": "Actions for {title}",
       "actions": {
         "sendToGroup": "Send to group",
         "edit": "Edit",
@@ -766,7 +767,33 @@
       "showAll": "Show all movements",
       "noMatch": "No movements match these filters.",
       "invalidRange": "The From date cannot be after the To date.",
-      "hideAdjustments": "Hide adjustments"
+      "hideAdjustments": "Hide adjustments",
+      "active": "Active filters",
+      "remove": "Remove filter {name}",
+      "activeCount": "{count, plural, one {# active filter} other {# active filters}}"
+    },
+    "summary": {
+      "title": "Summary",
+      "period": "Period",
+      "periods": {
+        "all": "All",
+        "thisMonth": "This month",
+        "lastMonth": "Last month",
+        "custom": "Custom"
+      },
+      "spent": "Spent",
+      "earned": "Earned",
+      "byCategory": "Where your money went",
+      "byCategoryIncome": "Where it came from",
+      "count": "{count, plural, one {# movement} other {# movements}}",
+      "uncategorized": "No category",
+      "filterBy": "Show only {name}",
+      "showAll": "See all {count} categories",
+      "showLess": "See less",
+      "loading": "Adding up totals…",
+      "failed": "We couldn't add up the totals.",
+      "retry": "Recalculate",
+      "empty": "No expenses or income match these filters."
     },
     "new": {
       "title": "New movement",
@@ -1623,6 +1650,7 @@
       "label": "Group expenses",
       "add": "Add expense",
       "paidBy": "Paid by {name}",
+      "toggleActions": "Actions for {description}",
       "yourShare": "Your share: {amount}",
       "linkAction": "Link to my account",
       "linkedMarker": "Linked to your account",
@@ -1910,6 +1938,8 @@
       "recordFor": "Record payment from {payer} to {payee}",
       "defaultRate": "Default exchange rate: {rateType}",
       "membersTitle": "Members",
+      "manageTitle": "Members and settings",
+      "manageHint": "{count, plural, one {# member} other {# members}} · invite, settings and leave",
       "formerTitle": "Former members",
       "roles": { "admin": "Admin", "member": "Member" },
       "ghost": "No account yet",

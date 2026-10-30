@@ -143,6 +143,35 @@ describe('api client: movements (DISC-001-03b Block 8)', () => {
     expect(requestAt(fetch, 0).url).toBe(`${BASE_URL}/movements?limit=100&hideAdjustments=true`);
   });
 
+  it('getMovementSummary sends the filters without paging and parses the rows', async () => {
+    const summary = {
+      rows: [
+        { categoryId: CATEGORY_ID, currency: 'ARS', type: 'expense', amount: '150050', count: 2 },
+      ],
+    };
+    const { client, fetch } = clientWith(jsonResponse(200, summary), jsonResponse(200, summary));
+
+    expect(
+      await client.getMovementSummary({
+        categoryId: CATEGORY_ID,
+        from: '2026-10-01',
+        tag: 'Viaje',
+      }),
+    ).toEqual({ ok: true, data: summary });
+    await client.getMovementSummary({});
+
+    expect(requestAt(fetch, 0).url).toBe(
+      `${BASE_URL}/movements/summary?categoryId=${CATEGORY_ID}&from=2026-10-01&tag=Viaje`,
+    );
+    expect(requestAt(fetch, 1).url).toBe(`${BASE_URL}/movements/summary`);
+  });
+
+  it('getMovementSummary rejects a malformed answer instead of passing it on', async () => {
+    const { client } = clientWith(jsonResponse(200, { rows: [{ amount: 1.5 }] }));
+
+    expect(await client.getMovementSummary({})).toMatchObject({ ok: false });
+  });
+
   it('createMovement sends the tags in the body (AC-03)', async () => {
     const { client, fetch } = clientWith(jsonResponse(201, { ...MOVEMENT, tags: ['Viaje'] }));
 

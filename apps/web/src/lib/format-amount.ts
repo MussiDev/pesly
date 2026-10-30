@@ -41,6 +41,27 @@ export function formatPercentage(basisPoints: bigint, language: Locale): string 
   return `${negative ? '-' : ''}${whole}${decimal}${fraction}%`;
 }
 
+/**
+ * The day of an ISO instant in the user's time zone, short ("27 oct"); the year only when it is not
+ * the current one, so a list row stays on one line.
+ */
+export function formatShortDate(
+  iso: string,
+  timeZone: string,
+  language: Locale,
+  now: Date = new Date(),
+): string {
+  const year = (date: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric' }).format(date);
+  const date = new Date(iso);
+  return new Intl.DateTimeFormat(DATE_LOCALE[language], {
+    timeZone,
+    day: 'numeric',
+    month: 'short',
+    ...(year(date) === year(now) ? {} : { year: 'numeric' }),
+  }).format(date);
+}
+
 /** An ISO instant shown in the user's time zone (the day boundary depends on it). */
 export function formatDateTime(iso: string, timeZone: string, language: Locale): string {
   return new Intl.DateTimeFormat(DATE_LOCALE[language], {

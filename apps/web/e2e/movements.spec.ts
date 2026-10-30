@@ -10,6 +10,7 @@ import {
   withoutStoredRates,
 } from './support/database';
 import { chooseCategory, chooseMovementType } from './support/movement-type';
+import { openRows } from './support/rows';
 
 const API_URL = 'http://localhost:4000';
 const WEB_URL = 'http://localhost:3000';
@@ -638,6 +639,7 @@ test('edits an expense from the list, the balance follows, and deletes it after 
 
   // Edit: the screen opens filled in and the type cannot be changed.
   await page.goto('/es/movements');
+  await openRows(page);
   await page
     .getByRole('link', { name: `${t.list.actions.edit} ${EXPENSE_CATEGORY}`, exact: true })
     .click();
@@ -662,6 +664,7 @@ test('edits an expense from the list, the balance follows, and deletes it after 
 
   // Delete: nothing happens until the confirmation, then the row and its effect are gone.
   await page.goto('/es/movements');
+  await openRows(page);
   await page
     .getByRole('button', { name: `${t.list.actions.delete} ${EXPENSE_CATEGORY}`, exact: true })
     .click();

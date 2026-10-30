@@ -9,6 +9,7 @@ import {
   t,
   trackSameOriginFailures,
 } from './support/offline-visit';
+import { openRows } from './support/rows';
 
 test.use({ locale: 'es-AR', timezoneId: 'America/Cordoba' });
 // Each flow registers a user, builds a copy of its data on the device and works with a real worker.
@@ -30,6 +31,7 @@ const editLinks = (page: Page) =>
 
 /** The id in the edit link of the row at `index`: rows carry no id of their own. */
 async function idOfRow(page: Page, index: number): Promise<string> {
+  await openRows(page);
   const href = await editLinks(page).nth(index).getAttribute('href');
   const id = new URL(href ?? '', 'http://localhost').searchParams.get('id');
   if (id === null) throw new Error(`Row ${index} has no edit link`);
@@ -88,6 +90,7 @@ test('offline, a user edits one movement and deletes another; both sync with no 
 
   await editAmount(page, edited, '77,00');
   await expect(rows(page).first()).toContainText(t.list.pending);
+  await openRows(rows(page).nth(1));
   await rows(page)
     .nth(1)
     .getByRole('button', { name: new RegExp(`^${t.list.actions.delete} `) })

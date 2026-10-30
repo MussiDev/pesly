@@ -5,6 +5,7 @@ import { MovementAvatar } from '../src/features/movements/components/movement-av
 import { MovementRow } from '../src/features/movements/components/movement-row';
 import { parseInitialType } from '../src/features/movements/initial-type';
 import { renderApp, CATALOGS } from './support/render-app';
+import { openRows } from './support/open-rows';
 import { uuid } from './support/category-fixtures';
 
 const { es, en } = CATALOGS;
@@ -81,7 +82,7 @@ describe('MovementRow: balance adjustment (FEAT-012)', () => {
 
     expect(screen.queryByRole('link')).toBeNull();
     expect(
-      screen.getByRole('button', {
+      within(openRows()).getByRole('button', {
         name: `${es.movements.list.actions.delete} ${es.movements.types.adjustment}`,
       }),
     ).toBeDefined();

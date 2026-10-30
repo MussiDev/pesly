@@ -1,12 +1,12 @@
 'use client';
 
 import { exactIntegerStringSchema, formatMoney, type MovementResponse } from '@pesly/shared';
-import { CloudCheck, Pencil, RotateCw, Trash2, Undo2, Users } from 'lucide-react';
+import { CloudCheck, Pencil, RotateCw, Tag, Trash2, Undo2, Users } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
 import { Amount } from '@/components/ui/amount';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { IconAction } from '@/components/ui/icon-action';
 import { ListRow } from '@/components/ui/list-row';
 import { MovementAvatar } from './movement-avatar';
 import { Link } from '@/i18n/navigation';
@@ -59,6 +59,16 @@ export interface MovementRowProps {
   failure?: SyncFailure;
 }
 
+/** A visible action word whose accessible name also names the movement: "Delete Food". */
+function ActionLabel({ action, subject }: { action: string; subject: string }) {
+  return (
+    <>
+      <span aria-hidden="true">{action}</span>
+      <span className="sr-only">{`${action} ${subject}`}</span>
+    </>
+  );
+}
+
 /** ISO 4217's "no currency" code: it formats the amount with a neutral sign. */
 const UNKNOWN_CURRENCY = 'XXX';
 
@@ -67,11 +77,13 @@ const USD_CURRENCY = 'USD';
 
 const DEFAULT_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
-type FormatterKind = 'time' | 'day' | 'dayKey';
+type FormatterKind = 'time' | 'day' | 'dayOfOtherYear' | 'dayKey';
 
 const FORMAT_OPTIONS: Record<FormatterKind, Intl.DateTimeFormatOptions> = {
   time: { timeStyle: 'short' },
-  day: { dateStyle: 'full' },
+  // The year only when it is not the current one: a long heading wraps on a phone.
+  day: { weekday: 'long', day: 'numeric', month: 'long' },
+  dayOfOtherYear: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
   // A sortable, locale-free `YYYY-MM-DD`: what groups movements into days.
   dayKey: { year: 'numeric', month: '2-digit', day: '2-digit' },
 };
@@ -101,9 +113,18 @@ export function dayKey(occurredAt: string, timeZone: string): string {
   return dateFormat('dayKey', 'en-CA', timeZone).format(new Date(occurredAt));
 }
 
-/** The long, localized heading of that day. */
-export function formatDay(occurredAt: string, locale: string, timeZone: string): string {
-  return dateFormat('day', locale, timeZone).format(new Date(occurredAt));
+/** The localized heading of that day; `now` decides whether the year is worth showing. */
+export function formatDay(
+  occurredAt: string,
+  locale: string,
+  timeZone: string,
+  now: Date = new Date(),
+): string {
+  const sameYear =
+    dayKey(occurredAt, timeZone).slice(0, 4) === dayKey(now.toISOString(), timeZone).slice(0, 4);
+  return dateFormat(sameYear ? 'day' : 'dayOfOtherYear', locale, timeZone).format(
+    new Date(occurredAt),
+  );
 }
 
 export function MovementRow({
@@ -128,6 +149,8 @@ export function MovementRow({
   const tActions = useTranslations('movements.list.actions');
   const tTypes = useTranslations('movements.types');
   const locale: Locale = useLocale() === 'en' ? 'en' : 'es';
+  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
   const amount = exactIntegerStringSchema.safeParse(movement.amount);
   const moving = movement.type === 'transfer' || movement.type === 'exchange';
   const adjustment = movement.type === 'adjustment';
@@ -145,60 +168,58 @@ export function MovementRow({
           : (categoryName ?? t('unknownCategory'));
 
   const marker =
-    syncState === 'synced' ? (
-      <div className="flex px-1">
-        <span role="img" aria-label={t('synced')} className="text-muted-foreground [&>svg]:size-4">
-          <CloudCheck aria-hidden />
-        </span>
-      </div>
-    ) : syncState === 'pending' ? (
-      <div className="px-1">
-        <Badge variant="warning">{t('pending')}</Badge>
-      </div>
+    syncState === 'pending' ? (
+      <Badge variant="warning">{t('pending')}</Badge>
     ) : syncState === 'failed' ? (
-      <div className="grid gap-1 px-1">
-        <div>
-          <Badge variant="destructive">{t('failed')}</Badge>
-        </div>
-        {failure === undefined ? null : (
-          <p className="text-small text-destructive">
-            {failureMessageKey(failure) === 'deletedElsewhere'
-              ? tSync('deletedElsewhere')
-              : tErrors(
-                  failureMessageKey(failure) as Exclude<
-                    ReturnType<typeof failureMessageKey>,
-                    'deletedElsewhere'
-                  >,
-                )}
-          </p>
-        )}
-      </div>
+      <Badge variant="destructive">{t('failed')}</Badge>
     ) : null;
+  const failureText =
+    syncState === 'failed' && failure !== undefined ? (
+      <p className="px-1 text-small text-destructive">
+        {failureMessageKey(failure) === 'deletedElsewhere'
+          ? tSync('deletedElsewhere')
+          : tErrors(
+              failureMessageKey(failure) as Exclude<
+                ReturnType<typeof failureMessageKey>,
+                'deletedElsewhere'
+              >,
+            )}
+      </p>
+    ) : null;
+  const showRate =
+    movement.rate !== null &&
+    (movement.type === 'exchange' || (currency === USD_CURRENCY && !moving));
+  const linkedGroup =
+    groupAction?.kind === 'linked' && failure?.operation !== 'delete'
+      ? groupAction.groupName === undefined
+        ? t('inGroupUnknown')
+        : t('inGroup', { name: groupAction.groupName })
+      : undefined;
+  const offerSend =
+    actions !== undefined &&
+    !actions.confirmingDelete &&
+    groupAction?.kind === 'send' &&
+    !adjustment &&
+    failure?.operation !== 'delete';
+  // A failed change keeps its retry and discard in view; anything else opens with a tap.
+  const open = expanded || actions?.confirmingDelete === true;
 
-  return (
-    <li
-      id={`movement-row-${movement.id}`}
-      className={
-        highlighted
-          ? 'grid gap-1 rounded-card text-card-foreground ring-2 ring-ring outline-none'
-          : 'grid gap-1 text-card-foreground'
+  const summary = (
+    <ListRow
+      wrapDescription
+      className="py-2.5"
+      leading={
+        <MovementAvatar
+          type={movement.type}
+          note={movement.note}
+          categoryIcon={categoryIcon}
+          categoryColor={categoryColor}
+        />
       }
-      {...(highlighted ? { 'aria-current': 'true' as const, tabIndex: -1 } : {})}
-    >
-      {highlighted ? <span className="sr-only">{t('highlighted')}</span> : null}
-      <ListRow
-        wrapDescription
-        leading={
-          <MovementAvatar
-            type={movement.type}
-            note={movement.note}
-            categoryIcon={categoryIcon}
-            categoryColor={categoryColor}
-          />
-        }
-        title={title}
-        description={
-          <>
+      title={title}
+      description={
+        <span className="grid gap-1">
+          <span>
             <span>{accountName ?? t('unknownAccount')}</span>
             {moving ? (
               <>
@@ -210,157 +231,226 @@ export function MovementRow({
             <time dateTime={movement.occurredAt}>
               {dateFormat('time', locale, timeZone).format(new Date(movement.occurredAt))}
             </time>
-          </>
-        }
-        trailing={
-          amount.success ? (
-            <span className="grid justify-items-end">
-              <Amount
-                // A transfer or exchange takes money out of the source: it keeps its own minus sign.
-                value={moving ? -BigInt(amount.data) : BigInt(amount.data)}
-                // The neutral code applies only when the account is not among the loaded ones.
-                currency={currency ?? UNKNOWN_CURRENCY}
-                locale={locale}
-                kind={
-                  movement.type === 'income' || movement.type === 'expense'
-                    ? movement.type
-                    : adjustment
-                      ? // The stored sign is the direction: money added to or taken off the balance.
-                        BigInt(amount.data) < 0n
-                        ? 'expense'
-                        : 'income'
-                      : 'neutral'
-                }
-                directionLabel={tTypes(movement.type)}
-                className="text-small font-bold"
-              />
-              {incoming?.success ? (
-                <span className="text-body font-semibold whitespace-nowrap tabular-nums text-income">
-                  {`+${formatMoney(BigInt(incoming.data), destinationCurrency ?? UNKNOWN_CURRENCY, locale)}`}
-                </span>
-              ) : null}
-            </span>
-          ) : (
-            // A malformed amount degrades to a dash instead of throwing during render.
-            <span className="text-muted-foreground">—</span>
-          )
-        }
-      />
-      {movement.note === null ? null : (
-        <p className="px-1 text-small text-muted-foreground">{movement.note}</p>
-      )}
-      {groupAction?.kind === 'linked' &&
-      actions?.confirmingDelete !== true &&
-      failure?.operation !== 'delete' ? (
-        <p className="px-1 text-small text-muted-foreground">
-          {groupAction.groupName === undefined
-            ? t('inGroupUnknown')
-            : t('inGroup', { name: groupAction.groupName })}
-        </p>
-      ) : null}
-      {movement.tags.length > 0 ? (
-        <div role="group" aria-label={t('tags')} className="flex flex-wrap gap-1 px-1">
-          {movement.tags.map((tag) => (
-            <Badge key={tag}>{tag}</Badge>
-          ))}
-        </div>
-      ) : null}
-      {movement.rate !== null &&
-      (movement.type === 'exchange' || (currency === USD_CURRENCY && !moving)) ? (
-        <p className="px-1 text-caption text-muted-foreground">
-          {t('rate', {
-            rate: formatRate(BigInt(movement.rate), locale, movement.type === 'exchange' ? 4 : 2),
-          })}
-        </p>
-      ) : null}
+            {syncState === 'synced' ? (
+              // Small and inline: every settled row carries it, so it must not cost a line.
+              <span
+                role="img"
+                aria-label={t('synced')}
+                className="ml-1.5 inline-flex align-[-2px] [&>svg]:size-3.5"
+              >
+                <CloudCheck aria-hidden />
+              </span>
+            ) : null}
+          </span>
+          {movement.note === null ? null : (
+            <span className="line-clamp-1 text-foreground/80">{movement.note}</span>
+          )}
+        </span>
+      }
+      trailing={
+        amount.success ? (
+          <span className="grid justify-items-end">
+            <Amount
+              // A transfer or exchange takes money out of the source: it keeps its own minus sign.
+              value={moving ? -BigInt(amount.data) : BigInt(amount.data)}
+              // The neutral code applies only when the account is not among the loaded ones.
+              currency={currency ?? UNKNOWN_CURRENCY}
+              locale={locale}
+              kind={
+                movement.type === 'income' || movement.type === 'expense'
+                  ? movement.type
+                  : adjustment
+                    ? // The stored sign is the direction: money added to or taken off the balance.
+                      BigInt(amount.data) < 0n
+                      ? 'expense'
+                      : 'income'
+                    : 'neutral'
+              }
+              directionLabel={tTypes(movement.type)}
+              className="text-small font-bold"
+            />
+            {incoming?.success ? (
+              <span className="text-small font-semibold whitespace-nowrap tabular-nums text-income">
+                {`+${formatMoney(BigInt(incoming.data), destinationCurrency ?? UNKNOWN_CURRENCY, locale)}`}
+              </span>
+            ) : null}
+            {offerSend ? (
+              // In view, not behind the row toggle: sending stays within three taps (NFR-08).
+              <Link
+                href={`/movements/send?id=${movement.id}`}
+                title={tActions('sendToGroup')}
+                className={buttonVariants({
+                  size: 'icon',
+                  variant: 'ghost',
+                  className: 'relative z-10 -my-1.5 -mr-2.5 text-muted-foreground',
+                })}
+              >
+                <Users aria-hidden />
+                <span className="sr-only">{`${tActions('sendToGroup')} ${title}`}</span>
+              </Link>
+            ) : null}
+          </span>
+        ) : (
+          // A malformed amount degrades to a dash instead of throwing during render.
+          <span className="text-muted-foreground">—</span>
+        )
+      }
+    />
+  );
+
+  // Under the whole row, not the title column: the amount leaves the title too little width.
+  const meta =
+    movement.tags.length > 0 || linkedGroup !== undefined || marker !== null ? (
+      <div className="-mt-1 flex flex-wrap items-center gap-1 pb-2.5 pl-14">
+        {marker}
+        {linkedGroup === undefined ? null : (
+          <Badge variant="info">
+            <Users aria-hidden />
+            {linkedGroup}
+          </Badge>
+        )}
+        {movement.tags.length > 0 ? (
+          <span role="group" aria-label={t('tags')} className="contents">
+            {movement.tags.map((tag) => (
+              <Badge key={tag} variant="outline">
+                <Tag aria-hidden />
+                {tag}
+              </Badge>
+            ))}
+          </span>
+        ) : null}
+      </div>
+    ) : null;
+
+  const rate = showRate ? (
+    <p className="px-1 text-caption text-muted-foreground">
+      {t('rate', {
+        rate: formatRate(
+          BigInt(movement.rate ?? '0'),
+          locale,
+          movement.type === 'exchange' ? 4 : 2,
+        ),
+      })}
+    </p>
+  ) : null;
+
+  return (
+    <li
+      id={`movement-row-${movement.id}`}
+      className={
+        highlighted
+          ? 'grid rounded-card text-card-foreground ring-2 ring-ring outline-none'
+          : 'grid text-card-foreground'
+      }
+      {...(highlighted ? { 'aria-current': 'true' as const, tabIndex: -1 } : {})}
+    >
+      {highlighted ? <span className="sr-only">{t('highlighted')}</span> : null}
       {actions === undefined ? (
-        marker
-      ) : actions.confirmingDelete ? (
-        <div className="grid gap-2 pb-2">
-          {marker}
-          <p role="status" className="px-1 text-small">
-            {adjustment ? tActions('confirmDeleteAdjustment') : tActions('confirmDelete')}
-          </p>
-          <div className="flex gap-2 px-1">
-            <Button
-              size="sm"
-              variant="destructive"
-              disabled={actions.pending}
-              onClick={actions.onConfirmDelete}
-            >
-              {tActions('confirmDeleteYes')}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={actions.pending}
-              onClick={actions.onCancelDelete}
-            >
-              {tActions('cancel')}
-            </Button>
-          </div>
-        </div>
+        <>
+          {summary}
+          {meta}
+          {rate}
+        </>
       ) : (
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0 px-0">{marker}</div>
-          <div className="flex shrink-0">
-            {syncState === 'failed' && actions.onRetry !== undefined ? (
-              <IconAction
-                label={tActions('retry')}
-                subject={title}
-                icon={<RotateCw aria-hidden />}
-                disabled={actions.pending}
-                onClick={actions.onRetry}
-              />
-            ) : null}
-            {syncState === 'failed' && actions.onDiscard !== undefined ? (
-              <IconAction
-                label={tActions('discard')}
-                subject={title}
-                icon={<Undo2 aria-hidden />}
-                disabled={actions.pending}
-                onClick={actions.onDiscard}
-              />
-            ) : null}
-            {/* A failed delete is retried or discarded; editing a deleted movement means nothing. */}
-            {failure?.operation === 'delete' ? null : (
+        <>
+          <div className="relative">
+            {summary}
+            {meta}
+            {/* Over the row, not around it: the row is block content a button cannot hold. */}
+            <button
+              type="button"
+              aria-expanded={open}
+              aria-controls={panelId}
+              className="absolute inset-0 cursor-pointer rounded-xl transition-colors outline-none hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+              onClick={() => {
+                if (actions.confirmingDelete) actions.onCancelDelete();
+                setExpanded((value) => !value);
+              }}
+            >
+              <span className="sr-only">{t('toggleActions', { title })}</span>
+            </button>
+          </div>
+          {failureText}
+          {syncState === 'failed' &&
+          (actions.onRetry !== undefined || actions.onDiscard !== undefined) ? (
+            <div className="flex flex-wrap gap-2 px-1 pb-2">
+              {actions.onRetry === undefined ? null : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actions.pending}
+                  onClick={actions.onRetry}
+                >
+                  <RotateCw aria-hidden />
+                  <ActionLabel action={tActions('retry')} subject={title} />
+                </Button>
+              )}
+              {actions.onDiscard === undefined ? null : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={actions.pending}
+                  onClick={actions.onDiscard}
+                >
+                  <Undo2 aria-hidden />
+                  <ActionLabel action={tActions('discard')} subject={title} />
+                </Button>
+              )}
+            </div>
+          ) : null}
+          <div id={panelId} hidden={!open} className="grid gap-2 pb-3">
+            {rate}
+            {actions.confirmingDelete ? (
               <>
-                {groupAction?.kind === 'send' && !adjustment ? (
-                  <Link
-                    href={`/movements/send?id=${movement.id}`}
-                    title={tActions('sendToGroup')}
-                    className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+                <p role="status" className="px-1 text-small">
+                  {adjustment ? tActions('confirmDeleteAdjustment') : tActions('confirmDelete')}
+                </p>
+                <div className="flex gap-2 px-1">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    disabled={actions.pending}
+                    onClick={actions.onConfirmDelete}
                   >
-                    <Users aria-hidden />
-                    <span className="sr-only">
-                      {tActions('sendToGroup')} {title}
-                    </span>
-                  </Link>
-                ) : null}
+                    {tActions('confirmDeleteYes')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={actions.pending}
+                    onClick={actions.onCancelDelete}
+                  >
+                    {tActions('cancel')}
+                  </Button>
+                </div>
+              </>
+            ) : // A failed delete is retried or discarded; editing a deleted movement means nothing.
+            failure?.operation === 'delete' ? null : (
+              <div className="flex flex-wrap gap-2 px-1">
                 {/* An adjustment is changed by setting the balance again, never edited. */}
                 {adjustment ? null : (
                   <Link
                     href={`/movements/edit?id=${movement.id}`}
-                    title={tActions('edit')}
-                    className={buttonVariants({ size: 'icon', variant: 'ghost' })}
+                    className={buttonVariants({ size: 'sm', variant: 'outline' })}
                   >
                     <Pencil aria-hidden />
-                    <span className="sr-only">
-                      {tActions('edit')} {title}
-                    </span>
+                    <ActionLabel action={tActions('edit')} subject={title} />
                   </Link>
                 )}
-                <IconAction
-                  label={tActions('delete')}
-                  subject={title}
-                  icon={<Trash2 aria-hidden />}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive"
                   disabled={actions.pending}
                   onClick={actions.onAskDelete}
-                />
-              </>
+                >
+                  <Trash2 aria-hidden />
+                  <ActionLabel action={tActions('delete')} subject={title} />
+                </Button>
+              </div>
             )}
           </div>
-        </div>
+        </>
       )}
     </li>
   );

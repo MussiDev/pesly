@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   formatAmount,
   formatDateTime,
+  formatShortDate,
   formatMoney,
   formatPercentage,
   formatQuantity,
@@ -89,5 +90,21 @@ describe('formatDateTime', () => {
   it('follows the language (AC-08)', () => {
     expect(formatDateTime(iso, 'UTC', 'es')).toBe(ES_UTC);
     expect(formatDateTime(iso, buenosAires, 'es')).toBe(ES_BA);
+  });
+});
+
+describe('formatShortDate', () => {
+  const now = new Date('2026-10-30T12:00:00.000Z');
+
+  it('shows the day and month in the user time zone, without the year of the current one', () => {
+    expect(formatShortDate('2026-10-06T15:00:00.000Z', 'UTC', 'en', now)).toBe('Oct 6');
+    // 01:00 UTC is still the day before in Buenos Aires.
+    expect(
+      formatShortDate('2026-10-06T01:00:00.000Z', 'America/Argentina/Buenos_Aires', 'en', now),
+    ).toBe('Oct 5');
+  });
+
+  it('adds the year when it is not the current one', () => {
+    expect(formatShortDate('2025-12-31T15:00:00.000Z', 'UTC', 'en', now)).toBe('Dec 31, 2025');
   });
 });
