@@ -78,6 +78,10 @@ export interface MovementCategoryOption {
   id: string;
   kind: CreatableMovementType;
   label: string;
+  /** Present when known: the picker groups subcategories under their parent's tile. */
+  parentId?: string | null;
+  icon?: string;
+  color?: string;
 }
 
 export interface MovementFormProps {
@@ -99,6 +103,8 @@ export interface MovementFormProps {
   /** The type a new movement opens on, e.g. from a quick action; edit mode keeps the stored type. */
   initialType?: CreatableMovementType;
   initialValues?: MovementFormInitialValues;
+  /** The account a new movement starts on (the last one used); ignored when `initialValues` is set. */
+  defaultAccountId?: string | undefined;
   /**
    * Amount, account and date show as read-only text (an adopted group movement); their stored
    * values still travel with the submit through hidden fields. Needs `initialValues`.
@@ -127,6 +133,7 @@ export function MovementForm({
   mode = 'create',
   initialType,
   initialValues,
+  defaultAccountId,
   lockedFields = false,
   groupNotice,
   onSubmit,
@@ -145,7 +152,11 @@ export function MovementForm({
     toMovementType(initialValues?.type ?? initialType ?? 'expense'),
   );
   const [rateEdited, setRateEdited] = useState(false);
-  const [sourceId, setSourceId] = useState(initialValues?.accountId ?? '');
+  const startAccountId =
+    initialValues?.accountId ??
+    (accounts.some((account) => account.id === defaultAccountId) ? defaultAccountId : undefined) ??
+    '';
+  const [sourceId, setSourceId] = useState(startAccountId);
   const [destinationId, setDestinationId] = useState(initialValues?.destinationAccountId ?? '');
   const [amount, setAmount] = useState(initialValues?.amount ?? '');
   const [destinationAmount, setDestinationAmount] = useState(
@@ -307,7 +318,7 @@ export function MovementForm({
                   id={control.id}
                   name="accountId"
                   picked={source}
-                  defaultValue={initialValues?.accountId ?? ''}
+                  defaultValue={startAccountId}
                   invalid={control['aria-invalid']}
                   describedBy={control['aria-describedby']}
                   onChange={handleSourceChange}

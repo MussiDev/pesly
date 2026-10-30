@@ -450,6 +450,24 @@ describe('AuthenticatedShellContainer persistent storage (DISC-001-04a)', () => 
     expect(screen.getByText('private content')).toBeDefined();
   });
 
+  it('closes the warning on request and keeps it closed on the next visit', async () => {
+    setStorage({
+      persisted: vi.fn().mockResolvedValue(false),
+      persist: vi.fn().mockResolvedValue(false),
+    });
+    stubApi({ 'GET /auth/session': session(true) });
+
+    const first = renderShell();
+    await screen.findByText(es.app.storageWarning);
+    await userEvent.click(screen.getByRole('button', { name: es.app.storageWarningDismiss }));
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+    first.unmount();
+
+    renderShell();
+    await screen.findByText('private content');
+    expect(screen.queryByText(es.app.storageWarning)).toBeNull();
+  });
+
   it('shows the warning, and throws nothing, when the request fails with an error (AC-06)', async () => {
     setStorage({
       persisted: vi.fn().mockResolvedValue(false),

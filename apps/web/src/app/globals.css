@@ -11,60 +11,64 @@
  */
 :root {
   color-scheme: light;
-  --radius: 1rem;
+  --radius: 0.75rem;
 
-  --background: oklch(0.955 0.009 262);
-  --foreground: oklch(0.2 0.014 265);
-  --surface: oklch(0.94 0.009 262);
+  --background: oklch(0.975 0.006 250);
+  --foreground: oklch(0.21 0.03 265);
+  --surface: oklch(0.955 0.008 264);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.014 265);
+  --card-foreground: oklch(0.21 0.03 265);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.014 265);
-  --muted: oklch(0.94 0.009 262);
-  --muted-foreground: oklch(0.45 0.015 265);
-  --secondary: oklch(0.93 0.01 262);
-  --secondary-foreground: oklch(0.24 0.014 265);
-  --accent: oklch(0.93 0.035 265);
-  --accent-foreground: oklch(0.34 0.12 265);
-  --border: oklch(0.92 0.008 262);
-  --input: oklch(0.62 0.014 265);
-  --ring: oklch(0.5 0.15 265);
+  --popover-foreground: oklch(0.21 0.03 265);
+  --muted: oklch(0.955 0.008 264);
+  --muted-foreground: oklch(0.48 0.03 262);
+  --secondary: oklch(0.95 0.01 264);
+  --secondary-foreground: oklch(0.27 0.04 265);
+  --accent: oklch(0.95 0.03 277);
+  --accent-foreground: oklch(0.45 0.2 277);
+  --border: oklch(0.91 0.012 264);
+  --input: oklch(0.62 0.02 264);
+  --ring: oklch(0.55 0.2 277);
 
-  --primary: oklch(0.38 0.12 265);
-  --primary-foreground: oklch(0.985 0.004 265);
-  --success: oklch(0.46 0.12 150);
+  --primary: oklch(0.51 0.23 277);
+  --primary-foreground: oklch(0.99 0.003 277);
+  --success: oklch(0.5 0.13 152);
   --success-foreground: oklch(0.985 0.004 270);
   --warning: oklch(0.48 0.11 65);
   --warning-foreground: oklch(0.985 0.004 270);
   --destructive: oklch(0.5 0.19 27);
   --destructive-foreground: oklch(0.985 0.004 270);
-  --info: oklch(0.5 0.13 250);
+  --info: oklch(0.5 0.17 265);
   --info-foreground: oklch(0.985 0.004 270);
-  --income: oklch(0.5 0.12 160);
+  --income: oklch(0.52 0.14 152);
   --expense: oklch(0.5 0.19 27);
 
-  /* Flat cards, as in the design; a valid zero shadow, since `none` would invalidate the focus ring that shares box-shadow. */
-  --elevation-1: 0 0 0 0 transparent;
+  /* A hairline border and a whisper of shadow: white cards that sit on the canvas, not float. */
+  --elevation-1: 0 0 0 1px oklch(0.91 0.012 264), 0 1px 2px 0 oklch(0.21 0.03 265 / 0.05);
   --elevation-2: 0 12px 32px -8px oklch(0.2 0.05 265 / 0.22);
   --elevation-hero: 0 16px 32px -16px oklch(0.31 0.095 265 / 0.55);
 
-  /* The balance card: navy with a soft blue glow in two corners and light text, the one saturated surface per screen. */
-  --hero-from: oklch(0.31 0.095 265);
-  --hero-to: oklch(0.31 0.095 265);
-  --hero-glow: oklch(0.42 0.13 255);
+  /* The balance card: a flat deep navy with light text, the one saturated surface per screen. */
+  --hero-from: oklch(0.27 0.065 255);
+  --hero-to: oklch(0.27 0.065 255);
+  --hero-glow: oklch(0.36 0.09 262);
+  /* A flat navy with one soft disc in the top corner, as a mark rather than a glow. */
   --hero:
-    radial-gradient(120% 90% at 100% 0%, var(--hero-glow) 0%, transparent 55%),
-    radial-gradient(90% 80% at 0% 100%, var(--hero-glow) 0%, transparent 60%),
+    radial-gradient(
+      circle at calc(100% + 1.5rem) -2.5rem,
+      var(--hero-glow) 0 6.5rem,
+      transparent 6.6rem
+    ),
     linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
-  --hero-muted: oklch(0.86 0.04 265);
+  --hero-muted: oklch(0.82 0.04 262);
 
   /* The disc behind a logo: light in both themes so a brand colour is always legible on it. */
   --logo-surface: oklch(1 0 0);
 
   /* Donut segments, distinct in lightness as well as hue. */
-  --chart-1: oklch(0.38 0.12 265);
-  --chart-2: oklch(0.52 0.15 262);
+  --chart-1: oklch(0.51 0.23 277);
+  --chart-2: oklch(0.27 0.065 255);
   --chart-3: oklch(0.62 0.09 240);
   --chart-4: oklch(0.58 0.14 75);
   --chart-5: oklch(0.55 0.13 160);
@@ -86,26 +90,26 @@
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.15 0.014 265);
+  --background: oklch(0.16 0.02 262);
   --foreground: oklch(0.96 0.006 265);
-  --surface: oklch(0.24 0.012 265);
-  --card: oklch(0.2 0.014 265);
+  --surface: oklch(0.24 0.025 262);
+  --card: oklch(0.205 0.025 262);
   --card-foreground: oklch(0.96 0.006 265);
-  --popover: oklch(0.2 0.014 265);
+  --popover: oklch(0.205 0.025 262);
   --popover-foreground: oklch(0.96 0.006 265);
   --muted: oklch(0.25 0.012 265);
   --muted-foreground: oklch(0.72 0.014 265);
   --secondary: oklch(0.27 0.012 265);
   --secondary-foreground: oklch(0.96 0.006 265);
-  --accent: oklch(0.3 0.06 265);
-  --accent-foreground: oklch(0.92 0.05 265);
-  --border: oklch(0.3 0.012 265);
+  --accent: oklch(0.3 0.08 277);
+  --accent-foreground: oklch(0.9 0.06 277);
+  --border: oklch(0.3 0.025 262);
   --input: oklch(0.55 0.014 265);
-  --ring: oklch(0.72 0.12 265);
+  --ring: oklch(0.72 0.15 277);
 
-  --primary: oklch(0.78 0.11 265);
-  --primary-foreground: oklch(0.16 0.012 265);
-  --success: oklch(0.74 0.15 150);
+  --primary: oklch(0.72 0.15 277);
+  --primary-foreground: oklch(0.16 0.02 262);
+  --success: oklch(0.76 0.14 152);
   --success-foreground: oklch(0.16 0.008 270);
   --warning: oklch(0.78 0.14 75);
   --warning-foreground: oklch(0.16 0.008 270);
@@ -113,26 +117,30 @@
   --destructive-foreground: oklch(0.16 0.008 270);
   --info: oklch(0.74 0.12 250);
   --info-foreground: oklch(0.16 0.008 270);
-  --income: oklch(0.74 0.14 160);
+  --income: oklch(0.76 0.14 152);
   --expense: oklch(0.72 0.17 25);
 
-  --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 0.3);
+  --elevation-1: 0 0 0 1px oklch(0.3 0.025 262), 0 1px 2px 0 oklch(0 0 0 / 0.3);
   --elevation-2: 0 12px 32px -8px oklch(0 0 0 / 0.6);
   --elevation-hero: 0 16px 32px -16px oklch(0 0 0 / 0.6);
 
-  --hero-from: oklch(0.32 0.08 265);
-  --hero-to: oklch(0.32 0.08 265);
-  --hero-glow: oklch(0.42 0.11 255);
+  --hero-from: oklch(0.25 0.06 258);
+  --hero-to: oklch(0.25 0.06 258);
+  --hero-glow: oklch(0.33 0.08 262);
+  /* A flat navy with one soft disc in the top corner, as a mark rather than a glow. */
   --hero:
-    radial-gradient(120% 90% at 100% 0%, var(--hero-glow) 0%, transparent 55%),
-    radial-gradient(90% 80% at 0% 100%, var(--hero-glow) 0%, transparent 60%),
+    radial-gradient(
+      circle at calc(100% + 1.5rem) -2.5rem,
+      var(--hero-glow) 0 6.5rem,
+      transparent 6.6rem
+    ),
     linear-gradient(135deg, var(--hero-from) 0%, var(--hero-to) 100%);
   --hero-foreground: oklch(0.985 0.004 265);
   --hero-muted: oklch(0.86 0.04 265);
 
   --logo-surface: oklch(0.96 0.005 265);
 
-  --chart-1: oklch(0.78 0.11 265);
+  --chart-1: oklch(0.72 0.15 277);
   --chart-2: oklch(0.66 0.14 262);
   --chart-3: oklch(0.86 0.05 250);
   --chart-4: oklch(0.82 0.13 80);
@@ -162,21 +170,24 @@
   /* Below it the bottom bar serves; from it the side menu. */
   --breakpoint-desk: 64rem;
 
-  --radius-card: 1.5rem;
+  --radius-card: 1rem;
   --radius-pill: 9999px;
 
   --font-sans:
     var(--font-plus-jakarta), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
     sans-serif;
+  /* Headings and headline figures; `--font-bricolage` is set by next/font. */
+  --font-display:
+    var(--font-bricolage), var(--font-plus-jakarta), ui-sans-serif, system-ui, sans-serif;
 
   --text-display: 2rem;
   --text-display--line-height: 1.15;
-  --text-display--letter-spacing: -0.02em;
-  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.025em;
+  --text-display--font-weight: 700;
   --text-title: 1.5rem;
   --text-title--line-height: 1.25;
-  --text-title--letter-spacing: -0.015em;
-  --text-title--font-weight: 600;
+  --text-title--letter-spacing: -0.02em;
+  --text-title--font-weight: 700;
   --text-heading: 1.125rem;
   --text-heading--line-height: 1.35;
   --text-heading--font-weight: 600;
@@ -265,6 +276,18 @@
   }
   body {
     @apply bg-background text-body text-foreground font-sans;
+  }
+  /* The display face carries the page and card titles; the small uppercase labels keep the body face. */
+  :where(h1, h2, h3, .text-display, .text-title, .text-heading) {
+    font-family: var(--font-display);
+  }
+  :where(h1, h2, h3).uppercase {
+    font-family: var(--font-sans);
+  }
+  /* White blocks drawn straight with the utilities get the same hairline as Card; zero specificity, so
+     an explicit shadow utility still wins. */
+  :where(.rounded-card.bg-card) {
+    box-shadow: var(--elevation-1);
   }
   /* Safety net: a link or control that forgets its own ring still shows keyboard focus. */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {

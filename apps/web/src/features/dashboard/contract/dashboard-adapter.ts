@@ -61,12 +61,22 @@ function toActionView(entry: DashboardAction, today: string): UpcomingView {
 }
 
 function toCategoryViews(raw: DashboardResponse, options: AdapterOptions): CategoryView[] {
-  return raw.categories.map((row, index) => ({
-    key: `${index}:${row.categoryId ?? row.defaultKey ?? 'row'}`,
-    label: resolveLabel(row.defaultKey, row.name, options),
-    amount: BigInt(row.amount),
-    share: row.sharePercent,
-  }));
+  return raw.categories.map((row, index) => {
+    const color = DEFAULT_CATEGORIES.find((entry) => entry.key === row.defaultKey)?.color;
+    return {
+      key: `${index}:${row.categoryId ?? row.defaultKey ?? 'row'}`,
+      label: resolveLabel(row.defaultKey, row.name, options),
+      amount: BigInt(row.amount),
+      share: row.sharePercent,
+      ...(color === undefined ? {} : { color }),
+      // Ids are validated UUIDs and days are YYYY-MM-DD, so the query needs no escaping.
+      ...(row.categoryId === null
+        ? {}
+        : {
+            href: `/movements?type=expense&categoryId=${row.categoryId}&from=${raw.month.from}&to=${raw.month.to}`,
+          }),
+    };
+  });
 }
 
 export function toDashboardView(raw: DashboardResponse, options: AdapterOptions): DashboardView {

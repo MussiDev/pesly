@@ -11,6 +11,7 @@ import {
   groupExpenses,
   senderSetup,
 } from './support/movement-to-group';
+import { openRows, openRowsUntil } from './support/rows';
 
 const t = catalogs.es.groups;
 const link = t.expenses.link;
@@ -68,12 +69,16 @@ test('the payer links an expense that another member recorded, creating the move
     // Only the payer is offered the link (AC-20).
     await bruno.goto(`/es/groups/${groupId}/expenses`);
     await expect(rowOf(bruno, 'Cena creada')).toBeVisible();
+    await openRows(bruno);
     await expect(bruno.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(0);
     await ana.goto(`/es/groups/${groupId}/expenses`);
-    await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(2);
+    await openRowsUntil(ana, async () => {
+      await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(2);
+    });
 
     // Create the movement from an account and a category (AC-02, AC-07, AC-23).
     const before = await accountBalance(ana, anaFacts.payer.arsAccountId);
+    await openRows(rowOf(ana, 'Cena creada'));
     await rowOf(ana, 'Cena creada').getByRole('link', { name: t.expenses.linkAction }).click();
     await expect(ana).toHaveURL(new RegExp(`/es/groups/${groupId}/expenses/[^/]+/link$`));
     await ana
@@ -93,6 +98,7 @@ test('the payer links an expense that another member recorded, creating the move
     const setup = await senderSetup(ana);
     await createExpenseMovement(ana, setup, '200000', 'Chango del súper');
     const cajaBefore = await accountBalance(ana, setup.accountId);
+    await openRows(rowOf(ana, 'Cena adoptada'));
     await rowOf(ana, 'Cena adoptada').getByRole('link', { name: t.expenses.linkAction }).click();
     await ana.getByRole('radio', { name: link.ways.adopt }).click();
     await ana.getByRole('radio', { name: /Chango del súper/ }).click();
@@ -105,6 +111,7 @@ test('the payer links an expense that another member recorded, creating the move
     expect(expenses.filter((expense) => expense.payerMovementId !== null)).toHaveLength(2);
 
     // A linked expense no longer offers the link, and the screen answers for a direct visit.
+    await openRows(ana);
     await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toHaveCount(0);
     const linked = expenses.find((expense) => expense.description === 'Cena creada');
     await ana.goto(`/es/groups/${groupId}/expenses/${linked?.id ?? ''}/link`);
@@ -136,7 +143,9 @@ test('the link screen and the row fit 360 px and its controls are reachable by k
     await ana.setViewportSize({ width: 360, height: 740 });
 
     await ana.goto(`/es/groups/${groupId}/expenses`);
-    await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toBeVisible();
+    await openRowsUntil(ana, async () => {
+      await expect(ana.getByRole('link', { name: t.expenses.linkAction })).toBeVisible();
+    });
     await expectNoHorizontalScroll(ana);
 
     await ana.getByRole('link', { name: t.expenses.linkAction }).focus();

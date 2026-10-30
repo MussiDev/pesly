@@ -23,6 +23,7 @@ import {
   type GroupFacts,
 } from './support/group-settlements';
 import { scrollsHorizontally, signedInUser } from './support/groups';
+import { openRows, openRowsUntil } from './support/rows';
 
 const t = catalogs.es.groups;
 const tEn = catalogs.en.groups;
@@ -132,12 +133,15 @@ test('the author edits and deletes; a plain member has no actions; the activity 
     // AC-15, AC-16: Bruno acts only on his own record and is told so at the other's address.
     await pageB.goto(expensesUrl(groupId));
     await expect(expenseRow(pageB, 'Cena')).toBeVisible();
+    await openRowsUntil(expenseRow(pageB, 'Taxi'), async () => {
+      await expect(
+        expenseRow(pageB, 'Taxi').getByRole('link', { name: common.actions.edit }),
+      ).toHaveCount(1);
+    });
+    await openRows(expenseRow(pageB, 'Cena'));
     await expect(
       expenseRow(pageB, 'Cena').getByRole('link', { name: common.actions.edit }),
     ).toHaveCount(0);
-    await expect(
-      expenseRow(pageB, 'Taxi').getByRole('link', { name: common.actions.edit }),
-    ).toHaveCount(1);
     await pageB.goto(expenseEditUrl(groupId, cena));
     await expect(pageB.getByText(t.edit.expense.notAllowed.title)).toBeVisible();
     await expect(pageB.getByLabel(t.expenses.form.fields.amount, { exact: true })).toHaveCount(0);
@@ -191,10 +195,14 @@ test('the author edits and deletes; a plain member has no actions; the activity 
     // AC-09, AC-08: cancelling changes nothing, confirming removes the expense.
     await pageA.goto(expensesUrl(groupId));
     const row = expenseRow(pageA, 'Cena grande');
+    await openRowsUntil(row, async () => {
+      await expect(row.getByRole('button', { name: common.actions.delete })).toBeVisible();
+    });
     await row.getByRole('button', { name: common.actions.delete }).click();
     await row.getByRole('button', { name: common.deleteConfirm.cancel }).click();
     await expect(row).toBeVisible();
     expect((await serverExpenses(pageA, groupId)).map((item) => item.id)).toContain(cena);
+    await openRows(row);
     await row.getByRole('button', { name: common.actions.delete }).click();
     await row.getByRole('button', { name: common.deleteConfirm.confirm }).click();
     await expect(expenseRow(pageA, 'Cena grande')).toHaveCount(0);

@@ -21,6 +21,7 @@ import {
   type SenderSetup,
 } from './support/movement-to-group';
 import { addGhostMember, createGroup, createInvitationLink, signedInUser } from './support/groups';
+import { openRowsUntil } from './support/rows';
 
 const es = catalogs.es;
 const en = catalogs.en;
@@ -386,20 +387,32 @@ test('the list opens at the focused movement, highlighted and in view, with work
     await expect(row).toHaveAttribute('aria-current', 'true');
     await expect(row).toBeInViewport();
     // The list costs one page request, and focus costs none (no per-movement read).
-    const listRequests = requests.since(start).filter((r) => r.startsWith('GET /movements'));
+    // The totals of the list are their own request, with the same filters.
+    const listRequests = requests
+      .since(start)
+      .filter((r) => r.startsWith('GET /movements') && r !== 'GET /movements/summary');
     expect(listRequests.filter((r) => r === 'GET /movements').length).toBeLessThanOrEqual(1);
     expect(listRequests.filter((r) => r !== 'GET /movements')).toEqual([]);
     requests.stop();
 
-    // Edit works on the highlighted row.
-    await row.getByRole('link', { name: new RegExp(`^${list.actions.edit}`) }).click();
+    // Edit works on the highlighted row, once it is opened. A sync pass right after the load can
+    // reload the list and close the row again, so it is opened until the action shows.
+    const edit = row.getByRole('link', { name: new RegExp(`^${list.actions.edit}`) });
+    await openRowsUntil(row, async () => {
+      await expect(edit).toBeVisible({ timeout: 1000 });
+    });
+    await edit.click();
     await expect(page).toHaveURL(`http://localhost:3000/es/movements/edit?id=${focusId}`);
 
     // Delete works on it too.
     await page.goto(`/es/movements?focus=${focusId}`);
-    await rowOf(page, focusId)
-      .getByRole('button', { name: new RegExp(`^${list.actions.delete}`) })
-      .click();
+    const remove = rowOf(page, focusId).getByRole('button', {
+      name: new RegExp(`^${list.actions.delete}`),
+    });
+    await openRowsUntil(rowOf(page, focusId), async () => {
+      await expect(remove).toBeVisible({ timeout: 1000 });
+    });
+    await remove.click();
     await page.getByRole('button', { name: list.actions.confirmDeleteYes }).click();
     await expect(rowOf(page, focusId)).toHaveCount(0);
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useId, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { ListRow } from '@/components/ui/list-row';
 import { Link } from '@/i18n/navigation';
@@ -47,7 +48,7 @@ export interface ExpenseRowProps {
   edit?: ExpenseRowEdit;
 }
 
-/** One expense of the group. */
+/** One expense of the group: compact; its actions open with a tap on the row. */
 export function ExpenseRow({
   description,
   category,
@@ -60,38 +61,68 @@ export function ExpenseRow({
 }: ExpenseRowProps) {
   const t = useTranslations('groups.expenses');
   const tCommon = useTranslations('groups.edit.common.actions');
+  const [expanded, setExpanded] = useState(false);
+  const panelId = useId();
+  // A failed change or a conflict keeps its way out in view; an open delete confirmation too.
+  const attention = edit !== undefined && (edit.state === 'failed' || edit.state === 'conflict');
+  const hasActions =
+    linkAction?.kind === 'link' ||
+    (edit !== undefined &&
+      (edit.state === 'pending' || edit.state === 'synced') &&
+      (edit.allowed || edit.confirmingDelete));
+  const open = expanded || edit?.confirmingDelete === true;
+
+  const row = (
+    <ListRow
+      wrapDescription
+      className="py-2.5"
+      title={description}
+      description={
+        <span className="grid gap-0.5">
+          {/* The shared chip: icon, colour, name and the archived marker, as on every group view. */}
+          <CategoryChip display={category} size="sm" className="text-caption" />
+          <span>{t('paidBy', { name: payer })}</span>
+          <span>{date}</span>
+          {linkAction?.kind === 'linked' ? <span>{t('linkedMarker')}</span> : null}
+          {edit === undefined ? null : <SyncMarker state={edit.state} />}
+        </span>
+      }
+      trailing={
+        <span className="grid justify-items-end gap-0.5">
+          <span className="text-small font-bold tabular-nums">{amount}</span>
+          {share === undefined ? null : (
+            <span className="text-caption text-muted-foreground tabular-nums">
+              {t('yourShare', { amount: share })}
+            </span>
+          )}
+        </span>
+      }
+    />
+  );
+
   return (
     <>
-      <ListRow
-        wrapDescription
-        title={description}
-        description={
-          <span className="grid gap-0.5">
-            <CategoryChip display={category} size="sm" />
-            <span>{t('paidBy', { name: payer })}</span>
-            <span>{date}</span>
-            {share === undefined ? null : <span>{t('yourShare', { amount: share })}</span>}
-          </span>
-        }
-        trailing={<span className="font-medium tabular-nums">{amount}</span>}
-      />
-      {linkAction === undefined ? null : linkAction.kind === 'link' ? (
-        <div className="pb-3">
-          <Link
-            href={linkAction.href}
-            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+      {/* One structure whether or not the toggle shows, so the row is never remounted. */}
+      <div className="relative">
+        {row}
+        {hasActions ? (
+          // Over the row, not around it: the row is block content a button cannot hold.
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-controls={panelId}
+            className="absolute inset-0 cursor-pointer rounded-xl transition-colors outline-none hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            onClick={() => {
+              if (edit?.confirmingDelete === true) edit.onCancelDelete();
+              setExpanded((value) => !value);
+            }}
           >
-            {t('linkAction')}
-          </Link>
-        </div>
-      ) : (
-        <p className="pb-3 text-small text-muted-foreground">{t('linkedMarker')}</p>
-      )}
-      {edit === undefined ? null : (
+            <span className="sr-only">{t('toggleActions', { description })}</span>
+          </button>
+        ) : null}
+      </div>
+      {attention ? (
         <div className="grid gap-2 pb-3">
-          <div>
-            <SyncMarker state={edit.state} />
-          </div>
           {edit.state === 'failed' && edit.failureCode !== undefined ? (
             <FailedChangePanel
               code={edit.failureCode}
@@ -107,24 +138,37 @@ export function ExpenseRow({
               {tCommon('resolve')}
             </Link>
           ) : null}
-          {edit.state === 'pending' || edit.state === 'synced' ? (
-            edit.confirmingDelete ? (
-              <DeleteConfirm
-                pending={false}
-                onConfirm={edit.onConfirmDelete}
-                onCancel={edit.onCancelDelete}
-              />
-            ) : (
-              <RowActions
-                allowed={edit.allowed}
-                consolidated={false}
-                editHref={edit.editHref}
-                onDelete={edit.onDelete}
-              />
-            )
-          ) : null}
         </div>
-      )}
+      ) : null}
+      {hasActions ? (
+        <div id={panelId} hidden={!open} className="grid gap-2 pb-3">
+          {linkAction?.kind === 'link' ? (
+            <div>
+              <Link
+                href={linkAction.href}
+                className={buttonVariants({ variant: 'outline', size: 'sm' })}
+              >
+                {t('linkAction')}
+              </Link>
+            </div>
+          ) : null}
+          {edit === undefined ||
+          !(edit.state === 'pending' || edit.state === 'synced') ? null : edit.confirmingDelete ? (
+            <DeleteConfirm
+              pending={false}
+              onConfirm={edit.onConfirmDelete}
+              onCancel={edit.onCancelDelete}
+            />
+          ) : (
+            <RowActions
+              allowed={edit.allowed}
+              consolidated={false}
+              editHref={edit.editHref}
+              onDelete={edit.onDelete}
+            />
+          )}
+        </div>
+      ) : null}
     </>
   );
 }

@@ -92,7 +92,10 @@ describe('KpiCards', () => {
       expect(screen.getByRole('group', { name: label })).toBeTruthy();
     }
     expect(document.querySelectorAll('a,button,input,select,[tabindex]').length).toBe(0);
-    expect(document.querySelectorAll('[aria-hidden="true"]').length).toBe(0);
+    // Only the decorative icons are hidden from screen readers, never a label or a figure.
+    for (const hidden of document.querySelectorAll('[aria-hidden="true"]')) {
+      expect(hidden.textContent).toBe('');
+    }
   });
 
   it('keeps every card shrinkable and in one row from sm', () => {

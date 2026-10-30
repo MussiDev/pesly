@@ -419,9 +419,7 @@ function list(items: readonly MovementListItem[]) {
 }
 
 function dayHeading(iso: string): string {
-  return new Intl.DateTimeFormat('es', { dateStyle: 'full', timeZone: BUENOS_AIRES }).format(
-    new Date(iso),
-  );
+  return formatDay(iso, 'es', BUENOS_AIRES);
 }
 
 describe('MovementList on the design system (FEAT-004 AC-17, AC-22)', () => {
@@ -628,7 +626,13 @@ describe('movements round 2 (FEAT-004 review items)', () => {
     expect(dayKey('2026-11-02T04:59:00.000Z', zone)).toBe('2026-11-01');
     expect(dayKey('2026-11-02T05:00:00.000Z', zone)).toBe('2026-11-02');
     expect(dayKey('2026-11-01T03:59:00.000Z', zone)).toBe('2026-10-31');
-    expect(formatDay('2026-11-01T06:30:00.000Z', 'en', zone)).toBe('Sunday, November 1, 2026');
+    const sameYear = new Date('2026-12-15T12:00:00.000Z');
+    expect(formatDay('2026-11-01T06:30:00.000Z', 'en', zone, sameYear)).toBe('Sunday, November 1');
+    // Another year keeps the year, so old days are never ambiguous.
+    const nextYear = new Date('2027-03-01T12:00:00.000Z');
+    expect(formatDay('2026-11-01T06:30:00.000Z', 'en', zone, nextYear)).toBe(
+      'Sunday, November 1, 2026',
+    );
   });
 });
 

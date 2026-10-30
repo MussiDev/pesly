@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google';
 import { headers } from 'next/headers';
 import { notFound } from 'next/navigation';
 import { ServiceWorkerRegistrar } from '@/components/service-worker-registrar';
@@ -17,6 +17,13 @@ const plusJakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-plus-jakarta',
+});
+
+// Headings and headline figures: a display face with more character than the body text.
+const bricolage = Bricolage_Grotesque({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-bricolage',
 });
 
 // Pages render per request so the CSP nonce from `proxy.ts` can be applied to Next.js' scripts.
@@ -44,7 +51,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<'/[
   const nonce = requestNonce(await headers());
 
   return (
-    <html lang={locale} className={plusJakarta.variable} suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`${plusJakarta.variable} ${bricolage.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {nonce ? (
           // A plain script, not next/script: it must run before first paint. The browser hides the

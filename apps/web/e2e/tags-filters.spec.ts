@@ -159,8 +159,8 @@ test('saves tags, reuses a tag typed in another case, and filters the list by ta
   await expect(rows(page).first().getByText('Viaje', { exact: true })).toBeVisible();
   await expect(page.getByText('viaje', { exact: true })).toHaveCount(0);
 
-  // Everything but the type lives in the folded "more filters" block.
-  await page.getByText(t.filters.more, { exact: true }).click();
+  // Everything but the type lives in the folded filters panel.
+  await page.locator('summary', { hasText: t.filters.title }).click();
 
   // By tag: the case typed in the filter does not matter.
   await addTag(page, 'viaje');

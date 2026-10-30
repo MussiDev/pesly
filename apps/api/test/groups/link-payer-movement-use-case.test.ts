@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { AppError, type CreateGroupExpenseRequest } from '@pesly/shared';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
@@ -202,7 +203,7 @@ describe('LinkPayerMovement', () => {
       { accountId: foreign, categoryId: s.aliceCategory },
       { accountId: usd, categoryId: s.aliceCategory },
       { accountId: s.aliceAccount, categoryId: income },
-      { accountId: s.aliceAccount, categoryId: s.aliceCategory.replace(/./, '0') },
+      { accountId: s.aliceAccount, categoryId: randomUUID() },
     ]) {
       expect(
         await codeOf(link.execute(ALICE, s.groupId, s.expenseId, { mode: 'create', ...body })),

@@ -158,7 +158,7 @@ describe('buildRecentExpenseItems', () => {
       amount: expect.stringContaining('15,000.50') as string,
       share: expect.stringContaining('7,500.25') as string,
     });
-    expect(items[0]?.date).toContain('2026');
+    expect(items[0]?.date).toMatch(/^Oct \d/);
   });
 
   it('falls back to the uncategorized display, with no error, when the category is not listed', () => {

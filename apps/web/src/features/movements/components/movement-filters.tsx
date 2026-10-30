@@ -1,7 +1,8 @@
 'use client';
 
 import { CREATABLE_MOVEMENT_TYPES, movementFilterShape } from '@pesly/shared';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
+import { X } from 'lucide-react';
 import { useEffect, useId, useState, type ReactNode, type Ref } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { hasActiveFilters, type MovementFilterValues } from '../movement-filters-state';
+import type { MovementFilterValues } from '../movement-filters-state';
 
 export interface FilterAccountOption {
   id: string;
@@ -39,7 +40,7 @@ export interface MovementFiltersProps {
   onChange: (next: MovementFilterValues) => void;
   onClear: () => void;
   /** Lets the container move focus here once a clear action removes the control that had it. */
-  firstControlRef?: Ref<HTMLSelectElement> | undefined;
+  firstControlRef?: Ref<HTMLButtonElement> | undefined;
   /** Renders the tag box; the container supplies it so the bar stays presentational. */
   renderTagField?: ((control: FilterTagFieldControl) => ReactNode) | undefined;
   /** Every control is off: the list is a copy kept on the device and cannot be filtered. */
@@ -113,13 +114,71 @@ export function MovementFilters({
   // Until the person toggles the panel it follows the filters (open while one is set); after that it
   // stays where they left it, so an active filter no longer locks it open.
   const [userOpen, setUserOpen] = useState<boolean | undefined>(undefined);
-  const extraActive =
-    filters.accountId !== undefined ||
-    filters.categoryId !== undefined ||
-    filters.from !== undefined ||
-    filters.to !== undefined ||
-    filters.tag !== undefined ||
-    rangeInvalid;
+  const panelCount = [
+    filters.accountId,
+    filters.categoryId,
+    filters.from ?? filters.to,
+    filters.tag,
+    filters.hideAdjustments === 'true' ? 'true' : undefined,
+  ].filter((value) => value !== undefined).length;
+  const accountLabel = accounts.find((account) => account.id === filters.accountId)?.label;
+  const categoryLabel = categories.find((category) => category.id === filters.categoryId)?.label;
+  const locale = useLocale();
+  // A filter day is a calendar date, so it is formatted in UTC to stay that same day.
+  const day = (value: string) =>
+    new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+      new Date(`${value}T00:00:00Z`),
+    );
+  const rangeLabel =
+    filters.from !== undefined && filters.to !== undefined
+      ? t('filters.rangeBetween', { from: day(filters.from), to: day(filters.to) })
+      : filters.from !== undefined
+        ? t('filters.rangeFrom', { from: day(filters.from) })
+        : filters.to !== undefined
+          ? t('filters.rangeTo', { to: day(filters.to) })
+          : undefined;
+  // What is on, besides the type: each one is a chip that takes it off.
+  const activeChips: { key: string; label: string; without: MovementFilterValues }[] = [
+    ...(filters.categoryId === undefined
+      ? []
+      : [
+          {
+            key: 'categoryId',
+            label: categoryLabel ?? t('filters.category'),
+            without: withValue(filters, 'categoryId', ''),
+          },
+        ]),
+    ...(filters.accountId === undefined
+      ? []
+      : [
+          {
+            key: 'accountId',
+            label: accountLabel ?? t('filters.account'),
+            without: withValue(filters, 'accountId', ''),
+          },
+        ]),
+    ...(rangeLabel === undefined
+      ? []
+      : [
+          {
+            key: 'range',
+            label: rangeLabel,
+            without: { ...filters, from: undefined, to: undefined },
+          },
+        ]),
+    ...(filters.tag === undefined
+      ? []
+      : [{ key: 'tag', label: `#${filters.tag}`, without: withValue(filters, 'tag', '') }]),
+    ...(filters.hideAdjustments === 'true'
+      ? [
+          {
+            key: 'hideAdjustments',
+            label: t('filters.hideAdjustments'),
+            without: withValue(filters, 'hideAdjustments', ''),
+          },
+        ]
+      : []),
+  ];
 
   return (
     <form
@@ -141,6 +200,7 @@ export function MovementFilters({
             return (
               <button
                 key={type ?? 'all'}
+                ref={type === undefined ? firstControlRef : undefined}
                 type="button"
                 disabled={disabled}
                 aria-pressed={pressed}
@@ -159,39 +219,59 @@ export function MovementFilters({
             );
           })}
         </div>
-        <div className="flex min-h-11 items-center gap-3">
-          <Checkbox
-            id={`${id}-hide-adjustments`}
-            disabled={disabled}
-            checked={filters.hideAdjustments === 'true'}
-            onChange={(event) => {
-              onChange(
-                withValue(filters, 'hideAdjustments', event.currentTarget.checked ? 'true' : ''),
-              );
-            }}
-          />
-          <Label
-            htmlFor={`${id}-hide-adjustments`}
-            className="min-h-11 cursor-pointer items-center"
-          >
-            {t('filters.hideAdjustments')}
-          </Label>
-        </div>
+        {activeChips.length === 0 ? null : (
+          <ul role="list" aria-label={t('filters.active')} className="flex flex-wrap gap-2">
+            {activeChips.map((chip) => (
+              <li key={chip.key}>
+                <button
+                  type="button"
+                  disabled={disabled}
+                  aria-label={t('filters.remove', { name: chip.label })}
+                  className="inline-flex min-h-11 max-w-full items-center gap-1.5 rounded-pill bg-primary/10 pr-3 pl-4 text-small font-semibold text-primary transition-colors outline-none hover:bg-primary/15 focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 motion-reduce:transition-none"
+                  onClick={() => {
+                    onChange(chip.without);
+                  }}
+                >
+                  <span className="truncate">{chip.label}</span>
+                  <X aria-hidden className="size-4 shrink-0" />
+                </button>
+              </li>
+            ))}
+            {activeChips.length > 0 ? (
+              <li>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled}
+                  onClick={onClear}
+                >
+                  {t('filters.clear')}
+                </Button>
+              </li>
+            ) : null}
+          </ul>
+        )}
         <details
-          open={userOpen ?? extraActive}
+          open={userOpen ?? rangeInvalid}
           onToggle={(event) => {
             setUserOpen(event.currentTarget.open);
           }}
-          className="rounded-card bg-card p-4"
+          className="rounded-card bg-card px-4 py-1 open:pb-4"
         >
-          <summary className="flex min-h-11 cursor-pointer items-center text-small font-semibold">
-            {t('filters.more')}
+          <summary className="flex min-h-11 cursor-pointer items-center gap-2 text-small font-semibold">
+            {t('filters.title')}
+            {panelCount === 0 ? null : (
+              <span className="inline-flex min-w-6 items-center justify-center rounded-pill bg-primary px-1.5 text-caption text-primary-foreground">
+                <span aria-hidden="true">{panelCount}</span>
+                <span className="sr-only">{t('filters.activeCount', { count: panelCount })}</span>
+              </span>
+            )}
           </summary>
           <div className="mt-2 grid gap-3">
             <div className="grid gap-2">
               <Label htmlFor={`${id}-account`}>{t('filters.account')}</Label>
               <Select
-                ref={firstControlRef}
                 id={`${id}-account`}
                 disabled={disabled}
                 value={filters.accountId ?? ''}
@@ -265,13 +345,30 @@ export function MovementFilters({
                 onChange(withValue(filters, 'tag', tags.at(-1) ?? ''));
               },
             })}
+            <div className="flex min-h-11 items-center gap-3">
+              <Checkbox
+                id={`${id}-hide-adjustments`}
+                disabled={disabled}
+                checked={filters.hideAdjustments === 'true'}
+                onChange={(event) => {
+                  onChange(
+                    withValue(
+                      filters,
+                      'hideAdjustments',
+                      event.currentTarget.checked ? 'true' : '',
+                    ),
+                  );
+                }}
+              />
+              <Label
+                htmlFor={`${id}-hide-adjustments`}
+                className="min-h-11 cursor-pointer items-center"
+              >
+                {t('filters.hideAdjustments')}
+              </Label>
+            </div>
           </div>
         </details>
-        {hasActiveFilters(filters) ? (
-          <Button type="button" variant="outline" disabled={disabled} onClick={onClear}>
-            {t('filters.clear')}
-          </Button>
-        ) : null}
       </fieldset>
     </form>
   );

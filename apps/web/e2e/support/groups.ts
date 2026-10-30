@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './accounts';
 import { catalogs } from './catalogs';
+import { openGroupManagement } from './rows';
 
 const es = catalogs.es;
 const t = es.groups;
@@ -30,6 +31,7 @@ export async function createGroup(page: Page, name: string): Promise<string> {
 
 /** Asks for an invitation on the open group page and reads the link from the read-only field. */
 export async function createInvitationLink(page: Page): Promise<string> {
+  await openGroupManagement(page);
   await page.getByRole('button', { name: t.invite.create }).click();
   const field = page.getByLabel(t.invite.linkLabel, { exact: true });
   await expect(field).toBeVisible();
@@ -40,6 +42,7 @@ export async function createInvitationLink(page: Page): Promise<string> {
 
 /** Adds a member without an account on the open group page. */
 export async function addGhostMember(page: Page, name: string): Promise<void> {
+  await openGroupManagement(page);
   await page.getByLabel(t.invite.ghost.nameLabel, { exact: true }).fill(name);
   await page.getByRole('button', { name: t.invite.ghost.submit }).click();
   await expect(page.getByRole('list', { name: t.detail.membersTitle })).toContainText(name);

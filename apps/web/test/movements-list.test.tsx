@@ -24,6 +24,7 @@ import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { openLocalStore, type LocalStore } from '../src/lib/local-store/stores';
 import { MOVEMENT_QUEUED_EVENT, QUEUE_CHANGED_EVENT } from '../src/lib/sync/sync-events';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { openRows } from './support/open-rows';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
 
 const { es, en } = CATALOGS;
@@ -266,7 +267,7 @@ describe('MovementsContainer', () => {
     expect(rows()).toHaveLength(150);
     expect(screen.queryByRole('button', { name: es.movements.list.showMore })).toBeNull();
     expect(
-      calls.filter((call) => call.path.startsWith('/movements')).map((call) => call.path),
+      calls.filter((call) => call.path.startsWith('/movements?')).map((call) => call.path),
     ).toEqual(['/movements?limit=100', '/movements?limit=100&offset=100']);
   });
 
@@ -394,7 +395,11 @@ describe('MovementsContainer', () => {
     renderApp(<MovementsContainer />);
 
     await screen.findByText('Nota 4');
-    expect(calls).toHaveLength(6);
+    // Five reference lists, the page and the totals of the same filters.
+    await waitFor(() => {
+      expect(calls).toHaveLength(7);
+    });
+    expect(calls.filter((call) => call.path === '/movements/summary')).toHaveLength(1);
   });
 
   it('pages accounts and categories beyond 100 until the total is reached', async () => {
@@ -642,7 +647,7 @@ function listPath(query = '') {
 }
 
 const listCalls = (calls: { method: string; path: string }[]) =>
-  calls.filter((call) => call.path.startsWith('/movements')).map((call) => call.path);
+  calls.filter((call) => call.path.startsWith('/movements?')).map((call) => call.path);
 
 const filterField = (name: string) => screen.getByLabelText<HTMLSelectElement>(name);
 const typeChip = (type: 'expense' | 'income' | 'transfer' | 'exchange') =>
@@ -739,6 +744,38 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     expect(listCalls(calls).at(-1)).toBe(full);
   });
 
+  it('opens a category from the totals: the list narrows to its expenses, and income lets it go', async () => {
+    const summaryRow = { currency: 'ARS', type: 'expense', amount: '150050', count: 1 };
+    const { calls } = stubApi(
+      filteredRoutes({
+        'GET /movements/summary': {
+          status: 200,
+          body: { rows: [{ ...summaryRow, categoryId: COMIDA_ID }] },
+        },
+        [`GET /movements/summary?categoryId=${COMIDA_ID}&type=expense`]: {
+          status: 200,
+          body: { rows: [{ ...summaryRow, categoryId: COMIDA_ID }] },
+        },
+      }),
+    );
+    renderApp(<MovementsContainer />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Ver solo Comida' }));
+    await waitFor(() => {
+      expect(listCalls(calls)).toContain(listPath(`categoryId=${COMIDA_ID}&type=expense`));
+    });
+    expect(calls.map((call) => call.path)).toContain(
+      `/movements/summary?categoryId=${COMIDA_ID}&type=expense`,
+    );
+
+    const kind = await screen.findByRole('group', { name: es.movements.summary.breakdownKind });
+    await user.click(within(kind).getByRole('button', { name: es.movements.summary.incomes }));
+    await waitFor(() => {
+      expect(listCalls(calls).at(-1)).toBe(listPath('type=income'));
+    });
+  });
+
   it('a parent category is sent once by its id and the subcategory rows that come back are shown (AC-02)', async () => {
     const byParent = listPath(`categoryId=${TREE_PARENT_ID}`);
     const { calls } = stubApi(
@@ -773,7 +810,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
       );
     const { calls } = stubApi(
       filteredRoutes({
-        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [FIRST_PAGE]: movementPage([movement({ note: 'Compras varias' })]),
         [filtered]: movementPage(page(0, 100), 150),
         [moreFiltered]: movementPage(page(100, 50), 150, 100),
       }),
@@ -781,7 +818,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     renderApp(<MovementsContainer />);
     const user = userEvent.setup();
 
-    await screen.findByText('Todo');
+    await screen.findByText('Compras varias');
     await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
     await screen.findByText('Fila 0');
     await user.click(screen.getByRole('button', { name: es.movements.list.showMore }));
@@ -790,7 +827,7 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
 
     await user.click(screen.getByRole('button', { name: es.movements.filters.clear }));
 
-    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(await screen.findByText('Compras varias')).toBeDefined();
     expect(listCalls(calls).at(-1)).toBe(FIRST_PAGE_PATH);
     expect(filterField(es.movements.filters.account).value).toBe('');
   });
@@ -798,20 +835,20 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
   it('an empty filtered result shows the no-matches message and a way back, not the empty-history message (AC-07)', async () => {
     stubApi(
       filteredRoutes({
-        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [FIRST_PAGE]: movementPage([movement({ note: 'Compras varias' })]),
         [listPath('type=income')]: movementPage([]),
       }),
     );
     renderApp(<MovementsContainer />);
     const user = userEvent.setup();
 
-    await screen.findByText('Todo');
+    await screen.findByText('Compras varias');
     await user.click(typeChip('income'));
 
     expect(await screen.findByText(es.movements.filters.noMatch)).toBeDefined();
     expect(screen.queryByText(es.movements.list.empty)).toBeNull();
     await user.click(screen.getByRole('button', { name: es.movements.filters.showAll }));
-    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(await screen.findByText('Compras varias')).toBeDefined();
     expect(screen.queryByText(es.movements.filters.noMatch)).toBeNull();
   });
 
@@ -962,38 +999,42 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
     expect(calls.filter((call) => call.path === '/profile')).toHaveLength(1);
   });
 
-  it('moves focus to the account select after "Clear filters" unmounts the button', async () => {
+  it('moves focus to the first type chip after "Clear filters" unmounts the button', async () => {
     stubApi(filteredRoutes());
     renderApp(<MovementsContainer />);
     const user = userEvent.setup();
 
     await screen.findByText(es.movements.list.empty);
-    await user.click(typeChip('income'));
+    await user.selectOptions(filterField(es.movements.filters.account), CAJA_ID);
     await user.click(await screen.findByRole('button', { name: es.movements.filters.clear }));
 
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: es.movements.filters.clear })).toBeNull();
     });
-    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: es.movements.filters.all }),
+    );
   });
 
-  it('moves focus to the account select after "Show all movements" unmounts the action', async () => {
+  it('moves focus to the first type chip after "Show all movements" unmounts the action', async () => {
     stubApi(
       filteredRoutes({
-        [FIRST_PAGE]: movementPage([movement({ note: 'Todo' })]),
+        [FIRST_PAGE]: movementPage([movement({ note: 'Compras varias' })]),
         [listPath('type=income')]: movementPage([]),
       }),
     );
     renderApp(<MovementsContainer />);
     const user = userEvent.setup();
 
-    await screen.findByText('Todo');
+    await screen.findByText('Compras varias');
     await user.click(typeChip('income'));
     await user.click(await screen.findByRole('button', { name: es.movements.filters.showAll }));
 
-    expect(await screen.findByText('Todo')).toBeDefined();
+    expect(await screen.findByText('Compras varias')).toBeDefined();
     expect(screen.queryByRole('button', { name: es.movements.filters.showAll })).toBeNull();
-    expect(document.activeElement).toBe(filterField(es.movements.filters.account));
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: es.movements.filters.all }),
+    );
   });
 
   it('does not take focus on first load or on an ordinary filter change (guard)', async () => {
@@ -1048,9 +1089,11 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
   it('shows an edit link to the edit route and a delete button on every row (AC-01)', async () => {
     await open({ [FIRST_PAGE]: movementPage([stored]) });
 
-    const link = screen.getByRole('link', { name: `${actions.edit} Comida` });
+    const link = within(openRows()).getByRole('link', { name: `${actions.edit} Comida` });
     expect(link.getAttribute('href')).toBe(`/es/movements/edit?id=${uuid(500)}`);
-    expect(screen.getByRole('button', { name: `${actions.delete} Comida` })).toBeDefined();
+    expect(
+      within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }),
+    ).toBeDefined();
   });
 
   it('keeps the amount out of the accessible names of the actions (AC-02)', async () => {
@@ -1069,7 +1112,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     expect(screen.getByText(actions.confirmDelete)).toBeDefined();
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(0);
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
@@ -1085,7 +1128,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     const { calls } = await open({ [FIRST_PAGE]: movementPage([stored]) });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.cancel }));
 
     expect(screen.queryByText(actions.confirmDelete)).toBeNull();
@@ -1100,7 +1143,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
     expect(await screen.findByText(es.errors.unexpected)).toBeDefined();
@@ -1115,7 +1158,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
     await waitFor(() => {
@@ -1133,7 +1176,7 @@ describe('MovementsContainer: edit and delete (DISC-001-03e)', () => {
     });
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
     await waitFor(() => {
@@ -1371,10 +1414,14 @@ describe('MovementsContainer: pending movements (DISC-001-04b)', () => {
 
     const { edit, delete: remove } = es.movements.list.actions;
     const [pending, cached] = rows() as [HTMLElement, HTMLElement];
-    expect(within(pending).getByRole('button', { name: `${remove} Comida` })).toBeDefined();
-    expect(within(pending).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
-    expect(within(cached).getByRole('button', { name: `${remove} Comida` })).toBeDefined();
-    expect(within(cached).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
+    expect(
+      within(openRows(pending)).getByRole('button', { name: `${remove} Comida` }),
+    ).toBeDefined();
+    expect(within(openRows(pending)).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
+    expect(
+      within(openRows(cached)).getByRole('button', { name: `${remove} Comida` }),
+    ).toBeDefined();
+    expect(within(openRows(cached)).getByRole('link', { name: `${edit} Comida` })).toBeDefined();
   });
 
   it('shows the movement as pending again after the screen is mounted again (AC-04)', async () => {
@@ -1565,7 +1612,7 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
     const { calls, user } = await openOffline([lunch, saved(2, 'Cena')]);
 
     await user.click(
-      within(rowOf('Almuerzo')).getByRole('button', { name: `${actions.delete} Comida` }),
+      within(openRows(rowOf('Almuerzo'))).getByRole('button', { name: `${actions.delete} Comida` }),
     );
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
@@ -1591,7 +1638,7 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
     await screen.findByText('Almuerzo');
     const user = userEvent.setup();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
     await waitFor(async () => {
@@ -1651,7 +1698,9 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
 
     const first = rowOf('Uno');
     expect(within(first).getByText(es.errors.accountArchived)).toBeDefined();
-    expect(within(first).getByRole('link', { name: `${actions.edit} Comida` })).toBeDefined();
+    expect(
+      within(openRows(first)).getByRole('link', { name: `${actions.edit} Comida` }),
+    ).toBeDefined();
     expect(within(first).getByRole('button', { name: `${actions.retry} Comida` })).toBeDefined();
     expect(within(first).getByRole('button', { name: `${actions.discard} Comida` })).toBeDefined();
     expect(within(rowOf('Dos')).getByText(es.movements.sync.deletedElsewhere)).toBeDefined();
@@ -1701,7 +1750,9 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
     expect(within(row).getByText(es.movements.list.failed)).toBeDefined();
     expect(within(row).getByRole('button', { name: `${actions.retry} Comida` })).toBeDefined();
     expect(within(row).getByRole('button', { name: `${actions.discard} Comida` })).toBeDefined();
-    expect(within(row).queryByRole('link', { name: `${actions.edit} Comida` })).toBeNull();
+    expect(
+      within(openRows(row)).queryByRole('link', { name: `${actions.edit} Comida` }),
+    ).toBeNull();
   });
 
   it('shows the generic message for an unknown rejection code and never the code (invalid input)', async () => {
@@ -1720,7 +1771,7 @@ describe('MovementsContainer: sync states and failed changes (DISC-001-04c)', ()
     const { user } = await openOffline([saved(1, 'Almuerzo')]);
     localStorage.clear();
 
-    await user.click(screen.getByRole('button', { name: `${actions.delete} Comida` }));
+    await user.click(within(openRows()).getByRole('button', { name: `${actions.delete} Comida` }));
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));
 
     expect(await screen.findByText(es.errors.offlineSaveFailed)).toBeDefined();
@@ -1755,7 +1806,9 @@ describe('MovementsContainer: balance adjustments (FEAT-012)', () => {
 
     expect(await screen.findByText('Recount')).toBeDefined();
     expect(
-      screen.queryByRole('link', { name: `${actions.edit} ${es.movements.types.adjustment}` }),
+      within(openRows()).queryByRole('link', {
+        name: `${actions.edit} ${es.movements.types.adjustment}`,
+      }),
     ).toBeNull();
     await user.click(screen.getByLabelText(hideLabel));
 
@@ -1778,7 +1831,9 @@ describe('MovementsContainer: balance adjustments (FEAT-012)', () => {
 
     await screen.findByText('Recount');
     await user.click(
-      screen.getByRole('button', { name: `${actions.delete} ${es.movements.types.adjustment}` }),
+      within(openRows()).getByRole('button', {
+        name: `${actions.delete} ${es.movements.types.adjustment}`,
+      }),
     );
     expect(screen.getByText(actions.confirmDeleteAdjustment)).toBeDefined();
     await user.click(screen.getByRole('button', { name: actions.confirmDeleteYes }));

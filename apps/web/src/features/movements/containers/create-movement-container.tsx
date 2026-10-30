@@ -4,7 +4,7 @@ import { type CategoryLanguage, type CreatableMovementType } from '@pesly/shared
 import { useLocale } from 'next-intl';
 import { useState } from 'react';
 import { AccountsLoadStateView } from '@/features/accounts/components/accounts-load-state';
-import { categoryLabel } from '@/features/categories/category-display';
+import { categoryLabel, compareCategories } from '@/features/categories/category-display';
 import { useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { isOffline } from '@/lib/connectivity';
@@ -16,6 +16,7 @@ import { MovementForm, type MovementFormValues } from '../components/movement-fo
 import { MovementSaved } from '../components/movement-saved';
 import { formatRate } from '../format-rate';
 import { impliedRatePreview, type ImpliedRatePreviewInput } from '../implied-rate-preview';
+import { readLastAccount, startingAccount, writeLastAccount } from '../last-account';
 import { movementFailureErrors, type MovementFormErrors } from '../movement-form-errors';
 import { buildMovementRequest } from '../movement-request';
 import { useMovementFormData, type MovementFormData } from '../use-movement-form-data';
@@ -83,6 +84,8 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
     // The id is chosen here, before anything is sent or stored, so repeating this save can never
     // make a second movement: a lost answer is retried with the same id.
     const withId = { ...request, id: crypto.randomUUID() };
+    // The next movement starts on this account: most people pay from the same one again.
+    writeLastAccount(readSessionPointer()?.userId, request.accountId);
     setPending(true);
     setErrors({});
     if (offline) {
@@ -119,6 +122,7 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
   }
 
   const { data } = state;
+  const openAccounts = data.accounts.filter((item) => !item.archived);
   return (
     <div className="grid gap-4">
       {saved === undefined ? null : (
@@ -127,10 +131,22 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
       <MovementForm
         key={formKey}
         initialType={initialType}
-        accounts={data.accounts.filter((item) => !item.archived)}
+        accounts={openAccounts}
+        defaultAccountId={startingAccount(
+          openAccounts,
+          readLastAccount(readSessionPointer()?.userId),
+        )}
         categories={data.categories
           .filter((item) => !item.archived)
-          .map((item) => ({ id: item.id, kind: item.kind, label: categoryLabel(item, language) }))}
+          .sort(compareCategories)
+          .map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            label: categoryLabel(item, language),
+            parentId: item.parentId,
+            icon: item.icon,
+            color: item.color,
+          }))}
         defaultOccurredAt={data.defaultOccurredAt}
         defaultRate={data.defaultRate}
         rateType={data.defaultRate === '' ? undefined : data.rateType}

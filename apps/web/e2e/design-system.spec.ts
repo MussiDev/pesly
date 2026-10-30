@@ -162,9 +162,9 @@ test.describe('touch targets at 360 px (NFR-02)', () => {
   test('every interactive element on the movements page is at least 44 by 44', async ({ page }) => {
     await signedIn(page);
     await page.goto('/es/movements');
-    // The empty list and a populated one both offer the new-movement link once loaded.
+    // The type chips show on the empty list and on a populated one once loaded.
     await expect(
-      page.getByRole('main').getByRole('link', { name: es.movements.list.newMovement }).first(),
+      page.getByRole('group', { name: es.movements.filters.type, exact: true }),
     ).toBeVisible();
 
     expect(await undersizedTargets(page)).toEqual([]);

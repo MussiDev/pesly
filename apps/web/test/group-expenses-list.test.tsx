@@ -20,6 +20,7 @@ import {
   notifyQueueChanged,
   notifySyncFinished,
 } from '../src/lib/sync/sync-events';
+import { openRows } from './support/open-rows';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { en, es } = CATALOGS;
@@ -125,7 +126,7 @@ describe('GroupExpensesContainer', () => {
     expect(row.getByText(/Ana/)).toBeTruthy();
     expect(row.getByText(/15,000\.50/)).toBeTruthy();
     expect(row.getByText(/7,500\.25/)).toBeTruthy();
-    expect(row.getByText(/Oct 6, 2026/)).toBeTruthy();
+    expect(row.getByText(/^Oct 6/)).toBeTruthy();
     const items = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(items[0]).toContain('Expense 2');
     expect(items[1]).toContain('Expense 1');
@@ -287,9 +288,13 @@ const mine = (n: number) =>
 const rowOf = async (text: string): Promise<HTMLElement> => {
   const li = (await screen.findByText(text)).closest('li');
   if (!li) throw new Error('no row');
-  return li;
+  // The actions of a row show once it is opened.
+  return openRows(li);
 };
 const common = en.groups.edit.common;
+/** The actions come with the device queue, after the first paint: open the row once they do. */
+const findInRow = (row: HTMLElement, role: 'button' | 'link', name: string) =>
+  waitFor(() => within(openRows(row)).getByRole(role, { name }));
 
 async function seed(work: (database: IDBDatabase) => Promise<unknown>) {
   await withGroupQueue(USER, async (database) => {
@@ -320,10 +325,10 @@ describe('GroupExpensesContainer edit actions (DISC-001-05h Block 7)', () => {
   it("shows edit and delete on the caller's own rows and neither on another member's", async () => {
     stubOne('member', [mine(1), expense(2)]);
     open();
-    const own = within(await rowOf('Expense 1'));
-    expect(
-      (await own.findByRole('link', { name: common.actions.edit })).getAttribute('href'),
-    ).toContain(`/groups/${GROUP_ID}/expenses/${mine(1).id}/edit`);
+    const ownRow = await rowOf('Expense 1');
+    const own = within(ownRow);
+    const edit = await findInRow(ownRow, 'link', common.actions.edit);
+    expect(edit.getAttribute('href')).toContain(`/groups/${GROUP_ID}/expenses/${mine(1).id}/edit`);
     expect(own.getByRole('button', { name: common.actions.delete })).toBeTruthy();
     const other = within(await rowOf('Expense 2'));
     expect(other.queryByRole('link', { name: common.actions.edit })).toBeNull();
@@ -333,8 +338,8 @@ describe('GroupExpensesContainer edit actions (DISC-001-05h Block 7)', () => {
   it("shows edit and delete on another member's row to an admin", async () => {
     stubOne('admin', [expense(2)]);
     open();
-    const row = within(await rowOf('Expense 2'));
-    expect(await row.findByRole('button', { name: common.actions.delete })).toBeTruthy();
+    const row = await rowOf('Expense 2');
+    expect(await findInRow(row, 'button', common.actions.delete)).toBeTruthy();
   });
 
   it('marks a row with a queued update as waiting and shows the queued values', async () => {
@@ -465,9 +470,7 @@ describe('GroupExpensesContainer edit actions (DISC-001-05h Block 7)', () => {
     stubOne('member', [mine(1)]);
     open();
     const del = common.actions.delete;
-    await userEvent.click(
-      await within(await rowOf('Expense 1')).findByRole('button', { name: del }),
-    );
+    await userEvent.click(await findInRow(await rowOf('Expense 1'), 'button', del));
     await userEvent.click(screen.getByRole('button', { name: common.deleteConfirm.cancel }));
     expect(await readQueue()).toHaveLength(0);
     expect(screen.queryByText(common.deleteConfirm.title)).toBeNull();
@@ -515,9 +518,11 @@ describe('GroupExpensesContainer edit actions (DISC-001-05h Block 7)', () => {
   it('renders the edit controls in Spanish', async () => {
     stubOne('member', [mine(1)]);
     open('es');
-    const row = within(await rowOf('Expense 1'));
-    expect(await row.findByRole('link', { name: es.groups.edit.common.actions.edit })).toBeTruthy();
-    expect(row.getByRole('button', { name: es.groups.edit.common.actions.delete })).toBeTruthy();
+    const row = await rowOf('Expense 1');
+    expect(await findInRow(row, 'link', es.groups.edit.common.actions.edit)).toBeTruthy();
+    expect(
+      within(row).getByRole('button', { name: es.groups.edit.common.actions.delete }),
+    ).toBeTruthy();
   });
 });
 

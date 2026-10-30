@@ -6,6 +6,7 @@ import type {
   CategoryResponse,
   MovementGroupLink,
   MovementResponse,
+  MovementSummaryResponse,
 } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
@@ -35,6 +36,8 @@ import {
   type FilterCategoryOption,
 } from '../components/movement-filters';
 import { MovementList, type MovementListItem } from '../components/movement-list';
+import { MovementSummary, type MovementSummaryState } from '../components/movement-summary';
+import { dayKey } from '../components/movement-row';
 import type { MovementGroupAction } from '../components/movement-row';
 import {
   MovementsLoadStateView,
@@ -48,6 +51,8 @@ import {
   serializeFilters,
   type MovementFilterValues,
 } from '../movement-filters-state';
+import { periodOf, periodRange } from '../movement-period';
+import { movementSummaryView } from '../movement-summary-view';
 import { canOfferSendToGroup } from '../send-to-group/eligibility';
 import { overlayQueue } from '../sync-overlay';
 import { TagInputContainer } from './tag-input-container';
@@ -174,7 +179,7 @@ export function MovementsContainer() {
   // Bumped on every (re)load, so a "show more" answer from before it is discarded.
   const generation = useRef(0);
   // Both clear actions unmount the control that had focus; this moves it to the bar's first control.
-  const firstFilterRef = useRef<HTMLSelectElement>(null);
+  const firstFilterRef = useRef<HTMLButtonElement>(null);
   const [focusRequest, setFocusRequest] = useState(0);
   // URLs this screen wrote that the router has not reported back yet.
   const pendingWrites = useRef<string[]>([]);
@@ -415,6 +420,28 @@ export function MovementsContainer() {
     };
   }, [api, router, filtersKey, listAttempt, online]);
 
+  // The totals follow the same filters as the list; offline, or with a reversed range, there are none.
+  const [summary, setSummary] = useState<
+    { kind: 'loading' } | { kind: 'failed' } | { kind: 'ready'; data: MovementSummaryResponse }
+  >({ kind: 'loading' });
+  const [summaryAttempt, setSummaryAttempt] = useState(0);
+  useEffect(() => {
+    const active = filtersFromKey(filtersKey);
+    if (!online || isRangeInvalid(active)) return;
+    setSummary({ kind: 'loading' });
+    let live = true;
+    void api.getMovementSummary(filtersToListParams(active)).then((result) => {
+      if (!live) return;
+      if (result.ok) setSummary({ kind: 'ready', data: result.data });
+      else if (result.code === 'UNAUTHENTICATED') router.replace('/sign-in');
+      // The list still shows: a failed total offers its own retry.
+      else setSummary({ kind: 'failed' });
+    });
+    return () => {
+      live = false;
+    };
+  }, [api, router, filtersKey, listAttempt, summaryAttempt, online]);
+
   /**
    * Keeps the delete on this device until it can be sent; the queue-changed event then hides the
    * row. When it cannot be stored the row stays and the person is told.
@@ -619,9 +646,61 @@ export function MovementsContainer() {
         })
       : [];
 
+  const today = dayKey(new Date().toISOString(), reference.data.timeZone);
+  const breakdown = filters.type === 'income' ? 'income' : 'expense';
+  const chosen =
+    filters.categoryId === undefined ? undefined : lookups.categories.get(filters.categoryId);
+  const selectedCategory =
+    filters.categoryId === undefined
+      ? undefined
+      : {
+          id: filters.categoryId,
+          label: chosen === undefined ? tFilters('category') : categoryLabel(chosen, language),
+        };
+  const summaryState: MovementSummaryState =
+    summary.kind === 'ready'
+      ? {
+          kind: 'ready',
+          view: movementSummaryView(summary.data.rows, reference.data.categories, {
+            language,
+            selectedCategoryId: filters.categoryId,
+            breakdown,
+          }),
+        }
+      : summary;
+  // Totals need the server: the device copy and an invalid range show none.
+  const showSummary = online && !viewingCopy && !rangeInvalid;
+
   return (
     <MovementList
       focusId={focusId}
+      summary={
+        showSummary ? (
+          <MovementSummary
+            locale={language}
+            period={periodOf(filters, today)}
+            onPeriodChange={(period) => {
+              applyFilters({ ...filters, ...periodRange(period, today) });
+            }}
+            state={summaryState}
+            selectedCategory={selectedCategory}
+            onSelectCategory={(categoryId) => {
+              // A category of the breakdown narrows the list to the same kind of movement.
+              applyFilters({ ...filters, categoryId, type: filters.type ?? breakdown });
+            }}
+            onClearCategory={() => {
+              applyFilters({ ...filters, categoryId: undefined });
+            }}
+            onBreakdownChange={(type) => {
+              // A category belongs to one kind, so switching kind lets it go.
+              applyFilters({ ...filters, type, categoryId: undefined });
+            }}
+            onRetry={() => {
+              setSummaryAttempt((value) => value + 1);
+            }}
+          />
+        ) : undefined
+      }
       items={items}
       timeZone={reference.data.timeZone}
       hasMore={list.kind === 'ready' && list.movements.length < list.total}

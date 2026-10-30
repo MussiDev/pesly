@@ -8,6 +8,7 @@ import {
   scrollsHorizontally,
   signedInUser,
 } from './support/groups';
+import { openGroupManagement } from './support/rows';
 
 const t = catalogs.es.groups;
 const tCategories = catalogs.es.categories;
@@ -32,6 +33,7 @@ test('two users: create, invite, join, add a member without an account, add a ca
 
     // A creates the group and an invitation.
     const groupId = await createGroup(pageA, 'Casa de playa');
+    await openGroupManagement(pageA);
     await expect(pageA.getByRole('list', { name: t.detail.membersTitle })).toContainText(
       'Ana Pérez',
     );
@@ -41,6 +43,7 @@ test('two users: create, invite, join, add a member without an account, add a ca
     await pageB.goto(link);
     await expect(pageB).toHaveURL(new RegExp(`/es/groups/${groupId}$`));
     await expect(pageB.getByRole('heading', { level: 1, name: 'Casa de playa' })).toBeVisible();
+    await openGroupManagement(pageB);
     await expect(pageB.getByRole('list', { name: t.detail.membersTitle })).toContainText(
       'Bruno Gómez',
     );
@@ -58,6 +61,7 @@ test('two users: create, invite, join, add a member without an account, add a ca
 
     // A reloads and sees B; then adds a member without an account and a group category.
     await pageA.reload();
+    await openGroupManagement(pageA);
     const members = pageA.getByRole('list', { name: t.detail.membersTitle });
     await expect(members).toContainText('Bruno Gómez');
     await addGhostMember(pageA, 'Carla');
@@ -80,6 +84,7 @@ test('two users: create, invite, join, add a member without an account, add a ca
     ).toBeVisible();
 
     // B has no balance, so B leaves and is back on the list without the group.
+    await openGroupManagement(pageB);
     await pageB.getByRole('button', { name: t.detail.leave.action }).click();
     await expect(pageB).toHaveURL(/\/es\/groups$/);
     await expect(pageB.getByText(t.list.empty.title)).toBeVisible();

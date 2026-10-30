@@ -10,6 +10,7 @@ import { saveReferenceData } from '../src/lib/local-store/reference-cache';
 import { writeSessionPointer } from '../src/lib/local-store/session-pointer';
 import { openLocalStore } from '../src/lib/local-store/stores';
 import { category as categoryFixture, uuid } from './support/category-fixtures';
+import { openRows } from './support/open-rows';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
 
 const { es } = CATALOGS;
@@ -124,7 +125,9 @@ function routes(overrides: Record<string, Parameters<typeof stubApi>[0][string]>
 }
 
 const sendLinks = () =>
-  screen.queryAllByRole('link', { name: new RegExp(es.movements.list.actions.sendToGroup) });
+  within(openRows()).queryAllByRole('link', {
+    name: new RegExp(es.movements.list.actions.sendToGroup),
+  });
 const groupCalls = (calls: { path: string }[]) => calls.filter((call) => call.path === '/groups');
 
 function setOnline(online: boolean): void {
@@ -313,7 +316,7 @@ describe('MovementsContainer: focus (DISC-001-05i)', () => {
     expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ block: 'center' }));
     expect(focus.mock.contexts).toContain(row);
     expect(screen.getByText('Uno').closest('li')?.getAttribute('aria-current') ?? null).toBeNull();
-    expect(within(row).getByRole('link', { name: /Enviar a un grupo/ })).toBeDefined();
+    expect(within(openRows(row)).getByRole('link', { name: /Enviar a un grupo/ })).toBeDefined();
     await userEvent.setup().click(within(row).getByRole('button', { name: /Eliminar/ }));
     expect(within(row).getByText(es.movements.list.actions.confirmDelete)).toBeDefined();
   });

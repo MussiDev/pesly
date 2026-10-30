@@ -428,6 +428,8 @@ describe('CreateMovementContainer: amount, account, category and note (AC-02, AC
 
   it('requires an account and a category (invalid input)', async () => {
     const { calls } = await open();
+    // A new movement starts on an account; taking it off must still be refused.
+    await userEvent.setup().selectOptions(field(es.movements.fields.account), '');
     await userEvent.setup().type(field(es.movements.fields.amount), '100');
     await userEvent.setup().click(submit());
 

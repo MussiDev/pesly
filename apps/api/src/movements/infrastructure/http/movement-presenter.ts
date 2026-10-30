@@ -4,7 +4,9 @@ import {
   type MovementDetailResponse,
   type MovementGroupLink,
   type MovementResponse,
+  type MovementSummaryResponse,
 } from '@pesly/shared';
+import type { MovementSummaryRow } from '../../application/ports/movement-summary-reader';
 import type { Movement } from '../../domain/movement';
 
 /** The only place where `bigint` becomes a decimal string and an instant an ISO 8601 UTC string. */
@@ -83,4 +85,18 @@ export function presentMovementDetail(detail: {
   groupExpense: MovementGroupLink | null;
 }): MovementDetailResponse {
   return { ...presentMovement(detail.movement), groupExpense: detail.groupExpense };
+}
+
+export function presentMovementSummary(
+  rows: readonly MovementSummaryRow[],
+): MovementSummaryResponse {
+  return {
+    rows: rows.map((row) => ({
+      categoryId: row.categoryId,
+      currency: row.currency,
+      type: row.type,
+      amount: formatMinorUnitsString(row.amount),
+      count: row.count,
+    })),
+  };
 }

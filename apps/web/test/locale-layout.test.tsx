@@ -12,14 +12,22 @@ const mocks = vi.hoisted(() => ({
     variable: 'plus-jakarta-variable',
     style: {},
   })),
+  bricolage: vi.fn(() => ({
+    className: 'bricolage-class',
+    variable: 'bricolage-variable',
+    style: {},
+  })),
 }));
 
 vi.mock('next/headers', () => ({
   headers: () => Promise.resolve(mocks.requestHeaders),
 }));
 
-// Only Plus Jakarta Sans is exported: importing any other family (Inter) fails the layout import.
-vi.mock('next/font/google', () => ({ Plus_Jakarta_Sans: mocks.plusJakarta }));
+// Only Plus Jakarta Sans and Bricolage Grotesque are exported: any other family (Inter) fails the import.
+vi.mock('next/font/google', () => ({
+  Plus_Jakarta_Sans: mocks.plusJakarta,
+  Bricolage_Grotesque: mocks.bricolage,
+}));
 
 // Outside React Server Components next-intl ships stubs; this is the server build's behaviour.
 vi.mock('next-intl/server', () => ({
@@ -30,6 +38,7 @@ vi.mock('next-intl/server', () => ({
 const { default: LocaleLayout, generateMetadata } = await import('../src/app/[locale]/layout');
 // Recorded now: Vitest clears mock history between tests, and next/font is called at import.
 const fontCalls = [...mocks.plusJakarta.mock.calls];
+const displayFontCalls = [...mocks.bricolage.mock.calls];
 const { ApiClientProvider } = await import('../src/lib/api-client-provider');
 const { ThemeProvider } = await import('../src/components/theme-provider');
 const { THEME_SCRIPT } = await import('../src/lib/theme');
@@ -131,6 +140,11 @@ describe('[locale] layout design system wiring', () => {
     ]);
     const html = tree as ReactElement<{ className: string }>;
     expect(html.props.className).toContain('plus-jakarta-variable');
+    // The display face of headings and headline figures, self-hosted the same way.
+    expect(displayFontCalls).toEqual([
+      [expect.objectContaining({ display: 'swap', variable: '--font-bricolage' })],
+    ]);
+    expect(html.props.className).toContain('bricolage-variable');
     expect(stringsOf(tree).join(' ')).not.toMatch(
       /fonts\.googleapis|fonts\.gstatic|https?:\/\/[^"']*font/i,
     );

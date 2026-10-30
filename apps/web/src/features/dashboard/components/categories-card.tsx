@@ -1,8 +1,9 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CategoryPie } from '@/components/ui/category-pie';
+import { Link, useRouter } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import type { CategoryView, Currency } from '../dashboard-view';
@@ -12,11 +13,32 @@ interface CategoriesCardProps {
   locale: Locale;
   currency: Currency;
   categories: CategoryView[];
+  /** The month's spending, shown in the hole of the ring. */
+  total?: bigint | undefined;
 }
 
-/** Spending by category, rows as returned; the share is always printed, the bar only draws it. */
-export function CategoriesCard({ locale, currency, categories }: CategoriesCardProps) {
+/**
+ * Spending by category as a ring. A tap on an arc or a row opens that category's expenses of the
+ * month; the legend always prints the amount and share, so the ring only illustrates them.
+ */
+export function CategoriesCard({ locale, currency, categories, total }: CategoriesCardProps) {
   const t = useTranslations('dashboard.categories');
+  const router = useRouter();
+  const segments = categories.map((category) => {
+    const label = category.label === '' ? t('other') : category.label;
+    return {
+      key: category.key,
+      label,
+      amounts: [formatMoney(category.amount, currency, locale)],
+      // The share is a whole percent; the ring wants basis points.
+      basisPoints: Math.max(0, Math.round(category.share)) * 100,
+      color: category.color,
+      href: category.href,
+      actionLabel: category.href === undefined ? undefined : t('open', { name: label }),
+      selectable: category.href !== undefined,
+    };
+  });
+
   return (
     <Card className="min-w-0">
       <CardHeader>
@@ -26,36 +48,29 @@ export function CategoriesCard({ locale, currency, categories }: CategoriesCardP
         {categories.length === 0 ? (
           <p className="text-small text-muted-foreground">{t('empty')}</p>
         ) : (
-          <ul aria-label={t('title')} className="grid gap-3">
-            {categories.map((category) => (
-              <li key={category.key} className="grid min-w-0 gap-1.5">
-                <div className="flex min-w-0 items-baseline justify-between gap-3">
-                  <span className="min-w-0 break-words text-body">
-                    {category.label === '' ? t('other') : category.label}
+          <CategoryPie
+            label={t('title')}
+            segments={segments}
+            formatPercent={(basisPoints) => formatWholePercent(basisPoints / 100, locale)}
+            onSelect={(key) => {
+              const href = segments.find((segment) => segment.key === key)?.href;
+              if (href !== undefined) router.push(href);
+            }}
+            centre={
+              total === undefined ? undefined : (
+                <>
+                  <span className="text-caption text-muted-foreground">{t('total')}</span>
+                  <span className="text-caption font-bold tabular-nums">
+                    {formatMoney(total, currency, locale)}
                   </span>
-                  <span className="shrink-0 text-small text-muted-foreground">
-                    {formatMoney(category.amount, currency, locale)}
-                    {' · '}
-                    {formatWholePercent(category.share, locale)}
-                  </span>
-                </div>
-                <div
-                  aria-hidden="true"
-                  className="h-1.5 w-full overflow-hidden rounded-pill bg-muted"
-                >
-                  <div
-                    data-slot="share-bar"
-                    className="h-full rounded-pill bg-primary"
-                    style={{ width: `${Math.min(100, Math.max(0, category.share))}%` }}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+                </>
+              )
+            }
+          />
         )}
         <Link
           href="/reports/categories"
-          className="mt-4 inline-flex min-h-11 items-center text-small font-medium text-primary underline-offset-4 hover:underline"
+          className="mt-2 inline-flex min-h-11 items-center text-small font-medium text-primary underline-offset-4 hover:underline"
         >
           {t('viewReport')}
         </Link>

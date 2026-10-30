@@ -1,5 +1,5 @@
 import type { CategoryLanguage, ExpenseOptionsResponse, GroupExpenseResponse } from '@pesly/shared';
-import { formatDateTime, formatMoney } from '@/lib/format-amount';
+import { formatMoney, formatShortDate } from '@/lib/format-amount';
 import { resolveCategory } from '../category-views/resolve-category';
 import type { ExpenseListItem } from '../expenses/list/group-expenses-list';
 
@@ -34,7 +34,7 @@ export function buildRecentExpenseItems(
         options.members.find((member) => member.id === expense.payerMemberId)?.displayName ??
         unnamedLabel,
       amount: formatMoney(BigInt(expense.amount), expense.currency, language),
-      date: formatDateTime(expense.occurredAt, timeZone, language),
+      date: formatShortDate(expense.occurredAt, timeZone, language),
       share:
         own === undefined ? undefined : formatMoney(BigInt(own.amount), expense.currency, language),
     };
