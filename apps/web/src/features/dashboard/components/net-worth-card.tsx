@@ -17,9 +17,12 @@ export type SeriesState =
   | { kind: 'ready'; currency: Currency; points: SeriesPointView[] }
   | { kind: 'failed'; retrying: boolean; onRetry: () => void };
 
-/** One translucent tile on the navy card: side by side when both fit, stacked on a phone. */
+/** One translucent tile on the navy card: the pesos and dollars parts sit side by side. */
 const PART_CLASS =
-  'flex min-w-0 flex-1 basis-56 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-2xl border border-hero-foreground/20 bg-hero-foreground/10 px-4 py-3';
+  'grid min-w-0 flex-1 basis-32 content-start gap-0.5 rounded-xl bg-hero-foreground/10 px-3 py-2.5';
+
+/** The small uppercase label of a figure on the navy card. */
+const EYEBROW_CLASS = 'text-caption font-semibold tracking-wide text-hero-muted uppercase';
 
 /** The net worth figure of record, its ARS and USD parts and the chart (or its retry). */
 export function NetWorthCard({
@@ -47,28 +50,28 @@ export function NetWorthCard({
           locale={locale}
           currency={currency}
           title={
-            <h2 id="net-worth-title" className="text-small font-normal text-hero-muted">
+            <h2 id="net-worth-title" className={EYEBROW_CLASS}>
               {t('netWorth.label')}
             </h2>
           }
           total={netWorth.total}
           ars={netWorth.ars}
           usd={netWorth.usd}
-          figureClass="text-display"
+          figureClass="text-display font-bold"
         />
         <FigureBlock
           locale={locale}
           currency={currency}
           groupLabelId="available-title"
           title={
-            <h2 id="available-title" className="text-small font-normal text-hero-muted">
+            <h2 id="available-title" className={EYEBROW_CLASS}>
               {t('available.label')}
             </h2>
           }
           total={available.total}
           ars={available.ars}
           usd={available.usd}
-          figureClass="text-heading"
+          figureClass="text-title font-bold"
         />
       </div>
       <Card className="min-w-0">
@@ -141,11 +144,15 @@ function FigureBlock({
       <dl className="flex min-w-0 flex-wrap gap-2">
         <div className={PART_CLASS}>
           <dt className="text-caption text-hero-muted">{t('netWorth.ars')}</dt>
-          <dd className="break-words text-body font-semibold">{formatMoney(ars, 'ARS', locale)}</dd>
+          <dd className="break-words text-small font-semibold">
+            {formatMoney(ars, 'ARS', locale)}
+          </dd>
         </div>
         <div className={PART_CLASS}>
           <dt className="text-caption text-hero-muted">{t('netWorth.usd')}</dt>
-          <dd className="break-words text-body font-semibold">{formatMoney(usd, 'USD', locale)}</dd>
+          <dd className="break-words text-small font-semibold">
+            {formatMoney(usd, 'USD', locale)}
+          </dd>
         </div>
       </dl>
     </div>

@@ -1078,17 +1078,18 @@ describe('accounts screens built on the design system (FEAT-004 AC-17, AC-22)', 
     expect(within(empty).queryByRole('link')).toBeNull();
   });
 
-  it('renders each account as a card with its currency badge and an Amount balance on its own line', () => {
+  it('renders each account as a card with its currency badge and an Amount balance in its own column', () => {
     renderIntl(<AccountList {...listProps()} />);
 
     const row = screen.getByRole('listitem', { name: 'Caja' });
     const badge = row.querySelector('[data-slot="badge"]');
-    const amount = row.querySelector('[data-slot="amount"]');
+    // The opening balance comes first, under the name; the balance closes the header.
+    const amount = [...row.querySelectorAll('[data-slot="amount"]')].at(-1);
     expect(badge?.textContent).toBe('ARS');
     expect(amount?.textContent).toBe(formatMoney(150000n, 'ARS', 'es'));
-    // A large balance never shares a row with the badge, so the two cannot overlap.
-    expect(amount?.parentElement).toBe(row);
-    expect(badge?.parentElement).not.toBe(row);
+    // A large balance never shares a column with the badge, so the two cannot overlap.
+    expect(amount?.contains(badge ?? null)).toBe(false);
+    expect(badge?.closest('.flex-1')?.contains(amount ?? null)).toBe(false);
   });
 
   it('puts the totals in tabular Amount figures inside the headline card', () => {

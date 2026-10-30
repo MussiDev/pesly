@@ -134,63 +134,42 @@ export function AccountRow(props: AccountRowProps) {
   return (
     <li
       aria-label={account.name}
-      className="grid min-w-0 content-start gap-3 rounded-card bg-card p-5 text-card-foreground shadow-xs"
+      className="grid min-w-0 content-start gap-2 rounded-card bg-card px-4 pt-4 pb-1 text-card-foreground shadow-xs"
     >
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <span
           aria-hidden
-          className="inline-flex size-10 shrink-0 items-center justify-center rounded-pill bg-accent text-accent-foreground [&_svg]:size-5"
+          className="inline-flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground [&_svg]:size-5"
         >
           <TypeIcon />
         </span>
         <div className="grid min-w-0 flex-1 gap-0.5">
-          <span id={nameId} className="truncate text-body font-medium">
+          <span id={nameId} className="truncate text-body font-semibold">
             {account.name}
           </span>
-          <span className="truncate text-small text-muted-foreground">
-            {t(`types.${account.type}`)}
+          <span className="flex min-w-0 items-center gap-1.5 text-caption text-muted-foreground">
+            <span className="truncate">{t(`types.${account.type}`)}</span>
+            <Badge variant="outline" className="shrink-0 py-0">
+              {account.currency}
+            </Badge>
+          </span>
+          <span className="text-caption text-muted-foreground">
+            <span>{t('fields.openingBalance')}</span>{' '}
+            <MinorAmount
+              value={account.openingBalance}
+              currency={account.currency}
+              locale={locale}
+              className="text-caption"
+            />
           </span>
         </div>
-        <Badge variant="outline">{account.currency}</Badge>
-      </div>
-      <MinorAmount
-        value={account.balance}
-        currency={account.currency}
-        locale={locale}
-        className="text-heading break-words whitespace-normal"
-      />
-      <p className="text-small text-muted-foreground">
-        <span>{t('fields.openingBalance')}</span>{' '}
         <MinorAmount
-          value={account.openingBalance}
+          value={account.balance}
           currency={account.currency}
           locale={locale}
-          className="text-small"
+          className="max-w-1/2 text-right text-body font-bold break-words whitespace-normal"
         />
-      </p>
-      {hasSetting ? (
-        <div className="flex min-h-11 items-center gap-2">
-          <Checkbox
-            id={settingId}
-            checked={account.includeInAvailable}
-            // Not `disabled`: that would drop keyboard focus while the request runs.
-            aria-disabled={pending}
-            // One name from two existing elements, so the visible label text stays the catalog string.
-            aria-labelledby={`${settingId}-label ${nameId}`}
-            onChange={(event) => {
-              if (pending) return;
-              props.onToggleAvailable(account.id, event.currentTarget.checked);
-            }}
-          />
-          <Label
-            id={`${settingId}-label`}
-            htmlFor={settingId}
-            className="min-h-11 flex-1 cursor-pointer items-center text-small text-muted-foreground"
-          >
-            {t('fields.includeInAvailable')}
-          </Label>
-        </div>
-      ) : null}
+      </div>
       {editing ? (
         <RenameForm
           account={account}
@@ -245,7 +224,30 @@ export function AccountRow(props: AccountRowProps) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex items-center justify-end gap-1 border-t border-border/70 pt-2">
+          <div className="flex items-center justify-end gap-1 border-t border-border/70 pt-1">
+            {hasSetting ? (
+              <div className="mr-auto flex min-h-11 min-w-0 items-center gap-2">
+                <Checkbox
+                  id={settingId}
+                  checked={account.includeInAvailable}
+                  // Not `disabled`: that would drop keyboard focus while the request runs.
+                  aria-disabled={pending}
+                  // One name from two existing elements, so the visible label text stays the catalog string.
+                  aria-labelledby={`${settingId}-label ${nameId}`}
+                  onChange={(event) => {
+                    if (pending) return;
+                    props.onToggleAvailable(account.id, event.currentTarget.checked);
+                  }}
+                />
+                <Label
+                  id={`${settingId}-label`}
+                  htmlFor={settingId}
+                  className="min-h-11 min-w-0 flex-1 cursor-pointer items-center text-caption text-muted-foreground"
+                >
+                  {t('fields.includeInAvailable')}
+                </Label>
+              </div>
+            ) : null}
             <IconAction
               label={t('actions.rename')}
               subject={account.name}

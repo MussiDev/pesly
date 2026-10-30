@@ -15,7 +15,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AccountsLoadStateView } from '@/features/accounts/components/accounts-load-state';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
-import { categoryLabel } from '@/features/categories/category-display';
+import { categoryLabel, compareCategories } from '@/features/categories/category-display';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { isOffline } from '@/lib/connectivity';
@@ -339,7 +339,15 @@ export function EditMovementContainer({ movementId }: { movementId: string }) {
       )}
       categories={data.categories
         .filter((item) => !item.archived || item.id === movement.categoryId)
-        .map((item) => ({ id: item.id, kind: item.kind, label: categoryLabel(item, language) }))}
+        .sort(compareCategories)
+        .map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          label: categoryLabel(item, language),
+          parentId: item.parentId,
+          icon: item.icon,
+          color: item.color,
+        }))}
       defaultOccurredAt={data.defaultOccurredAt}
       defaultRate={data.defaultRate}
       rateType={movement.rateType ?? undefined}

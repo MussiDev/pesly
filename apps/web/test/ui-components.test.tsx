@@ -55,7 +55,7 @@ describe('soft-card shapes from tokens (AC-05, AC-34)', () => {
     expect(card.className).toMatch(/bg-hero/);
   });
 
-  it('Button and Badge are pills, fields and alerts are rounded-xl', () => {
+  it('Buttons have soft corners, Badge is a pill, fields and alerts are rounded-xl', () => {
     render(
       <>
         <Button>Go</Button>
@@ -66,7 +66,7 @@ describe('soft-card shapes from tokens (AC-05, AC-34)', () => {
       </>,
     );
 
-    expect(screen.getByRole('button', { name: 'Go' }).className).toMatch(/rounded-pill/);
+    expect(screen.getByRole('button', { name: 'Go' }).className).toMatch(/rounded-lg/);
     expect(screen.getByText('Tag').className).toMatch(/rounded-pill/);
     expect(screen.getByLabelText('field').className).toMatch(/rounded-xl/);
     expect(screen.getByLabelText('choice').className).toMatch(/rounded-xl/);

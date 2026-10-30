@@ -18,6 +18,7 @@
     "brand": "Pesly",
     "skipToContent": "Skip to content",
     "storageWarning": "Your browser may delete the data saved on this device when it runs low on space. Keep some storage free and reconnect often so nothing is lost.",
+    "storageWarningDismiss": "Close notice",
     "sync": {
       "waiting": "{count, plural, one {# change waiting to sync} other {# changes waiting to sync}}",
       "failed": "{count, plural, one {# change failed to sync} other {# changes failed to sync}}",
@@ -813,6 +814,7 @@
       "account": "Account",
       "accountChange": "Change",
       "accountPlaceholder": "Choose an account",
+      "subcategories": "Subcategories of {name}",
       "category": "Category",
       "categoryPlaceholder": "Choose a category",
       "amount": "Amount",

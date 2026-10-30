@@ -33,6 +33,26 @@ import { useSignOut } from '../use-sign-out';
  * Component touches credentials): no session → sign-in; unverified email → "check your email"
  * (AC-04). Any other failure (offline included) offers a retry instead of signing the user out.
  */
+/** Where this device remembers that the storage warning was closed. */
+const STORAGE_WARNING_DISMISSED_KEY = 'pesly.storageWarningDismissed';
+
+/** Browser storage may be blocked (private mode): then the warning simply shows again. */
+function readWarningDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_WARNING_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeWarningDismissed(): void {
+  try {
+    window.localStorage.setItem(STORAGE_WARNING_DISMISSED_KEY, '1');
+  } catch {
+    // Blocked storage only means the warning shows again next visit; the close still applies now.
+  }
+}
+
 export function AuthenticatedShellContainer({ children }: { children: ReactNode }) {
   const api = useApiClient();
   const router = useRouter();
@@ -48,6 +68,7 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
   const [state, setState] = useState<ShellState>({ kind: 'loading' });
   const [attempt, setAttempt] = useState(0);
   const [storageDenied, setStorageDenied] = useState(false);
+  const [storageWarningDismissed, setStorageWarningDismissed] = useState(readWarningDismissed);
   // Who the API confirmed in this visit. The queue is only sent for this user, never for whoever the
   // pointer names, so one user's movements cannot leave under another user's session.
   const [confirmedUser, setConfirmedUser] = useState<string | undefined>();
@@ -212,7 +233,14 @@ export function AuthenticatedShellContainer({ children }: { children: ReactNode 
     >
       {children}
       {/* After the content: it arrives late and must not push the screen down (NFR-03). */}
-      {storageDenied ? <StorageWarning /> : null}
+      {storageDenied && !storageWarningDismissed ? (
+        <StorageWarning
+          onDismiss={() => {
+            setStorageWarningDismissed(true);
+            writeWarningDismissed();
+          }}
+        />
+      ) : null}
     </AuthenticatedShell>
   );
 }
