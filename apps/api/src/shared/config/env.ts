@@ -191,6 +191,8 @@ interface RawEnv extends RawWorkerEnv, RawPushEnv {
   WEB_ORIGIN: string;
   API_ORIGIN: string;
   TRUST_PROXY: number;
+  /** Set by Railway on every deploy; `/health` reports it so the running version can be checked. */
+  RAILWAY_GIT_COMMIT_SHA?: string | undefined;
   GOOGLE_CLIENT_ID?: string | undefined;
   GOOGLE_CLIENT_SECRET?: string | undefined;
   GOOGLE_AUTHORIZATION_URL: string;
@@ -336,6 +338,7 @@ const envSchema = z
     API_ORIGIN: z.url(),
     BREACH_CHECKER: z.enum(['hibp', 'fake']).default('hibp'),
     TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    RAILWAY_GIT_COMMIT_SHA: optionalSetting(z.string().regex(/^[0-9a-f]{7,40}$/)),
     /** Unset outside production disables Google sign-in. */
     GOOGLE_CLIENT_ID: optionalSetting(z.string().trim().min(1).max(255)),
     GOOGLE_CLIENT_SECRET: optionalSetting(z.string().trim().min(1).max(255)),
