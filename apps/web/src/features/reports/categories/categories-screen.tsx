@@ -81,6 +81,8 @@ export function CategoriesScreen({
           <>
             {notices}
             <ReportEmpty from={view.from} to={view.to} onWiden={onWiden} />
+            {/* A card purchase due later is why a month can be empty: the note says so. */}
+            <ReportFootnote cardPurchases />
           </>
         );
         break;

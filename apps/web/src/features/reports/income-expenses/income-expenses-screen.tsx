@@ -110,6 +110,7 @@ export function IncomeExpensesScreen({
             <>
               {notices}
               <ReportEmpty from={view.from} to={view.to} onWiden={onWiden} />
+              <ReportFootnote cardPurchases />
             </>
           );
         }
