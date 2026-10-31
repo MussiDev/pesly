@@ -7,6 +7,7 @@ import {
 import { expect, test, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
+import { chooseCategory } from './support/movement-type';
 import {
   archiveAccount,
   automaticDebitRows,
@@ -98,9 +99,7 @@ async function spend(
   await page.goto(`/es/cards/${cardId}/expense`);
   await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption(currency);
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill(amount);
-  await page
-    .getByLabel(t.expense.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
 }

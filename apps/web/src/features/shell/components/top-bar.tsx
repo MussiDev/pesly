@@ -3,6 +3,7 @@
 import { Bell, Check, ChevronLeft, WifiOff } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
+import { BrandMark } from '@/components/ui/brand-mark';
 import { Link } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 import { backButtonVisibility, parentRoute, type ParentRoute } from '../nav-items';
@@ -42,6 +43,7 @@ function BackLink({ parent, desk }: { parent: ParentRoute; desk: boolean }) {
 /** The strip above every page: how in sync the device is, and the notifications entry point. */
 export function TopBar({ online, pending, currentPath, notices }: TopBarProps) {
   const t = useTranslations('app.topBar');
+  const tApp = useTranslations('app');
   const back = backButtonVisibility(currentPath);
   const parent = parentRoute(currentPath);
   const waiting = online && pending > 0;
@@ -50,10 +52,21 @@ export function TopBar({ online, pending, currentPath, notices }: TopBarProps) {
   return (
     <div
       data-slot="top-bar"
-      className="sticky top-0 z-30 flex items-center justify-end gap-2 bg-background px-4 py-2.5 desk:px-8"
+      className="sticky top-0 z-30 flex items-center justify-end gap-2 bg-background px-4 py-2.5 short:static desk:px-8"
     >
       {parent !== undefined && (back.compact || back.desk) ? (
         <BackLink parent={parent} desk={back.desk} />
+      ) : null}
+      {/* Home has no page above it: the brand takes that place below `desk` (the side menu carries
+          it from there), so the balance starts one row higher. */}
+      {currentPath === '/' ? (
+        <p
+          data-slot="top-bar-brand"
+          className="mr-auto flex items-center gap-2 text-heading desk:hidden"
+        >
+          <BrandMark className="size-8" />
+          {tApp('brand')}
+        </p>
       ) : null}
       <p
         className={cn(

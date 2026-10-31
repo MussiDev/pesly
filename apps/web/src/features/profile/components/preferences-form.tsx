@@ -23,6 +23,8 @@ export interface PreferencesFormProps {
   preferences: PreferencesValues;
   /** The options of the time zone select; it must include the saved zone. */
   timeZones: readonly string[];
+  /** Offered first, in their own group above the full list. */
+  suggestedTimeZones?: readonly string[];
   pending: boolean;
   /** The last submit was saved. */
   saved: boolean;
@@ -40,6 +42,7 @@ function pick<T extends string>(value: string, allowed: readonly T[], fallback: 
 export function PreferencesForm({
   preferences,
   timeZones,
+  suggestedTimeZones = [],
   pending,
   saved,
   errors,
@@ -103,11 +106,32 @@ export function PreferencesForm({
           <FormItem invalid={Boolean(timeZoneError)}>
             <FormLabel>{t('preferences.timeZone')}</FormLabel>
             <FormSelect name="timeZone" defaultValue={preferences.timeZone}>
-              {timeZones.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
+              {suggestedTimeZones.length === 0 ? (
+                timeZones.map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))
+              ) : (
+                <>
+                  <optgroup label={t('preferences.timeZoneSuggested')}>
+                    {suggestedTimeZones.map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t('preferences.timeZoneAll')}>
+                    {timeZones
+                      .filter((value) => !suggestedTimeZones.includes(value))
+                      .map((value) => (
+                        <option key={value} value={value}>
+                          {value}
+                        </option>
+                      ))}
+                  </optgroup>
+                </>
+              )}
             </FormSelect>
             <FormMessage>{timeZoneError ? tErrors(timeZoneError) : null}</FormMessage>
           </FormItem>

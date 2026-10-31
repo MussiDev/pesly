@@ -3,6 +3,7 @@
 import type { GroupSplitMode } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
@@ -262,11 +263,11 @@ export function SendToGroupForm({
             ) : null}
           </div>
 
-          <div>
+          <FormActions>
             <Button type="submit" disabled={pending || blocked}>
               {pending ? t('confirmPending') : t('confirm')}
             </Button>
-          </div>
+          </FormActions>
         </>
       )}
     </form>

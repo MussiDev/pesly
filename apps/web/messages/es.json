@@ -17,7 +17,7 @@
     "retry": "Reintentar",
     "brand": "Pesly",
     "skipToContent": "Saltar al contenido",
-    "storageWarning": "Tu navegador puede borrar los datos guardados en este dispositivo si se queda sin espacio. Deja algo de almacenamiento libre y reconéctate seguido para no perder nada.",
+    "storageWarning": "Tu navegador puede borrar los datos guardados en este dispositivo si se queda sin espacio. Dejá algo de almacenamiento libre y reconectate seguido para no perder nada.",
     "storageWarningDismiss": "Cerrar aviso",
     "sync": {
       "waiting": "{count, plural, one {# cambio esperando sincronizarse} other {# cambios esperando sincronizarse}}",
@@ -46,6 +46,8 @@
       "settings": "Ajustes",
       "notices": "Avisos",
       "plan": "Planificar",
+      "money": "Tu dinero",
+      "accountSection": "Cuenta y ajustes",
       "reports": "Reportes"
     },
     "topBar": {
@@ -98,43 +100,43 @@
       "password": "Contraseña",
       "newPassword": "Nueva contraseña"
     },
-    "passwordHint": "Usa al menos 10 caracteres.",
+    "passwordHint": "Usá al menos 10 caracteres.",
     "or": "o",
     "google": {
       "continue": "Continuar con Google"
     },
     "register": {
-      "title": "Crea tu cuenta",
-      "description": "Administra tus pesos y dólares en un solo lugar.",
+      "title": "Creá tu cuenta",
+      "description": "Administrá tus pesos y dólares en un solo lugar.",
       "submit": "Crear cuenta",
       "pending": "Creando cuenta…",
-      "haveAccount": "¿Ya tienes una cuenta?",
-      "signInLink": "Inicia sesión"
+      "haveAccount": "¿Ya tenés una cuenta?",
+      "signInLink": "Iniciá sesión"
     },
     "signIn": {
       "title": "Iniciar sesión",
-      "description": "Ingresa tu correo electrónico y tu contraseña.",
+      "description": "Ingresá tu correo electrónico y tu contraseña.",
       "submit": "Iniciar sesión",
       "pending": "Iniciando sesión…",
       "forgotPassword": "¿Olvidaste tu contraseña?",
-      "noAccount": "¿No tienes una cuenta?",
-      "registerLink": "Crea una cuenta"
+      "noAccount": "¿No tenés una cuenta?",
+      "registerLink": "Creá una cuenta"
     },
     "forgotPassword": {
-      "title": "Restablece tu contraseña",
-      "description": "Ingresa tu correo electrónico y te enviaremos un enlace para elegir una nueva contraseña.",
+      "title": "Restablecé tu contraseña",
+      "description": "Ingresá tu correo electrónico y te enviaremos un enlace para elegir una nueva contraseña.",
       "submit": "Enviar enlace",
       "pending": "Enviando…",
       "sent": "Si existe una cuenta con ese correo, te enviamos un enlace para restablecer la contraseña. Vence en 60 minutos.",
       "backToSignIn": "Volver a iniciar sesión"
     },
     "resetPassword": {
-      "title": "Elige una nueva contraseña",
+      "title": "Elegí una nueva contraseña",
       "description": "La nueva contraseña cierra todas las sesiones abiertas.",
       "submit": "Guardar contraseña",
       "pending": "Guardando…",
       "successTitle": "Contraseña actualizada",
-      "success": "Cambiamos tu contraseña y cerramos todas las sesiones abiertas. Inicia sesión con la nueva contraseña.",
+      "success": "Cambiamos tu contraseña y cerramos todas las sesiones abiertas. Iniciá sesión con la nueva contraseña.",
       "signInLink": "Iniciar sesión",
       "requestNewLink": "Solicitar un nuevo enlace"
     },
@@ -142,14 +144,14 @@
       "title": "Verificación de correo",
       "verifying": "Verificando tu correo…",
       "verifiedTitle": "Correo verificado",
-      "verified": "Tu correo está verificado. Ya puedes usar Pesly.",
+      "verified": "Tu correo está verificado. Ya podés usar Pesly.",
       "continue": "Continuar",
       "resend": "Enviar un nuevo enlace",
       "resending": "Enviando…",
       "resent": "Te enviamos un nuevo enlace a tu correo."
     },
     "checkYourEmail": {
-      "title": "Revisa tu correo",
+      "title": "Revisá tu correo",
       "description": "Te enviamos un enlace de verificación. Ábrelo para activar tu cuenta; vence en 24 horas.",
       "resend": "Reenviar correo",
       "resending": "Enviando…",
@@ -159,15 +161,15 @@
     "signOut": {
       "label": "Cerrar sesión",
       "pending": "Cerrando sesión…",
-      "confirmTitle": "Tienes cambios sin sincronizar",
+      "confirmTitle": "Tenés cambios sin sincronizar",
       "confirmBody": "{count, plural, one {# cambio todavía no se envió. Si cierras sesión ahora, se perderá.} other {# cambios todavía no se enviaron. Si cierras sesión ahora, se perderán.}}",
       "confirm": "Cerrar sesión y descartar",
       "cancel": "Cancelar"
     },
     "secondFactor": {
       "title": "Verificación en dos pasos",
-      "description": "Ingresa el código de 6 dígitos que muestra tu app de autenticación.",
-      "recoveryDescription": "Ingresa uno de tus códigos de recuperación. Cada uno sirve una sola vez.",
+      "description": "Ingresá el código de 6 dígitos que muestra tu app de autenticación.",
+      "recoveryDescription": "Ingresá uno de tus códigos de recuperación. Cada uno sirve una sola vez.",
       "code": "Código de verificación",
       "recoveryCode": "Código de recuperación",
       "submit": "Verificar",
@@ -193,7 +195,7 @@
     },
     "error": {
       "title": "Algo salió mal",
-      "description": "No pudimos cargar este contenido. Revisa tu conexión e inténtalo de nuevo."
+      "description": "No pudimos cargar este contenido. Revisá tu conexión e intentalo de nuevo."
     },
     "designSystem": {
       "title": "Sistema de diseño",
@@ -248,7 +250,7 @@
       },
       "controls": {
         "text": "Campo de texto",
-        "placeholder": "Escribe aquí",
+        "placeholder": "Escribí aquí",
         "select": "Selector",
         "optionOne": "Primera opción",
         "optionTwo": "Segunda opción",
@@ -267,7 +269,7 @@
       },
       "motion": {
         "description": "Las transiciones comparten una duración y una curva, y se detienen cuando el sistema pide reducir el movimiento.",
-        "sample": "Pasa el cursor o enfócame"
+        "sample": "Pasá el cursor o enfocame"
       },
       "shape": {
         "radius": "Radio",
@@ -307,43 +309,43 @@
   "errors": {
     "invalidCredentials": "Email o contraseña incorrectos",
     "passwordTooShort": "La contraseña debe tener al menos 10 caracteres.",
-    "passwordBreached": "Esta contraseña apareció en una filtración de datos. Elige otra.",
+    "passwordBreached": "Esta contraseña apareció en una filtración de datos. Elegí otra.",
     "passwordTooLong": "La contraseña puede tener como máximo 128 caracteres.",
-    "passwordRequired": "Ingresa una contraseña.",
-    "emailRequired": "Ingresa tu correo electrónico.",
+    "passwordRequired": "Ingresá una contraseña.",
+    "emailRequired": "Ingresá tu correo electrónico.",
     "emailTooLong": "El correo electrónico es demasiado largo.",
-    "displayNameRequired": "Ingresa un nombre para mostrar.",
+    "displayNameRequired": "Ingresá un nombre para mostrar.",
     "displayNameTooLong": "El nombre para mostrar puede tener como máximo 50 caracteres.",
     "tokenInvalid": "Este enlace no es válido o ya venció.",
-    "retryLater": "Demasiados intentos o el servicio está ocupado. Vuelve a intentarlo en unos minutos.",
-    "network": "No pudimos conectarnos. Revisa tu conexión y vuelve a intentarlo.",
-    "unexpected": "Algo salió mal. Vuelve a intentarlo.",
-    "unauthenticated": "Tu sesión terminó. Vuelve a iniciar sesión.",
-    "emailNotVerified": "Verifica tu correo para continuar.",
-    "validationFailed": "Revisa los datos ingresados y vuelve a intentarlo.",
-    "googleFailed": "No pudimos iniciar sesión con Google. Vuelve a intentarlo.",
-    "codeInvalid": "El código no es válido o ya se usó. Vuelve a intentarlo.",
-    "secondFactorExpired": "La verificación venció. Vuelve a iniciar sesión.",
+    "retryLater": "Demasiados intentos o el servicio está ocupado. Volvé a intentarlo en unos minutos.",
+    "network": "No pudimos conectarnos. Revisá tu conexión y volvé a intentarlo.",
+    "unexpected": "Algo salió mal. Volvé a intentarlo.",
+    "unauthenticated": "Tu sesión terminó. Volvé a iniciar sesión.",
+    "emailNotVerified": "Verificá tu correo para continuar.",
+    "validationFailed": "Revisá los datos ingresados y volvé a intentarlo.",
+    "googleFailed": "No pudimos iniciar sesión con Google. Volvé a intentarlo.",
+    "codeInvalid": "El código no es válido o ya se usó. Volvé a intentarlo.",
+    "secondFactorExpired": "La verificación venció. Volvé a iniciar sesión.",
     "twoFactorAlreadyEnabled": "La verificación en dos pasos ya está activada.",
     "twoFactorNotEnabled": "La verificación en dos pasos ya está desactivada.",
-    "twoFactorSetupRequired": "La activación cambió en otra sesión. Vuelve a empezar.",
+    "twoFactorSetupRequired": "La activación cambió en otra sesión. Volvé a empezar.",
     "accountNameTaken": "Ya existe una cuenta con ese nombre.",
-    "reauthenticationRequired": "La confirmación venció. Empieza de nuevo.",
-    "accountHasMovements": "Esta cuenta tiene movimientos, por eso no se puede eliminar. Archívala en su lugar.",
+    "reauthenticationRequired": "La confirmación venció. Empezá de nuevo.",
+    "accountHasMovements": "Esta cuenta tiene movimientos, por eso no se puede eliminar. Archivala en su lugar.",
     "categoryNameTaken": "Ya existe una categoría con ese nombre.",
-    "categoryInUse": "Esta categoría está en uso, por eso no se puede eliminar. Archívala en su lugar.",
+    "categoryInUse": "Esta categoría está en uso, por eso no se puede eliminar. Archivala en su lugar.",
     "categoryNestingTooDeep": "Las subcategorías no pueden tener subcategorías.",
     "categoryParentKindMismatch": "Una subcategoría debe ser del mismo tipo que su categoría principal.",
-    "accountArchived": "Esta cuenta está archivada, por eso no se puede cambiar esta opción. Desarchívala primero.",
+    "accountArchived": "Esta cuenta está archivada, por eso no se puede cambiar esta opción. Desarchivala primero.",
     "movementDateInFuture": "La fecha no puede ser posterior a hoy.",
-    "rateRequired": "Ingresa la cotización: no hay una guardada para usar.",
-    "movementCategoryKindMismatch": "Esta categoría no coincide con el tipo de movimiento. Elige otra.",
-    "categoryArchived": "Esta categoría está archivada, por eso no se puede usar. Desarchívala primero.",
+    "rateRequired": "Ingresá la cotización: no hay una guardada para usar.",
+    "movementCategoryKindMismatch": "Esta categoría no coincide con el tipo de movimiento. Elegí otra.",
+    "categoryArchived": "Esta categoría está archivada, por eso no se puede usar. Desarchivala primero.",
     "movementSameAccount": "El destino debe ser una cuenta distinta del origen.",
     "movementCurrencyMismatch": "Una transferencia necesita dos cuentas de la misma moneda.",
     "exchangeSameCurrency": "Un cambio de moneda necesita cuentas de monedas distintas.",
     "impliedRateOutOfRange": "Con esos montos el tipo de cambio queda fuera del rango permitido.",
-    "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Elimínalo y crea uno nuevo.",
+    "movementTypeImmutable": "Un movimiento no puede cambiar de tipo. Eliminalo y creá uno nuevo.",
     "accountLinkedToCard": "Esta cuenta está vinculada a una tarjeta de crédito, como cuenta propia o como cuenta de débito automático, por eso no se puede eliminar. Elimina la tarjeta o cambia su débito automático primero.",
     "debitAccountCurrencyMismatch": "La cuenta de débito automático debe tener la misma moneda para la que se vincula.",
     "debitAccountIsCardAccount": "Una cuenta de tarjeta de crédito no se puede usar como cuenta de débito automático.",
@@ -355,7 +357,7 @@
     "budgetCategoryKindInvalid": "Los presupuestos solo pueden cubrir categorías de gasto. Quitá la categoría de ingreso y probá de nuevo.",
     "budgetMonthInFuture": "No podés consultar el gasto de un mes que todavía no empezó.",
     "groupAdminRequired": "Solo un administrador del grupo puede hacer esto.",
-    "groupAlreadyMember": "Ya eres miembro de este grupo.",
+    "groupAlreadyMember": "Ya sos miembro de este grupo.",
     "groupMemberLimitReached": "Este grupo alcanzó el límite de 50 miembros.",
     "groupMemberNotRegistered": "Este miembro aún no se unió con una cuenta, por eso no se puede nombrar administrador.",
     "groupSplitPercentageInvalid": "Los porcentajes tienen que sumar exactamente 100%.",
@@ -387,17 +389,17 @@
     "groupExpenseAlreadyLinked": "Este gasto ya está vinculado a una cuenta.",
     "groupMovementMismatch": "Ese movimiento no coincide con este gasto. Elegí uno con el mismo monto y la misma moneda.",
     "movementLockedByGroupExpense": "Este movimiento está vinculado a un gasto de grupo. Editá el gasto desde el grupo.",
-    "offlineNoCopy": "Abre esta pantalla una vez con conexión para que pueda funcionar sin ella.",
-    "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisa que tenga espacio libre y vuelve a intentarlo.",
-    "totpCodeFormat": "Ingresa los 6 dígitos del código.",
-    "secondFactorCodeFormat": "Ingresa un código de 6 dígitos o un código de recuperación."
+    "offlineNoCopy": "Abrí esta pantalla una vez con conexión para que pueda funcionar sin ella.",
+    "offlineSaveFailed": "No pudimos guardar este movimiento en tu dispositivo. Revisá que tenga espacio libre y volvé a intentarlo.",
+    "totpCodeFormat": "Ingresá los 6 dígitos del código.",
+    "secondFactorCodeFormat": "Ingresá un código de 6 dígitos o un código de recuperación."
   },
   "accounts": {
     "title": "Cuentas",
     "link": "Ir a tus cuentas",
     "new": {
       "title": "Nueva cuenta",
-      "description": "Agrega un lugar donde guardas tu dinero."
+      "description": "Agregá un lugar donde guardás tu dinero."
     },
     "headline": {
       "available": "Disponible",
@@ -412,9 +414,9 @@
       "type": "Tipo",
       "currency": "Moneda",
       "openingBalance": "Saldo inicial",
-      "openingBalanceHint": "Opcional. Usa un signo menos para un saldo negativo.",
-      "typePlaceholder": "Elige un tipo",
-      "currencyPlaceholder": "Elige una moneda"
+      "openingBalanceHint": "Opcional. Usá un signo menos para un saldo negativo.",
+      "typePlaceholder": "Elegí un tipo",
+      "currencyPlaceholder": "Elegí una moneda"
     },
     "types": {
       "cash": "Efectivo",
@@ -438,9 +440,9 @@
       "activeTitle": "Cuentas activas",
       "archivedTitle": "Cuentas archivadas",
       "newAccount": "Nueva cuenta",
-      "emptyTitle": "Crea tu primera cuenta",
-      "empty": "Todavía no tienes cuentas. Crea una para empezar.",
-      "emptyArchived": "No tienes cuentas archivadas.",
+      "emptyTitle": "Creá tu primera cuenta",
+      "empty": "Todavía no tenés cuentas. Creá una para empezar.",
+      "emptyArchived": "No tenés cuentas archivadas.",
       "showArchived": "Ver cuentas archivadas",
       "showActive": "Ver cuentas activas"
     },
@@ -459,30 +461,30 @@
     },
     "setBalance": {
       "title": "Fijar saldo de {name}",
-      "description": "Indica el saldo que debería tener la cuenta. Se registra un ajuste por la diferencia y tus movimientos no se modifican.",
+      "description": "Indicá el saldo que debería tener la cuenta. Se registra un ajuste por la diferencia y tus movimientos no se modifican.",
       "current": "Saldo actual: {amount}",
       "target": "Nuevo saldo",
-      "targetHint": "Usa un signo menos para un saldo negativo.",
+      "targetHint": "Usá un signo menos para un saldo negativo.",
       "difference": "Diferencia: {amount}",
       "noDifference": "Sin diferencia: el saldo ya es ese.",
       "note": "Nota (opcional)",
       "code": "Código de verificación",
-      "codeHint": "Ingresa el código de 6 dígitos de tu app o un código de recuperación.",
-      "offline": "Fijar el saldo necesita conexión. Conéctate e inténtalo de nuevo.",
+      "codeHint": "Ingresá el código de 6 dígitos de tu app o un código de recuperación.",
+      "offline": "Fijar el saldo necesita conexión. Conectate e intentalo de nuevo.",
       "confirm": "Registrar ajuste",
       "errors": {
-        "archived": "Esta cuenta está archivada. Desarchívala para fijar su saldo.",
+        "archived": "Esta cuenta está archivada. Desarchivala para fijar su saldo.",
         "creditCard": "El saldo de una tarjeta de crédito no se puede fijar.",
-        "noteInvalid": "La nota contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo."
+        "noteInvalid": "La nota contiene caracteres que no se pueden mostrar. Quítalos e intentalo de nuevo."
       }
     },
     "errors": {
-      "nameRequired": "Ingresa un nombre.",
+      "nameRequired": "Ingresá un nombre.",
       "nameTooLong": "El nombre puede tener como máximo {max} caracteres.",
-      "nameInvalidCharacters": "El nombre contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo.",
-      "typeRequired": "Elige un tipo de cuenta.",
-      "currencyRequired": "Elige una moneda.",
-      "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
+      "nameInvalidCharacters": "El nombre contiene caracteres que no se pueden mostrar. Quítalos e intentalo de nuevo.",
+      "typeRequired": "Elegí un tipo de cuenta.",
+      "currencyRequired": "Elegí una moneda.",
+      "amountInvalid": "Ingresá un monto válido, por ejemplo 1.500,00.",
       "amountOutOfRange": "El monto no puede superar {max} en valor absoluto."
     }
   },
@@ -556,20 +558,20 @@
     },
     "expense": {
       "title": "Gasto con tarjeta",
-      "description": "Registra una compra con esta tarjeta. Se asigna al resumen que está abierto en la fecha de la compra.",
+      "description": "Registrá una compra con esta tarjeta. Se asigna al resumen que está abierto en la fecha de la compra.",
       "fields": {
         "currency": "Moneda",
-        "currencyPlaceholder": "Elige una moneda",
+        "currencyPlaceholder": "Elegí una moneda",
         "amount": "Monto",
         "category": "Categoría",
-        "categoryPlaceholder": "Elige una categoría",
+        "categoryPlaceholder": "Elegí una categoría",
         "occurredAt": "Fecha y hora",
         "note": "Nota (opcional)"
       },
       "submit": "Guardar gasto",
       "pending": "Guardando…",
       "back": "Volver a la tarjeta",
-      "connectionNeeded": "Se necesita conexión para registrar un gasto con tarjeta. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "connectionNeeded": "Se necesita conexión para registrar un gasto con tarjeta. Revisala e intentalo de nuevo: lo que escribiste se conserva.",
       "notFound": "Esta tarjeta no existe o fue eliminada.",
       "errors": {
         "currencyRequired": "La moneda debe ser ARS o USD."
@@ -581,7 +583,7 @@
       "label": "Tus tarjetas de crédito",
       "days": "Cierra el día {closing} · vence el día {due}",
       "emptyTitle": "Todavía no hay tarjetas",
-      "emptyDescription": "Agrega una tarjeta para seguir sus resúmenes."
+      "emptyDescription": "Agregá una tarjeta para seguir sus resúmenes."
     },
     "form": {
       "title": "Nueva tarjeta de crédito",
@@ -591,15 +593,15 @@
       "dueDay": "Día de vencimiento",
       "dayHint": "Un día del 1 al 31. En los meses más cortos se usa el último día.",
       "reminderDays": "Avisarme … días antes del vencimiento",
-      "reminderDaysHint": "Te avisamos esta cantidad de días antes del vencimiento, a las 09:00. Usa 0 para recibir el aviso el mismo día del vencimiento.",
+      "reminderDaysHint": "Te avisamos esta cantidad de días antes del vencimiento, a las 09:00. Usá 0 para recibir el aviso el mismo día del vencimiento.",
       "submit": "Crear tarjeta",
       "pending": "Creando…",
       "cancel": "Cancelar"
     },
     "errors": {
-      "dayInvalid": "Ingresa un día del 1 al 31.",
-      "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30.",
-      "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elige otro nombre."
+      "dayInvalid": "Ingresá un día del 1 al 31.",
+      "reminderDaysInvalid": "Ingresá un número entero de días entre 0 y 30.",
+      "nameTaken": "Ya existe una de las cuentas que necesita esta tarjeta. Elegí otro nombre."
     },
     "detail": {
       "back": "Todas las tarjetas",
@@ -611,7 +613,7 @@
       "debitNone": "Ninguna",
       "debitNote": "En la fecha de vencimiento de cada resumen, el saldo sin pagar se transfiere desde la cuenta que elijas a la tarjeta. Los pesos y los dólares nunca se convierten entre sí.",
       "debitSave": "Guardar débito automático",
-      "debitConnectionNeeded": "Necesitas conexión para guardar el débito automático. Tu selección se conserva, inténtalo de nuevo cuando estés en línea.",
+      "debitConnectionNeeded": "Necesitás conexión para guardar el débito automático. Tu selección se conserva, intentalo de nuevo cuando estés en línea.",
       "saveDays": "Guardar días",
       "reminderDays": "Avisarme … días antes del vencimiento",
       "reminderDaysHint": "Te avisamos esta cantidad de días antes del vencimiento, a las 09:00. Cambiarlo no mueve las fechas de ningún resumen.",
@@ -634,7 +636,7 @@
       "confirmDelete": "¿Eliminar {name}, sus resúmenes y sus dos cuentas?",
       "confirm": "Eliminar",
       "notFound": "Esta tarjeta no existe o fue eliminada.",
-      "datesInvalid": "Estas fechas se superponen con otro resumen. Elige fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
+      "datesInvalid": "Estas fechas se superponen con otro resumen. Elegí fechas entre el resumen anterior y el siguiente, con el vencimiento después del cierre.",
       "daysConflict": "Con ese día de cierre el resumen abierto cerraría antes que el anterior.",
       "addPurchase": "Agregar compra",
       "importStatement": "Importar un resumen",
@@ -649,24 +651,24 @@
     },
     "installments": {
       "title": "Agregar compra",
-      "description": "Registra una compra con tarjeta en pesos o en dólares. Pagada en un solo pago es un gasto común de la tarjeta; en cuotas, cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
+      "description": "Registrá una compra con tarjeta en pesos o en dólares. Pagada en un solo pago es un gasto común de la tarjeta; en cuotas, cada cuota va a un resumen, empezando por el que está abierto en la fecha de la compra.",
       "fields": {
         "currency": "Moneda",
         "amount": "Monto total",
         "installments": "Cantidad de cuotas",
         "installmentsHint": "{min} para un solo pago, hasta {max}",
         "category": "Categoría",
-        "categoryPlaceholder": "Elige una categoría",
+        "categoryPlaceholder": "Elegí una categoría",
         "purchasedOn": "Fecha de la compra",
         "note": "Nota (opcional)"
       },
       "submit": "Guardar compra",
       "pending": "Guardando…",
       "back": "Volver a la tarjeta",
-      "connectionNeeded": "Se necesita conexión para registrar una compra. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "connectionNeeded": "Se necesita conexión para registrar una compra. Revisala e intentalo de nuevo: lo que escribiste se conserva.",
       "notFound": "Esta tarjeta no existe o fue eliminada.",
       "errors": {
-        "installmentsInvalid": "Ingresa una cantidad entera de cuotas de 1 a 60.",
+        "installmentsInvalid": "Ingresá una cantidad entera de cuotas de 1 a 60.",
         "amountTooSmall": "El monto debe ser de al menos un centavo por cuota."
       },
       "heading": "Compras en cuotas",
@@ -698,11 +700,11 @@
     },
     "payments": {
       "title": "Pagar un resumen",
-      "description": "Mueve dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar. Pagar dólares desde una cuenta en pesos registra una compra de dólares a la cotización que resulta de los montos.",
+      "description": "Mové dinero de una de tus cuentas a esta tarjeta. Es una transferencia, no un gasto, y paga primero el resumen más antiguo sin pagar. Pagar dólares desde una cuenta en pesos registra una compra de dólares a la cotización que resulta de los montos.",
       "fields": {
         "currency": "Moneda",
         "sourceAccount": "Pagar desde",
-        "sourceAccountPlaceholder": "Elige una cuenta",
+        "sourceAccountPlaceholder": "Elegí una cuenta",
         "amount": "Monto",
         "pesosAmount": "Pesos debitados",
         "occurredAt": "Fecha y hora",
@@ -711,7 +713,7 @@
       "submit": "Registrar pago",
       "pending": "Guardando…",
       "back": "Volver a la tarjeta",
-      "connectionNeeded": "Se necesita conexión para registrar un pago. Revísala e inténtalo de nuevo: lo que escribiste se conserva.",
+      "connectionNeeded": "Se necesita conexión para registrar un pago. Revisala e intentalo de nuevo: lo que escribiste se conserva.",
       "notFound": "Esta tarjeta no existe o fue eliminada."
     }
   },
@@ -720,7 +722,7 @@
     "sendToGroup": {
       "title": "Enviar a un grupo",
       "summary": "{amount} el {date}",
-      "chooseGroup": "Elige un grupo",
+      "chooseGroup": "Elegí un grupo",
       "category": "Categoría del grupo",
       "automaticCategory": "Automática (la misma categoría del movimiento u \"Otros gastos\")",
       "defaultDescription": "Gasto",
@@ -747,8 +749,8 @@
       "searchLabel": "Buscar movimientos",
       "searchPlaceholder": "Buscar por nombre o categoría",
       "newMovement": "Nuevo movimiento",
-      "emptyTitle": "Registra tu primer movimiento",
-      "empty": "Todavía no tienes movimientos.",
+      "emptyTitle": "Registrá tu primer movimiento",
+      "empty": "Todavía no tenés movimientos.",
       "showMore": "Ver más",
       "rate": "Cotización: {rate} ARS por USD",
       "unknownAccount": "Cuenta desconocida",
@@ -833,13 +835,13 @@
     },
     "new": {
       "title": "Nuevo movimiento",
-      "description": "Registra un gasto, un ingreso, una transferencia o un cambio de moneda."
+      "description": "Registrá un gasto, un ingreso, una transferencia o un cambio de moneda."
     },
     "edit": {
       "title": "Editar movimiento",
-      "description": "Cambia lo que necesites. Tus saldos se actualizan solos.",
+      "description": "Cambiá lo que necesites. Tus saldos se actualizan solos.",
       "notFound": "Este movimiento no existe o ya no está.",
-      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Vuelve a intentarlo cuando tengas conexión.",
+      "notAvailableOffline": "Este movimiento no está disponible sin conexión. Volvé a intentarlo cuando tengas conexión.",
       "groupNotice": "Este movimiento pertenece a un gasto de {group}",
       "groupNoticeUnknown": "Este movimiento pertenece a un gasto de grupo",
       "lockedFields": "El monto, la cuenta y la fecha están bloqueados; cámbialos desde el gasto del grupo"
@@ -848,18 +850,18 @@
       "type": "Tipo",
       "account": "Cuenta",
       "accountChange": "Cambiar",
-      "accountPlaceholder": "Elige una cuenta",
+      "accountPlaceholder": "Elegí una cuenta",
       "subcategories": "Subcategorías de {name}",
       "category": "Categoría",
-      "categoryPlaceholder": "Elige una categoría",
+      "categoryPlaceholder": "Elegí una categoría",
       "amount": "Monto",
       "occurredAt": "Fecha y hora",
       "rate": "Cotización (ARS por USD)",
       "note": "Nota (opcional)",
       "destinationAccount": "Cuenta de destino",
-      "destinationAccountPlaceholder": "Elige la cuenta de destino",
-      "destinationHintTransfer": "Necesitas otra cuenta activa de la misma moneda que la de origen.",
-      "destinationHintExchange": "Necesitas una cuenta activa en ARS y otra en USD.",
+      "destinationAccountPlaceholder": "Elegí la cuenta de destino",
+      "destinationHintTransfer": "Necesitás otra cuenta activa de la misma moneda que la de origen.",
+      "destinationHintExchange": "Necesitás una cuenta activa en ARS y otra en USD.",
       "amountOut": "Monto que sale",
       "amountIn": "Monto que entra"
     },
@@ -870,18 +872,29 @@
       "exchange": "Cambio de moneda",
       "adjustment": "Ajuste"
     },
+    "typesShort": {
+      "expense": "Gasto",
+      "income": "Ingreso",
+      "transfer": "Transferencia",
+      "exchange": "Cambio"
+    },
     "rate": {
-      "automatic": "Cotización {rateType} guardada. Edítala para usar la tuya.",
-      "missing": "No hay una cotización guardada. Ingresa los ARS por USD de este movimiento.",
-      "kept": "Este movimiento conserva su propia cotización guardada. Edítala solo para usar otra.",
+      "automatic": "Cotización {rateType} guardada. Editala para usar la tuya.",
+      "missing": "No hay una cotización guardada. Ingresá los ARS por USD de este movimiento.",
+      "kept": "Este movimiento conserva su propia cotización guardada. Editala solo para usar otra.",
       "age": "Cotización de hace {hours} h"
     },
     "exchange": {
       "impliedRate": "Cotización implícita: {rate} ARS por USD",
-      "impliedRateEmpty": "Ingresa ambos montos para ver la cotización implícita.",
+      "impliedRateEmpty": "Ingresá ambos montos para ver la cotización implícita.",
       "impliedRateOutOfRange": "Con esos montos la cotización queda fuera del rango permitido."
     },
     "form": {
+      "dayShortcuts": {
+        "label": "Día",
+        "today": "Hoy",
+        "yesterday": "Ayer"
+      },
       "submit": "Guardar movimiento",
       "save": "Guardar cambios",
       "pending": "Guardando…",
@@ -896,34 +909,34 @@
       "pendingBody": "Se enviará cuando vuelvas a tener conexión."
     },
     "errors": {
-      "accountRequired": "Elige una cuenta.",
-      "categoryRequired": "Elige una categoría.",
-      "amountInvalid": "Ingresa un monto válido, por ejemplo 1.500,00.",
+      "accountRequired": "Elegí una cuenta.",
+      "categoryRequired": "Elegí una categoría.",
+      "amountInvalid": "Ingresá un monto válido, por ejemplo 1.500,00.",
       "amountNotPositive": "El monto debe ser mayor que 0",
       "amountOutOfRange": "El monto es demasiado grande.",
-      "dateInvalid": "Ingresa una fecha y hora válidas.",
-      "dateSkipped": "Esa hora local no existe ese día por el cambio de horario. Elige otra hora.",
-      "rateInvalid": "Ingresa una cotización mayor que 0 con hasta 4 decimales, por ejemplo 1250,50.",
-      "rateRequired": "Ingresa la cotización.",
+      "dateInvalid": "Ingresá una fecha y hora válidas.",
+      "dateSkipped": "Esa hora local no existe ese día por el cambio de horario. Elegí otra hora.",
+      "rateInvalid": "Ingresá una cotización mayor que 0 con hasta 4 decimales, por ejemplo 1250,50.",
+      "rateRequired": "Ingresá la cotización.",
       "noteTooLong": "La nota puede tener como máximo {max} caracteres.",
-      "noteInvalidCharacters": "La nota contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo.",
-      "accountArchived": "Esta cuenta está archivada. Desarchívala antes de registrar movimientos en ella.",
-      "rateLimited": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en {seconds} s.",
-      "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Inténtalo de nuevo en un momento.",
-      "destinationRequired": "Elige una cuenta de destino.",
-      "typeInvalid": "Elige un tipo de movimiento."
+      "noteInvalidCharacters": "La nota contiene caracteres que no se pueden mostrar. Quítalos e intentalo de nuevo.",
+      "accountArchived": "Esta cuenta está archivada. Desarchivala antes de registrar movimientos en ella.",
+      "rateLimited": "Estás guardando movimientos demasiado rápido. Intentalo de nuevo en {seconds} s.",
+      "rateLimitedGeneric": "Estás guardando movimientos demasiado rápido. Intentalo de nuevo en un momento.",
+      "destinationRequired": "Elegí una cuenta de destino.",
+      "typeInvalid": "Elegí un tipo de movimiento."
     },
     "tags": {
       "label": "Etiquetas (opcional)",
-      "placeholder": "Escribe una etiqueta",
-      "hint": "Presiona Enter o coma para agregarla. Hasta {limit} etiquetas.",
+      "placeholder": "Escribí una etiqueta",
+      "hint": "Presioná Enter o coma para agregarla. Hasta {limit} etiquetas.",
       "remove": "Quitar la etiqueta {tag}",
       "suggestions": "Etiquetas sugeridas",
       "chips": "Etiquetas elegidas",
       "errors": {
         "empty": "La etiqueta no puede estar vacía.",
         "tooLong": "La etiqueta puede tener hasta {max} caracteres.",
-        "limit": "Puedes agregar hasta {limit} etiquetas."
+        "limit": "Podés agregar hasta {limit} etiquetas."
       }
     },
     "sync": {
@@ -936,7 +949,7 @@
     "new": {
       "open": "Nueva",
       "title": "Nueva categoría",
-      "description": "Agrega una categoría o una subcategoría propia."
+      "description": "Agregá una categoría o una subcategoría propia."
     },
     "fields": {
       "kind": "Tipo",
@@ -963,8 +976,8 @@
       "viewArchived": "Ver categorías archivadas",
       "activeTitle": "Categorías activas",
       "archivedTitle": "Categorías archivadas",
-      "empty": "Todavía no tienes categorías.",
-      "emptyArchived": "No tienes categorías archivadas.",
+      "empty": "Todavía no tenés categorías.",
+      "emptyArchived": "No tenés categorías archivadas.",
       "emptyAction": "Crear una categoría",
       "emptyArchivedAction": "Mostrar categorías activas",
       "emptySection": "No hay categorías en esta sección.",
@@ -985,13 +998,13 @@
       "archiveInstead": "Archivar en vez de eliminar"
     },
     "errors": {
-      "nameRequired": "Ingresa un nombre.",
+      "nameRequired": "Ingresá un nombre.",
       "nameTooLong": "El nombre puede tener como máximo {max} caracteres.",
-      "nameInvalidCharacters": "El nombre contiene caracteres que no se pueden mostrar. Quítalos e inténtalo de nuevo.",
-      "iconRequired": "Elige un ícono.",
-      "colorRequired": "Elige un color.",
-      "kindInvalid": "Elige un tipo de categoría.",
-      "parentInvalid": "Elige una categoría principal de la lista."
+      "nameInvalidCharacters": "El nombre contiene caracteres que no se pueden mostrar. Quítalos e intentalo de nuevo.",
+      "iconRequired": "Elegí un ícono.",
+      "colorRequired": "Elegí un color.",
+      "kindInvalid": "Elegí un tipo de categoría.",
+      "parentInvalid": "Elegí una categoría principal de la lista."
     },
     "iconGroups": {
       "symbols": "Íconos",
@@ -1118,7 +1131,7 @@
   },
   "security": {
     "title": "Seguridad",
-    "subtitle": "Protege tu cuenta con un segundo paso al iniciar sesión.",
+    "subtitle": "Protegé tu cuenta con un segundo paso al iniciar sesión.",
     "enabledNotice": "Activaste la verificación en dos pasos. Cerramos tus otras sesiones.",
     "disabledNotice": "Desactivaste la verificación en dos pasos. Cerramos tus otras sesiones.",
     "twoFactor": {
@@ -1133,19 +1146,19 @@
       "disable": "Desactivar"
     },
     "setup": {
-      "title": "Activa la verificación en dos pasos",
-      "scan": "Escanea este código QR con tu app de autenticación.",
+      "title": "Activá la verificación en dos pasos",
+      "scan": "Escaneá este código QR con tu app de autenticación.",
       "qrAlt": "Código QR para tu app de autenticación",
-      "manual": "Si no puedes escanearlo, ingresa esta clave en la app:",
+      "manual": "Si no podés escanearlo, ingresá esta clave en la app:",
       "code": "Código de 6 dígitos",
-      "codeHint": "Ingresa el código que muestra la app para confirmar.",
+      "codeHint": "Ingresá el código que muestra la app para confirmar.",
       "submit": "Confirmar y activar",
       "pending": "Activando…",
       "cancel": "Cancelar"
     },
     "recoveryCodes": {
-      "title": "Guarda tus códigos de recuperación",
-      "description": "Si pierdes tu app de autenticación, cada código te permite iniciar sesión una sola vez. No volveremos a mostrarlos.",
+      "title": "Guardá tus códigos de recuperación",
+      "description": "Si perdés tu app de autenticación, cada código te permite iniciar sesión una sola vez. No volveremos a mostrarlos.",
       "copy": "Copiar códigos",
       "copied": "Copiamos los códigos.",
       "copyFailed": "No pudimos copiarlos. Descárgalos o anótalos.",
@@ -1155,8 +1168,8 @@
       "done": "Ya los guardé"
     },
     "disable": {
-      "title": "Desactiva la verificación en dos pasos",
-      "description": "Ingresa un código de tu app de autenticación o un código de recuperación sin usar.",
+      "title": "Desactivá la verificación en dos pasos",
+      "description": "Ingresá un código de tu app de autenticación o un código de recuperación sin usar.",
       "code": "Código",
       "submit": "Desactivar",
       "pending": "Desactivando…",
@@ -1165,7 +1178,7 @@
   },
   "profile": {
     "title": "Perfil",
-    "subtitle": "Tus datos y cómo funciona Pesly para ti.",
+    "subtitle": "Tus datos y cómo funciona Pesly para vos.",
     "saved": "Guardado.",
     "account": {
       "title": "Tu perfil",
@@ -1185,6 +1198,8 @@
       "defaultRateType": "Cotización por defecto",
       "displayCurrency": "Moneda para mostrar",
       "timeZone": "Zona horaria",
+      "timeZoneSuggested": "Sugeridas",
+      "timeZoneAll": "Todas las zonas",
       "language": "Idioma",
       "submit": "Guardar preferencias",
       "pending": "Guardando…"
@@ -1204,7 +1219,7 @@
     },
     "deleteAccount": {
       "title": "Eliminar cuenta",
-      "description": "Elimina de forma permanente tu cuenta y todos sus datos.",
+      "description": "Eliminá de forma permanente tu cuenta y todos sus datos.",
       "link": "Eliminar mi cuenta"
     },
     "languages": {
@@ -1212,14 +1227,14 @@
       "en": "English"
     },
     "errors": {
-      "displayNameRequired": "Ingresa un nombre para mostrar.",
+      "displayNameRequired": "Ingresá un nombre para mostrar.",
       "displayNameTooLong": "El nombre para mostrar puede tener como máximo 50 caracteres.",
-      "timeZoneInvalid": "Elige una zona horaria de la lista."
+      "timeZoneInvalid": "Elegí una zona horaria de la lista."
     }
   },
   "deleteUser": {
     "title": "Eliminar cuenta",
-    "subtitle": "Quita tu cuenta y todo lo que contiene de forma definitiva.",
+    "subtitle": "Quitá tu cuenta y todo lo que contiene de forma definitiva.",
     "warningTitle": "Esto no se puede deshacer",
     "description": "Al eliminar tu cuenta se borra ella y todo lo que contiene.",
     "warning": "Vamos a borrar de forma permanente tu cuenta, tus cuentas y todos tus movimientos. No hay forma de recuperarlos.",
@@ -1229,16 +1244,16 @@
     "submit": "Eliminar mi cuenta para siempre",
     "pending": "Eliminando…",
     "google": {
-      "description": "Tu cuenta no tiene contraseña. Confirma que eres tú iniciando sesión con Google otra vez.",
+      "description": "Tu cuenta no tiene contraseña. Confirmá que sos vos iniciando sesión con Google otra vez.",
       "continue": "Continuar con Google para confirmar",
       "pending": "Yendo a Google…",
-      "confirmed": "Google confirmó que eres tú. Termina en los próximos 5 minutos.",
-      "failed": "No pudimos confirmarlo con Google. Inténtalo de nuevo."
+      "confirmed": "Google confirmó que sos vos. Terminá en los próximos 5 minutos.",
+      "failed": "No pudimos confirmarlo con Google. Intentalo de nuevo."
     },
     "setPassword": {
-      "title": "¿No tienes contraseña y Google no puede confirmar tu identidad?",
-      "body": "Si tu cuenta no tiene contraseña y Google no puede confirmar que eres tú, primero define una contraseña con el flujo de recuperación de contraseña y después vuelve a eliminar tu cuenta.",
-      "note": "¿Sin contraseña y Google no puede confirmarte? Define primero una contraseña.",
+      "title": "¿No tenés contraseña y Google no puede confirmar tu identidad?",
+      "body": "Si tu cuenta no tiene contraseña y Google no puede confirmar que sos vos, primero definí una contraseña con el flujo de recuperación de contraseña y después volvé a eliminar tu cuenta.",
+      "note": "¿Sin contraseña y Google no puede confirmarte? Definí primero una contraseña.",
       "link": "Definir una contraseña con la recuperación"
     }
   },
@@ -1246,7 +1261,7 @@
     "title": "Inversiones",
     "description": "Tus carteras y posiciones, valuadas con el último precio que tengas.",
     "empty": {
-      "title": "Crea tu primera cartera",
+      "title": "Creá tu primera cartera",
       "description": "Una cartera agrupa tus posiciones, normalmente una por broker."
     },
     "portfolio": {
@@ -1328,7 +1343,7 @@
         "quantity": "Cantidad",
         "currency": "Moneda",
         "totalCost": "Costo total",
-        "currencyChangeNotice": "Cambiar la moneda borra el precio. Ingresa de nuevo el costo total en la nueva moneda o déjalo vacío.",
+        "currencyChangeNotice": "Cambiar la moneda borra el precio. Ingresá de nuevo el costo total en la nueva moneda o dejalo vacío.",
         "submit": "Guardar cambios",
         "pending": "Guardando…"
       },
@@ -1381,31 +1396,31 @@
       }
     },
     "errors": {
-      "network": "No pudimos conectarnos con el servidor. Revisa tu conexión.",
-      "retryLater": "Algo salió mal. Vuelve a intentarlo en un momento.",
-      "unexpected": "Ocurrió algo inesperado. Vuelve a intentarlo.",
-      "currencyMismatch": "Esta posición ya existe en la otra moneda. Usa la misma moneda.",
-      "costRequired": "Ingresa el costo total para cambiar la moneda.",
+      "network": "No pudimos conectarnos con el servidor. Revisá tu conexión.",
+      "retryLater": "Algo salió mal. Volvé a intentarlo en un momento.",
+      "unexpected": "Ocurrió algo inesperado. Volvé a intentarlo.",
+      "currencyMismatch": "Esta posición ya existe en la otra moneda. Usá la misma moneda.",
+      "costRequired": "Ingresá el costo total para cambiar la moneda.",
       "cryptoOnlyUsd": "Las criptomonedas solo se valúan en USD.",
       "notFound": "No lo encontramos. Puede que ya se haya eliminado.",
-      "nameRequired": "Ingresa un nombre.",
+      "nameRequired": "Ingresá un nombre.",
       "nameTooLong": "El nombre puede tener como máximo 60 caracteres.",
-      "tickerInvalid": "Ingresa un ticker de hasta 20 letras, dígitos, puntos o guiones.",
-      "instrumentNameRequired": "Ingresa el nombre del instrumento (hasta 100 caracteres).",
+      "tickerInvalid": "Ingresá un ticker de hasta 20 letras, dígitos, puntos o guiones.",
+      "instrumentNameRequired": "Ingresá el nombre del instrumento (hasta 100 caracteres).",
       "instrumentNameTooLong": "El nombre del instrumento puede tener como máximo 100 caracteres.",
-      "ambiguousSeparator": "Número ambiguo. Escribe el separador decimal de tu idioma y sin separador de miles.",
-      "empty": "Ingresa un número.",
-      "notANumber": "Ingresa un número válido.",
+      "ambiguousSeparator": "Número ambiguo. Escribí el separador decimal de tu idioma y sin separador de miles.",
+      "empty": "Ingresá un número.",
+      "notANumber": "Ingresá un número válido.",
       "tooManyDecimals": "Demasiados decimales.",
       "notPositive": "El número debe ser mayor que cero.",
-      "quantityInvalid": "Ingresa una cantidad válida.",
-      "amountInvalid": "Ingresa un monto dentro del rango permitido."
+      "quantityInvalid": "Ingresá una cantidad válida.",
+      "amountInvalid": "Ingresá un monto dentro del rango permitido."
     }
   },
   "notices": {
     "title": "Avisos",
     "description": "Recordatorios y resultados de tus pagos recurrentes, recordatorios de los resúmenes de tus tarjetas y novedades de tus grupos.",
-    "empty": "Todavía no tienes avisos. Los recordatorios de tus pagos recurrentes y de los resúmenes de tus tarjetas, y las novedades de tus grupos, aparecerán aquí.",
+    "empty": "Todavía no tenés avisos. Los recordatorios de tus pagos recurrentes y de los resúmenes de tus tarjetas, y las novedades de tus grupos, aparecerán aquí.",
     "markAllRead": "Marcar todos como leídos",
     "loadMore": "Cargar más",
     "retry": "Reintentar",
@@ -1418,8 +1433,8 @@
     "recordedOn": "Registrado el {date}",
     "listLabel": "Tus avisos",
     "errors": {
-      "load": "No pudimos cargar tus avisos. Revisa tu conexión e inténtalo de nuevo.",
-      "markRead": "No pudimos marcar el aviso como leído. Inténtalo de nuevo."
+      "load": "No pudimos cargar tus avisos. Revisá tu conexión e intentalo de nuevo.",
+      "markRead": "No pudimos marcar el aviso como leído. Intentalo de nuevo."
     }
   },
   "groups": {
@@ -1480,12 +1495,12 @@
           "description": "Puede que se haya eliminado o que no sea de uno de tus grupos."
         },
         "notAllowed": {
-          "title": "No puedes cambiar este gasto",
+          "title": "No podés cambiar este gasto",
           "description": "Solo quien lo registró o un administrador del grupo puede editarlo o eliminarlo."
         },
         "queuedDelete": {
           "title": "Este gasto está esperando para eliminarse",
-          "description": "La eliminación se enviará apenas tengas conexión. Puedes descartarla desde la lista."
+          "description": "La eliminación se enviará apenas tengas conexión. Podés descartarla desde la lista."
         }
       },
       "settlement": {
@@ -1628,14 +1643,14 @@
         "exact": "Montos exactos"
       },
       "equal": {
-        "hint": "Elige quiénes comparten este gasto. Cada parte se muestra a la derecha."
+        "hint": "Elegí quiénes comparten este gasto. Cada parte se muestra a la derecha."
       },
       "percentage": {
-        "hint": "Ingresa un porcentaje por cada miembro. Déjalo vacío para dejar a alguien afuera.",
+        "hint": "Ingresá un porcentaje por cada miembro. Déjalo vacío para dejar a alguien afuera.",
         "field": "Porcentaje de {name}"
       },
       "exact": {
-        "hint": "Ingresa un monto por cada miembro. Déjalo vacío para dejar a alguien afuera.",
+        "hint": "Ingresá un monto por cada miembro. Déjalo vacío para dejar a alguien afuera.",
         "field": "Monto de {name}"
       },
       "summary": {
@@ -1648,13 +1663,13 @@
         "exactOver": "Sobran {amount} sobre el total."
       },
       "errors": {
-        "noMembers": "Agrega al menos un miembro a la división.",
+        "noMembers": "Agregá al menos un miembro a la división.",
         "tooManyMembers": "La división tiene demasiados miembros.",
         "duplicateMember": "Un miembro solo puede aparecer una vez en la división.",
-        "amountRequired": "Ingresa primero el monto del gasto.",
-        "percentageInvalid": "Ingresa un porcentaje entre 0 y 100 con hasta 2 decimales.",
+        "amountRequired": "Ingresá primero el monto del gasto.",
+        "percentageInvalid": "Ingresá un porcentaje entre 0 y 100 con hasta 2 decimales.",
         "percentageTotal": "Los porcentajes deben sumar 100%.",
-        "amountInvalid": "Ingresa un monto válido para este miembro.",
+        "amountInvalid": "Ingresá un monto válido para este miembro.",
         "amountTotal": "Los montos deben sumar el total del gasto."
       }
     },
@@ -1678,25 +1693,25 @@
           "personalCategory": "Categoría personal"
         },
         "placeholders": {
-          "payer": "Elige quién pagó",
-          "category": "Elige una categoría",
-          "account": "Elige una cuenta",
-          "personalCategory": "Elige una categoría personal"
+          "payer": "Elegí quién pagó",
+          "category": "Elegí una categoría",
+          "account": "Elegí una cuenta",
+          "personalCategory": "Elegí una categoría personal"
         },
-        "payerAccountHint": "Pagaste tú: elige la cuenta de la que salió el dinero y la categoría de tu propio gasto.",
+        "payerAccountHint": "Pagaste vos: elegí la cuenta de la que salió el dinero y la categoría de tu propio gasto.",
         "unnamedMember": "Miembro sin nombre",
         "submit": "Guardar gasto",
         "pending": "Guardando…",
         "errors": {
-          "currencyInvalid": "Elige una moneda.",
-          "descriptionRequired": "Ingresa una descripción.",
+          "currencyInvalid": "Elegí una moneda.",
+          "descriptionRequired": "Ingresá una descripción.",
           "descriptionTooLong": "La descripción puede tener hasta 200 caracteres.",
           "descriptionInvalid": "La descripción tiene caracteres que no están permitidos.",
-          "payerRequired": "Elige quién pagó.",
-          "categoryRequired": "Elige una categoría de este grupo.",
-          "accountRequired": "Elige una de tus cuentas.",
-          "personalCategoryRequired": "Elige una categoría personal.",
-          "noAccountInCurrency": "No tienes ninguna cuenta en esta moneda. Crea una primero o elige otra moneda."
+          "payerRequired": "Elegí quién pagó.",
+          "categoryRequired": "Elegí una categoría de este grupo.",
+          "accountRequired": "Elegí una de tus cuentas.",
+          "personalCategoryRequired": "Elegí una categoría personal.",
+          "noAccountInCurrency": "No tenés ninguna cuenta en esta moneda. Creá una primero o elegí otra moneda."
         }
       },
       "title": "Gastos",
@@ -1807,7 +1822,7 @@
       "createTitle": "Nuevo grupo",
       "empty": {
         "title": "Todavía no estás en ningún grupo",
-        "joinHint": "Crea uno, o abre el enlace de invitación que te mandó un amigo para sumarte al suyo."
+        "joinHint": "Creá uno, o abrí el enlace de invitación que te mandó un amigo para sumarte al suyo."
       },
       "fields": {
         "name": "Nombre del grupo",
@@ -1818,10 +1833,10 @@
       "pending": "Creando…",
       "cancel": "Cancelar",
       "errors": {
-        "nameRequired": "Ingresa un nombre para el grupo.",
+        "nameRequired": "Ingresá un nombre para el grupo.",
         "nameTooLong": "El nombre es demasiado largo.",
         "nameInvalid": "Ese nombre no es válido.",
-        "rateTypeRequired": "Elige una cotización."
+        "rateTypeRequired": "Elegí una cotización."
       }
     },
     "join": {
@@ -1842,16 +1857,16 @@
     },
     "invite": {
       "title": "Invitar personas",
-      "description": "Crea un enlace para que alguien se una a este grupo. Vence y lo puede usar cualquiera que lo tenga.",
+      "description": "Creá un enlace para que alguien se una a este grupo. Vence y lo puede usar cualquiera que lo tenga.",
       "create": "Crear enlace de invitación",
       "creating": "Creando…",
       "expires": "Vence el {date}",
       "linkLabel": "Enlace",
       "copy": "Copiar enlace",
       "copied": "Enlace copiado.",
-      "copyFailed": "No se pudo copiar automáticamente. Selecciona el enlace de arriba y cópialo a mano.",
+      "copyFailed": "No se pudo copiar automáticamente. Seleccioná el enlace de arriba y copialo a mano.",
       "share": "Compartir",
-      "shareTitle": "Súmate a mi grupo en Pesly",
+      "shareTitle": "Sumate a mi grupo en Pesly",
       "ghost": {
         "title": "Agregar un miembro sin cuenta",
         "description": "Para alguien que todavía no está en Pesly. Puede reclamar su lugar después con un enlace.",
@@ -1859,7 +1874,7 @@
         "submit": "Agregar miembro",
         "adding": "Agregando…",
         "errors": {
-          "nameRequired": "Ingresa un nombre.",
+          "nameRequired": "Ingresá un nombre.",
           "nameTooLong": "El nombre es demasiado largo.",
           "nameInvalid": "Ese nombre no es válido."
         }
@@ -1877,7 +1892,7 @@
       "back": "Volver al grupo",
       "currentTitle": "División actual por defecto",
       "editTitle": "División por defecto",
-      "editDescription": "Los gastos nuevos empiezan con esta división. Puedes cambiarla en cada gasto.",
+      "editDescription": "Los gastos nuevos empiezan con esta división. Podés cambiarla en cada gasto.",
       "readOnly": "Solo los administradores del grupo pueden cambiar la división por defecto.",
       "equalSummary": "Partes iguales entre todos los miembros actuales.",
       "modeLabel": "División",
@@ -1899,7 +1914,7 @@
       "empty": "Este grupo todavía no tiene categorías.",
       "new": {
         "title": "Nueva categoría",
-        "description": "Agrega una categoría para los gastos de este grupo."
+        "description": "Agregá una categoría para los gastos de este grupo."
       },
       "submit": "Crear categoría",
       "pending": "Creando…",
@@ -2003,7 +2018,7 @@
       "balancesLink": "Saldos",
       "ownBalance": {
         "title": "Tu saldo",
-        "owes": "Debes {amount}",
+        "owes": "Debés {amount}",
         "owed": "Te deben {amount}",
         "even": "Estás al día en {currency}",
         "unavailable": "Tu saldo no está disponible en este momento."
@@ -2124,7 +2139,7 @@
       "endDate": "Fecha de fin (opcional)",
       "reminderDays": "Avisarme … días antes"
     },
-    "reminderDaysHint": "Te avisamos esta cantidad de días antes de cada vencimiento. Usa 0 para recibir el aviso solo el día del vencimiento.",
+    "reminderDaysHint": "Te avisamos esta cantidad de días antes de cada vencimiento. Usá 0 para recibir el aviso solo el día del vencimiento.",
     "actions": {
       "create": "Crear pago",
       "edit": "Editar",
@@ -2175,7 +2190,7 @@
       "dateInvalid": "Ingresá una fecha válida.",
       "endBeforeStart": "La fecha de fin no puede ser anterior a la de inicio.",
       "modeRequired": "Elegí cómo se registra.",
-      "reminderDaysInvalid": "Ingresa un número entero de días entre 0 y 30."
+      "reminderDaysInvalid": "Ingresá un número entero de días entre 0 y 30."
     }
   },
   "groupConflict": {
@@ -2288,15 +2303,15 @@
   "budgets": {
     "list": {
       "title": "Presupuestos",
-      "description": "Define un límite mensual para tus gastos y mira cuánto te queda.",
+      "description": "Definí un límite mensual para tus gastos y mirá cuánto te queda.",
       "create": "Nuevo presupuesto",
       "empty": {
-        "title": "Todavía no tienes presupuestos",
-        "description": "Crea un presupuesto para mantener tus gastos bajo control.",
+        "title": "Todavía no tenés presupuestos",
+        "description": "Creá un presupuesto para mantener tus gastos bajo control.",
         "action": "Crear un presupuesto"
       },
       "retry": "Reintentar",
-      "error": "No pudimos cargar tus presupuestos. Revisa tu conexión e inténtalo de nuevo.",
+      "error": "No pudimos cargar tus presupuestos. Revisá tu conexión e intentalo de nuevo.",
       "month": {
         "label": "Mes",
         "previous": "Mes anterior",
@@ -2337,6 +2352,8 @@
       "currencyReadOnly": "La moneda no se puede cambiar",
       "categories": "Categorías",
       "categoriesGroup": "Subcategorías de {parent}",
+      "subcategoriesToggle": "Mostrar u ocultar las subcategorías de {parent}",
+      "subcategoriesCount": "{chosen, plural, =0 {{count}} other {# de {count}}}",
       "categoryUnavailable": "Categoría no disponible",
       "rollover": "Llevar lo que sobre al mes siguiente",
       "thresholds": {
@@ -2348,19 +2365,19 @@
       },
       "editNote": "Los cambios se aplican desde el mes actual. Los meses anteriores no cambian.",
       "errors": {
-        "nameRequired": "Ingresa un nombre para el presupuesto.",
+        "nameRequired": "Ingresá un nombre para el presupuesto.",
         "nameTooLong": "El nombre es demasiado largo.",
-        "amountInvalid": "Ingresa un monto mayor a cero.",
-        "categoriesRequired": "Elige al menos una categoría.",
-        "thresholdsRequired": "Deja al menos un umbral de alerta.",
-        "thresholdInvalid": "Ingresa un número entero dentro del rango permitido.",
+        "amountInvalid": "Ingresá un monto mayor a cero.",
+        "categoriesRequired": "Elegí al menos una categoría.",
+        "thresholdsRequired": "Dejá al menos un umbral de alerta.",
+        "thresholdInvalid": "Ingresá un número entero dentro del rango permitido.",
         "thresholdDuplicate": "Ese umbral ya está en la lista.",
         "thresholdsTooMany": "Un presupuesto puede tener como máximo {max} umbrales."
       },
       "submit": "Guardar presupuesto",
       "cancel": "Cancelar",
       "saving": "Guardando...",
-      "categoriesError": "No pudimos cargar tus categorías. Revisa tu conexión e inténtalo de nuevo.",
+      "categoriesError": "No pudimos cargar tus categorías. Revisá tu conexión e intentalo de nuevo.",
       "categoriesRetry": "Reintentar"
     },
     "delete": {

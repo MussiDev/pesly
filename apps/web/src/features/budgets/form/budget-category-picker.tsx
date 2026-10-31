@@ -1,13 +1,14 @@
 'use client';
 
 import type { CategoryLanguage, CategoryResponse } from '@pesly/shared';
-import { CircleAlert } from 'lucide-react';
+import { ChevronDown, CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import { categoryLabel, compareCategories } from '@/features/categories/category-display';
 import type { BudgetCategoriesState } from './use-budget-categories';
 
@@ -51,6 +52,9 @@ export function BudgetCategoryPicker({
   const language: CategoryLanguage = useLocale() === 'en' ? 'en' : 'es';
   const base = useId();
   const messageId = `${base}-message`;
+  // Subcategories fold under their parent (Miller's law: a dozen rows to scan, not thirty); a
+  // parent with a chosen subcategory opens by itself, so nothing chosen is ever hidden.
+  const [open, setOpen] = useState<ReadonlySet<string>>(new Set());
 
   if (categories.kind === 'failed') {
     return (
@@ -100,20 +104,58 @@ export function BudgetCategoryPicker({
   return (
     <fieldset className="grid gap-2" aria-busy={categories.kind === 'loading'}>
       <legend className="mb-2 text-small font-medium">{t('categories')}</legend>
-      {groups.map(({ parent, children }) => (
-        <div key={parent.id} className="grid gap-1">
-          {row(parent, categoryLabel(parent, language))}
-          {children.length > 0 ? (
-            <div
-              role="group"
-              aria-label={t('categoriesGroup', { parent: categoryLabel(parent, language) })}
-              className="ml-8 grid gap-1"
-            >
-              {children.map((child) => row(child, categoryLabel(child, language)))}
+      {groups.map(({ parent, children }) => {
+        const parentLabel = categoryLabel(parent, language);
+        const chosen = children.filter((child) => selected.includes(child.id)).length;
+        const expanded = open.has(parent.id) || chosen > 0;
+        const groupId = `${base}-${parent.id}-children`;
+        return (
+          <div key={parent.id} className="grid gap-1">
+            <div className="flex items-center justify-between gap-2">
+              {row(parent, parentLabel)}
+              {children.length > 0 ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-expanded={expanded}
+                  aria-controls={groupId}
+                  aria-label={t('subcategoriesToggle', { parent: parentLabel })}
+                  className="shrink-0 text-muted-foreground"
+                  onClick={() => {
+                    setOpen((current) => {
+                      const next = new Set(current);
+                      if (next.has(parent.id)) next.delete(parent.id);
+                      else next.add(parent.id);
+                      return next;
+                    });
+                  }}
+                >
+                  {t('subcategoriesCount', { count: children.length, chosen })}
+                  <ChevronDown
+                    aria-hidden
+                    className={cn(
+                      'transition-transform motion-reduce:transition-none',
+                      expanded && 'rotate-180',
+                    )}
+                  />
+                </Button>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-      ))}
+            {children.length > 0 ? (
+              <div
+                id={groupId}
+                role="group"
+                aria-label={t('categoriesGroup', { parent: parentLabel })}
+                hidden={!expanded}
+                className="ml-8 grid gap-1"
+              >
+                {children.map((child) => row(child, categoryLabel(child, language)))}
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
       {unavailable.map((id) => row({ id }, t('categoryUnavailable')))}
       {error ? (
         <p id={messageId} className="text-small text-destructive">

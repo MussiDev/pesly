@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import { ErrorState } from '@/components/ui/error-state';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { ApiErrorKey } from '@/lib/api-client';
+import { cn } from '@/lib/utils';
+import { isTaskPath } from '../nav-items';
 import { BottomNav } from './bottom-nav';
 import { SignOutAlert } from './sign-out-alert';
 import { TopBar } from './top-bar';
@@ -73,11 +75,15 @@ export function AuthenticatedShell({
       </a>
       <TopNav currentPath={currentPath} signingOut={signingOut} onSignOut={onSignOut} />
       {/* The pages bring their own <main>; this wrapper is only the skip link's target. The bottom
-          padding keeps the last element clear of the floating bar below md. */}
+          padding keeps the last element clear of the floating bar below md; a task page has no bar. */}
       <div
         id="main-content"
         tabIndex={-1}
-        className="flex min-w-0 flex-1 flex-col pb-28 outline-none desk:pb-0"
+        data-task={isTaskPath(currentPath) ? '' : undefined}
+        className={cn(
+          'flex min-w-0 flex-1 flex-col outline-none desk:pb-0',
+          isTaskPath(currentPath) ? 'pb-safe' : 'pb-28 short:pb-16',
+        )}
       >
         {state.kind === 'loading' ? (
           <div className="mx-auto grid w-full max-w-5xl content-start gap-6 p-4 desk:p-8">

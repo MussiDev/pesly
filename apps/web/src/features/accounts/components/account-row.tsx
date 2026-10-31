@@ -167,7 +167,8 @@ export function AccountRow(props: AccountRowProps) {
           value={account.balance}
           currency={account.currency}
           locale={locale}
-          className="max-w-1/2 text-right text-body font-bold break-words whitespace-normal"
+          wrap
+          className="max-w-1/2 text-right text-body font-bold"
         />
       </div>
       {editing ? (
@@ -224,9 +225,9 @@ export function AccountRow(props: AccountRowProps) {
               </AlertDescription>
             </Alert>
           ) : null}
-          <div className="flex items-center justify-end gap-1 border-t border-border/70 pt-1">
+          <div className="flex flex-wrap items-center gap-1 border-t border-border/70 pt-1">
             {hasSetting ? (
-              <div className="mr-auto flex min-h-11 min-w-0 items-center gap-2">
+              <div className="flex min-h-11 w-full min-w-0 items-center gap-2">
                 <Checkbox
                   id={settingId}
                   checked={account.includeInAvailable}
@@ -249,6 +250,7 @@ export function AccountRow(props: AccountRowProps) {
               </div>
             ) : null}
             <IconAction
+              showLabel
               label={t('actions.rename')}
               subject={account.name}
               icon={<Pencil aria-hidden />}
@@ -259,6 +261,7 @@ export function AccountRow(props: AccountRowProps) {
             />
             {canSetBalance ? (
               <IconAction
+                showLabel
                 label={t('actions.setBalance')}
                 subject={account.name}
                 icon={<Coins aria-hidden />}
@@ -270,6 +273,7 @@ export function AccountRow(props: AccountRowProps) {
             ) : null}
             {account.archived ? (
               <IconAction
+                showLabel
                 label={t('actions.unarchive')}
                 subject={account.name}
                 icon={<ArchiveRestore aria-hidden />}
@@ -280,6 +284,7 @@ export function AccountRow(props: AccountRowProps) {
               />
             ) : (
               <IconAction
+                showLabel
                 label={t('actions.archive')}
                 subject={account.name}
                 icon={<Archive aria-hidden />}
@@ -289,7 +294,12 @@ export function AccountRow(props: AccountRowProps) {
                 }}
               />
             )}
+            {/* Delete sits apart at the far end, in the destructive colour: a slip of the thumb
+                from archive never lands on it (Fitts's law, error prevention). */}
             <IconAction
+              showLabel
+              tone="destructive"
+              className="ml-auto"
               label={t('actions.delete')}
               subject={account.name}
               icon={<Trash2 aria-hidden />}

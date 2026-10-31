@@ -3,14 +3,19 @@
 import { INSTALLMENTS_MAX, type InstallmentSchedule } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormActions } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Select } from '@/components/ui/select';
 import { readField } from '@/features/auth/read-field';
+import {
+  CategoryChips,
+  type CategoryChipOption,
+} from '@/features/movements/components/category-chips';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
 import {
@@ -31,10 +36,7 @@ export interface InstallmentFormErrors {
   fields?: InstallmentFieldErrors;
 }
 
-export interface InstallmentCategoryOption {
-  id: string;
-  label: string;
-}
+export type InstallmentCategoryOption = CategoryChipOption;
 
 /** The fields the schedule preview depends on, as typed (unparsed). */
 export type InstallmentDraftValues = Pick<
@@ -75,6 +77,7 @@ export function InstallmentForm({
 }: InstallmentFormProps) {
   const t = useTranslations('creditCards.installments');
   const tAll = useTranslations();
+  const categoryErrorId = useId();
   const formRef = useRef<HTMLFormElement>(null);
 
   function reportDraft(form: HTMLFormElement) {
@@ -160,18 +163,21 @@ export function InstallmentForm({
             )}
           </MovementField>
           <InstallmentSchedulePreview schedule={schedule} currency={currency} />
-          <MovementField label={t('fields.category')} error={errors.fields?.category}>
-            {(control) => (
-              <Select name="categoryId" defaultValue="" required {...control}>
-                <option value="">{t('fields.categoryPlaceholder')}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <div className="grid min-w-0 gap-2">
+            {/* The same icon grid as a personal expense: one way to pick a category everywhere. */}
+            <CategoryChips
+              label={t('fields.category')}
+              categories={categories}
+              defaultValue=""
+              invalid={Boolean(errors.fields?.category)}
+              describedBy={errors.fields?.category ? `${categoryErrorId}-message` : undefined}
+            />
+            {errors.fields?.category ? (
+              <p id={`${categoryErrorId}-message`} className="text-small text-destructive">
+                {tAll(errors.fields.category)}
+              </p>
+            ) : null}
+          </div>
           <MovementField label={t('fields.purchasedOn')} error={errors.fields?.purchasedOn}>
             {(control) => (
               <Input
@@ -186,12 +192,14 @@ export function InstallmentForm({
           <MovementField label={t('fields.note')} error={errors.fields?.note}>
             {(control) => <Input name="note" type="text" autoComplete="off" {...control} />}
           </MovementField>
-          <Button type="submit" disabled={pending}>
-            {pending ? t('pending') : t('submit')}
-          </Button>
-          <Link href={`/cards/${cardId}`} className={buttonVariants({ variant: 'ghost' })}>
-            {t('back')}
-          </Link>
+          <FormActions>
+            <Button type="submit" disabled={pending}>
+              {pending ? t('pending') : t('submit')}
+            </Button>
+            <Link href={`/cards/${cardId}`} className={buttonVariants({ variant: 'ghost' })}>
+              {t('back')}
+            </Link>
+          </FormActions>
         </form>
       </CardContent>
     </Card>

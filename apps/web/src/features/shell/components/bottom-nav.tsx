@@ -9,6 +9,7 @@ import {
   HOME_ITEM,
   GROUPS_ITEM,
   isActiveInBottomNav,
+  isTaskPath,
   MORE_ITEM,
   MOVEMENTS_ITEM,
   type NavItem,
@@ -29,6 +30,7 @@ const AFTER_ADD: readonly NavItem[] = [GROUPS_ITEM, MORE_ITEM];
  */
 export function BottomNav({ currentPath }: BottomNavProps) {
   const t = useTranslations('app.nav');
+  if (isTaskPath(currentPath)) return null;
 
   function destination(item: NavItem) {
     const active = isActiveInBottomNav(item, currentPath);
@@ -39,7 +41,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           href={item.href}
           aria-current={active ? 'page' : undefined}
           className={cn(
-            'flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-nav font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+            'flex h-14 min-w-0 flex-col items-center justify-center gap-1 text-nav font-medium text-muted-foreground transition-colors outline-none active:text-foreground motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring short:h-11',
             active && 'font-bold text-accent-foreground',
           )}
         >
@@ -51,7 +53,7 @@ export function BottomNav({ currentPath }: BottomNavProps) {
           >
             <Icon aria-hidden className="size-5.5 shrink-0" />
           </span>
-          <span className="min-w-0 max-w-full truncate">{t(item.labelKey)}</span>
+          <span className="min-w-0 max-w-full truncate short:sr-only">{t(item.labelKey)}</span>
         </Link>
       </li>
     );
@@ -63,13 +65,13 @@ export function BottomNav({ currentPath }: BottomNavProps) {
       aria-label={t('label')}
       className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-safe desk:hidden"
     >
-      <ul className="pointer-events-auto grid grid-cols-5 items-start border-t bg-card px-2 pt-1.5 pb-2">
+      <ul className="pointer-events-auto grid grid-cols-5 items-start border-t bg-card px-2 pt-1.5 pb-2 short:items-center short:py-0.5">
         {BEFORE_ADD.map(destination)}
         <li className="flex justify-center">
           <Link
             href={ADD_MOVEMENT_HREF}
             aria-label={t('addMovement')}
-            className="-mt-5.5 inline-flex size-15 items-center justify-center rounded-pill bg-primary text-primary-foreground ring-4 ring-background transition-colors outline-none hover:bg-primary/90 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+            className="-mt-5.5 inline-flex size-15 items-center justify-center rounded-pill bg-primary text-primary-foreground ring-4 ring-background transition-[color,background-color,transform] outline-none hover:bg-primary/90 active:bg-primary/80 motion-safe:active:scale-95 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background short:mt-0 short:size-11"
           >
             <Plus aria-hidden className="size-6.5" />
           </Link>

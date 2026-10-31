@@ -122,6 +122,15 @@ describe('formatMoney', () => {
     expect(formatMoney(9007199254740993n, 'USD', 'en')).toContain('90,071,992,547,409.93');
   });
 
+  it('always shows the ISO code after the amount, joined by a non-breaking space', () => {
+    expect(formatMoney(120000n, 'USD', 'es')).toBe('1.200,00\u00a0USD');
+    expect(formatMoney(120000n, 'USD', 'en-US')).toBe('1,200.00\u00a0USD');
+  });
+
+  it('groups four-digit amounts in Spanish too', () => {
+    expect(formatMoney(150000n, 'ARS', 'es-AR')).toBe('1.500,00\u00a0ARS');
+  });
+
   it('keeps the sign for negatives smaller than one unit', () => {
     const text = formatMoney(-5n, 'USD', 'en');
     expect(text).toContain('0.05');

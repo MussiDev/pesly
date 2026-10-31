@@ -14,6 +14,7 @@ interface MinorAmountProps {
   locale: Locale;
   className?: string;
   softDecimals?: boolean;
+  wrap?: boolean;
 }
 
 /**
@@ -26,6 +27,7 @@ export function MinorAmount({
   locale,
   className,
   softDecimals,
+  wrap,
 }: MinorAmountProps) {
   const parsed = exactIntegerStringSchema.safeParse(value);
   if (!parsed.success) return <span className="text-muted-foreground">—</span>;
@@ -36,6 +38,7 @@ export function MinorAmount({
       locale={locale}
       className={className}
       softDecimals={softDecimals}
+      wrap={wrap}
     />
   );
 }

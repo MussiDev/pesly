@@ -71,6 +71,15 @@ describe('TopBar back link', () => {
     expect(screen.queryByRole('link', { name: /^Atrás:/ })).toBeNull();
   });
 
+  it('carries the brand on the home only, where no page sits above', () => {
+    const { container, unmount } = renderApp(<TopBar online pending={0} currentPath="/" />);
+    expect(container.querySelector('[data-slot="top-bar-brand"]')?.textContent).toBe('Pesly');
+    unmount();
+
+    const other = renderApp(<TopBar online pending={0} currentPath="/movements" />);
+    expect(other.container.querySelector('[data-slot="top-bar-brand"]')).toBeNull();
+  });
+
   it('names the page above and links to it, not to the history', () => {
     renderApp(<TopBar online pending={0} currentPath="/groups/g1/settlements" />);
 

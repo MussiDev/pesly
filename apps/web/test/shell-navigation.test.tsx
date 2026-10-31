@@ -13,7 +13,7 @@ import { SignOutAlert } from '../src/features/shell/components/sign-out-alert';
 import { SignOutButton } from '../src/features/shell/components/sign-out-button';
 import { TopNav } from '../src/features/shell/components/top-nav';
 import { MoreContainer } from '../src/features/shell/containers/more-container';
-import { isActivePath } from '../src/features/shell/nav-items';
+import { isActivePath, isTaskPath } from '../src/features/shell/nav-items';
 import { useSignOut } from '../src/features/shell/use-sign-out';
 import { enqueueMovement } from '../src/lib/local-store/queue';
 import { readSessionPointer, writeSessionPointer } from '../src/lib/local-store/session-pointer';
@@ -275,13 +275,11 @@ describe('current destination (AC-14)', () => {
   it.each([
     ['/', '/es', '/es'],
     ['/accounts', '/es/more', '/es/accounts'],
-    ['/accounts/new', '/es/more', '/es/accounts'],
     ['/movements', '/es/movements', '/es/movements'],
     ['/investments', '/es/more', '/es/investments'],
     ['/investments/abc', '/es/more', '/es/investments'],
     ['/groups', '/es/groups', '/es/groups'],
     ['/groups/55555555-5555-4555-8555-555555555555', '/es/groups', '/es/groups'],
-    ['/groups/new', '/es/groups', '/es/groups'],
     ['/groups/join', '/es/groups', '/es/groups'],
     ['/budgets', '/es/more', '/es/budgets'],
     ['/more', '/es/more', undefined],
@@ -300,6 +298,23 @@ describe('current destination (AC-14)', () => {
     expect(marked('bottom-nav')).toEqual([bottom]);
     expect(marked('top-nav')).toEqual(top ? [top] : []);
   });
+
+  it.each([
+    '/accounts/new',
+    '/groups/new',
+    '/movements/new',
+    '/cards/abc/expense',
+    '/goals/abc/edit',
+  ])(
+    'on the task page %s the bottom bar steps aside and the top nav still marks its section',
+    (path) => {
+      const { container } = renderShellAt(path);
+
+      expect(container.querySelector('[data-slot="bottom-nav"]')).toBeNull();
+      expect(container.querySelector('#main-content')?.hasAttribute('data-task')).toBe(true);
+      expect(navOf(container, 'top-nav')).toBeDefined();
+    },
+  );
 
   it.each(['/groups/55555555-5555-4555-8555-555555555555', '/groups/new', '/groups/join'])(
     'shows the "‹ Grupos" link on the group sub-page %s, and not on the groups list',
@@ -348,6 +363,16 @@ describe('current destination (AC-14)', () => {
   it('does not take a path that only shares a prefix for the destination', () => {
     expect(isActivePath('/accounts', '/accounts-archive')).toBe(false);
     expect(isActivePath('/accounts', '/accounts/new')).toBe(true);
+  });
+
+  it('tells a task page (create, edit, import…) from a list or a detail', () => {
+    expect(isTaskPath('/movements/new')).toBe(true);
+    expect(isTaskPath('/movements/abc/edit')).toBe(true);
+    expect(isTaskPath('/cards/abc/import')).toBe(true);
+    expect(isTaskPath('/movements')).toBe(false);
+    expect(isTaskPath('/groups/abc')).toBe(false);
+    expect(isTaskPath('/')).toBe(false);
+    expect(isTaskPath(undefined)).toBe(false);
     expect(isActivePath('/', '/accounts')).toBe(false);
     expect(isActivePath('/accounts', undefined)).toBe(false);
   });
@@ -387,6 +412,22 @@ describe('MoreMenu (FR-07)', () => {
       '/en/settings/security',
       '/en/settings/notifications',
     ]);
+  });
+
+  it('groups the destinations under three headings, as the side menu does', () => {
+    renderMore();
+
+    const sections = [en.app.nav.money, en.app.nav.plan, en.app.nav.accountSection];
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(sections);
+    const money = within(screen.getByRole('region', { name: en.app.nav.money }));
+    expect(money.getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
+      '/en/accounts',
+      '/en/cards',
+    ]);
+    const account = within(screen.getByRole('region', { name: en.app.nav.accountSection }));
+    expect(account.getByRole('radiogroup')).toBeDefined();
   });
 
   it('lists accounts, categories, profile, security, the theme toggle and sign out', async () => {

@@ -655,12 +655,13 @@ describe('MovementForm: transfers and exchanges (DISC-001-03c)', () => {
     expect(
       within(screen.getByRole('group', { name: es.movements.fields.type }))
         .getAllByRole('button')
-        .map((button) => button.textContent),
+        .map((button) => [button.getAttribute('aria-label'), button.textContent]),
     ).toEqual([
-      es.movements.types.expense,
-      es.movements.types.income,
-      es.movements.types.transfer,
-      es.movements.types.exchange,
+      // The full name is the accessible one; the short label fits four pills on a phone.
+      [es.movements.types.expense, es.movements.typesShort.expense],
+      [es.movements.types.income, es.movements.typesShort.income],
+      [es.movements.types.transfer, es.movements.typesShort.transfer],
+      [es.movements.types.exchange, es.movements.typesShort.exchange],
     ]);
   });
 

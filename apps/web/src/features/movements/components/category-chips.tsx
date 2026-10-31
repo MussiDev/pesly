@@ -76,7 +76,7 @@ export function CategoryChips({
             {radio(category)}
             <span
               className={cn(
-                'flex min-h-18 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 py-2 text-center transition-colors motion-reduce:transition-none',
+                'flex min-h-18 flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card px-1 py-2 text-center transition-colors active:bg-muted motion-reduce:transition-none',
                 'peer-checked:border-primary peer-checked:bg-accent peer-checked:text-accent-foreground',
                 'peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-background',
                 openParent === category.id && 'border-primary',
@@ -88,7 +88,7 @@ export function CategoryChips({
                 color={category.color ?? ''}
                 className="size-8 [&>svg]:size-4"
               />
-              <span className="line-clamp-2 w-full text-caption leading-tight font-semibold hyphens-auto">
+              <span className="line-clamp-3 w-full text-caption leading-tight font-semibold hyphens-auto">
                 {category.label}
               </span>
             </span>

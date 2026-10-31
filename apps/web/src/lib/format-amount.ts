@@ -1,12 +1,15 @@
-import { QUANTITY_SCALE, formatMinorUnits, formatScaledDecimal } from '@pesly/shared';
+import {
+  QUANTITY_SCALE,
+  formatMinorUnits,
+  formatMoney as formatSharedMoney,
+  formatScaledDecimal,
+} from '@pesly/shared';
 import type { Locale } from '@/i18n/routing';
 
 const SEPARATORS = {
   en: { group: ',', decimal: '.' },
   es: { group: '.', decimal: ',' },
 } as const;
-
-const NBSP = String.fromCharCode(0xa0);
 
 const DATE_LOCALE: Record<Locale, string> = { en: 'en-US', es: 'es-AR' };
 
@@ -15,9 +18,9 @@ export function formatAmount(minorUnits: bigint, language: Locale): string {
   return formatMinorUnits(minorUnits, language);
 }
 
-/** An amount followed by its currency code, joined by a non-breaking space. */
+/** An amount followed by its currency code, joined by a non-breaking space: the shared format. */
 export function formatMoney(minorUnits: bigint, currency: 'ARS' | 'USD', language: Locale): string {
-  return `${formatAmount(minorUnits, language)}${NBSP}${currency}`;
+  return formatSharedMoney(minorUnits, currency, language);
 }
 
 /** A quantity scaled by 10^8; trailing zeros are dropped, grouping uses string operations. */

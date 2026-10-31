@@ -36,7 +36,10 @@ export type NavLabelKey =
   | 'notices'
   | 'profile'
   | 'security'
-  | 'notificationSettings';
+  | 'notificationSettings'
+  | 'money'
+  | 'plan'
+  | 'accountSection';
 
 export interface NavItem {
   /** A route without the locale; the next-intl `Link` adds it. Never built from user input. */
@@ -88,6 +91,13 @@ export const SETTINGS_ITEMS: readonly NavItem[] = [
   { href: '/settings/notifications', labelKey: 'notificationSettings', icon: BellRing },
 ];
 
+/** The More page's groups, in the side menu's order; together they are `MORE_LIST_ITEMS`. */
+export const MORE_SECTIONS: readonly { labelKey: NavLabelKey; items: readonly NavItem[] }[] = [
+  { labelKey: 'money', items: [ACCOUNTS_ITEM, CARDS_ITEM] },
+  { labelKey: 'plan', items: PLAN_ITEMS },
+  { labelKey: 'accountSection', items: [NOTICES_ITEM, ...SETTINGS_ITEMS] },
+];
+
 /** What the bottom bar has no room for, so the More page lists it. */
 export const MORE_LIST_ITEMS: readonly NavItem[] = [
   ACCOUNTS_ITEM,
@@ -98,6 +108,19 @@ export const MORE_LIST_ITEMS: readonly NavItem[] = [
 ];
 
 export const ADD_MOVEMENT_HREF = '/movements/new';
+
+/** The last path segments of a page that is one task to finish: a form to fill and save. */
+const TASK_SEGMENTS = new Set(['new', 'edit', 'expense', 'import', 'send', 'consolidate', 'link']);
+
+/**
+ * A task page (create, edit, import…): on a phone it is full screen, so the bottom bar steps aside
+ * and the form's own actions take its place at the thumb's reach. Its back link stays in the top bar.
+ */
+export function isTaskPath(currentPath: string | undefined): boolean {
+  if (currentPath === undefined) return false;
+  const last = currentPath.split('/').filter(Boolean).at(-1);
+  return last !== undefined && TASK_SEGMENTS.has(last);
+}
 
 /** The pages the bottom bar reaches directly: on a phone nothing sits "above" them to go back to. */
 const BOTTOM_ROOTS: readonly string[] = ['/', '/movements', '/groups', '/more'];

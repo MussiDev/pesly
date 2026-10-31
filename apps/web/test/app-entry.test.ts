@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import es from '../messages/es.json';
 import manifest from '../src/app/manifest';
+import { THEME_COLORS } from '../src/lib/theme-colors';
 import { register } from '../src/instrumentation';
 
 afterEach(() => {
@@ -8,7 +9,7 @@ afterEach(() => {
 });
 
 describe('web app manifest', () => {
-  it('installs the PWA in the default locale with the catalog name', () => {
+  it('installs the PWA in the default locale with the catalog name, icons and theme colours', () => {
     expect(manifest()).toEqual({
       name: es.metadata.title,
       short_name: es.metadata.title,
@@ -17,6 +18,19 @@ describe('web app manifest', () => {
       start_url: '/es',
       scope: '/',
       display: 'standalone',
+      orientation: 'portrait',
+      background_color: THEME_COLORS.lightBackground,
+      theme_color: THEME_COLORS.lightBackground,
+      icons: [
+        { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        {
+          src: '/icons/icon-maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+      ],
     });
   });
 });

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { Locale } from '@/i18n/routing';
 import type { ChangedAmount, Currency, MonthView } from '../dashboard-view';
 import { DeltaChip, type DeltaKind } from './delta-chip';
+import { MoneyText } from '@/components/ui/money-text';
 
 /** The tint of each figure: spending in red, income in green, the result in the brand colour. */
 const TONE: Record<DeltaKind, { figure: string; icon: string }> = {
@@ -59,7 +60,7 @@ function KpiCard({
             TONE[kind].figure,
           )}
         >
-          {formatMoney(figure.value, currency, locale)}
+          <MoneyText text={formatMoney(figure.value, currency, locale)} />
         </span>
         <div className="flex min-w-0">
           <DeltaChip change={figure.change} kind={kind} locale={locale} />

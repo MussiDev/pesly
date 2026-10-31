@@ -1,6 +1,8 @@
 @import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
+/* A phone held sideways: little height, so the bars shrink and the content keeps the screen. */
+@custom-variant short (@media (max-height: 30rem));
 
 /*
  * Pesly design tokens. This file and `components/ui/` are the only places a colour, radius,
@@ -320,4 +322,9 @@
 /* Keeps fixed bottom bars clear of the home indicator on notched devices. */
 @utility pb-safe {
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* A sticky action row: its own bottom padding plus the home indicator's inset. */
+@utility pb-safe-3 {
+  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
 }

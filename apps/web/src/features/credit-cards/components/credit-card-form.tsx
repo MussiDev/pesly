@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  CARD_NAME_MAX_LENGTH,
-  CARD_REMINDER_DAYS_DEFAULT,
-  CARD_REMINDER_DAYS_MAX,
-  CARD_REMINDER_DAYS_MIN,
-} from '@pesly/shared';
+import { CARD_NAME_MAX_LENGTH, CARD_REMINDER_DAYS_DEFAULT } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -16,6 +11,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormActions,
 } from '@/components/ui/form';
 import { Link } from '@/i18n/navigation';
 import type { CardFieldMessage, CardFormErrors } from '../credit-card-form-errors';
@@ -85,43 +81,31 @@ export function CreditCardForm({ pending, errors, onSubmit }: CreditCardFormProp
       <div className="grid gap-5 sm:grid-cols-2">
         <FormItem invalid={Boolean(errors.fields?.closingDay)} hasDescription>
           <FormLabel>{t('creditCards.form.closingDay')}</FormLabel>
-          <FormControl
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={31}
-            {...field('closingDay')}
-          />
+          <FormControl type="text" inputMode="numeric" pattern="[0-9]*" {...field('closingDay')} />
           <FormDescription>{t('creditCards.form.dayHint')}</FormDescription>
           <FormMessage>{message(errors.fields?.closingDay)}</FormMessage>
         </FormItem>
         <FormItem invalid={Boolean(errors.fields?.dueDay)} hasDescription>
           <FormLabel>{t('creditCards.form.dueDay')}</FormLabel>
-          <FormControl type="number" inputMode="numeric" min={1} max={31} {...field('dueDay')} />
+          <FormControl type="text" inputMode="numeric" pattern="[0-9]*" {...field('dueDay')} />
           <FormDescription>{t('creditCards.form.dayHint')}</FormDescription>
           <FormMessage>{message(errors.fields?.dueDay)}</FormMessage>
         </FormItem>
       </div>
       <FormItem invalid={Boolean(errors.fields?.reminderDays)} hasDescription>
         <FormLabel>{t('creditCards.form.reminderDays')}</FormLabel>
-        <FormControl
-          type="number"
-          inputMode="numeric"
-          min={CARD_REMINDER_DAYS_MIN}
-          max={CARD_REMINDER_DAYS_MAX}
-          {...field('reminderDays')}
-        />
+        <FormControl type="text" inputMode="numeric" pattern="[0-9]*" {...field('reminderDays')} />
         <FormDescription>{t('creditCards.form.reminderDaysHint')}</FormDescription>
         <FormMessage>{message(errors.fields?.reminderDays)}</FormMessage>
       </FormItem>
-      <div className="flex flex-wrap gap-3">
+      <FormActions>
         <Button type="submit" disabled={pending}>
           {pending ? t('creditCards.form.pending') : t('creditCards.form.submit')}
         </Button>
         <Link href="/cards" className={buttonVariants({ variant: 'ghost' })}>
           {t('creditCards.form.cancel')}
         </Link>
-      </div>
+      </FormActions>
     </form>
   );
 }

@@ -29,17 +29,18 @@ export function TypePills({ value, onChange, disabled = false }: TypePillsProps)
             type="button"
             disabled={disabled}
             aria-pressed={pressed}
+            aria-label={t(`types.${type}`)}
             onClick={() => {
               onChange(type);
             }}
             className={cn(
-              'min-h-11 min-w-0 rounded-pill px-1 text-center text-nav leading-tight font-semibold transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed',
+              'min-h-11 min-w-0 rounded-pill px-1 text-center text-nav leading-tight font-semibold transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring enabled:active:bg-card/60 disabled:cursor-not-allowed',
               pressed
                 ? 'bg-primary text-primary-foreground'
                 : 'text-foreground enabled:hover:bg-card disabled:opacity-50',
             )}
           >
-            {t(`types.${type}`)}
+            {t(`typesShort.${type}`)}
           </button>
         );
       })}

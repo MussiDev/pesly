@@ -11,8 +11,9 @@ export const circularActionVariants = cva(
 );
 
 const TONES = {
-  primary: 'bg-primary text-primary-foreground group-hover:bg-primary/90',
-  secondary: 'bg-card text-primary shadow-xs group-hover:bg-accent',
+  primary:
+    'bg-primary text-primary-foreground group-hover:bg-primary/90 group-active:bg-primary/80',
+  secondary: 'bg-card text-primary shadow-xs group-hover:bg-accent group-active:bg-accent',
 } as const;
 
 interface CircularActionFaceProps {
@@ -29,7 +30,7 @@ export function CircularActionFace({ icon, label, tone = 'secondary' }: Circular
         aria-hidden="true"
         data-slot="circular-action-circle"
         className={cn(
-          'flex size-circle-action items-center justify-center rounded-pill transition-colors motion-reduce:transition-none [&>svg]:size-5',
+          'flex size-circle-action items-center justify-center rounded-pill transition-[color,background-color,transform] motion-reduce:transition-none motion-safe:group-active:scale-95 [&>svg]:size-5',
           TONES[tone],
         )}
       >

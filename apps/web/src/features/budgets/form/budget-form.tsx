@@ -4,6 +4,7 @@ import { ACCOUNT_CURRENCIES, BUDGET_NAME_MAX_LENGTH } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useId, useRef, useState, type ReactNode, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -253,14 +254,14 @@ export function BudgetForm({
           {mode === 'edit' ? (
             <p className="text-small text-muted-foreground">{t('editNote')}</p>
           ) : null}
-          <div className="flex flex-wrap gap-3">
+          <FormActions>
             <Button type="submit" disabled={disabled}>
               {pending ? t('saving') : t('submit')}
             </Button>
             <Link href={cancelHref} className={buttonVariants({ variant: 'ghost' })}>
               {t('cancel')}
             </Link>
-          </div>
+          </FormActions>
         </form>
       </CardContent>
     </Card>

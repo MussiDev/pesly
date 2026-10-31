@@ -295,7 +295,7 @@ describe('EditGoalContainer', () => {
     await userEvent.click(screen.getByRole('button', { name: f.submit }));
 
     expect(await screen.findByText('40% saved')).toBeTruthy();
-    expect(screen.getByText('ARS 50.00 per month needed')).toBeTruthy();
+    expect(screen.getByText('50.00 ARS per month needed')).toBeTruthy();
     expect(calls.at(-1)?.body).toEqual({ name: 'Trip 2' });
   });
 

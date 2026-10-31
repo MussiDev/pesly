@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  CARD_REMINDER_DAYS_MAX,
-  CARD_REMINDER_DAYS_MIN,
-  type CreditCardResponse,
-} from '@pesly/shared';
+import { type CreditCardResponse } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useState, type SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
@@ -52,10 +48,9 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
     <FormItem invalid={Boolean(errors[name])}>
       <FormLabel>{label}</FormLabel>
       <FormControl
-        type="number"
+        type="text"
         inputMode="numeric"
-        min={1}
-        max={31}
+        pattern="[0-9]*"
         value={values[name]}
         onChange={(event) => {
           setValues((current) => ({ ...current, [name]: event.target.value }));
@@ -78,10 +73,9 @@ export function CardDaysForm({ card, pending, errors, onSave }: CardDaysFormProp
       <FormItem invalid={Boolean(errors.reminderDays)} hasDescription>
         <FormLabel>{t('creditCards.detail.reminderDays')}</FormLabel>
         <FormControl
-          type="number"
+          type="text"
           inputMode="numeric"
-          min={CARD_REMINDER_DAYS_MIN}
-          max={CARD_REMINDER_DAYS_MAX}
+          pattern="[0-9]*"
           value={values.reminderDays}
           onChange={(event) => {
             setValues((current) => ({ ...current, reminderDays: event.target.value }));

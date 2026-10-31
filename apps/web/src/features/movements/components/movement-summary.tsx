@@ -68,7 +68,8 @@ function Figures({
             locale={locale}
             kind={kind}
             directionLabel={label}
-            className="text-heading font-bold break-words whitespace-normal"
+            wrap
+            className="text-heading font-bold"
           />
         </dd>
       ))}

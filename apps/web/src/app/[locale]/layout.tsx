@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 import { Bricolage_Grotesque, Plus_Jakarta_Sans } from 'next/font/google';
@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { routing } from '@/i18n/routing';
 import { ApiClientProvider } from '@/lib/api-client-provider';
 import { THEME_SCRIPT } from '@/lib/theme';
+import { THEME_COLORS } from '@/lib/theme-colors';
 import { parseWebEnv } from '@/lib/web-env';
 import '../globals.css';
 
@@ -33,8 +34,27 @@ export async function generateMetadata({ params }: LayoutProps<'/[locale]'>): Pr
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   const t = await getTranslations({ locale, namespace: 'metadata' });
-  return { title: t('title'), description: t('description') };
+  return {
+    title: t('title'),
+    description: t('description'),
+    icons: { apple: '/icons/apple-touch-icon.png' },
+    appleWebApp: { capable: true, title: t('title'), statusBarStyle: 'default' },
+  };
 }
+
+/**
+ * `viewport-fit=cover` lets `env(safe-area-inset-*)` report the notch and the home indicator, which
+ * the bottom bar's `pb-safe` relies on; the theme colour tints the status bar in both themes.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: THEME_COLORS.lightBackground },
+    { media: '(prefers-color-scheme: dark)', color: THEME_COLORS.darkBackground },
+  ],
+};
 
 /** `proxy.ts` sets `x-nonce`; the nonce inside the request CSP is the fallback Next.js itself uses. */
 function requestNonce(requestHeaders: Headers): string | undefined {
