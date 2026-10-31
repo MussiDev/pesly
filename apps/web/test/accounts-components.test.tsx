@@ -1086,7 +1086,8 @@ describe('accounts screens built on the design system (FEAT-004 AC-17, AC-22)', 
     // The opening balance comes first, under the name; the balance closes the header.
     const amount = [...row.querySelectorAll('[data-slot="amount"]')].at(-1);
     expect(badge?.textContent).toBe('ARS');
-    expect(amount?.textContent).toBe(formatMoney(150000n, 'ARS', 'es'));
+    // The balance may wrap before its currency code: a plain space instead of the formatter's NBSP.
+    expect(amount?.textContent).toBe(formatMoney(150000n, 'ARS', 'es').replace('\u00a0', ' '));
     // A large balance never shares a column with the badge, so the two cannot overlap.
     expect(amount?.contains(badge ?? null)).toBe(false);
     expect(badge?.closest('.flex-1')?.contains(amount ?? null)).toBe(false);

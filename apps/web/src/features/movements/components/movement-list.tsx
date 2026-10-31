@@ -167,7 +167,8 @@ export function MovementList({
             onChange={(event) => {
               setQuery(event.currentTarget.value);
             }}
-            className="h-11 min-w-0 flex-1 bg-transparent text-small text-foreground outline-none placeholder:text-muted-foreground"
+            enterKeyHint="search"
+            className="h-11 min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground pointer-fine:text-small"
           />
         </label>
       )}
@@ -216,7 +217,10 @@ export function MovementList({
                 <h2 className="font-semibold">
                   <time dateTime={group.key}>{formatDay(group.occurredAt, locale, timeZone)}</time>
                 </h2>
-                <span className="tabular-nums">{dayTotal(group.items, locale)}</span>
+                {/* A day with one movement already shows its amount on the row: no repeated figure. */}
+                {group.items.length > 1 ? (
+                  <span className="tabular-nums">{dayTotal(group.items, locale)}</span>
+                ) : null}
               </div>
               {/* An explicit role: list-style reset classes can drop the implicit one in Safari. */}
               <ul

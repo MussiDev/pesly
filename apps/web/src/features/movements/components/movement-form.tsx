@@ -21,6 +21,7 @@ import {
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { FormActions } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Select } from '@/components/ui/select';
@@ -33,6 +34,7 @@ import type { ImpliedRatePreview, ImpliedRatePreviewInput } from '../implied-rat
 import type { MovementFieldMessage, MovementFormErrors } from '../movement-form-errors';
 import { AccountPicker } from './account-picker';
 import { CategoryChips } from './category-chips';
+import { DayShortcuts } from './day-shortcuts';
 import { MovementField } from './movement-field';
 import { NumericKeypad } from './numeric-keypad';
 import { RateField } from './rate-field';
@@ -146,6 +148,8 @@ export function MovementForm({
   const formRef = useRef<HTMLFormElement>(null);
   const amountRef = useRef<HTMLInputElement>(null);
   const destinationAmountRef = useRef<HTMLInputElement>(null);
+  const occurredAtRef = useRef<HTMLInputElement>(null);
+  const [occurredAt, setOccurredAt] = useState(initialValues?.occurredAt ?? defaultOccurredAt);
   // The keypad types into the amount that was touched last; the first one until another is.
   const activeAmountRef = useRef<'amount' | 'destinationAmount'>('amount');
   const [type, setType] = useState<CreatableMovementType>(
@@ -402,13 +406,27 @@ export function MovementForm({
           ) : (
             <MovementField label={t('fields.occurredAt')} error={errors.fields?.occurredAt}>
               {(control) => (
-                <Input
-                  name="occurredAt"
-                  type="datetime-local"
-                  defaultValue={initialValues?.occurredAt ?? defaultOccurredAt}
-                  required
-                  {...control}
-                />
+                <>
+                  <DayShortcuts
+                    today={defaultOccurredAt}
+                    value={occurredAt}
+                    onPick={(next) => {
+                      setOccurredAt(next);
+                      if (occurredAtRef.current) occurredAtRef.current.value = next;
+                    }}
+                  />
+                  <Input
+                    ref={occurredAtRef}
+                    name="occurredAt"
+                    type="datetime-local"
+                    defaultValue={initialValues?.occurredAt ?? defaultOccurredAt}
+                    onChange={(event) => {
+                      setOccurredAt(event.currentTarget.value);
+                    }}
+                    required
+                    {...control}
+                  />
+                </>
               )}
             </MovementField>
           )}
@@ -438,9 +456,11 @@ export function MovementForm({
           {categorized
             ? renderTagField?.({ value: tags, onChange: setTags, error: errors.fields?.tags })
             : null}
-          <Button type="submit" size="lg" disabled={pending} className="h-14 text-body font-bold">
-            {pending ? t('form.pending') : t(mode === 'edit' ? 'form.save' : 'form.submit')}
-          </Button>
+          <FormActions className="grid">
+            <Button type="submit" size="lg" disabled={pending} className="h-14 text-body font-bold">
+              {pending ? t('form.pending') : t(mode === 'edit' ? 'form.save' : 'form.submit')}
+            </Button>
+          </FormActions>
           <Link href="/movements" className={buttonVariants({ variant: 'ghost' })}>
             {t('form.back')}
           </Link>

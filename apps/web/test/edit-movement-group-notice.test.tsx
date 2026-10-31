@@ -288,7 +288,7 @@ describe('EditMovementContainer: lock refused on save', () => {
 
 describe('EditMovementContainer: locked amount and date formatting', () => {
   it.each([
-    ['es', '1500,50'],
+    ['es', '1.500,50'],
     ['en', '1,500.50'],
   ] as const)('shows the amount as money in %s, not raw digits', async (locale, digits) => {
     await open(routes(link(true)), locale);

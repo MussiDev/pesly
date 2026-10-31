@@ -2,6 +2,7 @@ import { formatMoney } from '@pesly/shared';
 import type { ComponentProps } from 'react';
 import type { Locale } from '@/i18n/routing';
 import { cn } from '@/lib/utils';
+import { wrappableMoney } from './money-text';
 
 type AmountKind = 'income' | 'expense' | 'neutral';
 
@@ -19,13 +20,16 @@ interface AmountProps extends Omit<ComponentProps<'span'>, 'children'> {
   directionLabel?: string;
   /** Renders the cents lighter than the integer part, for large headline figures. */
   softDecimals?: boolean;
+  /** Lets the currency code move to the next line in a narrow place; the number never splits. */
+  wrap?: boolean;
 }
 
 /**
  * Income and expense carry a sign as well as a colour, so the meaning never rests on colour alone.
  * For those two kinds the value is shown as a magnitude behind the sign; a neutral amount keeps
  * its own sign, and zero never gets a sign. The glyph is hidden from screen readers, which hear
- * `directionLabel` instead.
+ * `directionLabel` instead. On one line by default; with `wrap` the currency code may move to the
+ * next line, but the number and the code never split.
  */
 export function Amount({
   value,
@@ -34,6 +38,7 @@ export function Amount({
   kind = 'neutral',
   directionLabel,
   softDecimals = false,
+  wrap = false,
   className,
   ...props
 }: AmountProps) {
@@ -44,12 +49,16 @@ export function Amount({
     <span
       data-slot="amount"
       data-kind={effectiveKind}
-      className={cn('whitespace-nowrap tabular-nums', KIND_CLASS[effectiveKind], className)}
+      className={cn(
+        wrap ? 'tabular-nums' : 'whitespace-nowrap tabular-nums',
+        KIND_CLASS[effectiveKind],
+        className,
+      )}
       {...props}
     >
       {signed ? <span aria-hidden="true">{SIGN[effectiveKind]}</span> : null}
       {signed && directionLabel ? <span className="sr-only">{directionLabel}</span> : null}
-      {softDecimals ? <SoftDecimals text={text} /> : text}
+      {softDecimals ? <SoftDecimals text={text} /> : wrap ? wrappableMoney(text) : text}
     </span>
   );
 }

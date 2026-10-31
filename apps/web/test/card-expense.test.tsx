@@ -91,7 +91,7 @@ const submit = () => screen.getByRole('button', { name: es.creditCards.expense.s
 async function fill(amount: string) {
   const user = userEvent.setup();
   await user.selectOptions(field(es.creditCards.expense.fields.currency), 'USD');
-  await user.selectOptions(field(es.creditCards.expense.fields.category), COMIDA_ID);
+  await user.click(screen.getByRole('radio', { name: 'Comida' }));
   if (amount !== '') await user.type(field(es.creditCards.expense.fields.amount), amount);
   return user;
 }
@@ -123,8 +123,8 @@ describe('CardExpenseContainer', () => {
   it('loads only open expense categories and never shows the card accounts', async () => {
     await open();
 
-    expect(screen.getByRole('option', { name: 'Comida' })).toBeDefined();
-    expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Comida' })).toBeDefined();
+    expect(screen.queryByRole('radio', { name: 'Vieja' })).toBeNull();
     expect(screen.queryByText(card.arsAccountId)).toBeNull();
   });
 
@@ -141,7 +141,7 @@ describe('CardExpenseContainer', () => {
   it('shows the currency message when no currency is chosen (invalid input)', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(es.creditCards.expense.fields.category), COMIDA_ID);
+    await user.click(screen.getByRole('radio', { name: 'Comida' }));
     await user.type(field(es.creditCards.expense.fields.amount), '10');
     await user.click(submit());
 
@@ -172,7 +172,7 @@ describe('CardExpenseContainer', () => {
     expect((await screen.findByRole('alert')).textContent).toBe(es.errors.rateRequired);
     expect(field(es.creditCards.expense.fields.amount).value).toBe('15,99');
     expect(field(es.creditCards.expense.fields.currency).value).toBe('USD');
-    expect(field(es.creditCards.expense.fields.category).value).toBe(COMIDA_ID);
+    expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Comida' }).checked).toBe(true);
   });
 
   it('shows the write limit with the Retry-After seconds and keeps the values (sad path)', async () => {
@@ -228,7 +228,9 @@ describe('CardExpenseContainer', () => {
   it('renders in English', async () => {
     await open(routes(), 'en');
     expect(screen.getByRole('heading', { name: en.creditCards.expense.title })).toBeDefined();
-    expect(screen.getByLabelText(en.creditCards.expense.fields.category)).toBeDefined();
+    expect(
+      screen.getByRole('group', { name: en.creditCards.expense.fields.category }),
+    ).toBeDefined();
   });
 });
 

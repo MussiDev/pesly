@@ -79,7 +79,14 @@ async function fillCreate(name: string, amount: string) {
 }
 
 async function pick(label: string) {
-  await userEvent.click(await screen.findByRole('checkbox', { name: label }));
+  await screen.findByRole('checkbox', { name: 'Food' });
+  // A subcategory sits folded under its parent: open the parent first when it is hidden.
+  if (screen.queryByRole('checkbox', { name: label }) === null) {
+    await userEvent.click(
+      screen.getByRole('button', { name: f.subcategoriesToggle.replace('{parent}', 'Food') }),
+    );
+  }
+  await userEvent.click(screen.getByRole('checkbox', { name: label }));
 }
 
 describe('CreateBudgetContainer', () => {
@@ -161,10 +168,20 @@ describe('CreateBudgetContainer', () => {
     renderApp(<CreateBudgetContainer />, { locale: 'en' });
     await screen.findByRole('checkbox', { name: 'Food' });
     expect(screen.queryByRole('checkbox', { name: 'Salary' })).toBeNull();
+    // Subcategories start folded under their parent and open on demand.
+    expect(screen.queryByRole('checkbox', { name: 'Groceries' })).toBeNull();
+    const toggle = screen.getByRole('button', {
+      name: f.subcategoriesToggle.replace('{parent}', 'Food'),
+    });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    await userEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
     const group = screen.getByRole('group', {
       name: f.categoriesGroup.replace('{parent}', 'Food'),
     });
     expect(within(group).getByRole('checkbox', { name: 'Groceries' })).toBeTruthy();
+    await userEvent.click(toggle);
+    expect(screen.queryByRole('checkbox', { name: 'Groceries' })).toBeNull();
     expect(screen.getByRole('checkbox', { name: 'Transport' })).toBeTruthy();
   });
 

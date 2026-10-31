@@ -8,6 +8,7 @@ import {
 } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
 import { useId, useState, type ChangeEvent, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -131,12 +132,14 @@ export function AccountForm({ pending, errors, onSubmit }: AccountFormProps) {
               <Label htmlFor={settingId}>{t('fields.includeInAvailable')}</Label>
             </div>
           ) : null}
-          <Button type="submit" disabled={pending}>
-            {pending ? t('form.pending') : t('form.submit')}
-          </Button>
-          <Link href="/accounts" className={buttonVariants({ variant: 'ghost' })}>
-            {t('form.back')}
-          </Link>
+          <FormActions>
+            <Button type="submit" disabled={pending}>
+              {pending ? t('form.pending') : t('form.submit')}
+            </Button>
+            <Link href="/accounts" className={buttonVariants({ variant: 'ghost' })}>
+              {t('form.back')}
+            </Link>
+          </FormActions>
         </form>
       </CardContent>
     </Card>

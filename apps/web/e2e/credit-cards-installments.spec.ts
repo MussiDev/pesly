@@ -9,6 +9,7 @@ import {
 } from '@pesly/shared';
 import { expect, test, type Page } from '@playwright/test';
 import { catalogs } from './support/catalogs';
+import { chooseCategory } from './support/movement-type';
 import { resetAttemptLimits } from './support/database';
 import { emailLink } from './support/mailpit';
 
@@ -139,9 +140,7 @@ test('records an installment purchase, sees the pending debt and the installment
     ),
   ).toBeVisible();
 
-  await page
-    .getByLabel(t.installments.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.installments.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.installments.submit }).click();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
 
@@ -181,9 +180,7 @@ test('the purchase form refuses 61 installments and creates nothing (AC-02)', as
   await page.goto(`/es/cards/${cardId}/installments/new`);
   await page.getByLabel(t.installments.fields.amount, { exact: true }).fill('1.000,00');
   await page.getByLabel(t.installments.fields.installments, { exact: true }).fill('61');
-  await page
-    .getByLabel(t.installments.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.installments.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.installments.submit }).click();
   await expect(page.getByText(t.installments.errors.installmentsInvalid)).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}/installments/new$`));
@@ -204,9 +201,7 @@ test('one installment is saved as a plain card expense, not an installment purch
   await page.goto(`/es/cards/${cardId}/installments/new`);
   await page.getByLabel(t.installments.fields.amount, { exact: true }).fill('1.000,00');
   await page.getByLabel(t.installments.fields.installments, { exact: true }).fill('1');
-  await page
-    .getByLabel(t.installments.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.installments.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.installments.submit }).click();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
   await expect(page.getByText(t.installments.empty)).toBeVisible();

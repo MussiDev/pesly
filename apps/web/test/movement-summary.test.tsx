@@ -233,8 +233,8 @@ describe('MovementSummary', () => {
     const region = screen.getByRole('region', { name: es.movements.summary.title });
     expect(within(region).getAllByText(es.movements.summary.spent).length).toBeGreaterThan(0);
     expect(within(region).getAllByText(es.movements.summary.earned).length).toBeGreaterThan(0);
-    expect(within(region).getAllByText(/6000,00/).length).toBeGreaterThan(0);
-    expect(within(region).getAllByText(/9000,00/).length).toBeGreaterThan(0);
+    expect(within(region).getAllByText(/6\.000,00/).length).toBeGreaterThan(0);
+    expect(within(region).getAllByText(/9\.000,00/).length).toBeGreaterThan(0);
     // The ring draws an arc per category and its legend prints the shares.
     expect(document.querySelectorAll('circle[data-segment]')).toHaveLength(2);
     expect(within(region).getByText('67%')).toBeDefined();

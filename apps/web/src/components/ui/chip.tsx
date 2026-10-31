@@ -14,10 +14,10 @@ export function Chip({ pressed, className, type = 'button', ...props }: ChipProp
       type={type}
       aria-pressed={pressed}
       className={cn(
-        'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-pill border px-4 text-small font-medium whitespace-nowrap transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+        'inline-flex min-h-11 items-center justify-center gap-1.5 rounded-pill border px-4 text-small font-medium whitespace-nowrap transition-[color,background-color,transform] outline-none motion-safe:active:scale-[0.97] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
         pressed
           ? 'border-transparent bg-primary text-primary-foreground'
-          : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+          : 'border-border bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground active:bg-accent active:text-accent-foreground',
         className,
       )}
       {...props}

@@ -16,6 +16,7 @@ import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
 import { cn } from '@/lib/utils';
 import { addMonth, monthRange } from './category-spending-month';
+import { MoneyText } from '@/components/ui/money-text';
 
 export type CategorySpendingState =
   | { status: 'loading' }
@@ -113,7 +114,7 @@ export function CategorySpendingScreen({
                 {t('total')}
               </p>
               <p className="text-heading font-bold break-words tabular-nums">
-                {formatMoney(BigInt(data.total), currency, locale)}
+                <MoneyText text={formatMoney(BigInt(data.total), currency, locale)} />
               </p>
             </div>
             {bySource.size > 0 ? (

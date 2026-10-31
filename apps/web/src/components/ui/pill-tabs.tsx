@@ -43,7 +43,7 @@ export function PillTabs<T extends string>({
               onChange(option.value);
             }}
             className={cn(
-              'inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill px-3 text-small font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+              'inline-flex min-h-11 min-w-11 items-center justify-center rounded-pill px-3 text-small font-medium text-muted-foreground transition-colors outline-none motion-reduce:transition-none active:bg-card/60 focus-visible:ring-2 focus-visible:ring-ring',
               selected && 'bg-card text-foreground shadow-xs',
             )}
           >

@@ -337,7 +337,7 @@ describe('MovementsContainer', () => {
     if (row === undefined) throw new Error('Expected a row');
     expect(within(row).getByText(es.movements.list.unknownAccount)).toBeDefined();
     expect(within(row).getByText(es.movements.list.unknownCategory)).toBeDefined();
-    expect(within(row).getByText(/1500,50/)).toBeDefined();
+    expect(within(row).getByText(/1\.500,50/)).toBeDefined();
   });
 
   it('does not repeat a row when a movement created between pages shifts the offset', async () => {
@@ -669,6 +669,20 @@ describe('day totals', () => {
     await screen.findByText('Cena');
     expect(screen.getByText(plain(formatMoney(-100000n, 'ARS', 'es')))).toBeDefined();
   });
+
+  it('shows no day figure for a day with a single movement: the row already carries it', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: movementPage([movement({ id: uuid(613), note: 'Solo', amount: '150050' })]),
+      }),
+    );
+    renderApp(<MovementsContainer />);
+
+    const row = await screen.findByText('Solo');
+    const day = row.closest('section');
+    if (day === null) throw new Error('Expected the day section');
+    expect(within(day).getAllByText(/1\.500,50/)).toHaveLength(1);
+  });
 });
 
 describe('MovementsContainer search', () => {
@@ -769,8 +783,9 @@ describe('MovementsContainer filters (DISC-001-03d)', () => {
       `/movements/summary?categoryId=${COMIDA_ID}&type=expense`,
     );
 
-    const kind = await screen.findByRole('group', { name: es.movements.summary.breakdownKind });
-    await user.click(within(kind).getByRole('button', { name: es.movements.summary.incomes }));
+    // The totals carry no expense/income switch of their own: the type chips are that control.
+    expect(screen.queryByRole('group', { name: es.movements.summary.breakdownKind })).toBeNull();
+    await user.click(typeChip('income'));
     await waitFor(() => {
       expect(listCalls(calls).at(-1)).toBe(listPath('type=income'));
     });

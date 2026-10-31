@@ -21,7 +21,7 @@ import {
   toProfileValidationErrors,
   type ProfileFormErrors,
 } from '../profile-errors';
-import { timeZoneOptions } from '../time-zones';
+import { deviceTimeZone, suggestedTimeZones, timeZoneOptions } from '../time-zones';
 
 type State =
   | { kind: 'loading' }
@@ -72,6 +72,10 @@ export function ProfileContainer() {
 
   const savedTimeZone = state.kind === 'ready' ? state.profile.preferences.timeZone : '';
   const timeZones = useMemo(() => timeZoneOptions(savedTimeZone), [savedTimeZone]);
+  const suggestedZones = useMemo(
+    () => suggestedTimeZones(savedTimeZone, deviceTimeZone()),
+    [savedTimeZone],
+  );
 
   if (state.kind === 'loading' || state.kind === 'failed') {
     return (
@@ -193,6 +197,7 @@ export function ProfileContainer() {
         key={`preferences-${preferences.revision}`}
         preferences={profile.preferences}
         timeZones={timeZones}
+        suggestedTimeZones={suggestedZones}
         pending={preferences.pending}
         saved={preferences.saved}
         errors={preferences.errors}

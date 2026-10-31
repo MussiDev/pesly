@@ -144,6 +144,22 @@ describe('ProfileForm', () => {
 });
 
 describe('PreferencesForm', () => {
+  it('offers the suggested zones in their own group above the full list', () => {
+    renderPreferencesForm({ suggestedTimeZones: ['Europe/Madrid'] });
+
+    const suggested = screen.getByRole('group', { name: es.profile.preferences.timeZoneSuggested });
+    const all = screen.getByRole('group', { name: es.profile.preferences.timeZoneAll });
+    expect(
+      within(suggested)
+        .getAllByRole('option')
+        .map((option) => option.textContent),
+    ).toEqual(['Europe/Madrid']);
+    expect(within(all).queryByRole('option', { name: 'Europe/Madrid' })).toBeNull();
+    expect(
+      within(all).getByRole('option', { name: 'America/Argentina/Buenos_Aires' }),
+    ).toBeDefined();
+  });
+
   it('shows the saved preferences as the selected options (AC-05, AC-06, AC-07)', () => {
     renderPreferencesForm();
 

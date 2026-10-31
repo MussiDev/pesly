@@ -151,7 +151,7 @@ const submit = () => screen.getByRole('button', { name: t.submit });
 
 async function fill(amount: string, installments: string) {
   const user = userEvent.setup();
-  await user.selectOptions(field(t.fields.category), COMIDA_ID);
+  await user.click(screen.getByRole('radio', { name: 'Comida' }));
   if (amount !== '') await user.type(field(t.fields.amount), amount);
   if (installments !== '') await user.type(field(t.fields.installments), installments);
   return user;
@@ -238,8 +238,8 @@ describe('InstallmentPurchaseContainer', () => {
 
     expect(field(t.fields.currency).value).toBe('ARS');
     expect(screen.getByRole('option', { name: 'USD' })).toBeDefined();
-    expect(screen.getByRole('option', { name: 'Comida' })).toBeDefined();
-    expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Comida' })).toBeDefined();
+    expect(screen.queryByRole('radio', { name: 'Vieja' })).toBeNull();
   });
 
   it('shows the not-found state when the card answers 404 (sad path)', async () => {

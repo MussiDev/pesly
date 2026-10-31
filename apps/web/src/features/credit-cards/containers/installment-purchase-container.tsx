@@ -230,7 +230,13 @@ function InstallmentPurchaseReady({
       cardId={cardId}
       categories={ready.categories
         .filter((item) => item.kind === 'expense' && !item.archived)
-        .map((item) => ({ id: item.id, label: categoryLabel(item, language) }))}
+        .map((item) => ({
+          id: item.id,
+          label: categoryLabel(item, language),
+          parentId: item.parentId,
+          icon: item.icon,
+          color: item.color,
+        }))}
       defaultPurchasedOn={ready.today}
       pending={pending}
       errors={errors}
