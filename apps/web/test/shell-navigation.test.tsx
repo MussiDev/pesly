@@ -304,7 +304,7 @@ describe('current destination (AC-14)', () => {
   it.each(['/groups/55555555-5555-4555-8555-555555555555', '/groups/new', '/groups/join'])(
     'shows the "‹ Grupos" link on the group sub-page %s, and not on the groups list',
     (path) => {
-      const name = `Volver a ${es.app.topBar.parents.groups}`;
+      const name = `Atrás: ${es.app.topBar.parents.groups}`;
       const { unmount } = renderShellAt('/groups');
       expect(screen.queryByRole('link', { name })).toBeNull();
       unmount();

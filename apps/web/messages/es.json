@@ -53,7 +53,7 @@
       "offline": "Sin conexión",
       "pending": "{count, plural, one {# pendiente} other {# pendientes}}",
       "back": "Volver",
-      "backTo": "Volver a {page}",
+      "backTo": "Atrás: {page}",
       "parents": {
         "home": "Inicio",
         "accounts": "Cuentas",

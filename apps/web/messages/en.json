@@ -53,7 +53,7 @@
       "offline": "Offline",
       "pending": "{count, plural, one {# pending} other {# pending}}",
       "back": "Back",
-      "backTo": "Back to {page}",
+      "backTo": "Back: {page}",
       "parents": {
         "home": "Home",
         "accounts": "Accounts",

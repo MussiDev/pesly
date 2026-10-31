@@ -68,13 +68,13 @@ describe('TopBar back link', () => {
   it('has no back link on the home', () => {
     renderApp(<TopBar online pending={0} currentPath="/" />);
 
-    expect(screen.queryByRole('link', { name: /^Volver a/ })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Atrás:/ })).toBeNull();
   });
 
   it('names the page above and links to it, not to the history', () => {
     renderApp(<TopBar online pending={0} currentPath="/groups/g1/settlements" />);
 
-    const link = screen.getByRole('link', { name: 'Volver a Grupo' });
+    const link = screen.getByRole('link', { name: 'Atrás: Grupo' });
     expect(link.getAttribute('href')).toBe('/es/groups/g1');
     expect(link.textContent).toBe(es.app.topBar.parents.group);
   });
