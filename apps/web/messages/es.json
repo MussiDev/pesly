@@ -1553,7 +1553,12 @@
       "loadMoreFailed": "No se pudieron cargar más pagos.",
       "emptyTitle": "Todavía no hay pagos",
       "emptyDescription": "Los pagos entre miembros aparecerán acá cuando se registren.",
-      "emptyAction": "Ir a los saldos"
+      "emptyAction": "Ir a los saldos",
+      "totals": {
+        "title": "Total pagado",
+        "to": "le pagó a",
+        "count": "{count, plural, one {# pago} other {# pagos}}"
+      }
     },
     "shares": {
       "title": "Mis partes",

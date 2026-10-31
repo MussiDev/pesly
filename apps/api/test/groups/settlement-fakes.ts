@@ -27,6 +27,7 @@ import {
   type RemoveMemberData,
   type SettlementAccountCheck,
   type SettlementAccountChecker,
+  type SettlementPairTotal,
   type UpdateGroupSettlementData,
 } from '../../src/groups';
 import { GroupRecordConflictError } from '../../src/groups/domain/errors';
@@ -279,7 +280,31 @@ export class InMemoryGroupSettlementRepository implements GroupSettlementReposit
       all.length > query.limit && last !== undefined
         ? `${last.occurredAt.toISOString()}|${last.id}`
         : null;
-    return { items, nextCursor };
+    const totals = new Map<string, SettlementPairTotal>();
+    for (const s of this.settlements) {
+      if (s.groupId !== groupId || s.amount <= 0n) continue;
+      const key = `${s.fromMemberId}|${s.toMemberId}|${s.currency}`;
+      const total = totals.get(key);
+      if (total === undefined) {
+        totals.set(key, {
+          fromMemberId: s.fromMemberId,
+          toMemberId: s.toMemberId,
+          currency: s.currency,
+          amount: s.amount,
+          count: 1,
+        });
+      } else {
+        total.amount += s.amount;
+        total.count += 1;
+      }
+    }
+    return {
+      items,
+      nextCursor,
+      totals: [...totals.values()].sort((a, b) =>
+        a.amount === b.amount ? 0 : a.amount > b.amount ? -1 : 1,
+      ),
+    };
   }
 
   private sourcesOf(groupId: string): BalanceSourcesByCurrency {

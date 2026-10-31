@@ -1553,7 +1553,12 @@
       "loadMoreFailed": "Could not load more settlements.",
       "emptyTitle": "No settlements yet",
       "emptyDescription": "Payments between members will show up here once they are recorded.",
-      "emptyAction": "Go to balances"
+      "emptyAction": "Go to balances",
+      "totals": {
+        "title": "Total paid",
+        "to": "paid",
+        "count": "{count, plural, one {# payment} other {# payments}}"
+      }
     },
     "shares": {
       "title": "My shares",

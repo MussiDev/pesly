@@ -475,14 +475,39 @@ export class DrizzleGroupSettlementRepository implements GroupSettlementReposito
       .orderBy(desc(groupSettlements.occurredAt), desc(groupSettlements.id))
       .limit(query.limit + 1);
     const page = pageOf(rows, query.limit);
-    const legs = await loadLegs(
-      this.db,
-      groupId,
-      page.items.map((row) => row.id),
-    );
+    const [legs, totals] = await Promise.all([
+      loadLegs(
+        this.db,
+        groupId,
+        page.items.map((row) => row.id),
+      ),
+      this.db
+        .select({
+          fromMemberId: groupSettlements.fromMemberId,
+          toMemberId: groupSettlements.toMemberId,
+          currency: groupSettlements.currency,
+          // Read as text and parsed with BigInt: a bigint sum must never pass through a number.
+          amount: sql<string>`sum(${groupSettlements.amount})::text`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(groupSettlements)
+        .where(and(eq(groupSettlements.groupId, groupId), sql`${groupSettlements.amount} > 0`))
+        .groupBy(
+          groupSettlements.fromMemberId,
+          groupSettlements.toMemberId,
+          groupSettlements.currency,
+        )
+        .orderBy(
+          desc(sql`sum(${groupSettlements.amount})`),
+          groupSettlements.fromMemberId,
+          groupSettlements.toMemberId,
+          groupSettlements.currency,
+        ),
+    ]);
     return {
       items: page.items.map((row) => toSettlement(row, legs.get(row.id) ?? [])),
       nextCursor: page.nextCursor,
+      totals: totals.map((row) => ({ ...row, amount: BigInt(row.amount) })),
     };
   }
 }
