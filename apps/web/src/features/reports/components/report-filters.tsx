@@ -51,7 +51,7 @@ const PRESET_KEY: Record<RangePreset, 'thisMonth' | 'last3' | 'last12' | 'last24
 };
 
 const CHIP =
-  'inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-pill px-2 text-small font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+  'inline-flex min-h-11 flex-auto items-center justify-center rounded-pill px-2 text-small font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
 function activeCount(kind: ReportKind, filters: ReportFilterValues): number {
   const range = filters.from !== undefined || filters.to !== undefined ? 1 : 0;
@@ -132,7 +132,7 @@ export function ReportFilters({
     <div
       role="group"
       aria-label={t('range.label')}
-      className="flex gap-0.5 rounded-pill bg-secondary p-0.5"
+      className="flex flex-wrap gap-0.5 rounded-3xl bg-secondary p-0.5"
     >
       {presetsFor(kind).map((entry) => (
         <button

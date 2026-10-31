@@ -93,7 +93,7 @@ export function CategoriesScreen({
           <div className="grid gap-4 rounded-card bg-card p-4">
             <div className="grid gap-0.5">
               <p className="text-caption text-muted-foreground">{t('categories.total')}</p>
-              <p className="text-display font-bold break-words tabular-nums">{total}</p>
+              <p className="text-display font-bold wrap-anywhere tabular-nums">{total}</p>
             </div>
             <CategoryPie
               label={t('categories.listName')}

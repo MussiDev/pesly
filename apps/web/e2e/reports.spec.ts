@@ -256,8 +256,9 @@ test.describe('real data', () => {
     await visit(page, 'categories');
     await expectReport(page, 'categories');
 
+    // The total heads the card and sits again in the hole of the ring.
     await expect(
-      page.getByText(new RegExp(`^${SEEDED_TOTAL.replace('.', '\\.')}\\sARS$`)),
+      page.getByText(new RegExp(`^${SEEDED_TOTAL.replace('.', '\\.')}\\sARS$`)).first(),
     ).toBeVisible();
 
     const rows = figures(page, 'categories').getByRole('listitem');

@@ -176,7 +176,7 @@ export function CategoryList(props: CategoryListProps) {
       <li key={item.id} aria-label={label} className={isChild ? 'grid' : 'grid py-1'}>
         <ListRow
           leading={<CategoryVisual icon={item.icon} color={item.color} />}
-          title={<span className="break-words whitespace-normal">{label}</span>}
+          title={<span className="wrap-anywhere whitespace-normal">{label}</span>}
           trailing={
             idle ? (
               <Button
@@ -365,7 +365,7 @@ export function CategoryList(props: CategoryListProps) {
         <Button
           type="button"
           variant="ghost"
-          className="justify-self-start text-primary"
+          className="h-auto min-h-11 justify-self-start text-left whitespace-normal text-primary"
           disabled={pending}
           onClick={props.onToggleArchived}
         >

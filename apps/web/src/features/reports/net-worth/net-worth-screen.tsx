@@ -61,20 +61,20 @@ function NetWorthReady({ locale, data }: { locale: Locale; data: NetWorthView })
             <p className="text-caption text-muted-foreground">
               {t('latest', { date: formatCalendarDate(latest.date, locale) })}
             </p>
-            <p className="text-display font-bold break-words tabular-nums">
+            <p className="text-display font-bold wrap-anywhere tabular-nums">
               {formatMoney(latest.total, data.currency, locale)}
             </p>
           </div>
           <dl className="grid grid-cols-2 gap-3">
             <div className="grid min-w-0 gap-0.5">
               <dt className="text-caption text-muted-foreground">{t('ars')}</dt>
-              <dd className="text-small font-semibold break-words tabular-nums">
+              <dd className="text-small font-semibold wrap-anywhere tabular-nums">
                 {formatMoney(latest.ars, 'ARS', locale)}
               </dd>
             </div>
             <div className="grid min-w-0 gap-0.5">
               <dt className="text-caption text-muted-foreground">{t('usd')}</dt>
-              <dd className="text-small font-semibold break-words tabular-nums">
+              <dd className="text-small font-semibold wrap-anywhere tabular-nums">
                 {formatMoney(latest.usd, 'USD', locale)}
               </dd>
             </div>
@@ -114,7 +114,7 @@ function NetWorthReady({ locale, data }: { locale: Locale; data: NetWorthView })
         <ul aria-label={t('listName')} className="grid divide-y divide-border rounded-card bg-card">
           {[...points].reverse().map((point) => (
             <li key={point.date} className="grid gap-0.5 px-4 py-3">
-              <span className="flex items-baseline justify-between gap-3">
+              <span className="flex items-baseline justify-between gap-3 wrap-anywhere">
                 <span className="text-small font-semibold">
                   {formatCalendarDate(point.date, locale)}
                 </span>
@@ -122,7 +122,7 @@ function NetWorthReady({ locale, data }: { locale: Locale; data: NetWorthView })
                   {point.total === null ? '' : formatMoney(point.total, data.currency, locale)}
                 </span>
               </span>
-              <span className="text-caption text-muted-foreground tabular-nums">
+              <span className="text-caption text-muted-foreground wrap-anywhere tabular-nums">
                 {formatMoney(point.ars, 'ARS', locale)} · {formatMoney(point.usd, 'USD', locale)}
                 {point.incomplete ? ` · ${t('investmentsIncomplete')}` : ''}
               </span>

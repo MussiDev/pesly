@@ -51,7 +51,7 @@ function Figure({
       <dt className="text-caption text-muted-foreground">{label}</dt>
       <dd
         className={cn(
-          'text-body font-bold break-words tabular-nums',
+          'text-body font-bold wrap-anywhere tabular-nums',
           tone === 'income' && 'text-income',
           tone === 'expense' && 'text-expense',
         )}
@@ -121,7 +121,7 @@ export function IncomeExpensesScreen({
           <>
             <ReportPeriod from={view.from} to={view.to} currency={view.currency} />
             {notices}
-            <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-card text-card-foreground">
+            <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-card wrap-anywhere text-card-foreground">
               <Figure label={t('incomeExpenses.income')}>
                 {formatMoney(income, view.currency, locale)}
               </Figure>
@@ -181,7 +181,7 @@ export function IncomeExpensesScreen({
               >
                 {[...active].reverse().map((month) => (
                   <li key={month.month} className="grid gap-0.5 px-4 py-3">
-                    <span className="flex items-baseline justify-between gap-3">
+                    <span className="flex items-baseline justify-between gap-3 wrap-anywhere">
                       <span className="text-small font-semibold first-letter:uppercase">
                         {format.dateTime(new Date(`${month.month}-01T00:00:00Z`), {
                           month: 'long',

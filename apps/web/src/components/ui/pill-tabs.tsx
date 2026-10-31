@@ -27,7 +27,10 @@ export function PillTabs<T extends string>({
       role="group"
       aria-label={label}
       data-slot="pill-tabs"
-      className={cn('inline-flex gap-0.5 rounded-pill bg-secondary p-0.5', className)}
+      className={cn(
+        'inline-flex max-w-full flex-wrap gap-0.5 rounded-3xl bg-secondary p-0.5',
+        className,
+      )}
     >
       {options.map((option) => {
         const selected = option.value === value;

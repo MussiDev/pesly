@@ -23,7 +23,7 @@ export interface ReportTabsProps {
 export function ReportTabs({ current }: ReportTabsProps) {
   const t = useTranslations('reports.tabs');
   return (
-    <nav aria-label={t('label')} className="flex gap-0.5 rounded-pill bg-secondary p-0.5">
+    <nav aria-label={t('label')} className="flex flex-wrap gap-0.5 rounded-3xl bg-secondary p-0.5">
       {TABS.map((tab) => {
         const active = current === tab.href;
         return (
@@ -32,7 +32,7 @@ export function ReportTabs({ current }: ReportTabsProps) {
             href={tab.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-pill px-2 text-center text-small font-semibold text-balance transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+              'inline-flex min-h-11 flex-auto items-center justify-center rounded-pill px-2 text-center text-small font-semibold text-balance transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
               active
                 ? 'bg-card text-foreground shadow-xs'
                 : 'text-muted-foreground hover:text-foreground',
