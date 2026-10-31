@@ -166,7 +166,13 @@ export function CardExpenseContainer({ cardId }: { cardId: string }) {
       cardId={cardId}
       categories={ready.categories
         .filter((item) => item.kind === 'expense' && !item.archived)
-        .map((item) => ({ id: item.id, label: categoryLabel(item, language) }))}
+        .map((item) => ({
+          id: item.id,
+          label: categoryLabel(item, language),
+          parentId: item.parentId,
+          icon: item.icon,
+          color: item.color,
+        }))}
       defaultOccurredAt={ready.defaultOccurredAt}
       pending={pending}
       errors={errors}

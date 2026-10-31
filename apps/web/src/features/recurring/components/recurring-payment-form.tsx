@@ -9,6 +9,7 @@ import {
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -201,10 +202,9 @@ export function RecurringPaymentForm({
               {(control) => (
                 <Input
                   name="dayOfMonth"
-                  type="number"
+                  type="text"
                   inputMode="numeric"
-                  min={1}
-                  max={31}
+                  pattern="[0-9]*"
                   defaultValue={initial?.dayOfMonth ?? ''}
                   {...control}
                 />
@@ -250,21 +250,20 @@ export function RecurringPaymentForm({
             {(control) => (
               <Input
                 name="reminderDays"
-                type="number"
+                type="text"
                 inputMode="numeric"
-                min={0}
-                max={30}
+                pattern="[0-9]*"
                 defaultValue={initial?.reminderDays ?? String(REMINDER_DAYS_DEFAULT)}
                 {...control}
               />
             )}
           </MovementField>
-          <div className="flex flex-wrap gap-3">
+          <FormActions>
             <Button type="submit" disabled={pending}>
               {pending ? t('actions.saving') : editing ? t('actions.save') : t('actions.create')}
             </Button>
             {cancel}
-          </div>
+          </FormActions>
         </form>
       </CardContent>
     </Card>

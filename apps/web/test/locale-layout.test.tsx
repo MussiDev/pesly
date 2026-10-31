@@ -35,7 +35,11 @@ vi.mock('next-intl/server', () => ({
     Promise.resolve(createTranslator({ locale, messages: locale === 'en' ? en : es, namespace })),
 }));
 
-const { default: LocaleLayout, generateMetadata } = await import('../src/app/[locale]/layout');
+const {
+  default: LocaleLayout,
+  generateMetadata,
+  viewport,
+} = await import('../src/app/[locale]/layout');
 // Recorded now: Vitest clears mock history between tests, and next/font is called at import.
 const fontCalls = [...mocks.plusJakarta.mock.calls];
 const displayFontCalls = [...mocks.bricolage.mock.calls];
@@ -114,6 +118,11 @@ describe('[locale] layout', () => {
     expect(findElement(tree, ServiceWorkerRegistrar)).toBeDefined();
   });
 
+  it('covers the notch so the bottom bar can read the safe-area inset, and tints the status bar', () => {
+    expect(viewport.viewportFit).toBe('cover');
+    expect(viewport.themeColor).toHaveLength(2);
+  });
+
   it('answers 404 for an unsupported locale', async () => {
     await expect(LocaleLayout(props('fr'))).rejects.toMatchObject(NOT_FOUND);
     await expect(generateMetadata(props('fr'))).rejects.toMatchObject(NOT_FOUND);
@@ -126,6 +135,8 @@ describe('[locale] layout', () => {
     await expect(generateMetadata(props(locale))).resolves.toEqual({
       title: catalog.metadata.title,
       description: catalog.metadata.description,
+      icons: { apple: '/icons/apple-touch-icon.png' },
+      appleWebApp: { capable: true, title: catalog.metadata.title, statusBarStyle: 'default' },
     });
   });
 });

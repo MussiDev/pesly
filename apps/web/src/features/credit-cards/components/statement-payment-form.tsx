@@ -3,6 +3,7 @@
 import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -216,12 +217,14 @@ export function StatementPaymentForm({
           <MovementField label={t('fields.note')} error={errors.fields?.note}>
             {(control) => <Input name="note" type="text" autoComplete="off" {...control} />}
           </MovementField>
-          <Button type="submit" disabled={pending}>
-            {pending ? t('pending') : t('submit')}
-          </Button>
-          <Link href={`/cards/${cardId}`} className={buttonVariants({ variant: 'ghost' })}>
-            {t('back')}
-          </Link>
+          <FormActions>
+            <Button type="submit" disabled={pending}>
+              {pending ? t('pending') : t('submit')}
+            </Button>
+            <Link href={`/cards/${cardId}`} className={buttonVariants({ variant: 'ghost' })}>
+              {t('back')}
+            </Link>
+          </FormActions>
         </form>
       </CardContent>
     </Card>

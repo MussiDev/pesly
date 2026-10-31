@@ -1,6 +1,5 @@
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import { BrandMark } from '@/components/ui/brand-mark';
 import { QuickActions } from '@/features/home/components/quick-actions';
 import type { Locale } from '@/i18n/routing';
 import type { AttentionItem } from '../attention/attention-items';
@@ -43,21 +42,16 @@ export const SLOT_CLASS: Record<SlotName, string> = {
   insight: 'grid min-w-0 min-h-20',
 };
 
-const MAIN_SLOTS: SlotName[] = ['firstSteps', 'netWorth', 'kpis', 'quickActions', 'categories'];
+// Quick actions right below the balance: recording a movement is the most frequent task.
+const MAIN_SLOTS: SlotName[] = ['firstSteps', 'netWorth', 'quickActions', 'kpis', 'categories'];
 const SIDE_SLOTS: SlotName[] = ['attention', 'budgets', 'upcoming', 'groups', 'insight'];
 
 /** The header and spacing every dashboard state shares, so no state moves the page around. */
 export function DashboardFrame({ children }: { children: ReactNode }) {
   const t = useTranslations('dashboard');
-  const tApp = useTranslations('app');
 
   return (
     <div className="grid min-w-0 gap-6">
-      {/* The top navigation carries the brand from `desk`; below it the page does. */}
-      <p className="flex items-center gap-2.5 text-heading desk:hidden">
-        <BrandMark />
-        {tApp('brand')}
-      </p>
       <h1 className="sr-only">{t('title')}</h1>
       {children}
     </div>

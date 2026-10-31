@@ -124,7 +124,7 @@ describe('auth forms show API failures', () => {
     }
     expect(en.errors.googleFailed).toBe('Google sign-in failed. Please try again.');
     expect(es.errors.googleFailed).toBe(
-      'No pudimos iniciar sesión con Google. Vuelve a intentarlo.',
+      'No pudimos iniciar sesión con Google. Volvé a intentarlo.',
     );
   });
 

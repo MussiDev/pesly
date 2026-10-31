@@ -31,7 +31,7 @@ export function ThemeToggle({ className }: { className?: string }) {
           <label
             key={option}
             className={cn(
-              'relative flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-caption font-medium transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring motion-reduce:transition-none',
+              'relative flex min-h-11 min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-2 text-caption font-medium transition-colors active:bg-card/60 has-focus-visible:ring-2 has-focus-visible:ring-ring motion-reduce:transition-none',
               checked ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground',
             )}
           >
@@ -45,11 +45,13 @@ export function ThemeToggle({ className }: { className?: string }) {
               }}
               className="peer sr-only"
             />
-            <Icon aria-hidden className="size-4 shrink-0" />
-            <span className="truncate">{t(option)}</span>
+            {/* The check takes the icon's place on the chosen option, so the label keeps its room. */}
             {checked ? (
               <Check data-slot="theme-check" aria-hidden className="size-4 shrink-0" />
-            ) : null}
+            ) : (
+              <Icon aria-hidden className="size-4 shrink-0" />
+            )}
+            <span className="truncate">{t(option)}</span>
           </label>
         );
       })}

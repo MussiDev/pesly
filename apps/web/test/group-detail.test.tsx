@@ -425,7 +425,7 @@ describe('GroupDetailContainer balances', () => {
     });
     open('es');
     const summary = await screen.findByRole('region', { name: es.groups.detail.ownBalance.title });
-    expect(summary.textContent).toMatch(/Debes 120/);
+    expect(summary.textContent).toMatch(/Debés 120/);
     expect(screen.getByRole('link', { name: es.groups.detail.balancesLink })).toBeTruthy();
   });
 });

@@ -691,10 +691,9 @@ export function MovementsContainer() {
             onClearCategory={() => {
               applyFilters({ ...filters, categoryId: undefined });
             }}
-            onBreakdownChange={(type) => {
-              // A category belongs to one kind, so switching kind lets it go.
-              applyFilters({ ...filters, type, categoryId: undefined });
-            }}
+            // No expense/income switch on the totals: the type chips above already are that
+            // control, and two controls for one filter is one too many (Hick's law).
+            onBreakdownChange={undefined}
             onRetry={() => {
               setSummaryAttempt((value) => value + 1);
             }}
@@ -737,7 +736,14 @@ export function MovementsContainer() {
           accounts={accountChoices}
           categories={categoryChoices}
           rangeInvalid={rangeInvalid}
-          onChange={applyFilters}
+          onChange={(next) => {
+            // A category belongs to one kind: a type it cannot have lets it go.
+            const kind = reference.data.categories.find(
+              (category) => category.id === next.categoryId,
+            )?.kind;
+            const fits = next.type === undefined || next.type === kind;
+            applyFilters(fits ? next : { ...next, categoryId: undefined });
+          }}
           onClear={clearFilters}
           disabled={viewingCopy}
           firstControlRef={firstFilterRef}

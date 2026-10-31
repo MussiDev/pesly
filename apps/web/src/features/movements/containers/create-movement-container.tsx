@@ -16,6 +16,7 @@ import { MovementForm, type MovementFormValues } from '../components/movement-fo
 import { MovementSaved } from '../components/movement-saved';
 import { formatRate } from '../format-rate';
 import { impliedRatePreview, type ImpliedRatePreviewInput } from '../implied-rate-preview';
+import { rankByUse, readCategoryUse, recordCategoryUse } from '../category-use';
 import { readLastAccount, startingAccount, writeLastAccount } from '../last-account';
 import { movementFailureErrors, type MovementFormErrors } from '../movement-form-errors';
 import { buildMovementRequest } from '../movement-request';
@@ -86,6 +87,9 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
     const withId = { ...request, id: crypto.randomUUID() };
     // The next movement starts on this account: most people pay from the same one again.
     writeLastAccount(readSessionPointer()?.userId, request.accountId);
+    // The categories used most come first next time (Hick's law: fewer to scan).
+    if ('categoryId' in request)
+      recordCategoryUse(readSessionPointer()?.userId, request.categoryId);
     setPending(true);
     setErrors({});
     if (offline) {
@@ -136,17 +140,17 @@ export function CreateMovementContainer({ initialType }: CreateMovementContainer
           openAccounts,
           readLastAccount(readSessionPointer()?.userId),
         )}
-        categories={data.categories
-          .filter((item) => !item.archived)
-          .sort(compareCategories)
-          .map((item) => ({
-            id: item.id,
-            kind: item.kind,
-            label: categoryLabel(item, language),
-            parentId: item.parentId,
-            icon: item.icon,
-            color: item.color,
-          }))}
+        categories={rankByUse(
+          data.categories.filter((item) => !item.archived).sort(compareCategories),
+          readCategoryUse(readSessionPointer()?.userId),
+        ).map((item) => ({
+          id: item.id,
+          kind: item.kind,
+          label: categoryLabel(item, language),
+          parentId: item.parentId,
+          icon: item.icon,
+          color: item.color,
+        }))}
         defaultOccurredAt={data.defaultOccurredAt}
         defaultRate={data.defaultRate}
         rateType={data.defaultRate === '' ? undefined : data.rateType}

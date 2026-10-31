@@ -101,3 +101,22 @@ export function FormMessage({ className, children, ...props }: ComponentProps<'p
     </p>
   );
 }
+
+/**
+ * The submit row of a form. On a task page (the shell marks it with `data-task`, and hides the
+ * bottom bar there) and below the desk breakpoint it sticks to the bottom of the screen, so saving
+ * never needs a scroll past the whole form. Anywhere else it is an ordinary row.
+ */
+export function FormActions({ className, ...props }: ComponentProps<'div'>) {
+  return (
+    <div
+      data-slot="form-actions"
+      className={cn(
+        'flex flex-wrap items-center gap-3',
+        'max-desk:in-data-task:sticky max-desk:in-data-task:bottom-0 max-desk:in-data-task:z-10 max-desk:in-data-task:-mx-1 max-desk:in-data-task:border-t max-desk:in-data-task:border-border max-desk:in-data-task:bg-card max-desk:in-data-task:px-1 max-desk:in-data-task:pt-3 max-desk:in-data-task:pb-safe-3',
+        className,
+      )}
+      {...props}
+    />
+  );
+}

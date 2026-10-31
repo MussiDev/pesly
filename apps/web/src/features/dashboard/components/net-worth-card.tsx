@@ -12,6 +12,7 @@ import { NetWorthChart } from '../chart/net-worth-chart';
 import { NetWorthPointsList } from '../chart/net-worth-points-list';
 import type { AvailableView, Currency, NetWorthView, SeriesPointView } from '../dashboard-view';
 import { NetWorthNotice } from './net-worth-notice';
+import { MoneyText } from '@/components/ui/money-text';
 
 export type SeriesState =
   | { kind: 'ready'; currency: Currency; points: SeriesPointView[] }
@@ -42,6 +43,18 @@ export function NetWorthCard({
   // Amounts in another currency would be labeled with the wrong one, so that series is not shown.
   const showSeries = series.kind === 'ready' && series.currency === currency;
   const drawnCount = series.kind === 'ready' && showSeries ? drawnPoints(series.points).length : 0;
+  // With no rate neither figure converts. Each figure keeps its own notice (AC-05, AC-21); the
+  // chart, which could only say the same a third time, is left out (signal-to-noise).
+  const noneConverted = netWorth.total === null && available.total === null;
+  const chartShown = showSeries && !(noneConverted && drawnCount === 0);
+  const reportLink = (
+    <Link
+      href="/reports/net-worth"
+      className="inline-flex min-h-11 items-center self-start text-small font-medium text-primary underline-offset-4 hover:underline"
+    >
+      {t('netWorth.viewReport')}
+    </Link>
+  );
 
   return (
     <section aria-labelledby="net-worth-title" className="grid min-w-0 content-start gap-3">
@@ -74,32 +87,32 @@ export function NetWorthCard({
           figureClass="text-title font-bold"
         />
       </div>
-      <Card className="min-w-0">
-        <CardContent className="flex min-w-0 flex-col gap-4">
-          <NetWorthNotice count={netWorth.holdingsWithoutPrice} />
-          {series.kind === 'ready' ? (
-            showSeries ? (
-              <>
-                <NetWorthChart locale={locale} currency={currency} points={series.points} />
-                {drawnCount > 0 ? (
-                  <p className="text-caption text-muted-foreground">
-                    {t('netWorth.lastPointNote')}
-                  </p>
-                ) : null}
-                <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
-              </>
-            ) : null
-          ) : (
-            <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
-          )}
-          <Link
-            href="/reports/net-worth"
-            className="inline-flex min-h-11 items-center self-start text-small font-medium text-primary underline-offset-4 hover:underline"
-          >
-            {t('netWorth.viewReport')}
-          </Link>
-        </CardContent>
-      </Card>
+      {chartShown || series.kind === 'failed' || netWorth.holdingsWithoutPrice > 0 ? (
+        <Card className="min-w-0">
+          <CardContent className="flex min-w-0 flex-col gap-4">
+            <NetWorthNotice count={netWorth.holdingsWithoutPrice} />
+            {series.kind === 'ready' ? (
+              chartShown ? (
+                <>
+                  <NetWorthChart locale={locale} currency={currency} points={series.points} />
+                  {drawnCount > 0 ? (
+                    <p className="text-caption text-muted-foreground">
+                      {t('netWorth.lastPointNote')}
+                    </p>
+                  ) : null}
+                  <NetWorthPointsList locale={locale} currency={currency} points={series.points} />
+                </>
+              ) : null
+            ) : (
+              <SeriesFailure retrying={series.retrying} onRetry={series.onRetry} />
+            )}
+            {reportLink}
+          </CardContent>
+        </Card>
+      ) : (
+        // Nothing to chart: the report link stands alone instead of in an empty card.
+        reportLink
+      )}
     </section>
   );
 }
@@ -137,7 +150,7 @@ function FigureBlock({
           <p className="text-small text-hero-muted">{t('netWorth.conversionUnavailable')}</p>
         ) : (
           <p className={`min-w-0 break-words ${figureClass}`}>
-            {formatMoney(total, currency, locale)}
+            <MoneyText text={formatMoney(total, currency, locale)} />
           </p>
         )}
       </div>
@@ -145,13 +158,13 @@ function FigureBlock({
         <div className={PART_CLASS}>
           <dt className="text-caption text-hero-muted">{t('netWorth.ars')}</dt>
           <dd className="break-words text-small font-semibold">
-            {formatMoney(ars, 'ARS', locale)}
+            <MoneyText text={formatMoney(ars, 'ARS', locale)} />
           </dd>
         </div>
         <div className={PART_CLASS}>
           <dt className="text-caption text-hero-muted">{t('netWorth.usd')}</dt>
           <dd className="break-words text-small font-semibold">
-            {formatMoney(usd, 'USD', locale)}
+            <MoneyText text={formatMoney(usd, 'USD', locale)} />
           </dd>
         </div>
       </dl>

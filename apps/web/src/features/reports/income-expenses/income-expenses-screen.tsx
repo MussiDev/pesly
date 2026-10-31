@@ -21,6 +21,7 @@ import type { ReportState } from '../use-report';
 import { IncomeExpensesSkeleton } from './income-expenses-skeleton';
 import { MAX_DRAWN_MONTHS, MonthBars, MonthBarsLegend } from './month-bars';
 import { signedMoney } from './signed-money';
+import { MoneyText } from '@/components/ui/money-text';
 
 export interface IncomeExpensesScreenProps {
   locale: Locale;
@@ -122,19 +123,19 @@ export function IncomeExpensesScreen({
           <>
             <ReportPeriod from={view.from} to={view.to} currency={view.currency} />
             {notices}
-            <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-card wrap-anywhere text-card-foreground">
+            <dl className="grid grid-cols-2 overflow-hidden rounded-card bg-card text-card-foreground">
               <Figure label={t('incomeExpenses.income')}>
-                {formatMoney(income, view.currency, locale)}
+                <MoneyText text={formatMoney(income, view.currency, locale)} />
               </Figure>
               <Figure label={t('incomeExpenses.expenses')} className="border-l border-border">
-                {formatMoney(expenses, view.currency, locale)}
+                <MoneyText text={formatMoney(expenses, view.currency, locale)} />
               </Figure>
               <Figure
                 label={t('incomeExpenses.net')}
                 className="border-t border-border"
                 tone={net > 0n ? 'income' : net < 0n ? 'expense' : undefined}
               >
-                {signedMoney(net, view.currency, locale)}
+                <MoneyText text={signedMoney(net, view.currency, locale)} />
               </Figure>
               <Figure
                 label={t('incomeExpenses.savings')}

@@ -3,6 +3,7 @@
 import { parseAmountInput, type GroupSplitMode } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -165,19 +166,23 @@ export function ExpenseForm({
     <form ref={formRef} noValidate onSubmit={handleSubmit} className="grid gap-6">
       {issue ? <GroupIssue failure={issue} /> : null}
 
-      <fieldset className="grid gap-4">
-        <legend className="mb-2 text-small font-semibold">{t('steps.amount')}</legend>
-        <MovementField label={t('fields.amount')} error={fieldErrors.amount}>
-          {(control) => (
-            <MoneyInput
-              value={values.amount}
-              onChange={(event) => {
-                update({ amount: event.currentTarget.value });
-              }}
-              {...control}
-            />
-          )}
-        </MovementField>
+      {/* The fields name this step themselves: its legend stays for screen readers only, so the
+          screen does not read "Amount" twice. Amount and currency share one row. */}
+      <fieldset className="grid grid-cols-3 items-start gap-4">
+        <legend className="sr-only">{t('steps.amount')}</legend>
+        <div className="col-span-2 grid">
+          <MovementField label={t('fields.amount')} error={fieldErrors.amount}>
+            {(control) => (
+              <MoneyInput
+                value={values.amount}
+                onChange={(event) => {
+                  update({ amount: event.currentTarget.value });
+                }}
+                {...control}
+              />
+            )}
+          </MovementField>
+        </div>
         {locked ? (
           <LockedValue label={t('fields.currency')} value={values.currency} />
         ) : (
@@ -341,11 +346,11 @@ export function ExpenseForm({
         ) : null}
       </fieldset>
 
-      <div>
-        <Button type="submit" disabled={pending || blocked}>
+      <FormActions>
+        <Button type="submit" disabled={pending || blocked} className="w-full desk:w-auto">
           {submitLabel}
         </Button>
-      </div>
+      </FormActions>
     </form>
   );
 }

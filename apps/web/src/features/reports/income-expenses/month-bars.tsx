@@ -7,6 +7,11 @@ import type { MonthView, ReportCurrency } from '../report-view';
 export const MAX_DRAWN_MONTHS = 24;
 
 const WIDTH = 360;
+/**
+ * Axis text in viewBox units: the chart is drawn about 10 % smaller on a 390 px phone, so 13 units
+ * render near the 12 px caption size instead of below the 11 px floor.
+ */
+const LABEL_SIZE = 13;
 const AXIS = 44;
 const PLOT_TOP = 8;
 const PLOT_HEIGHT = 140;
@@ -14,7 +19,7 @@ const BASELINE = PLOT_TOP + PLOT_HEIGHT;
 const MONTH_Y = BASELINE + 16;
 const HEIGHT = BASELINE + 22;
 /** Rough width of one month label at its size; labels are spaced from it, not measured. */
-const MONTH_LABEL_WIDTH = 30;
+const MONTH_LABEL_WIDTH = 34;
 
 export interface MonthBarsProps {
   months: readonly MonthView[];
@@ -110,8 +115,8 @@ export function MonthBars({ months, currency, locale }: MonthBarsProps) {
             />
             <text
               x={AXIS - 6}
-              y={y + 3}
-              fontSize={10}
+              y={y + 4}
+              fontSize={LABEL_SIZE}
               textAnchor="end"
               className="fill-muted-foreground"
               data-tick=""
@@ -150,7 +155,7 @@ export function MonthBars({ months, currency, locale }: MonthBarsProps) {
               <text
                 x={centre}
                 y={MONTH_Y}
-                fontSize={10}
+                fontSize={LABEL_SIZE}
                 textAnchor="middle"
                 className="fill-muted-foreground"
                 data-month-label=""

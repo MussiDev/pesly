@@ -2,6 +2,7 @@ import { DEFAULT_CATEGORIES, defaultCategoryName } from '@pesly/shared';
 import { expect, test, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
+import { chooseCategory } from './support/movement-type';
 import {
   cardStatementNotices,
   makeFirstStatementDueSoon,
@@ -85,9 +86,7 @@ async function spend(page: Page, cardId: string, amount: string): Promise<void> 
   await page.goto(`/es/cards/${cardId}/expense`);
   await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption('ARS');
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill(amount);
-  await page
-    .getByLabel(t.expense.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
 }
@@ -101,9 +100,7 @@ async function buyInInstallments(
   await page.goto(`/es/cards/${cardId}/installments/new`);
   await page.getByLabel(t.installments.fields.amount, { exact: true }).fill(amount);
   await page.getByLabel(t.installments.fields.installments, { exact: true }).fill(installments);
-  await page
-    .getByLabel(t.installments.fields.category, { exact: true })
-    .selectOption({ label: EXPENSE_CATEGORY });
+  await chooseCategory(page, t.installments.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.installments.submit }).click();
   await expect(page).toHaveURL(new RegExp(`/es/cards/${cardId}$`));
 }

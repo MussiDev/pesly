@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { formatMinorUnits } from './money/format-minor-units';
 
 /** Signed 64-bit range of a `bigint` PostgreSQL column; amounts are minor units (centavos). */
 export const MINOR_UNITS_MAX = 9223372036854775807n;
@@ -67,15 +68,17 @@ export function sumExact(values: readonly bigint[]): bigint {
   return total;
 }
 
-/** Formats minor units for display. The exact decimal string goes to Intl: no float is created. */
+const NBSP = '\u00a0';
+
+/**
+ * Formats minor units for display as `<amount> <currency code>`, e.g. `1.234,56 ARS` or
+ * `1,234.56 USD`, joined by a non-breaking space so the code never wraps away from the number.
+ * Always groups thousands and always shows the ISO code (never `US$` or `$`), so the same money
+ * reads the same on every screen. String arithmetic only: no float is created.
+ */
 export function formatMoney(value: bigint, currency: string, locale: string): string {
-  const negative = value < 0n;
-  const abs = negative ? -value : value;
-  const cents = (abs % 100n).toString().padStart(2, '0');
-  const decimal = `${negative ? '-' : ''}${(abs / 100n).toString()}.${cents}`;
-  return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(
-    decimal as `${number}`,
-  );
+  const language = locale.toLowerCase().startsWith('en') ? 'en' : 'es';
+  return `${formatMinorUnits(value, language)}${NBSP}${currency}`;
 }
 
 function escapeRegExp(text: string): string {

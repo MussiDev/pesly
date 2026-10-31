@@ -46,6 +46,8 @@
       "settings": "Settings",
       "notices": "Notices",
       "plan": "Plan",
+      "money": "Your money",
+      "accountSection": "Account and settings",
       "reports": "Reports"
     },
     "topBar": {
@@ -870,6 +872,12 @@
       "exchange": "Currency exchange",
       "adjustment": "Adjustment"
     },
+    "typesShort": {
+      "expense": "Expense",
+      "income": "Income",
+      "transfer": "Transfer",
+      "exchange": "Exchange"
+    },
     "rate": {
       "automatic": "Stored {rateType} rate. Edit it to use your own.",
       "missing": "There is no stored rate. Enter the ARS per USD rate for this movement.",
@@ -882,6 +890,11 @@
       "impliedRateOutOfRange": "With those amounts the rate is outside the allowed range."
     },
     "form": {
+      "dayShortcuts": {
+        "label": "Day",
+        "today": "Today",
+        "yesterday": "Yesterday"
+      },
       "submit": "Save movement",
       "save": "Save changes",
       "pending": "Saving…",
@@ -1185,6 +1198,8 @@
       "defaultRateType": "Default exchange rate",
       "displayCurrency": "Display currency",
       "timeZone": "Time zone",
+      "timeZoneSuggested": "Suggested",
+      "timeZoneAll": "All time zones",
       "language": "Language",
       "submit": "Save preferences",
       "pending": "Saving…"
@@ -2331,6 +2346,8 @@
       "currencyReadOnly": "The currency cannot be changed",
       "categories": "Categories",
       "categoriesGroup": "Subcategories of {parent}",
+      "subcategoriesToggle": "Show or hide the subcategories of {parent}",
+      "subcategoriesCount": "{chosen, plural, =0 {{count}} other {# of {count}}}",
       "categoryUnavailable": "Unavailable category",
       "rollover": "Carry unused money to the next month",
       "thresholds": {

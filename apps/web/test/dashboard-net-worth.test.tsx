@@ -100,6 +100,22 @@ describe('NetWorthCard figures', () => {
     expect(screen.getAllByText('In dollars')).toHaveLength(2);
   });
 
+  it('keeps one notice per figure when neither converts, and drops the empty chart (AC-05, AC-21)', () => {
+    renderCard({
+      netWorth: netWorth({ total: null, reason: 'no_rate' }),
+      available: available({ total: null, reason: 'no_rate' }),
+      series: ready(series(3, () => null)),
+    });
+    expect(screen.getAllByText(CATALOGS.en.dashboard.netWorth.conversionUnavailable)).toHaveLength(
+      2,
+    );
+    expect(screen.queryByText(CATALOGS.en.dashboard.chart.noConvertedPoint)).toBeNull();
+    expect(
+      screen.getByRole('link', { name: CATALOGS.en.dashboard.netWorth.viewReport }),
+    ).toBeDefined();
+    expect(screen.getAllByText('In pesos')).toHaveLength(2);
+  });
+
   it('with a null total and no_rate shows both parts, the message and no total (AC-05)', () => {
     renderCard({
       netWorth: netWorth({ total: null, reason: 'no_rate' }),

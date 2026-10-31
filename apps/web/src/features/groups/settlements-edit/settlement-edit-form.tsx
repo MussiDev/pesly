@@ -3,6 +3,7 @@
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, type SubmitEvent } from 'react';
+import { FormActions } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -120,7 +121,7 @@ export function SettlementEditForm({
               />
             )}
           </MovementField>
-          <div className="flex flex-wrap gap-2">
+          <FormActions>
             <Button type="submit" disabled={pending}>
               {pending ? t('pending') : t('submit')}
             </Button>
@@ -130,7 +131,7 @@ export function SettlementEditForm({
             <Button type="button" variant="outline" disabled={pending} onClick={onDelete}>
               {tCommon('actions.delete')}
             </Button>
-          </div>
+          </FormActions>
         </form>
       </CardContent>
     </Card>
