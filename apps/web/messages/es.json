@@ -931,8 +931,10 @@
     }
   },
   "categories": {
+    "tabs": { "label": "Tipo de categoría" },
     "title": "Categorías",
     "new": {
+      "open": "Nueva",
       "title": "Nueva categoría",
       "description": "Agrega una categoría o una subcategoría propia."
     },
@@ -957,6 +959,8 @@
       "pending": "Creando…"
     },
     "list": {
+      "viewActive": "Volver a las categorías activas",
+      "viewArchived": "Ver categorías archivadas",
       "activeTitle": "Categorías activas",
       "archivedTitle": "Categorías archivadas",
       "empty": "Todavía no tienes categorías.",
@@ -968,6 +972,7 @@
       "subcategories": "Subcategorías de {name}"
     },
     "actions": {
+      "more": "Acciones de {name}",
       "edit": "Editar",
       "editField": "Nuevo nombre de {name}",
       "save": "Guardar",
@@ -2464,11 +2469,17 @@
   },
   "reports": {
     "title": "Reportes",
+    "meta": {
+      "period": "{from} – {to}",
+      "currency": "en {currency}",
+      "currencyNote": "Los importes están en la moneda de tu perfil.",
+      "changeCurrency": "Cambiar moneda"
+    },
     "tabs": {
       "label": "Secciones de reportes",
-      "categories": "Gastos por categoría",
-      "incomeExpenses": "Ingresos vs gastos",
-      "netWorth": "Patrimonio neto"
+      "categories": "Categorías",
+      "incomeExpenses": "Ingresos y gastos",
+      "netWorth": "Patrimonio"
     },
     "range": {
       "label": "Rango de fechas",
@@ -2478,9 +2489,9 @@
       "custom": "Rango personalizado",
       "presets": {
         "thisMonth": "Este mes",
-        "last3": "Últimos 3 meses",
-        "last12": "Últimos 12 meses",
-        "last24": "Últimos 24 meses"
+        "last3": "3 meses",
+        "last12": "12 meses",
+        "last24": "24 meses"
       },
       "resolved": "Mostrando del {from} al {to}",
       "limit": "{months, plural, one {El rango puede abarcar hasta # mes.} other {El rango puede abarcar hasta # meses.}}",
@@ -2491,7 +2502,7 @@
       }
     },
     "filters": {
-      "toggle": "{count, plural, =0 {Filtros} one {Filtros (# activo)} other {Filtros (# activos)}}",
+      "toggle": "{count, plural, =0 {Más filtros} other {Más filtros (#)}}",
       "account": "Cuenta",
       "allAccounts": "Todas las cuentas",
       "archivedAccount": "{name} (archivada)",
@@ -2525,6 +2536,7 @@
       "badRangeMessage": "El rango de fechas no es válido. Revisá las fechas e intentá de nuevo."
     },
     "categories": {
+      "centre": "Gastado",
       "title": "Gastos por categoría",
       "total": "Total de gastos",
       "other": "Otras categorías",
@@ -2537,15 +2549,23 @@
       "listName": "Gastos por categoría"
     },
     "incomeExpenses": {
+      "quietMonths": "{count, plural, one {# mes sin movimientos no se muestra.} other {# meses sin movimientos no se muestran.}}",
+      "chartTitle": "Ingresos y gastos por mes",
+      "savingsNone": "Sin ingresos",
+      "savingsPercent": "{percent}%",
+      "savings": "Ahorro",
       "title": "Ingresos y gastos",
       "income": "Ingresos",
       "expenses": "Gastos",
-      "net": "Resultado neto",
+      "net": "Resultado",
       "chartName": "Gráfico de ingresos contra gastos por mes",
       "chartSummary": "Del {from} al {to}, {months, plural, one {# mes} other {# meses}}.",
-      "listName": "Ingresos y gastos por mes"
+      "listName": "Mes a mes"
     },
     "netWorth": {
+      "noRateOnce": "Los meses sin tipo de cambio guardado muestran pesos y dólares por separado, sin total.",
+      "history": "Mes a mes",
+      "latest": "Patrimonio al {date}",
       "title": "Patrimonio neto",
       "date": "Fecha",
       "ars": "En pesos",

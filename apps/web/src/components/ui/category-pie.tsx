@@ -127,7 +127,7 @@ export function CategoryPie({
   return (
     <figure data-slot="category-pie" className={cn('grid gap-4', className)}>
       {arcs.length === 0 ? null : (
-        <div className="relative mx-auto size-48">
+        <div className="relative mx-auto aspect-square w-full max-w-48">
           <svg
             viewBox="0 0 140 140"
             role="img"
@@ -183,14 +183,17 @@ export function CategoryPie({
             <>
               <span aria-hidden="true" className={cn('size-3 shrink-0 rounded-pill', DOT[color])} />
               <span className="grid min-w-0 flex-1 gap-0.5 text-left">
-                <span className="text-small font-semibold break-words">{segment.label}</span>
+                <span className="text-small font-semibold wrap-anywhere">{segment.label}</span>
                 {segment.detail === undefined ? null : (
                   <span className="text-caption text-muted-foreground">{segment.detail}</span>
                 )}
               </span>
-              <span className="grid shrink-0 justify-items-end gap-0.5">
+              <span className="grid min-w-0 justify-items-end gap-0.5 text-right">
                 {segment.amounts.map((amount) => (
-                  <span key={amount} className="text-small font-semibold tabular-nums">
+                  <span
+                    key={amount}
+                    className="text-small font-semibold wrap-anywhere tabular-nums"
+                  >
                     {amount}
                   </span>
                 ))}

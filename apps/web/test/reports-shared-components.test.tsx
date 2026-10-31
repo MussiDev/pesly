@@ -5,8 +5,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import en from '../messages/en.json';
 import { loadAccountOptions } from '../src/features/reports/load-account-options';
-import { CurrencyNote } from '../src/features/reports/components/currency-note';
-import { ChartFigure, FiguresList } from '../src/features/reports/components/figures-list';
+import { ChartFigure } from '../src/features/reports/components/figures-list';
+import { ReportFootnote, ReportPeriod } from '../src/features/reports/components/report-meta';
 import {
   ReportFilters,
   type ReportFiltersProps,
@@ -76,8 +76,8 @@ describe('ReportTabs', () => {
     const nav = screen.getByRole('navigation', { name: 'Report sections' });
     const links = within(nav).getAllByRole('link');
     expect(links.map((link) => link.textContent)).toEqual([
-      'Expenses by category',
-      'Income vs expenses',
+      'Categories',
+      'Income & expenses',
       'Net worth',
     ]);
     expect(links.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
@@ -104,7 +104,7 @@ describe('ReportFilters', () => {
   it('net worth shows the range only and offers last 24 months (AC-25)', () => {
     viewport(false);
     bar({ kind: 'netWorth' });
-    expect(screen.getByRole('button', { name: 'Last 24 months' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '24 months' })).toBeTruthy();
     expect(screen.queryByLabelText('Account')).toBeNull();
     expect(screen.queryByLabelText('tag-slot')).toBeNull();
   });
@@ -112,14 +112,14 @@ describe('ReportFilters', () => {
   it('income against expenses has no last-24 preset (AC-29)', () => {
     viewport(false);
     bar({ kind: 'incomeExpenses' });
-    expect(screen.queryByRole('button', { name: 'Last 24 months' })).toBeNull();
-    expect(screen.getByRole('button', { name: 'Last 12 months' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: '24 months' })).toBeNull();
+    expect(screen.getByRole('button', { name: '12 months' })).toBeTruthy();
   });
 
   it('a preset calls onChange once with its dates (AC-28)', async () => {
     viewport(false);
     const onChange = bar({ filters: { tag: 'trip' } });
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Last 3 months' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: '3 months' }));
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith({ tag: 'trip', from: '2026-08-01', to: '2026-10-12' });
   });
@@ -127,14 +127,13 @@ describe('ReportFilters', () => {
   it('marks the active preset and the default one with no dates', () => {
     viewport(false);
     bar({ kind: 'netWorth', filters: {} });
-    expect(
-      screen.getByRole('button', { name: 'Last 12 months' }).getAttribute('aria-pressed'),
-    ).toBe('true');
-    cleanup();
-    bar({ filters: { from: '2026-01-05', to: '2026-02-05' } });
-    expect(screen.getByRole('button', { name: 'Custom range' }).getAttribute('aria-pressed')).toBe(
+    expect(screen.getByRole('button', { name: '12 months' }).getAttribute('aria-pressed')).toBe(
       'true',
     );
+    cleanup();
+    bar({ filters: { from: '2026-01-05', to: '2026-02-05' } });
+    // A custom range presses no preset: its dates show in the fields.
+    expect(document.querySelector('[aria-pressed="true"]')).toBeNull();
   });
 
   it('a from after to marks both fields invalid, shows the message and sends nothing (AC-32)', () => {
@@ -199,7 +198,7 @@ describe('ReportFilters', () => {
   it('under 1024 px the filters sit behind one control naming the active count (AC-50)', async () => {
     viewport(true);
     bar({ filters: { tag: 'trip', accountId: ACCOUNT } });
-    const toggle = screen.getByRole('button', { name: 'Filters (2 active)' });
+    const toggle = screen.getByRole('button', { name: 'More filters (2)' });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByLabelText('Account')).toBeNull();
     await userEvent.setup().click(toggle);
@@ -210,7 +209,7 @@ describe('ReportFilters', () => {
   it('under 1024 px a local range problem is worded outside the collapsed panel (M1)', async () => {
     viewport(true);
     bar({ filters: { from: '2026-05-10', to: '2026-05-01' } });
-    const toggle = screen.getByRole('button', { name: /^Filters/ });
+    const toggle = screen.getByRole('button', { name: /^More filters/ });
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByLabelText('From')).toBeNull();
     const text = 'The start date must not be after the end date.';
@@ -263,18 +262,23 @@ describe('ReportFilters', () => {
   it('from 1024 px the filters are open and there is no toggle (AC-50)', () => {
     viewport(false);
     bar();
-    expect(screen.queryByRole('button', { name: /^Filters/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^More filters/ })).toBeNull();
     expect(screen.getByLabelText('Account')).toBeTruthy();
   });
 });
 
-describe('CurrencyNote', () => {
-  it('shows the code, the sentence and the profile settings link (AC-35)', () => {
-    show(<CurrencyNote currency="USD" />);
-    expect(
-      screen.getByText(/Amounts are in USD, the display currency of your profile\./),
-    ).toBeTruthy();
-    const link = screen.getByRole('link', { name: 'Change it in your profile settings' });
+describe('ReportPeriod and ReportFootnote', () => {
+  it('names the range and the currency in one line, and links the currency setting (AC-35)', () => {
+    show(
+      <>
+        <ReportPeriod from="2026-10-01" to="2026-10-31" currency="USD" />
+        <ReportFootnote cardPurchases />
+      </>,
+    );
+    expect(screen.getByText('Oct 1, 2026 – Oct 31, 2026 · in USD')).toBeTruthy();
+    expect(screen.getByText(/Amounts are in your profile currency\./)).toBeTruthy();
+    expect(document.querySelector('[data-slot="card-purchases-note"]')).not.toBeNull();
+    const link = screen.getByRole('link', { name: 'Change currency' });
     expect(link.getAttribute('href')).toContain('/settings/profile');
   });
 
@@ -328,7 +332,7 @@ describe('report states', () => {
       </>,
     );
     expect(screen.getByRole('status').textContent).toContain('Loading the report');
-    await userEvent.setup().click(screen.getByRole('button', { name: 'Last 3 months' }));
+    await userEvent.setup().click(screen.getByRole('button', { name: '3 months' }));
     expect(onChange).toHaveBeenCalledTimes(1);
   });
 
@@ -388,22 +392,7 @@ describe('report states', () => {
   });
 });
 
-describe('FiguresList and ChartFigure', () => {
-  it('renders one row per entry with its note (AC-45)', () => {
-    show(
-      <FiguresList
-        label="Expenses by category"
-        rows={[
-          { key: 'a', label: 'Food', value: '100 ARS', note: '60%' },
-          { key: 'b', label: 'Rent', value: '50 ARS' },
-        ]}
-      />,
-    );
-    const list = screen.getByRole('list', { name: 'Expenses by category' });
-    expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    expect(within(list).getByText('60%')).toBeTruthy();
-  });
-
+describe('ChartFigure', () => {
   it('exposes the chart name and summary while the drawing is hidden (AC-46)', () => {
     show(
       <ChartFigure name="Chart name" summary="Chart summary">

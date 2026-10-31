@@ -28,7 +28,15 @@ import {
   CategoryVisual,
 } from '../src/features/categories/components/category-visual';
 import { category, defaultRow, seededDefaults, uuid } from './support/category-fixtures';
+import { openRows } from './support/open-rows';
 import { CATALOGS, renderApp } from './support/render-app';
+
+/** Renders the list with every row's actions open, as after a tap on each row. */
+function renderList(...args: Parameters<typeof renderApp>) {
+  const rendered = renderApp(...args);
+  openRows();
+  return rendered;
+}
 
 const { es, en } = CATALOGS;
 
@@ -54,6 +62,7 @@ function listProps(overrides: Partial<CategoryListProps> = {}): CategoryListProp
     onAskDelete: vi.fn(),
     onCancelDelete: vi.fn(),
     onConfirmDelete: vi.fn(),
+    onCreateFirst: vi.fn(),
     ...overrides,
   };
 }
@@ -130,7 +139,7 @@ describe('CategoryVisual', () => {
 
 describe('CategoryList soft-card shapes (AC-34)', () => {
   it('groups the categories in a rounded card without a border', () => {
-    const { container } = renderApp(<CategoryList {...listProps()} />);
+    const { container } = renderList(<CategoryList {...listProps()} />);
 
     const group = container.querySelector('ul.divide-y');
     expect(group?.className).toMatch(/rounded-card/);
@@ -140,7 +149,7 @@ describe('CategoryList soft-card shapes (AC-34)', () => {
 
 describe('CategoryList', () => {
   it('shows the Spanish default names with es (AC-14)', () => {
-    renderApp(<CategoryList {...listProps({ language: 'es' })} />);
+    renderList(<CategoryList {...listProps({ language: 'es' })} />);
 
     expect(screen.getByRole('listitem', { name: 'Comida' })).toBeDefined();
     expect(screen.getByRole('listitem', { name: 'Supermercado' })).toBeDefined();
@@ -148,7 +157,7 @@ describe('CategoryList', () => {
   });
 
   it('shows the English default names with en (AC-15)', () => {
-    renderApp(<CategoryList {...listProps({ language: 'en' })} />, { locale: 'en' });
+    renderList(<CategoryList {...listProps({ language: 'en' })} />, { locale: 'en' });
 
     expect(screen.getByRole('listitem', { name: 'Food' })).toBeDefined();
     expect(screen.getByRole('listitem', { name: 'Groceries' })).toBeDefined();
@@ -159,7 +168,7 @@ describe('CategoryList', () => {
     const categories = seededDefaults().map((row) =>
       row.key === 'transport' ? { ...row, name: 'Mi auto' } : row,
     );
-    const { rerender } = renderApp(<CategoryList {...listProps({ categories })} />);
+    const { rerender } = renderList(<CategoryList {...listProps({ categories })} />);
 
     expect(screen.getByRole('listitem', { name: 'Comida' })).toBeDefined();
     expect(screen.getByRole('listitem', { name: 'Mi auto' })).toBeDefined();
@@ -173,7 +182,7 @@ describe('CategoryList', () => {
   });
 
   it('has an expense and an income section, each category with its subcategories', () => {
-    renderApp(<CategoryList {...listProps()} />);
+    renderList(<CategoryList {...listProps()} />);
 
     const expense = screen.getByRole('region', { name: es.categories.sections.expense });
     const income = screen.getByRole('region', { name: es.categories.sections.income });
@@ -195,7 +204,7 @@ describe('CategoryList', () => {
       createdAt: '2026-10-03T00:00:00.000Z',
     });
     const categories = [custom2, ...seededDefaults().reverse(), custom1];
-    renderApp(<CategoryList {...listProps({ categories })} />);
+    renderList(<CategoryList {...listProps({ categories })} />);
 
     const expense = screen.getByRole('region', { name: es.categories.sections.expense });
     const names = within(expense)
@@ -209,7 +218,7 @@ describe('CategoryList', () => {
 
   it('renders a name containing markup as literal text (error path, invalid markup)', () => {
     const name = '<img src=x onerror="alert(1)">';
-    const { container } = renderApp(
+    const { container } = renderList(
       <CategoryList {...listProps({ categories: [category({ name })] })} />,
     );
 
@@ -218,44 +227,59 @@ describe('CategoryList', () => {
   });
 
   it('shows only the categories it is given (AC-13)', () => {
-    renderApp(<CategoryList {...listProps({ categories: [category()] })} />);
+    renderList(<CategoryList {...listProps({ categories: [category()] })} />);
 
     expect(screen.getAllByRole('listitem')).toHaveLength(1);
     expect(screen.queryByRole('listitem', { name: 'Comida' })).toBeNull();
   });
 
   it('shows the empty states', () => {
-    const { rerender } = renderApp(<CategoryList {...listProps({ categories: [] })} />);
+    const { rerender } = renderList(<CategoryList {...listProps({ categories: [] })} />);
     expect(screen.getByText(es.categories.list.empty)).toBeDefined();
 
     rerender(<CategoryList {...listProps({ categories: [], showArchived: true })} />);
     expect(screen.getByText(es.categories.list.emptyArchived)).toBeDefined();
   });
 
-  it('toggles archived categories with a native checkbox', async () => {
+  it('switches to the archived categories from a button under the list', async () => {
     const props = listProps();
-    renderApp(<CategoryList {...props} />);
+    const { rerender } = renderList(<CategoryList {...props} />);
 
-    const toggle = screen.getByRole<HTMLInputElement>('checkbox', {
-      name: es.categories.list.showArchived,
-    });
-    expect(toggle.checked).toBe(false);
-    await userEvent.setup().click(toggle);
+    await userEvent
+      .setup()
+      .click(screen.getByRole('button', { name: es.categories.list.viewArchived }));
     expect(props.onToggleArchived).toHaveBeenCalledTimes(1);
+
+    rerender(<CategoryList {...listProps({ showArchived: true })} />);
+    expect(screen.getByRole('button', { name: es.categories.list.viewActive })).toBeDefined();
+  });
+
+  it("opens a row's actions on a tap and lists only the tab kind", async () => {
+    renderApp(<CategoryList {...listProps({ kind: 'income' })} />);
+
+    expect(screen.queryByRole('button', { name: 'Acciones de Comida' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Acciones de Sueldo' });
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button', { name: 'Editar Sueldo' })).toBeNull();
+    await userEvent.setup().click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Editar Sueldo' })).toBeDefined();
   });
 
   it('shows archived subcategories whose parent is not in the view', () => {
     const child = defaultRow('food.groceries', { archived: true, archivedAt: ARCHIVED_AT });
-    renderApp(<CategoryList {...listProps({ categories: [child], showArchived: true })} />);
+    renderList(<CategoryList {...listProps({ categories: [child], showArchived: true })} />);
 
     expect(screen.getByRole('listitem', { name: 'Supermercado' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Desarchivar Supermercado' })).toBeDefined();
   });
 
   it('gives every row button a unique accessible name', () => {
-    renderApp(<CategoryList {...listProps()} />);
+    renderList(<CategoryList {...listProps()} />);
 
-    const names = screen.getAllByRole('button').map((button) => button.textContent.trim());
+    const names = screen
+      .getAllByRole('button')
+      .map((button) => button.getAttribute('aria-label') ?? button.textContent.trim());
     expect(new Set(names).size).toBe(names.length);
     expect(screen.getByRole('button', { name: 'Archivar Comida' })).toBeDefined();
     expect(screen.getByRole('button', { name: 'Editar Supermercado' })).toBeDefined();
@@ -264,7 +288,7 @@ describe('CategoryList', () => {
 
   it('reports the row actions with the category id', async () => {
     const props = listProps();
-    renderApp(<CategoryList {...props} />);
+    renderList(<CategoryList {...props} />);
     const user = userEvent.setup();
 
     await user.click(screen.getByRole('button', { name: 'Editar Comida' }));
@@ -279,7 +303,7 @@ describe('CategoryList', () => {
   it('shows unarchive instead of archive on an archived row', async () => {
     const archived = category({ archived: true, archivedAt: ARCHIVED_AT });
     const props = listProps({ categories: [archived], showArchived: true });
-    renderApp(<CategoryList {...props} />);
+    renderList(<CategoryList {...props} />);
 
     expect(screen.queryByRole('button', { name: /^Archivar/ })).toBeNull();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Desarchivar Mascotas' }));
@@ -288,7 +312,7 @@ describe('CategoryList', () => {
 
   it('edits inline with the current name, icon and color selected and reports the new ones', async () => {
     const props = listProps({ editingId: uuid(1) });
-    renderApp(<CategoryList {...props} />);
+    renderList(<CategoryList {...props} />);
     const user = userEvent.setup();
 
     const name = screen.getByLabelText<HTMLInputElement>('Nuevo nombre de Comida');
@@ -315,7 +339,7 @@ describe('CategoryList', () => {
 
   it('cancels an edit', async () => {
     const props = listProps({ editingId: uuid(1) });
-    renderApp(<CategoryList {...props} />);
+    renderList(<CategoryList {...props} />);
 
     await userEvent
       .setup()
@@ -324,7 +348,7 @@ describe('CategoryList', () => {
   });
 
   it('shows an edit error on the name field', () => {
-    renderApp(
+    renderList(
       <CategoryList
         {...listProps({ editingId: uuid(1), editError: 'errors.categoryNameTaken' })}
       />,
@@ -338,7 +362,7 @@ describe('CategoryList', () => {
 
   it('asks for confirmation with a status message before deleting', async () => {
     const props = listProps({ confirmingDeleteId: uuid(1) });
-    renderApp(<CategoryList {...props} />);
+    renderList(<CategoryList {...props} />);
 
     expect(screen.getByRole('status').textContent).toBe(
       es.categories.actions.confirmDelete.replace('{name}', 'Comida'),
@@ -351,7 +375,7 @@ describe('CategoryList', () => {
 
   it('shows the in-use message with archive-instead only on active rows (AC-10)', async () => {
     const props = listProps({ blockedDeleteId: uuid(1) });
-    const { rerender } = renderApp(<CategoryList {...props} />);
+    const { rerender } = renderList(<CategoryList {...props} />);
 
     expect(screen.getByText(es.errors.categoryInUse)).toBeDefined();
     await userEvent
@@ -370,19 +394,15 @@ describe('CategoryList', () => {
   });
 
   it('disables every control while a request is pending', () => {
-    renderApp(<CategoryList {...listProps({ pending: true })} />);
+    renderList(<CategoryList {...listProps({ pending: true })} />);
 
     for (const button of screen.getAllByRole('button')) {
       expect(button.hasAttribute('disabled')).toBe(true);
     }
-    expect(
-      screen.getByRole<HTMLInputElement>('checkbox', { name: es.categories.list.showArchived })
-        .disabled,
-    ).toBe(true);
   });
 
   it('shows the action error in an alert', () => {
-    renderApp(<CategoryList {...listProps({ actionError: 'network' })} />);
+    renderList(<CategoryList {...listProps({ actionError: 'network' })} />);
 
     expect(screen.getByRole('alert').textContent).toContain(es.errors.network);
   });
@@ -576,7 +596,7 @@ describe('Category pickers (FEAT-004 NFR-05)', () => {
 
 describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
   it('draws every category as a list row inside its list item', () => {
-    const { container } = renderApp(<CategoryList {...listProps()} />);
+    const { container } = renderList(<CategoryList {...listProps()} />);
 
     const items = screen.getAllByRole('listitem');
     expect(items.length).toBeGreaterThan(1);
@@ -593,12 +613,12 @@ describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
     expect(screen.getByRole('heading', { name: es.categories.new.title })).toBeDefined();
   });
 
-  it('shows an empty state whose call to action focuses the CREATE form name, not an inline edit (AC-22)', async () => {
+  it('shows an empty state whose call to action opens the create form on its name (AC-22)', async () => {
+    const props = listProps({ categories: [] });
     const { container } = renderApp(
       <>
         <CategoryList {...listProps({ editingId: uuid(1) })} />
-        <CategoryList {...listProps({ categories: [] })} />
-        <CategoryForm {...formProps()} />
+        <CategoryList {...props} />
       </>,
     );
 
@@ -609,7 +629,10 @@ describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
     await userEvent
       .setup()
       .click(scope.getByRole('button', { name: es.categories.list.emptyAction }));
-    expect(document.activeElement).toBe(screen.getByLabelText(es.categories.fields.name));
+    expect(props.onCreateFirst).toHaveBeenCalledOnce();
+
+    // The form it opens takes the focus on the create name, not on an inline edit field.
+    renderApp(<CategoryForm {...formProps({ onCancel: vi.fn() })} />);
     expect(document.activeElement?.id).toBe(NEW_CATEGORY_NAME_ID);
   });
 
@@ -633,12 +656,12 @@ describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
     );
     expect(markup).toMatch(/<p role="status"[^>]*><\/p>/);
 
-    renderApp(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
+    renderList(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
     expect(screen.getByRole('status').textContent).toContain('Comida');
   });
 
   it('uses the destructive variant for the delete confirmation button', () => {
-    renderApp(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
+    renderList(<CategoryList {...listProps({ confirmingDeleteId: uuid(1) })} />);
 
     const yes = screen.getByRole('button', { name: es.categories.actions.confirmDeleteYes });
     expect(yes.className).toContain('bg-destructive');
@@ -646,7 +669,7 @@ describe('CategoryList with the design system (FEAT-004 AC-17)', () => {
 
   it('offers the way back to the active categories when the archived view is empty (AC-22)', async () => {
     const props = listProps({ categories: [], showArchived: true });
-    const { container } = renderApp(<CategoryList {...props} />);
+    const { container } = renderList(<CategoryList {...props} />);
 
     expect(container.querySelector('[data-slot="empty-state"]')).not.toBeNull();
     await userEvent

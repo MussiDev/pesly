@@ -9,6 +9,8 @@ export interface CategoryRowView {
   amount: bigint;
   percent: number;
   underOne: boolean;
+  /** The catalog colour of a default category; others take the ring's own colours. */
+  color?: string | undefined;
 }
 
 export interface CategoriesView {
@@ -19,14 +21,6 @@ export interface CategoriesView {
   rows: CategoryRowView[];
   unconvertedShareCount: number;
   unconvertedInstallmentCount: number;
-}
-
-/** One slice of the ring; the rest segment sums the rows beyond the largest five. */
-export interface RingSegmentView {
-  key: string;
-  label: string;
-  amount: bigint;
-  isRest: boolean;
 }
 
 export interface MonthView {
