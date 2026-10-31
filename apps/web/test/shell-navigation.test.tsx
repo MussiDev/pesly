@@ -302,14 +302,15 @@ describe('current destination (AC-14)', () => {
   });
 
   it.each(['/groups/55555555-5555-4555-8555-555555555555', '/groups/new', '/groups/join'])(
-    'shows the back button on the group sub-page %s, and not on the groups list',
+    'shows the "‹ Grupos" link on the group sub-page %s, and not on the groups list',
     (path) => {
+      const name = `Volver a ${es.app.topBar.parents.groups}`;
       const { unmount } = renderShellAt('/groups');
-      expect(screen.queryByRole('button', { name: es.app.topBar.back })).toBeNull();
+      expect(screen.queryByRole('link', { name })).toBeNull();
       unmount();
 
       renderShellAt(path);
-      expect(screen.getByRole('button', { name: es.app.topBar.back })).toBeTruthy();
+      expect(screen.getByRole('link', { name }).getAttribute('href')).toBe('/es/groups');
     },
   );
 

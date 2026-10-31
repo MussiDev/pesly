@@ -234,18 +234,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
 
   return (
     <div className="grid gap-6">
-      <PageHeader
-        title={t('title')}
-        description={group.name}
-        actions={
-          <Link
-            href={`/groups/${encodeURIComponent(groupId)}`}
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('back')}
-          </Link>
-        }
-      />
+      <PageHeader title={t('title')} description={group.name} />
       {showUnavailable ? (
         <p role="alert" className="text-small text-destructive">
           {tEdit('unavailable')}

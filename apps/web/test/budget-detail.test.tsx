@@ -128,9 +128,8 @@ describe('BudgetDetailContainer', () => {
     expect(screen.getByRole('link', { name: en.budgets.detail.edit }).getAttribute('href')).toBe(
       `/en/budgets/${BUDGET_ID}/edit`,
     );
-    expect(screen.getByRole('link', { name: en.budgets.detail.back }).getAttribute('href')).toBe(
-      '/en/budgets',
-    );
+    // The shell's "‹ Budgets" link goes back; the header carries no second one.
+    expect(screen.queryByRole('link', { name: en.budgets.detail.back })).toBeNull();
     expect(screen.getByRole('button', { name: 'stub-delete' }).getAttribute('data-budget')).toBe(
       BUDGET_ID,
     );
@@ -327,7 +326,7 @@ describe('BudgetDetailContainer', () => {
     open();
 
     await screen.findByTestId('budget-progress');
-    for (const name of [en.budgets.detail.edit, en.budgets.detail.back]) {
+    for (const name of [en.budgets.detail.edit]) {
       expect(screen.getByRole('link', { name }).className).toMatch(/\bmin-h-11\b/);
     }
     expect(screen.getByRole('list', { name: en.budgets.detail.categories })).toBeTruthy();

@@ -42,9 +42,6 @@ export function GoalDetailView({
         title={goal.name}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link href="/goals" className={buttonVariants({ variant: 'outline' })}>
-              {t('back')}
-            </Link>
             <Link
               href={`/goals/${encodeURIComponent(goal.id)}/edit`}
               className={buttonVariants({ variant: 'outline' })}
