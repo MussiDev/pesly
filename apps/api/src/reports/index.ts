@@ -1,4 +1,5 @@
 import type { RouterFactory } from '../app';
+import { GetCategoryDetail } from './application/get-category-detail';
 import { GetExpensesByCategory } from './application/get-expenses-by-category';
 import { GetIncomeExpenses } from './application/get-income-expenses';
 import { GetNetWorth } from './application/get-net-worth';
@@ -6,6 +7,7 @@ import type { NetWorthSources } from './application/ports/net-worth-sources';
 import type { ReportUseCases } from './application/ports/report-use-cases';
 import { SystemClock } from './infrastructure/clock/system-clock';
 import { DrizzleAccountFlowReader } from './infrastructure/db/drizzle-account-flow-reader';
+import { DrizzleCategoryItemReader } from './infrastructure/db/drizzle-category-item-reader';
 import { DrizzleFlowReader } from './infrastructure/db/drizzle-flow-reader';
 import { DrizzleGroupFlowReader } from './infrastructure/db/drizzle-group-flow-reader';
 import { DrizzleInstallmentDebtReader } from './infrastructure/db/drizzle-installment-debt-reader';
@@ -31,7 +33,7 @@ export type ReportRoutesOptions = Omit<ReportRouterOptions, 'useCases'> & {
   useCases?: ReportUseCases;
 };
 
-/** The default composition: the Drizzle readers behind the three use cases (read-only). */
+/** The default composition: the Drizzle readers behind the use cases (read-only). */
 function composeUseCases({ db, clock }: Pick<ReportRouterOptions, 'db' | 'clock'>): ReportUseCases {
   const common = {
     clock: clock ?? new SystemClock(),
@@ -51,6 +53,12 @@ function composeUseCases({ db, clock }: Pick<ReportRouterOptions, 'db' | 'clock'
   const flows = new DrizzleFlowReader(db);
   return {
     expensesByCategory: new GetExpensesByCategory({ ...common, flows }),
+    categoryDetail: new GetCategoryDetail({
+      clock: common.clock,
+      preferences: common.preferences,
+      flows,
+      items: new DrizzleCategoryItemReader(db),
+    }),
     incomeExpenses: new GetIncomeExpenses({ ...common, flows, present: presentIncomeExpenses }),
     netWorth: new GetNetWorth({
       ...common,

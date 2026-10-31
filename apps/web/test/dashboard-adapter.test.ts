@@ -138,6 +138,9 @@ describe('toDashboardView', () => {
     expect(en[3]?.label).toBe(OTHER);
     expect(new Set(en.map((c) => c.key)).size).toBe(4);
     expect(en[0]?.amount).toBe(1n);
+    // A category opens its spending detail of the month; a row without one only informs.
+    expect(en[1]?.href).toBe(`/categories/spending?id=${ID}&month=2026-10`);
+    expect(en[0]?.href).toBeUndefined();
   });
 
   it('builds links from the real ids of each union member (AC-21)', () => {
