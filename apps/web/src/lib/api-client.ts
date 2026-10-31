@@ -154,6 +154,7 @@ import {
   upcomingResponseSchema,
   netWorthResponseSchema,
   expensesByCategoryResponseSchema,
+  categoryDetailResponseSchema,
   incomeExpensesResponseSchema,
   listNoticesResponseSchema,
   markAllReadResponseSchema,
@@ -165,6 +166,8 @@ import {
   type CreateRecurringPayment,
   type ListRecurringPaymentsResponse,
   type ExpensesByCategoryResponse,
+  type CategoryDetailQuery,
+  type CategoryDetailResponse,
   type IncomeExpensesResponse,
   type NetWorthResponse,
   type RecurringPaymentResponse,
@@ -690,6 +693,8 @@ export interface ApiClient {
   getNetWorthSeries(query?: NetWorthParams): Promise<ApiResult<NetWorthResponse>>;
   /** Spending by category over a range; needs a connection. */
   getExpensesByCategory(query: ReportFlowParams): Promise<ApiResult<ExpensesByCategoryResponse>>;
+  /** What one category adds up to in a month, item by item, as the dashboard counts it. */
+  getCategoryDetail(query: CategoryDetailQuery): Promise<ApiResult<CategoryDetailResponse>>;
   /** Income against expenses by month; needs a connection. */
   getIncomeExpenses(query: ReportFlowParams): Promise<ApiResult<IncomeExpensesResponse>>;
   /** Records the expense of a pending occurrence; the answer's body is ignored, reload the list. */
@@ -1424,6 +1429,13 @@ export function createApiClient({
         method: 'GET',
         path: `/reports/expenses-by-category${reportQueryString(query, ['from', 'to', 'accountId', 'tag'])}`,
         response: expensesByCategoryResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
+    getCategoryDetail: (query) =>
+      request({
+        method: 'GET',
+        path: `/reports/category-detail?${new URLSearchParams(query).toString()}`,
+        response: categoryDetailResponseSchema,
         refreshOnUnauthenticated: true,
       }),
     getIncomeExpenses: (query) =>

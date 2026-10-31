@@ -2536,5 +2536,34 @@
       "selectedPoint": "Selected point: {date}",
       "announce": "{date}, {value}"
     }
+  },
+  "categorySpending": {
+    "title": "Category spending",
+    "back": "Home",
+    "loading": "Loading the category's spending…",
+    "failed": "We couldn't load this category's spending.",
+    "retry": "Try again",
+    "offline": "You're offline. Open this screen again once you're connected.",
+    "notFound": "We couldn't find this category.",
+    "summary": "Month summary",
+    "total": "Month total",
+    "sources": {
+      "movement": "Movements",
+      "cardPurchase": "Card purchases",
+      "installment": "Installments",
+      "share": "Your share in groups"
+    },
+    "howCounted": "As on Home: card purchases and installments count in the month their statement is due, and only your share of group expenses counts.",
+    "unconverted": "{count, plural, one {# expense in another currency has no rate and is left out of the total.} other {# expenses in another currency have no rate and are left out of the total.}}",
+    "items": "Breakdown",
+    "empty": "No spending in this category this month.",
+    "cardPurchase": "Card purchase on {day}",
+    "installment": "Installment {number} of {count}",
+    "due": "due {day}",
+    "share": "Your share in {group} · {day}",
+    "noRate": "No rate",
+    "viewMovements": "See this category's movements of the month",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month"
   }
 }

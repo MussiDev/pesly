@@ -5,6 +5,7 @@ export { movements, movementTags, tags } from '../../../movements/infrastructure
 // Flow reads (DISC-001-09a Block 3).
 export { categories } from '../../../categories/infrastructure/db/schema';
 export {
+  groups,
   groupCategories,
   groupExpenseShares,
   groupExpenses,

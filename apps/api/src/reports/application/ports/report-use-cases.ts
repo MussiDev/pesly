@@ -1,4 +1,6 @@
 import type {
+  CategoryDetailQuery,
+  CategoryDetailResponse,
   ExpensesByCategoryResponse,
   IncomeExpensesResponse,
   NetWorthQuery,
@@ -13,6 +15,7 @@ export interface ReportUseCase<Query, Response> {
 
 export interface ReportUseCases {
   expensesByCategory: ReportUseCase<ReportFlowQuery, ExpensesByCategoryResponse>;
+  categoryDetail: ReportUseCase<CategoryDetailQuery, CategoryDetailResponse>;
   incomeExpenses: ReportUseCase<ReportFlowQuery, IncomeExpensesResponse>;
   netWorth: ReportUseCase<NetWorthQuery, NetWorthResponse>;
 }
