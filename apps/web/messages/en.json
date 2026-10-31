@@ -2584,7 +2584,6 @@
   },
   "categorySpending": {
     "title": "Category spending",
-    "back": "Home",
     "loading": "Loading the category's spending…",
     "failed": "We couldn't load this category's spending.",
     "retry": "Try again",

@@ -2590,7 +2590,6 @@
   },
   "categorySpending": {
     "title": "Gastos de la categoría",
-    "back": "Inicio",
     "loading": "Cargando los gastos de la categoría…",
     "failed": "No pudimos cargar los gastos de esta categoría.",
     "retry": "Reintentar",
