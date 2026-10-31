@@ -1,12 +1,11 @@
 'use client';
 
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { Locale } from '@/i18n/routing';
+import { CategoryPie } from '@/components/ui/category-pie';
 import { formatMoney } from '@/lib/format-amount';
-import { CurrencyNote } from '../components/currency-note';
-import { ChartFigure, FiguresList } from '../components/figures-list';
-import { CardPurchasesNote } from '@/components/card-purchases-note';
+import { ReportFootnote, ReportPeriod } from '../components/report-meta';
 import { ReportNotices } from '../components/report-notices';
 import {
   FilterGoneAlert,
@@ -17,10 +16,8 @@ import {
   ReportOffline,
 } from '../components/report-states';
 import type { CategoriesView } from '../report-view';
-import { ringSegments } from '../shares';
 import type { ReportState } from '../use-report';
 import { CategoriesSkeleton } from './categories-skeleton';
-import { CategoryRing } from './category-ring';
 
 export interface CategoriesScreenProps {
   locale: Locale;
@@ -47,11 +44,6 @@ export function CategoriesScreen({
   onReload,
 }: CategoriesScreenProps) {
   const t = useTranslations('reports');
-  const format = useFormatter();
-  const day = (value: string) =>
-    format.dateTime(new Date(`${value}T00:00:00Z`), { dateStyle: 'medium', timeZone: 'UTC' });
-  const percentText = (percent: number, underOne: boolean) =>
-    underOne ? t('categories.underOne') : t('categories.percent', { percent });
 
   let body: ReactNode = null;
   switch (state.status) {
@@ -78,19 +70,15 @@ export function CategoriesScreen({
     case 'ready': {
       const view = state.data;
       const notices = (
-        <>
-          <ReportNotices
-            unconvertedShares={view.unconvertedShareCount}
-            unconvertedInstallments={view.unconvertedInstallmentCount}
-            filtered={filtered}
-          />
-          <CardPurchasesNote />
-        </>
+        <ReportNotices
+          unconvertedShares={view.unconvertedShareCount}
+          unconvertedInstallments={view.unconvertedInstallmentCount}
+          filtered={filtered}
+        />
       );
       if (view.total <= 0n) {
         body = (
           <>
-            <CurrencyNote currency={view.currency} />
             {notices}
             <ReportEmpty from={view.from} to={view.to} onWiden={onWiden} />
           </>
@@ -98,45 +86,41 @@ export function CategoriesScreen({
         break;
       }
       const total = formatMoney(view.total, view.currency, locale);
-      const segments = ringSegments(view.rows, t('categories.other'));
       body = (
         <>
-          <CurrencyNote currency={view.currency} />
-          <p className="text-small text-muted-foreground">
-            {t('range.resolved', { from: day(view.from), to: day(view.to) })}
-          </p>
+          <ReportPeriod from={view.from} to={view.to} currency={view.currency} />
           {notices}
-          <div className="grid gap-1">
-            <p className="text-small text-muted-foreground">{t('categories.total')}</p>
-            <p className="text-display font-semibold tabular-nums [overflow-wrap:anywhere]">
-              {total}
-            </p>
-          </div>
-          <ChartFigure
-            name={t('categories.chartName')}
-            summary={t('categories.chartSummary', {
-              from: day(view.from),
-              to: day(view.to),
-              total,
-            })}
-          >
-            <CategoryRing
-              label={t('categories.chartName')}
-              segments={segments}
-              rows={view.rows}
-              total={view.total}
-              percentText={percentText}
+          <div className="grid gap-4 rounded-card bg-card p-4">
+            <div className="grid gap-0.5">
+              <p className="text-caption text-muted-foreground">{t('categories.total')}</p>
+              <p className="text-display font-bold break-words tabular-nums">{total}</p>
+            </div>
+            <CategoryPie
+              label={t('categories.listName')}
+              segments={view.rows.map((row) => ({
+                key: row.key,
+                label: row.label,
+                amounts: [formatMoney(row.amount, view.currency, locale)],
+                // A share under 1% still gets a sliver, so the ring matches the "<1%" beside it.
+                basisPoints: row.underOne ? 25 : row.percent * 100,
+                color: row.color,
+              }))}
+              formatPercent={(basisPoints) =>
+                basisPoints < 100
+                  ? t('categories.underOne')
+                  : t('categories.percent', { percent: basisPoints / 100 })
+              }
+              centre={
+                <>
+                  <span className="text-caption text-muted-foreground">
+                    {t('categories.centre')}
+                  </span>
+                  <span className="text-caption font-bold tabular-nums">{total}</span>
+                </>
+              }
             />
-          </ChartFigure>
-          <FiguresList
-            label={t('categories.listName')}
-            rows={view.rows.map((row) => ({
-              key: row.key,
-              label: row.label,
-              value: formatMoney(row.amount, view.currency, locale),
-              note: percentText(row.percent, row.underOne),
-            }))}
-          />
+          </div>
+          <ReportFootnote cardPurchases />
         </>
       );
       break;
@@ -145,7 +129,7 @@ export function CategoriesScreen({
 
   return (
     <section aria-label={t('categories.title')} className="grid gap-4">
-      <h2 className="text-h2 font-semibold">{t('categories.title')}</h2>
+      <h2 className="sr-only">{t('categories.title')}</h2>
       {filters}
       {body}
     </section>

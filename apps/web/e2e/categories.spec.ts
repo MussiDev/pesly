@@ -7,7 +7,6 @@ import { resetAttemptLimits } from './support/database';
 const API_URL = 'http://localhost:4000';
 
 const es = catalogs.es;
-const en = catalogs.en;
 const t = es.categories;
 
 const PARENT_NAME = 'Mascotas';
@@ -71,18 +70,33 @@ async function openCategories(page: Page, locale: 'es' | 'en'): Promise<void> {
   await expect(
     page.getByRole('heading', { level: 1, name: catalogs[locale].categories.title }),
   ).toBeVisible();
-  // The list loads after the page: the first section heading marks it as ready.
+  // The list loads after the page: its region marks it as ready.
   await expect(
-    page.getByRole('heading', { level: 3, name: catalogs[locale].categories.sections.expense }),
+    page.getByRole('region', { name: catalogs[locale].categories.list.activeTitle }),
   ).toBeVisible();
+}
+
+/** Shows the expense or the income tab of the list. */
+async function showKind(page: Page, locale: 'es' | 'en', kind: 'expense' | 'income') {
+  await page
+    .getByRole('button', { name: catalogs[locale].categories.sections[kind], exact: true })
+    .click();
 }
 
 function row(page: Page, name: string) {
   return page.getByRole('listitem', { name, exact: true });
 }
 
-function rowButton(page: Page, action: string, name: string) {
-  return row(page, name).getByRole('button', { name: `${action} ${name}`, exact: true });
+/** Opens the row's actions ("⋯") when they are closed and runs one of them. */
+async function rowAction(page: Page, action: string, name: string): Promise<void> {
+  const toggle = page.getByRole('button', {
+    name: t.actions.more.replace('{name}', name),
+    exact: true,
+  });
+  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+  await row(page, name)
+    .getByRole('button', { name: `${action} ${name}`, exact: true })
+    .click();
 }
 
 interface NewCategory {
@@ -92,6 +106,9 @@ interface NewCategory {
 }
 
 async function fillCategoryForm(page: Page, category: NewCategory): Promise<void> {
+  // The form waits behind "New" and closes after each category it creates.
+  const open = page.getByRole('button', { name: t.new.open, exact: true });
+  if (await open.isVisible()) await open.click();
   if (category.parent !== undefined) {
     await page
       .getByLabel(t.fields.parent, { exact: true })
@@ -113,25 +130,24 @@ test('the Spanish and English defaults render for the same user (AC-01, AC-14, A
 }) => {
   await signedInUser(page, 'categories-defaults');
 
-  await openCategories(page, 'es');
-  for (const category of DEFAULT_CATEGORIES) {
-    await expect(row(page, category.names.es)).toBeVisible();
-  }
-  await expect(page.getByRole('heading', { level: 3, name: t.sections.income })).toBeVisible();
-
-  await openCategories(page, 'en');
-  for (const category of DEFAULT_CATEGORIES) {
-    await expect(row(page, category.names.en)).toBeVisible();
-  }
-  // Names that differ between the languages no longer show in the other one.
-  for (const category of DEFAULT_CATEGORIES) {
-    if (category.names.es !== category.names.en) {
-      await expect(row(page, category.names.es)).toHaveCount(0);
+  // Each kind has its own tab of the list.
+  for (const locale of ['es', 'en'] as const) {
+    await openCategories(page, locale);
+    for (const kind of ['expense', 'income'] as const) {
+      await showKind(page, locale, kind);
+      const defaults = DEFAULT_CATEGORIES.filter((category) => category.kind === kind);
+      for (const category of defaults) {
+        await expect(row(page, category.names[locale])).toBeVisible();
+      }
+      // Names that differ between the languages never show in the other one.
+      const other = locale === 'es' ? 'en' : 'es';
+      for (const category of defaults) {
+        if (category.names.es !== category.names.en) {
+          await expect(row(page, category.names[other])).toHaveCount(0);
+        }
+      }
     }
   }
-  await expect(
-    page.getByRole('heading', { level: 3, name: en.categories.sections.income }),
-  ).toBeVisible();
 });
 
 test('a renamed default keeps its custom name after the language switch while its siblings translate (AC-16, AC-17)', async ({
@@ -141,7 +157,7 @@ test('a renamed default keeps its custom name after the language switch while it
   await openCategories(page, 'es');
 
   const original = defaultCategoryName('transport', 'es');
-  await rowButton(page, t.actions.edit, original).click();
+  await rowAction(page, t.actions.edit, original);
   await page
     .getByLabel(t.actions.editField.replace('{name}', original), { exact: true })
     .fill(RENAMED_NAME);
@@ -195,44 +211,44 @@ test('archive, unarchive and delete update the list; a parent with subcategories
   await createCategory(page, { name: CHILD_NAME, parent: PARENT_NAME });
 
   // Archiving the parent takes its subcategory with it.
-  await rowButton(page, t.actions.archive, PARENT_NAME).click();
+  await rowAction(page, t.actions.archive, PARENT_NAME);
   await expect(row(page, PARENT_NAME)).toHaveCount(0);
   await expect(row(page, CHILD_NAME)).toHaveCount(0);
 
-  await page.getByLabel(t.list.showArchived).check();
-  await expect(page.getByRole('heading', { level: 2, name: t.list.archivedTitle })).toBeVisible();
+  await page.getByRole('button', { name: t.list.viewArchived, exact: true }).click();
+  await expect(page.getByRole('region', { name: t.list.archivedTitle })).toBeVisible();
   await expect(row(page, PARENT_NAME)).toBeVisible();
   await expect(row(page, CHILD_NAME)).toBeVisible();
 
   // Unarchiving the parent restores only the parent; the subcategory stays archived.
-  await rowButton(page, t.actions.unarchive, PARENT_NAME).click();
+  await rowAction(page, t.actions.unarchive, PARENT_NAME);
   await expect(row(page, PARENT_NAME)).toHaveCount(0);
   await expect(row(page, CHILD_NAME)).toBeVisible();
-  await rowButton(page, t.actions.unarchive, CHILD_NAME).click();
+  await rowAction(page, t.actions.unarchive, CHILD_NAME);
   await expect(row(page, CHILD_NAME)).toHaveCount(0);
   await expect(page.getByText(t.list.emptyArchived)).toBeVisible();
 
-  await page.getByLabel(t.list.showArchived).uncheck();
+  await page.getByRole('button', { name: t.list.emptyArchivedAction, exact: true }).click();
   await expect(row(page, PARENT_NAME)).toBeVisible();
   await expect(row(page, CHILD_NAME)).toBeVisible();
 
   // A parent that still has a subcategory is refused and kept.
   allowedStatuses = [409];
-  await rowButton(page, t.actions.delete, PARENT_NAME).click();
+  await rowAction(page, t.actions.delete, PARENT_NAME);
   await row(page, PARENT_NAME).getByRole('button', { name: t.actions.confirmDeleteYes }).click();
   await expect(page.getByText(es.errors.categoryInUse)).toBeVisible();
   await expect(row(page, PARENT_NAME)).toBeVisible();
 
   // Unused categories go away, the subcategory first and then its parent.
-  await rowButton(page, t.actions.delete, CHILD_NAME).click();
+  await rowAction(page, t.actions.delete, CHILD_NAME);
   await row(page, CHILD_NAME).getByRole('button', { name: t.actions.confirmDeleteYes }).click();
   await expect(row(page, CHILD_NAME)).toHaveCount(0);
-  await rowButton(page, t.actions.delete, PARENT_NAME).click();
+  await rowAction(page, t.actions.delete, PARENT_NAME);
   await row(page, PARENT_NAME).getByRole('button', { name: t.actions.confirmDeleteYes }).click();
   await expect(row(page, PARENT_NAME)).toHaveCount(0);
 
   await page.reload();
-  await expect(page.getByRole('heading', { level: 3, name: t.sections.expense })).toBeVisible();
+  await expect(page.getByRole('region', { name: t.list.activeTitle })).toBeVisible();
   await expect(row(page, PARENT_NAME)).toHaveCount(0);
   await expect(row(page, CHILD_NAME)).toHaveCount(0);
 });

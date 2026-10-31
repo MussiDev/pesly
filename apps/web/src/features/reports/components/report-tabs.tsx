@@ -16,11 +16,14 @@ export interface ReportTabsProps {
   current: string;
 }
 
-/** The three report links; the one of the current path carries `aria-current="page"`. */
+/**
+ * The three report links as one segmented control, as NorteAR's period switch: they share the
+ * width, so none is cut off. The one of the current path carries `aria-current="page"`.
+ */
 export function ReportTabs({ current }: ReportTabsProps) {
   const t = useTranslations('reports.tabs');
   return (
-    <nav aria-label={t('label')} className="flex gap-2 overflow-x-auto">
+    <nav aria-label={t('label')} className="flex gap-0.5 rounded-pill bg-secondary p-0.5">
       {TABS.map((tab) => {
         const active = current === tab.href;
         return (
@@ -29,10 +32,10 @@ export function ReportTabs({ current }: ReportTabsProps) {
             href={tab.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'inline-flex min-h-11 shrink-0 items-center rounded-pill px-4 text-small font-semibold whitespace-nowrap transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
+              'inline-flex min-h-11 min-w-0 flex-1 items-center justify-center rounded-pill px-2 text-center text-small font-semibold text-balance transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring',
               active
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-foreground hover:bg-surface',
+                ? 'bg-card text-foreground shadow-xs'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             {t(tab.kind)}

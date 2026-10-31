@@ -180,12 +180,12 @@ describe('reports catalog (NFR-06)', () => {
       en['reports.tabs.categories'],
       en['reports.tabs.incomeExpenses'],
       en['reports.tabs.netWorth'],
-    ]).toEqual(['Expenses by category', 'Income vs expenses', 'Net worth']);
+    ]).toEqual(['Categories', 'Income & expenses', 'Net worth']);
     expect([
       es['reports.tabs.categories'],
       es['reports.tabs.incomeExpenses'],
       es['reports.tabs.netWorth'],
-    ]).toEqual(['Gastos por categoría', 'Ingresos vs gastos', 'Patrimonio neto']);
+    ]).toEqual(['Categorías', 'Ingresos y gastos', 'Patrimonio']);
   });
 
   it('writes the Spanish reports strings in voseo, like the rest of the catalog (L6)', () => {

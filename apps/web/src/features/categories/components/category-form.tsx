@@ -7,7 +7,7 @@ import {
   type CategoryResponse,
 } from '@pesly/shared';
 import { useTranslations } from 'next-intl';
-import { useState, type SubmitEvent } from 'react';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,10 @@ export interface CategoryFormProps {
   pending: boolean;
   errors: CategoryFormErrors;
   onSubmit: (values: CategoryFormValues) => void;
+  /** The kind the form opens on: the tab the list shows. */
+  defaultKind?: CategoryKind;
+  /** Closes the form; without it there is no cancel button. */
+  onCancel?: (() => void) | undefined;
 }
 
 export function CategoryForm({
@@ -47,10 +51,17 @@ export function CategoryForm({
   pending,
   errors,
   onSubmit,
+  defaultKind = 'expense',
+  onCancel,
 }: CategoryFormProps) {
   const t = useTranslations('categories');
   const formRef = useFocusInvalid(errors);
-  const [kind, setKind] = useState<CategoryKind>('expense');
+  const [kind, setKind] = useState<CategoryKind>(defaultKind);
+
+  // Opened from "New": the name is what the user came to type.
+  useEffect(() => {
+    if (onCancel !== undefined) document.getElementById(NEW_CATEGORY_NAME_ID)?.focus();
+  }, [onCancel]);
 
   const parents = categories
     .filter((item) => item.kind === kind && item.parentId === null && !item.archived)
@@ -123,9 +134,16 @@ export function CategoryForm({
           <CategoryField label={t('fields.color')} error={errors.fields?.color} group>
             {(control) => <ColorPicker control={control} />}
           </CategoryField>
-          <Button type="submit" disabled={pending}>
-            {pending ? t('form.pending') : t('form.submit')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={pending}>
+              {pending ? t('form.pending') : t('form.submit')}
+            </Button>
+            {onCancel === undefined ? null : (
+              <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
+                {t('actions.cancel')}
+              </Button>
+            )}
+          </div>
         </form>
       </CardContent>
     </Card>

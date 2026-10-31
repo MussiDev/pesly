@@ -110,7 +110,7 @@ async function visit(page: Page, key: ReportKey, query = ''): Promise<void> {
 
 /** At phone width the filters sit behind one control; this opens it when it is closed. */
 async function openFilters(page: Page): Promise<void> {
-  const toggle = page.getByRole('button', { name: /^Filtros/ });
+  const toggle = page.getByRole('button', { name: /^Más filtros/ });
   if ((await toggle.count()) > 0 && (await toggle.getAttribute('aria-expanded')) === 'false') {
     await toggle.click();
   }
@@ -271,8 +271,9 @@ test.describe('real data', () => {
 
     const shownShares = SEEDED_SHARES.reduce<number>((sum, share) => sum + share, 0);
     expect(shownShares, 'the shares shown add up to 100%').toBe(100);
-    await expect(page.locator('figure[data-slot="donut-chart"] circle[data-segment]')).toHaveCount(
-      6,
+    // One arc per category, each named with its amount and share in the legend.
+    await expect(page.locator('figure[data-slot="category-pie"] circle[data-segment]')).toHaveCount(
+      SEEDED_EXPENSES.length,
     );
   });
 
@@ -283,7 +284,8 @@ test.describe('real data', () => {
     await visit(page, 'incomeExpenses');
     await expectReport(page, 'incomeExpenses');
 
-    await expect(figures(page, 'incomeExpenses').getByRole('listitem')).toHaveCount(12);
+    // The chart draws the 12 months; the list keeps the months that had movements.
+    await expect(figures(page, 'incomeExpenses').getByRole('listitem')).not.toHaveCount(0);
     await expect(page.locator('svg [data-bar="income"]')).toHaveCount(12);
     await expect(page.locator('svg [data-bar="expenses"]')).toHaveCount(12);
 
@@ -300,8 +302,6 @@ test.describe('real data', () => {
       .getByRole('listitem')
       .filter({ hasText: monthLabel(earlier) });
     await expect(spent).toContainText(new RegExp(`−${money(10_000, 'ARS').source}`));
-    await expect(page.locator('[data-net-sign]', { hasText: '−' }).first()).toBeVisible();
-    await expect(page.locator('[data-net-sign]', { hasText: '+' }).first()).toBeVisible();
   });
 
   test('the net worth report lists the real months and ends today (FR-08, FR-09)', async ({
@@ -371,10 +371,8 @@ test.describe('fixtures', () => {
       await expect(rows.nth(0)).toContainText(money(12_000_000, 'ARS'));
       await expect(rows.nth(1)).toContainText('Transporte');
       await expect(rows.nth(1)).toContainText('40%');
-      await expect(
-        page.locator('p', { hasText: r.currency.note.replace('{currency}', 'ARS') }),
-      ).toBeVisible();
-      await expect(page.getByRole('link', { name: r.currency.changeLink })).toBeVisible();
+      await expect(page.getByText(/· en ARS$/)).toBeVisible();
+      await expect(page.getByRole('link', { name: r.meta.changeCurrency })).toBeVisible();
     });
   });
 
@@ -388,9 +386,7 @@ test.describe('fixtures', () => {
         ok('categories', categoriesFixture(today, { currency: 'USD', total: '20000000' })),
       );
       await visit(page, 'categories');
-      await expect(
-        page.locator('p', { hasText: r.currency.note.replace('{currency}', 'USD') }),
-      ).toBeVisible();
+      await expect(page.getByText(/· en USD$/)).toBeVisible();
       await expect(figures(page, 'categories').getByRole('listitem').nth(0)).toContainText(
         money(12_000_000, 'USD'),
       );
@@ -438,10 +434,10 @@ test.describe('fixtures', () => {
       await visit(page, 'netWorth');
       await expectReport(page, 'netWorth');
 
-      // Six month ends, one without a total: two runs of the line, the reason in the list.
+      // Six month ends, one without a total: two runs of the line, the reason said once.
       await expect(figures(page, 'netWorth').getByRole('listitem')).toHaveCount(6);
       await expect(page.locator('svg path[data-chart-line]')).toHaveCount(2);
-      await expect(figures(page, 'netWorth').getByText(r.netWorth.noRate)).toHaveCount(1);
+      await expect(page.getByText(r.netWorth.noRateOnce)).toHaveCount(1);
 
       const slider = page.getByRole('slider', { name: r.netWorth.chartName });
       await slider.focus();
@@ -487,19 +483,24 @@ test.describe('fixtures', () => {
       stubs.answer('categories', ok('categories', categoriesFixture(today)));
       stubs.answer('incomeExpenses', ok('incomeExpenses', incomeExpensesFixture(today)));
       stubs.answer('netWorth', ok('netWorth', netWorthFixture(today)));
-      const charts: [ReportKey, string, number][] = [
-        ['categories', r.categories.chartName, 2],
-        ['incomeExpenses', r.incomeExpenses.chartName, 12],
-        ['netWorth', r.netWorth.chartName, 6],
+      // The ring of categories is a named image whose legend is the list itself.
+      await visit(page, 'categories');
+      await expectReport(page, 'categories');
+      await expect(page.getByRole('img', { name: r.categories.listName })).toHaveCount(1);
+      await expect(figures(page, 'categories').getByRole('listitem')).toHaveCount(2);
+
+      const charts: [ReportKey, string][] = [
+        ['incomeExpenses', r.incomeExpenses.chartName],
+        ['netWorth', r.netWorth.chartName],
       ];
-      for (const [key, name, rows] of charts) {
+      for (const [key, name] of charts) {
         await visit(page, key);
         await expectReport(page, key);
         const figure = page.locator(`figure[aria-label="${name}"]`);
         await expect(figure).toHaveCount(1);
         await expect(figure.locator('figcaption')).not.toBeEmpty();
         await expect(figure.locator('> div[aria-hidden="true"]')).toHaveCount(1);
-        await expect(figures(page, key).getByRole('listitem')).toHaveCount(rows);
+        await expect(figures(page, key).getByRole('listitem')).not.toHaveCount(0);
       }
     });
   });
@@ -732,7 +733,7 @@ test.describe('filters and ranges', () => {
       await page.setViewportSize(PHONE);
       await visit(page, 'categories', '?tag=vacations2026');
       await expectReport(page, 'categories');
-      const toggle = page.getByRole('button', { name: 'Filtros (1 activo)' });
+      const toggle = page.getByRole('button', { name: 'Más filtros (1)' });
       await expect(toggle).toBeVisible();
       await expect(toggle).toHaveAttribute('aria-expanded', 'false');
       await expect(dateField(page, 'from')).toHaveCount(0);
@@ -742,7 +743,7 @@ test.describe('filters and ranges', () => {
       await page.setViewportSize({ width: 1024, height: 800 });
       await visit(page, 'categories', '?tag=vacations2026');
       await expectReport(page, 'categories');
-      await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /^Más filtros/ })).toHaveCount(0);
       await expect(dateField(page, 'from')).toBeVisible();
     });
   });

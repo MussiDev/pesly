@@ -2,6 +2,7 @@
 
 import {
   createCategoryRequestSchema,
+  type CategoryKind,
   type CategoryLanguage,
   type CategoryResponse,
 } from '@pesly/shared';
@@ -19,6 +20,8 @@ export interface CreateCategoryContainerProps {
   categories: readonly CategoryResponse[];
   language: CategoryLanguage;
   onCreated: (created: CategoryResponse) => void;
+  defaultKind?: CategoryKind;
+  onCancel?: (() => void) | undefined;
 }
 
 /** Validates the form with the shared schema, creates the category and reports it. */
@@ -26,6 +29,8 @@ export function CreateCategoryContainer({
   categories,
   language,
   onCreated,
+  defaultKind,
+  onCancel,
 }: CreateCategoryContainerProps) {
   const api = useApiClient();
   const router = useRouter();
@@ -95,6 +100,8 @@ export function CreateCategoryContainer({
       language={language}
       pending={pending}
       errors={errors}
+      {...(defaultKind === undefined ? {} : { defaultKind })}
+      onCancel={onCancel}
       onSubmit={(values) => {
         void create(values);
       }}

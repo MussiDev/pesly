@@ -82,7 +82,7 @@ describe('categories screen', () => {
     expect(rows[1]?.textContent).toContain('Transport');
     expect(rows[1]?.textContent).toContain('40%');
     expect(screen.getByText(/200,000\.00/, { selector: 'p' })).toBeTruthy();
-    expect(screen.getByText('Showing Oct 1, 2026 to Oct 12, 2026')).toBeTruthy();
+    expect(screen.getByText('Oct 1, 2026 – Oct 12, 2026 · in ARS')).toBeTruthy();
   });
 
   it('thirds show whole shares that add up to at most 100% (AC-09)', async () => {
@@ -116,42 +116,6 @@ describe('categories screen', () => {
     expect(shown).toEqual(['34', '33', '33']);
   });
 
-  it('the rest legend share comes from the rest amount, not from the floored row shares', async () => {
-    const big = Array.from({ length: 5 }, (_, i) =>
-      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1460'),
-    );
-    const small = Array.from({ length: 30 }, (_, i) =>
-      named(`00000000-0000-4000-8000-0000000002${String(10 + i)}`, `Small ${String(i)}`, '90'),
-    );
-    show({ [REPORT]: report('10000', [...big, ...small]) });
-    await screen.findByRole('list', { name: 'Expenses by category' });
-    const legend = screen.getByText('Other categories').closest('li');
-    expect(legend?.textContent).toContain('27%');
-  });
-
-  it('three rest rows of 6.9% show a rest of 20%', async () => {
-    const big = Array.from({ length: 5 }, (_, i) =>
-      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1586'),
-    );
-    const rest = Array.from({ length: 3 }, (_, i) =>
-      named(`00000000-0000-4000-8000-0000000002${String(10 + i)}`, `Rest ${String(i)}`, '690'),
-    );
-    show({ [REPORT]: report('10000', [...big, ...rest]) });
-    await screen.findByRole('list', { name: 'Expenses by category' });
-    const legend = screen.getByText('Other categories').closest('li');
-    expect(legend?.textContent).toContain('20%');
-  });
-
-  it('a rest under 1% still reads "<1%"', async () => {
-    const big = Array.from({ length: 5 }, (_, i) =>
-      named(`00000000-0000-4000-8000-00000000010${String(i)}`, `Big ${String(i)}`, '1990'),
-    );
-    show({ [REPORT]: report('10000', [...big, named(ID_C, 'Tiny', '50')]) });
-    await screen.findByRole('list', { name: 'Expenses by category' });
-    const legend = screen.getByText('Other categories').closest('li');
-    expect(legend?.textContent).toContain('<1%');
-  });
-
   it('a total of 0.00 shows the empty state and no percentage (AC-10)', async () => {
     show({ [REPORT]: report('0', []) });
     expect(await screen.findByText('No movements in this range')).toBeTruthy();
@@ -159,7 +123,7 @@ describe('categories screen', () => {
     expect(screen.queryByText(/%/)).toBeNull();
   });
 
-  it('8 categories draw 6 ring segments and list 8 rows (AC-11)', async () => {
+  it('8 categories draw 8 arcs, each with its own legend row (AC-11)', async () => {
     const rows = Array.from({ length: 8 }, (_, index) =>
       named(
         `7f0c1a52-6a43-4e0e-9a33-6f1f2b5d7a1${index}`,
@@ -171,8 +135,7 @@ describe('categories screen', () => {
     const { container } = show({ [REPORT]: report(String(total), rows) });
     const list = await screen.findByRole('list', { name: 'Expenses by category' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(8);
-    expect(container.querySelectorAll('circle[data-segment]')).toHaveLength(6);
-    expect(container.querySelector('circle[data-segment="rest"]')).not.toBeNull();
+    expect(container.querySelectorAll('circle[data-segment]')).toHaveLength(8);
   });
 
   it('a share under 1% lists "<1%" with its amount (AC-12)', async () => {
@@ -220,11 +183,11 @@ describe('categories screen', () => {
     expect(reportCalls(calls).map((call) => call.path)).toEqual(['/reports/expenses-by-category']);
 
     await waitFor(() => {
-      expect(
-        screen.getByRole<HTMLButtonElement>('button', { name: 'Last 3 months' }).disabled,
-      ).toBe(false);
+      expect(screen.getByRole<HTMLButtonElement>('button', { name: '3 months' }).disabled).toBe(
+        false,
+      );
     });
-    await userEvent.click(screen.getByRole('button', { name: 'Last 3 months' }));
+    await userEvent.click(screen.getByRole('button', { name: '3 months' }));
     const target = router.replace.mock.calls.at(-1)?.[0] ?? '';
     expect(target).toMatch(/from=\d{4}-\d{2}-\d{2}/);
     expect(target).toMatch(/to=\d{4}-\d{2}-\d{2}/);
@@ -243,8 +206,8 @@ describe('categories screen', () => {
     const list = await screen.findByRole('list', { name: 'Gastos por categoría' });
     expect(list.textContent).toContain('120.000,00');
     expect(screen.getByText(/Quedan afuera por no tener tipo de cambio/)).toBeTruthy();
-    expect(screen.getByText(/^Mostrando del .* al .*$/)).toBeTruthy();
-    expect(screen.getByRole('link', { name: /perfil/i })).toBeTruthy();
+    expect(screen.getByText(/· en ARS$/)).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Cambiar moneda' })).toBeTruthy();
   });
 
   it('renders a hostile category name as text and creates no element', async () => {
@@ -257,16 +220,15 @@ describe('categories screen', () => {
     expect(container.querySelector('img')).toBeNull();
   });
 
-  it('the list has one row per category and the chart exposes a name and summary (AC-45, AC-46)', async () => {
-    const { container } = show({
+  it('the list has one row per category and the ring is named, with the total in its hole (AC-45, AC-46)', async () => {
+    show({
       [REPORT]: report('20000000', [food('12000000'), transport('8000000')]),
     });
     const list = await screen.findByRole('list', { name: 'Expenses by category' });
     expect(within(list).getAllByRole('listitem')).toHaveLength(2);
-    const figure = screen.getByRole('figure', { name: 'Expenses by category chart' });
-    expect(figure.textContent).toContain('From Oct 1, 2026 to Oct 12, 2026, total expenses');
-    expect(figure.textContent).toContain('200,000.00');
-    expect(container.querySelector('[aria-hidden="true"] svg')).not.toBeNull();
+    const ring = screen.getByRole('img', { name: 'Expenses by category' });
+    expect(ring.tagName.toLowerCase()).toBe('svg');
+    expect(screen.getByText('Spent')).toBeTruthy();
   });
 
   it('a failing request shows the error state with retry and no earlier figures', async () => {
@@ -311,16 +273,16 @@ describe('categories screen', () => {
   it('says the currency only once the report is ready, never a guessed ARS (USD profile)', async () => {
     show({ [REPORT]: report('500', [food('500')], { currency: 'USD' }) });
     // First paint: still loading, so no currency is claimed.
-    expect(screen.queryByText(/Amounts are in/)).toBeNull();
+    expect(screen.queryByText(/· in /)).toBeNull();
     await screen.findByRole('list', { name: 'Expenses by category' });
-    expect(screen.getByText(/Amounts are in USD/)).toBeTruthy();
-    expect(screen.queryByText(/Amounts are in ARS/)).toBeNull();
+    expect(screen.getByText(/· in USD$/)).toBeTruthy();
+    expect(screen.queryByText(/· in ARS$/)).toBeNull();
   });
 
   it('a failed report does not state a currency', async () => {
     show({ [REPORT]: { status: 500 } });
     await screen.findByText('The report could not be loaded');
-    expect(screen.queryByText(/Amounts are in/)).toBeNull();
+    expect(screen.queryByText(/· in /)).toBeNull();
   });
 
   it('has an h2 heading with the report title (L5)', async () => {

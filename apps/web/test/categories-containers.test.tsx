@@ -22,6 +22,17 @@ function row(name: string) {
   return screen.getByRole('listitem', { name });
 }
 
+/** Opens a row's actions ("⋯") and runs one of them, e.g. `rowAction(user, 'Editar', 'Comida')`. */
+async function rowAction(user: User, action: string, name: string) {
+  await user.click(await screen.findByRole('button', { name: `Acciones de ${name}` }));
+  await user.click(screen.getByRole('button', { name: `${action} ${name}` }));
+}
+
+/** Opens the create form with "+ New". */
+async function openCreate(user: User) {
+  await user.click(screen.getByRole('button', { name: es.categories.new.open }));
+}
+
 describe('CategoriesContainer', () => {
   it('shows the loading state, then the Spanish defaults with es (AC-14)', async () => {
     const { calls } = stubApi({ [ACTIVE]: page(seededDefaults()) });
@@ -126,7 +137,7 @@ describe('CategoriesContainer', () => {
     const { container } = renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Editar Mascotas' }));
+    await rowAction(user, 'Editar', 'Mascotas');
     const name = screen.getByLabelText('Nuevo nombre de Mascotas');
     await user.clear(name);
     await user.type(name, '  Perros ');
@@ -154,7 +165,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Editar Comida' }));
+    await rowAction(user, 'Editar', 'Comida');
     const editRow = screen.getByRole('listitem', { name: 'Comida' });
     await user.click(within(editRow).getByRole('radio', { name: es.categories.colors.blue }));
     await user.click(screen.getByRole('button', { name: es.categories.actions.save }));
@@ -168,7 +179,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Editar Mascotas' }));
+    await rowAction(user, 'Editar', 'Mascotas');
     await user.click(screen.getByRole('button', { name: es.categories.actions.save }));
 
     expect(screen.queryByLabelText(/Nuevo nombre/)).toBeNull();
@@ -183,7 +194,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Editar Mascotas' }));
+    await rowAction(user, 'Editar', 'Mascotas');
     const name = screen.getByLabelText('Nuevo nombre de Mascotas');
     await user.clear(name);
     await user.type(name, 'Comida');
@@ -198,7 +209,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Editar Mascotas' }));
+    await rowAction(user, 'Editar', 'Mascotas');
     const name = screen.getByLabelText('Nuevo nombre de Mascotas');
     await user.clear(name);
     await user.click(screen.getByRole('button', { name: es.categories.actions.save }));
@@ -226,25 +237,25 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Archivar Comida' }));
+    await rowAction(user, 'Archivar', 'Comida');
     await waitFor(() => {
       expect(screen.queryByRole('listitem', { name: 'Comida' })).toBeNull();
     });
     expect(screen.queryByRole('listitem', { name: 'Supermercado' })).toBeNull();
     expect(screen.getByRole('listitem', { name: 'Mascotas' })).toBeDefined();
 
-    await user.click(screen.getByRole('checkbox', { name: es.categories.list.showArchived }));
+    await user.click(screen.getByRole('button', { name: es.categories.list.viewArchived }));
     expect(await screen.findByRole('listitem', { name: 'Comida' })).toBeDefined();
     expect(screen.getByRole('listitem', { name: 'Supermercado' })).toBeDefined();
 
-    await user.click(screen.getByRole('button', { name: 'Desarchivar Comida' }));
+    await rowAction(user, 'Desarchivar', 'Comida');
     await waitFor(() => {
       expect(screen.queryByRole('listitem', { name: 'Comida' })).toBeNull();
     });
     // Unarchiving a parent does not unarchive its subcategories (D7).
     expect(screen.getByRole('listitem', { name: 'Supermercado' })).toBeDefined();
 
-    await user.click(screen.getByRole('checkbox', { name: es.categories.list.showArchived }));
+    await user.click(screen.getByRole('button', { name: es.categories.list.viewActive }));
     expect(await screen.findByRole('listitem', { name: 'Comida' })).toBeDefined();
     expect(calls.filter((call) => call.method === 'POST').map((call) => call.path)).toEqual([
       `/categories/${uuid(1)}/archive`,
@@ -260,7 +271,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Eliminar Mascotas' }));
+    await rowAction(user, 'Eliminar', 'Mascotas');
 
     expect(screen.getByRole('status').textContent).toBe(
       es.categories.actions.confirmDelete.replace('{name}', 'Mascotas'),
@@ -272,6 +283,8 @@ describe('CategoriesContainer', () => {
     await waitFor(() => {
       expect(screen.queryByRole('listitem', { name: 'Mascotas' })).toBeNull();
     });
+    // The income categories wait on their own tab.
+    await user.click(screen.getByRole('button', { name: es.categories.sections.income }));
     expect(screen.getByRole('listitem', { name: 'Sueldo' })).toBeDefined();
     expect(calls.filter((call) => call.method === 'DELETE')).toHaveLength(1);
   });
@@ -281,7 +294,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Eliminar Mascotas' }));
+    await rowAction(user, 'Eliminar', 'Mascotas');
     await user.click(screen.getByRole('button', { name: es.categories.actions.cancel }));
 
     expect(screen.queryByText(es.categories.actions.confirmDeleteYes)).toBeNull();
@@ -298,7 +311,7 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole('button', { name: 'Eliminar Mascotas' }));
+    await rowAction(user, 'Eliminar', 'Mascotas');
     await user.click(screen.getByRole('button', { name: es.categories.actions.confirmDeleteYes }));
 
     expect(await screen.findByText(es.errors.categoryInUse)).toBeDefined();
@@ -320,7 +333,9 @@ describe('CategoriesContainer', () => {
     });
     renderApp(<CategoriesContainer />, { locale: 'en' });
 
-    await userEvent.setup().click(await screen.findByRole('button', { name: 'Archive Mascotas' }));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Actions for Mascotas' }));
+    await user.click(screen.getByRole('button', { name: 'Archive Mascotas' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain(en.errors.network);
     expect(screen.getByRole('listitem', { name: 'Mascotas' })).toBeDefined();
@@ -336,6 +351,7 @@ describe('CategoriesContainer', () => {
     const user = userEvent.setup();
 
     await screen.findByRole('listitem', { name: 'Comida' });
+    await openCreate(user);
     await user.type(screen.getByLabelText(es.categories.fields.name), ' Café ');
     await user.click(screen.getByRole('radio', { name: es.categories.icons.coffee }));
     await user.click(screen.getByRole('radio', { name: es.categories.colors.amber }));
@@ -343,7 +359,8 @@ describe('CategoriesContainer', () => {
 
     expect(await screen.findByRole('listitem', { name: 'Café' })).toBeDefined();
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(1);
-    expect(screen.getByLabelText<HTMLInputElement>(es.categories.fields.name).value).toBe('');
+    // The form closes once the category is in the list.
+    expect(screen.queryByLabelText(es.categories.fields.name)).toBeNull();
   });
 
   it('creates a subcategory under an active parent and shows it under that parent', async () => {
@@ -362,6 +379,7 @@ describe('CategoriesContainer', () => {
     const user = userEvent.setup();
 
     await screen.findByRole('listitem', { name: 'Comida' });
+    await openCreate(user);
     await user.selectOptions(screen.getByLabelText(es.categories.fields.parent), uuid(1));
     await user.type(screen.getByLabelText(es.categories.fields.name), 'Café');
     await user.click(screen.getByRole('radio', { name: es.categories.icons.coffee }));
@@ -384,12 +402,13 @@ describe('CategoriesContainer', () => {
     renderApp(<CategoriesContainer />);
 
     await screen.findByRole('listitem', { name: 'Mascotas' });
+    const user = userEvent.setup();
+    await openCreate(user);
     expect(screen.getByLabelText(es.categories.fields.name)).toBeDefined();
-    await userEvent
-      .setup()
-      .click(screen.getByRole('checkbox', { name: es.categories.list.showArchived }));
+    await user.click(screen.getByRole('button', { name: es.categories.list.viewArchived }));
     expect(await screen.findByText(es.categories.list.emptyArchived)).toBeDefined();
     expect(screen.queryByLabelText(es.categories.fields.name)).toBeNull();
+    expect(screen.queryByRole('button', { name: es.categories.new.open })).toBeNull();
   });
 });
 

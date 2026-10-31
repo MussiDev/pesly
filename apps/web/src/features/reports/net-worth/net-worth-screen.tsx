@@ -6,8 +6,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { formatCalendarDate } from '@/features/credit-cards/format-dates';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
-import { CurrencyNote } from '../components/currency-note';
-import { FiguresList, type FigureRow } from '../components/figures-list';
+import { ReportFootnote, ReportPeriod } from '../components/report-meta';
 import { ReportFilters } from '../components/report-filters';
 import {
   RangeAlert,
@@ -41,25 +40,53 @@ function NetWorthReady({ locale, data }: { locale: Locale; data: NetWorthView })
   const t = useTranslations('reports.netWorth');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const points = data.points.slice(-MAX_POINTS);
-  const anyTotal = points.some((point) => point.total !== null);
+  const withTotal = points.filter((point) => point.total !== null);
+  const latest = withTotal.at(-1);
+  const missingRate = points.some((point) => point.total === null);
   const selected = points.find((point) => point.date === selectedDate && point.total !== null);
-
-  const rows: FigureRow[] = points.map((point) => {
-    const parts = `${formatMoney(point.ars, 'ARS', locale)} · ${formatMoney(point.usd, 'USD', locale)}`;
-    const base = { key: point.date, label: formatCalendarDate(point.date, locale) };
-    if (point.total === null) return { ...base, value: parts, note: t('noRate') };
-    return {
-      ...base,
-      value: formatMoney(point.total, data.currency, locale),
-      note: point.incomplete ? `${parts} · ${t('investmentsIncomplete')}` : parts,
-    };
-  });
 
   return (
     <>
-      <CurrencyNote currency={data.currency} />
-      {anyTotal ? (
-        <>
+      <ReportPeriod from={data.from} to={data.to} currency={data.currency} />
+      {latest === undefined || latest.total === null ? (
+        <Alert role="status" variant="info">
+          <AlertDescription>{t('conversionUnavailable')}</AlertDescription>
+        </Alert>
+      ) : (
+        <section
+          aria-label={t('latest', { date: formatCalendarDate(latest.date, locale) })}
+          className="grid gap-3 rounded-card bg-card p-4"
+        >
+          <div className="grid gap-0.5">
+            <p className="text-caption text-muted-foreground">
+              {t('latest', { date: formatCalendarDate(latest.date, locale) })}
+            </p>
+            <p className="text-display font-bold break-words tabular-nums">
+              {formatMoney(latest.total, data.currency, locale)}
+            </p>
+          </div>
+          <dl className="grid grid-cols-2 gap-3">
+            <div className="grid min-w-0 gap-0.5">
+              <dt className="text-caption text-muted-foreground">{t('ars')}</dt>
+              <dd className="text-small font-semibold break-words tabular-nums">
+                {formatMoney(latest.ars, 'ARS', locale)}
+              </dd>
+            </div>
+            <div className="grid min-w-0 gap-0.5">
+              <dt className="text-caption text-muted-foreground">{t('usd')}</dt>
+              <dd className="text-small font-semibold break-words tabular-nums">
+                {formatMoney(latest.usd, 'USD', locale)}
+              </dd>
+            </div>
+          </dl>
+          {latest.incomplete ? (
+            <p className="text-caption text-muted-foreground">{t('investmentsIncomplete')}</p>
+          ) : null}
+        </section>
+      )}
+      {/* One month with a total is a dot, not a line: the chart waits for two. */}
+      {withTotal.length >= 2 ? (
+        <div className="rounded-card bg-card p-4">
           <NetWorthAreaChart
             locale={locale}
             currency={data.currency}
@@ -69,16 +96,41 @@ function NetWorthReady({ locale, data }: { locale: Locale; data: NetWorthView })
             from={data.from}
             to={data.to}
           />
-          {selected === undefined ? null : (
-            <NetWorthDetail locale={locale} currency={data.currency} point={selected} />
-          )}
-        </>
-      ) : (
-        <Alert role="status" variant="info">
-          <AlertDescription>{t('conversionUnavailable')}</AlertDescription>
-        </Alert>
+        </div>
+      ) : null}
+      {selected === undefined ? null : (
+        <NetWorthDetail locale={locale} currency={data.currency} point={selected} />
       )}
-      <FiguresList label={t('listName')} rows={rows} />
+      <section aria-labelledby="net-worth-history" className="grid gap-2">
+        <h3
+          id="net-worth-history"
+          className="text-caption font-semibold tracking-wide text-muted-foreground uppercase"
+        >
+          {t('history')}
+        </h3>
+        {missingRate && withTotal.length > 0 ? (
+          <p className="text-caption text-muted-foreground">{t('noRateOnce')}</p>
+        ) : null}
+        <ul aria-label={t('listName')} className="grid divide-y divide-border rounded-card bg-card">
+          {[...points].reverse().map((point) => (
+            <li key={point.date} className="grid gap-0.5 px-4 py-3">
+              <span className="flex items-baseline justify-between gap-3">
+                <span className="text-small font-semibold">
+                  {formatCalendarDate(point.date, locale)}
+                </span>
+                <span className="text-small font-semibold tabular-nums">
+                  {point.total === null ? '' : formatMoney(point.total, data.currency, locale)}
+                </span>
+              </span>
+              <span className="text-caption text-muted-foreground tabular-nums">
+                {formatMoney(point.ars, 'ARS', locale)} · {formatMoney(point.usd, 'USD', locale)}
+                {point.incomplete ? ` · ${t('investmentsIncomplete')}` : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <ReportFootnote />
     </>
   );
 }
@@ -96,7 +148,7 @@ export function NetWorthScreen({
   const t = useTranslations('reports.netWorth');
   return (
     <div className="flex min-w-0 flex-col gap-4">
-      <h2 className="text-h2 font-semibold">{t('title')}</h2>
+      <h2 className="sr-only">{t('title')}</h2>
       <ReportFilters
         kind="netWorth"
         filters={filters}
