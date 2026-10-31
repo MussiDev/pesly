@@ -212,7 +212,10 @@ test('the author edits and deletes; a plain member has no actions; the activity 
 
     // AC-14: the author deletes a settlement.
     await pageA.goto(`/es/groups/${groupId}/settlements`);
-    const settlementRow = pageA.getByRole('main').getByRole('listitem').first();
+    const settlementRow = pageA
+      .getByRole('list', { name: t.settlements.listLabel })
+      .getByRole('listitem')
+      .first();
     await settlementRow.getByRole('button', { name: common.actions.delete }).click();
     await settlementRow.getByRole('button', { name: common.deleteConfirm.confirm }).click();
     await expect.poll(() => serverSettlementIds(pageA, groupId)).toEqual([]);

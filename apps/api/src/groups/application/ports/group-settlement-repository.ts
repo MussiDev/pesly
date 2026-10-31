@@ -81,9 +81,19 @@ export interface ListSettlementsPageQuery {
   cursor?: string;
 }
 
+export interface SettlementPairTotal {
+  fromMemberId: string;
+  toMemberId: string;
+  currency: 'ARS' | 'USD';
+  amount: bigint;
+  count: number;
+}
+
 export interface GroupSettlementPageResult {
   items: GroupSettlement[];
   nextCursor: string | null;
+  /** Over every settlement of the group with cash (amount above zero), largest first. */
+  totals: SettlementPairTotal[];
 }
 
 /**

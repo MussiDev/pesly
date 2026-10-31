@@ -1,4 +1,6 @@
 import {
+  categoryDetailQuerySchema,
+  categoryDetailResponseSchema,
   expensesByCategoryResponseSchema,
   incomeExpensesResponseSchema,
   netWorthQuerySchema,
@@ -59,6 +61,19 @@ export function createReportRoutes({ logger, useCases }: ReportRoutesOptions): R
           const result = await useCases.expensesByCategory.execute(scope, query);
           // Ids only: never an amount, a tag or an account name.
           logger.info({ requestId, userId: auth?.userId }, 'expenses by category read');
+          res.json(result);
+        },
+      ),
+    );
+
+    router.get(
+      '/reports/category-detail',
+      validate(
+        { query: categoryDetailQuerySchema, response: categoryDetailResponseSchema },
+        async ({ query }, { res, auth, requestId }) => {
+          const scope = await scopeOf(policy, auth, 'read');
+          const result = await useCases.categoryDetail.execute(scope, query);
+          logger.info({ requestId, userId: auth?.userId }, 'category detail read');
           res.json(result);
         },
       ),

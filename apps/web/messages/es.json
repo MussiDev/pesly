@@ -1575,6 +1575,7 @@
       }
     },
     "settlements": {
+      "listLabel": "Pagos registrados",
       "title": "Pagos entre miembros",
       "back": "Volver al grupo",
       "parties": "{payer} le pagó a {payee}",
@@ -1583,7 +1584,12 @@
       "loadMoreFailed": "No se pudieron cargar más pagos.",
       "emptyTitle": "Todavía no hay pagos",
       "emptyDescription": "Los pagos entre miembros aparecerán acá cuando se registren.",
-      "emptyAction": "Ir a los saldos"
+      "emptyAction": "Ir a los saldos",
+      "totals": {
+        "title": "Total pagado",
+        "to": "le pagó a",
+        "count": "{count, plural, one {# pago} other {# pagos}}"
+      }
     },
     "shares": {
       "title": "Mis partes",
@@ -2581,5 +2587,34 @@
       "selectedPoint": "Punto seleccionado: {date}",
       "announce": "{date}, {value}"
     }
+  },
+  "categorySpending": {
+    "title": "Gastos de la categoría",
+    "back": "Inicio",
+    "loading": "Cargando los gastos de la categoría…",
+    "failed": "No pudimos cargar los gastos de esta categoría.",
+    "retry": "Reintentar",
+    "offline": "Sin conexión. Volvé a abrir esta pantalla cuando tengas internet.",
+    "notFound": "No encontramos esta categoría.",
+    "summary": "Resumen del mes",
+    "total": "Total del mes",
+    "sources": {
+      "movement": "Movimientos",
+      "cardPurchase": "Compras con tarjeta",
+      "installment": "Cuotas",
+      "share": "Tu parte en grupos"
+    },
+    "howCounted": "Igual que en Inicio: las compras con tarjeta y las cuotas cuentan en el mes en que vence el resumen, y de los gastos de grupo cuenta solo tu parte.",
+    "unconverted": "{count, plural, one {# gasto en otra moneda no tiene cotización y no suma al total.} other {# gastos en otra moneda no tienen cotización y no suman al total.}}",
+    "items": "Detalle",
+    "empty": "No hay gastos de esta categoría en el mes.",
+    "cardPurchase": "Compra con tarjeta del {day}",
+    "installment": "Cuota {number} de {count}",
+    "due": "vence el {day}",
+    "share": "Tu parte en {group} · {day}",
+    "noRate": "Sin cotización",
+    "viewMovements": "Ver los movimientos del mes de esta categoría",
+    "previousMonth": "Mes anterior",
+    "nextMonth": "Mes siguiente"
   }
 }

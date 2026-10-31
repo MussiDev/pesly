@@ -69,11 +69,12 @@ function toCategoryViews(raw: DashboardResponse, options: AdapterOptions): Categ
       amount: BigInt(row.amount),
       share: row.sharePercent,
       ...(color === undefined ? {} : { color }),
-      // Ids are validated UUIDs and days are YYYY-MM-DD, so the query needs no escaping.
+      // The detail counts like the ring (card purchases by due month, group shares), which the
+      // movement list cannot. Ids are validated UUIDs and the month is YYYY-MM: no escaping.
       ...(row.categoryId === null
         ? {}
         : {
-            href: `/movements?type=expense&categoryId=${row.categoryId}&from=${raw.month.from}&to=${raw.month.to}`,
+            href: `/categories/spending?id=${row.categoryId}&month=${raw.month.from.slice(0, 7)}`,
           }),
     };
   });

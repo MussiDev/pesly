@@ -65,9 +65,8 @@ describe('CategoriesCard', () => {
     expect(document.querySelectorAll('circle[data-segment]')).toHaveLength(2);
   });
 
-  it("links each category to that month's expenses in the movements list, from the row and the arc", () => {
-    const href =
-      '/movements?type=expense&categoryId=00000000-0000-4000-8000-000000000001&from=2026-10-01&to=2026-10-31';
+  it("links each category to that month's spending detail, from the row and the arc", () => {
+    const href = '/categories/spending?id=00000000-0000-4000-8000-000000000001&month=2026-10';
     const { router } = renderApp(
       <CategoriesCard
         locale="en"

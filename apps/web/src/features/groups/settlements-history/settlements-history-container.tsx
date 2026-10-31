@@ -1,6 +1,6 @@
 'use client';
 
-import type { GroupDetailResponse, SettlementResponse } from '@pesly/shared';
+import type { GroupDetailResponse, SettlementPairTotal, SettlementResponse } from '@pesly/shared';
 import { Users } from 'lucide-react';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import { overlayGroupRecords } from '../sync-overlay';
 import type { SettlementRowData } from './settlement-row';
 import { SettlementsEmptyState } from './settlements-empty-state';
 import { SettlementsList } from './settlements-list';
+import { SettlementsTotals, type SettlementTotalView } from './settlements-totals';
 
 const PAGE_SIZE = 50;
 
@@ -31,6 +32,7 @@ type ScreenState =
       group: GroupDetailResponse;
       items: SettlementResponse[];
       nextCursor: string | null;
+      totals: SettlementPairTotal[];
       loadingMore: boolean;
       moreFailed: boolean;
     };
@@ -98,6 +100,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
           group: group.data,
           items: appendPage([], page.data.items),
           nextCursor: page.data.nextCursor,
+          totals: page.data.totals,
           loadingMore: false,
           moreFailed: false,
         });
@@ -121,6 +124,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
                   ...current,
                   items: appendPage([], page.data.items),
                   nextCursor: page.data.nextCursor,
+                  totals: page.data.totals,
                   moreFailed: false,
                 }
               : current,
@@ -157,7 +161,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
     );
   }
 
-  const { group, items, nextCursor, loadingMore, moreFailed } = state;
+  const { group, items, nextCursor, totals, loadingMore, moreFailed } = state;
   const names = new Map<string, string>(
     [...group.members, ...group.formerMembers].map((member) => [
       member.id,
@@ -188,6 +192,13 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
       deleting: confirmingId === record.id && deleting,
     };
   });
+  const totalRows: SettlementTotalView[] = totals.map((total) => ({
+    key: `${total.fromMemberId}|${total.toMemberId}|${total.currency}`,
+    payer: nameOf(total.fromMemberId),
+    payee: nameOf(total.toMemberId),
+    amount: formatMoney(BigInt(total.amount), total.currency, language),
+    count: total.count,
+  }));
   const showUnavailable = (changes.ready && !changes.available) || actionFailed;
 
   function confirmDelete(id: string) {
@@ -225,6 +236,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
           ...current,
           items: appendPage(current.items, page.data.items),
           nextCursor: page.data.nextCursor,
+          totals: page.data.totals,
           loadingMore: false,
           moreFailed: false,
         };
@@ -240,6 +252,7 @@ export function SettlementsHistoryContainer({ groupId }: { groupId: string }) {
           {tEdit('unavailable')}
         </p>
       ) : null}
+      {rows.length > 0 && totalRows.length > 0 ? <SettlementsTotals totals={totalRows} /> : null}
       {rows.length === 0 ? (
         <SettlementsEmptyState groupId={groupId} />
       ) : (

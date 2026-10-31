@@ -35,7 +35,7 @@ export function SettlementsList({
 
   return (
     <div className="grid gap-3">
-      <ul className="divide-y divide-border">
+      <ul aria-label={t('listLabel')} className="divide-y divide-border">
         {rows.map((row) => (
           <SettlementRow
             key={row.id}

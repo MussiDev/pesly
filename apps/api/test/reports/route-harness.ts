@@ -51,6 +51,11 @@ export function buildApp(connection: DatabaseConnection) {
         return EMPTY_CATEGORY_RESPONSE;
       },
     },
+    categoryDetail: {
+      execute() {
+        return Promise.reject(new Error('The category detail runs on its own harness'));
+      },
+    },
     incomeExpenses: {
       async execute(scope, query) {
         calls.incomeExpenses += 1;
