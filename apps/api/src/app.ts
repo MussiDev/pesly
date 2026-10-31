@@ -131,7 +131,7 @@ export function createApp({
   // A browser on the web origin hides Retry-After from scripts unless it is exposed.
   app.use(cors({ origin: [env.WEB_ORIGIN], credentials: true, exposedHeaders: ['Retry-After'] }));
   // Before the HTTPS guard: platform health probes call it over plain HTTP inside the network.
-  app.use(healthRoutes());
+  app.use(healthRoutes(env.RAILWAY_GIT_COMMIT_SHA));
   app.use(httpsGuard(env));
   app.use(createOriginGuard(env.WEB_ORIGIN));
   const parseJson = express.json({ limit: JSON_BODY_LIMIT });
