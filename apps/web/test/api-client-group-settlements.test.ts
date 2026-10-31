@@ -95,7 +95,13 @@ describe('api client: group balances and settlements (DISC-001-05g Block 1)', ()
   });
 
   it('listSettlements sends limit and cursor and returns items with nextCursor (AC-01)', async () => {
-    const page = { items: [SETTLEMENT_RECORD], nextCursor: 'abc+/=' };
+    const page = {
+      items: [SETTLEMENT_RECORD],
+      nextCursor: 'abc+/=',
+      totals: [
+        { fromMemberId: 'm1', toMemberId: 'm2', currency: 'ARS', amount: '150050', count: 1 },
+      ],
+    };
     const { client, fetch } = clientWith(jsonResponse(200, page), jsonResponse(200, page));
 
     const result = await client.listSettlements(GROUP, { limit: 20, cursor: 'abc+/=' });

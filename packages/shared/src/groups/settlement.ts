@@ -183,9 +183,22 @@ export const settlementResponseSchema = z.object({
 
 export type SettlementResponse = z.infer<typeof settlementResponseSchema>;
 
+/** What one member paid another in one currency, over every settlement of the group. */
+export const settlementPairTotalSchema = z.object({
+  fromMemberId: z.string(),
+  toMemberId: z.string(),
+  currency: accountCurrencySchema,
+  amount: z.string().regex(/^(0|[1-9]\d*)$/),
+  count: z.number().int().min(1),
+});
+
+export type SettlementPairTotal = z.infer<typeof settlementPairTotalSchema>;
+
 export const settlementPageSchema = z.object({
   items: z.array(settlementResponseSchema),
   nextCursor: z.string().nullable(),
+  /** Over the whole group, not the page; consolidated settlements move no cash and are left out. */
+  totals: z.array(settlementPairTotalSchema).default([]),
 });
 
 export type SettlementPage = z.infer<typeof settlementPageSchema>;

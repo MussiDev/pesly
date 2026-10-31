@@ -534,6 +534,33 @@ describe('listSettlements', () => {
     expect(seen.every((s) => s.legs.length === 1)).toBe(true);
   });
 
+  it('totals every settlement of the group per pair and currency on any page', async () => {
+    const w = await world();
+    for (const amount of [101000n, 52000n, 50000n]) {
+      await repository.saveSettlement(
+        plainSettlement(w, { amount, legs: [{ currency: 'ARS', amount }] }),
+      );
+    }
+
+    const first = await repository.listSettlements(w.groupId, { limit: 1 });
+    const second = await repository.listSettlements(w.groupId, {
+      limit: 1,
+      cursor: first.nextCursor ?? undefined,
+    });
+
+    const expected = [
+      {
+        fromMemberId: first.items[0]?.fromMemberId,
+        toMemberId: first.items[0]?.toMemberId,
+        currency: 'ARS',
+        amount: 203000n,
+        count: 3,
+      },
+    ];
+    expect(first.totals).toEqual(expected);
+    expect(second.totals).toEqual(expected);
+  });
+
   it('answers a validation error for a cursor this adapter did not produce (error)', async () => {
     const w = await world();
 

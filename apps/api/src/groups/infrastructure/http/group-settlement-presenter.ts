@@ -34,7 +34,11 @@ export function presentSettlement(settlement: GroupSettlement): SettlementRespon
 }
 
 export function presentSettlementPage(page: GroupSettlementPageResult): SettlementPage {
-  return { items: page.items.map(presentSettlement), nextCursor: page.nextCursor };
+  return {
+    items: page.items.map(presentSettlement),
+    nextCursor: page.nextCursor,
+    totals: page.totals.map((total) => ({ ...total, amount: total.amount.toString() })),
+  };
 }
 
 function presentCurrencyBalances(balances: CurrencyBalances): CurrencyBalancesResponse {

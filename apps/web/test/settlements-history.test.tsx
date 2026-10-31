@@ -76,6 +76,52 @@ const routes = (extra: Record<string, object | object[]> = {}) => ({
 });
 
 describe('SettlementsHistoryContainer', () => {
+  it('heads the list with what each member paid another over the whole group', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: {
+          status: 200,
+          body: {
+            items: [settlement(S1)],
+            nextCursor: 'next-1',
+            totals: [
+              { fromMemberId: ANA, toMemberId: BEA, currency: 'ARS', amount: '25300000', count: 4 },
+              { fromMemberId: BEA, toMemberId: OLD, currency: 'USD', amount: '5000', count: 1 },
+            ],
+          },
+        },
+      }),
+    );
+    open('es');
+
+    const totals = await screen.findByRole('region', { name: es.groups.settlements.totals.title });
+    const rows = within(totals).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
+    const text = (row: HTMLElement | undefined) =>
+      (row?.textContent ?? '').replaceAll(String.fromCharCode(0xa0), ' ');
+    expect(text(rows[0])).toContain('Ana');
+    expect(text(rows[0])).toContain('Bea');
+    expect(text(rows[0])).toContain(
+      formatMoney(25300000n, 'ARS', 'es').replaceAll(String.fromCharCode(0xa0), ' '),
+    );
+    expect(text(rows[0])).toContain('4 pagos');
+    // A former member keeps their name; one payment reads in the singular.
+    expect(text(rows[1])).toContain('Old Pal');
+    expect(text(rows[1])).toContain('1 pago');
+  });
+
+  it('shows no totals when the answer carries none', async () => {
+    stubApi(
+      routes({
+        [FIRST_PAGE]: { status: 200, body: { items: [settlement(S1)], nextCursor: null } },
+      }),
+    );
+    open();
+
+    await screen.findAllByRole('listitem');
+    expect(screen.queryByRole('region', { name: en.groups.settlements.totals.title })).toBeNull();
+  });
+
   it('lists parties, amount, date and the consolidated marker in the given order (AC-18)', async () => {
     const consolidated = settlement(S2, {
       fromMemberId: BEA,
