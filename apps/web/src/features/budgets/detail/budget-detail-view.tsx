@@ -30,9 +30,6 @@ export function BudgetDetailView({ view, groups, onDeleted }: BudgetDetailViewPr
         title={view.name}
         actions={
           <div className="flex flex-wrap gap-2">
-            <Link href="/budgets" className={buttonVariants({ variant: 'outline' })}>
-              {t('back')}
-            </Link>
             <Link
               href={`/budgets/${encodeURIComponent(view.id)}/edit`}
               className={buttonVariants({ variant: 'outline' })}

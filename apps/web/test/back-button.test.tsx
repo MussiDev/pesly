@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import es from '../messages/es.json';
 import { TopBar } from '../src/features/shell/components/top-bar';
-import { backButtonVisibility } from '../src/features/shell/nav-items';
+import { backButtonVisibility, parentRoute } from '../src/features/shell/nav-items';
 import { renderApp } from './support/render-app';
 
 describe('backButtonVisibility', () => {
@@ -26,29 +25,57 @@ describe('backButtonVisibility', () => {
   });
 });
 
-describe('TopBar back button', () => {
-  it('has no back button on the home', () => {
+describe('parentRoute', () => {
+  it('names no parent on the bottom bar pages', () => {
+    for (const path of ['/', '/movements', '/groups', '/more']) {
+      expect(parentRoute(path), path).toBeUndefined();
+    }
+    expect(parentRoute(undefined)).toBeUndefined();
+  });
+
+  it('sends the pages More lists back to More, and their children to them', () => {
+    expect(parentRoute('/accounts')).toEqual({ href: '/more', labelKey: 'more' });
+    expect(parentRoute('/reports/categories')).toEqual({ href: '/more', labelKey: 'more' });
+    expect(parentRoute('/settings/security')).toEqual({ href: '/more', labelKey: 'more' });
+    expect(parentRoute('/accounts/new')).toEqual({ href: '/accounts', labelKey: 'accounts' });
+    expect(parentRoute('/recurring/r1')).toEqual({ href: '/recurring', labelKey: 'recurring' });
+    expect(parentRoute('/movements/new')).toEqual({ href: '/movements', labelKey: 'movements' });
+  });
+
+  it('goes up one detail page at a time', () => {
+    expect(parentRoute('/cards/c1')).toEqual({ href: '/cards', labelKey: 'cards' });
+    expect(parentRoute('/cards/c1/payments/new')).toEqual({ href: '/cards/c1', labelKey: 'card' });
+    expect(parentRoute('/budgets/b1/edit')).toEqual({ href: '/budgets/b1', labelKey: 'budget' });
+    expect(parentRoute('/goals/new')).toEqual({ href: '/goals', labelKey: 'goals' });
+    expect(parentRoute('/groups/new')).toEqual({ href: '/groups', labelKey: 'groups' });
+    expect(parentRoute('/groups/g1')).toEqual({ href: '/groups', labelKey: 'groups' });
+    expect(parentRoute('/groups/g1/settlements')).toEqual({
+      href: '/groups/g1',
+      labelKey: 'group',
+    });
+    expect(parentRoute('/groups/g1/expenses/e1/edit')).toEqual({
+      href: '/groups/g1',
+      labelKey: 'group',
+    });
+    expect(parentRoute('/groups/g1/settlements/s1/edit')).toEqual({
+      href: '/groups/g1/settlements',
+      labelKey: 'settlements',
+    });
+  });
+});
+
+describe('TopBar back link', () => {
+  it('has no back link on the home', () => {
     renderApp(<TopBar online pending={0} currentPath="/" />);
 
-    expect(screen.queryByRole('button', { name: es.app.topBar.back })).toBeNull();
+    expect(screen.queryByRole('link', { name: /^Atrás:/ })).toBeNull();
   });
 
-  it('goes to the home when the page was opened directly and has nothing behind it', async () => {
-    const { router } = renderApp(<TopBar online pending={0} currentPath="/accounts" />);
+  it('names the page above and links to it, not to the history', () => {
+    renderApp(<TopBar online pending={0} currentPath="/groups/g1/settlements" />);
 
-    await userEvent.setup().click(screen.getByRole('button', { name: es.app.topBar.back }));
-
-    expect(router.back).not.toHaveBeenCalled();
-    expect(router.push).toHaveBeenCalledWith('/es');
-  });
-
-  it('goes back through the router when the page has history', async () => {
-    const { router } = renderApp(<TopBar online pending={0} currentPath="/accounts" />);
-    window.history.pushState({}, '', '/a');
-    window.history.pushState({}, '', '/b');
-
-    await userEvent.setup().click(screen.getByRole('button', { name: es.app.topBar.back }));
-
-    expect(router.back).toHaveBeenCalledOnce();
+    const link = screen.getByRole('link', { name: 'Atrás: Grupo' });
+    expect(link.getAttribute('href')).toBe('/es/groups/g1');
+    expect(link.textContent).toBe(es.app.topBar.parents.group);
   });
 });

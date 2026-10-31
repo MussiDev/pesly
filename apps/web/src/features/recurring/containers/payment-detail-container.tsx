@@ -330,7 +330,6 @@ export function PaymentDetailContainer({ paymentId }: { paymentId: string }) {
             >
               {t('actions.delete')}
             </Button>
-            {backLink}
           </div>
         )}
       </CardContent>

@@ -140,3 +140,70 @@ export function isActivePath(href: string, currentPath: string | undefined): boo
   if (href === '/') return currentPath === '/';
   return currentPath === href || currentPath.startsWith(`${href}/`);
 }
+
+/** Keys of `app.topBar.parents.*`: the pages a back link can name besides the menu's own. */
+export type ParentLabelKey = NavLabelKey | 'group' | 'card' | 'budget' | 'goal' | 'settlements';
+
+export interface ParentRoute {
+  /** A route without the locale, built only from the current path's own segments. */
+  href: string;
+  labelKey: ParentLabelKey;
+}
+
+/** The More page lists these, so it is where they go back to. */
+const MORE_CHILDREN = new Set([
+  'accounts',
+  'cards',
+  'budgets',
+  'goals',
+  'recurring',
+  'investments',
+  'categories',
+  'reports',
+  'notices',
+  'settings',
+]);
+
+/** Sections whose detail pages (`/<section>/<id>[/…]`) are named by the singular label. */
+const DETAIL_LABELS: Partial<Record<string, ParentLabelKey>> = {
+  cards: 'card',
+  budgets: 'budget',
+  goals: 'goal',
+  groups: 'group',
+};
+
+/**
+ * The page above the current one, as NorteAR's "‹ Parent" link: a fixed place, not the browser
+ * history, so it never leads out of the app or back into a form. None on the bottom bar's pages.
+ */
+export function parentRoute(currentPath: string | undefined): ParentRoute | undefined {
+  if (currentPath === undefined || BOTTOM_ROOTS.includes(currentPath)) return undefined;
+  const parts = currentPath.split('/').filter(Boolean);
+  const [section, second, third] = parts;
+  if (section === undefined) return undefined;
+  const sectionLabel: ParentLabelKey =
+    [GROUPS_ITEM, ...MORE_LIST_ITEMS].find((item) => item.href === `/${section}`)?.labelKey ??
+    'more';
+
+  if (parts.length === 1) {
+    return MORE_CHILDREN.has(section)
+      ? { href: '/more', labelKey: 'more' }
+      : { href: '/', labelKey: 'home' };
+  }
+  // The reports tabs and the settings pages are listed by More themselves.
+  if (section === 'reports' || section === 'settings') return { href: '/more', labelKey: 'more' };
+  // `/categories/spending` is opened from the home ring.
+  if (section === 'categories') return { href: '/', labelKey: 'home' };
+  if (section === 'movements') return { href: '/movements', labelKey: 'movements' };
+
+  const detail = DETAIL_LABELS[section];
+  const isDetailId = second !== undefined && !['new', 'join', 'claim', 'shares'].includes(second);
+  if (parts.length === 2 || !isDetailId || detail === undefined) {
+    return { href: `/${section}`, labelKey: sectionLabel };
+  }
+  // Below a detail page: the settlement editor and the consolidation go back to the payments list.
+  if (section === 'groups' && third === 'settlements' && parts.length > 3) {
+    return { href: `/groups/${second}/settlements`, labelKey: 'settlements' };
+  }
+  return { href: `/${section}/${second}`, labelKey: detail };
+}

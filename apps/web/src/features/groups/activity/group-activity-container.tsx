@@ -4,11 +4,10 @@ import type { ActivityEntry, GroupDetailResponse } from '@pesly/shared';
 import { History } from 'lucide-react';
 import { useLocale, useTimeZone, useTranslations } from 'next-intl';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { buttonVariants } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PageHeader } from '@/components/ui/page-header';
-import { Link, useRouter } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
+import { useRouter } from '@/i18n/navigation';
 import { useApiClient } from '@/lib/api-client-provider';
 import { formatDateTime } from '@/lib/format-amount';
 import { GroupNotFoundView } from '../components/group-not-found';
@@ -198,18 +197,7 @@ export function GroupActivityContainer({ groupId }: { groupId: string }) {
 
   return (
     <div className="grid gap-6">
-      <PageHeader
-        title={t('title')}
-        description={group.name}
-        actions={
-          <Link
-            href={`/groups/${encodeURIComponent(groupId)}`}
-            className={buttonVariants({ variant: 'outline' })}
-          >
-            {t('back')}
-          </Link>
-        }
-      />
+      <PageHeader title={t('title')} description={group.name} />
       {rows.length === 0 ? (
         <EmptyState
           icon={<History aria-hidden="true" />}
