@@ -126,7 +126,7 @@ describe('CategoriesCard', () => {
     const row = screen.getByRole('listitem');
     expect(row.textContent).toContain(longName);
     expect(row.innerHTML).toContain('min-w-0');
-    expect(row.innerHTML).toContain('break-words');
+    expect(row.innerHTML).toContain('wrap-anywhere');
   });
 });
 

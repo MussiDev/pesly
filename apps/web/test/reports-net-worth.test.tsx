@@ -138,8 +138,10 @@ describe('NetWorthScreen gaps and fallbacks', () => {
     // Two isolated months: nothing to join, so no line segment is drawn across the gap.
     expect(container.querySelectorAll('[data-chart-line]')).toHaveLength(0);
     expect(container.querySelectorAll('circle')).toHaveLength(2);
+    // The missing rate is said once for the list, not repeated on every month.
+    expect(screen.getAllByText(en.reports.netWorth.noRateOnce)).toHaveLength(1);
     const list = screen.getByRole('list', { name: en.reports.netWorth.listName });
-    expect(within(list).getByText(en.reports.netWorth.noRate)).toBeDefined();
+    expect(within(list).queryByText(en.reports.netWorth.noRate)).toBeNull();
   });
 
   it('joins consecutive months with a line', () => {
@@ -201,7 +203,7 @@ describe('NetWorthScreen filters and accessibility', () => {
     expect(screen.queryByLabelText(en.reports.filters.account)).toBeNull();
     expect(screen.queryByLabelText(en.reports.filters.tag)).toBeNull();
     expect(screen.queryByText(en.reports.notices.filtered)).toBeNull();
-    expect(screen.getByText(en.reports.currency.changeLink)).toBeDefined();
+    expect(screen.getByText(en.reports.meta.changeCurrency)).toBeDefined();
   });
 
   it('repeats every point in a text list and hides the drawing (AC-45, AC-46)', () => {
@@ -283,7 +285,9 @@ describe('NetWorthContainer', () => {
   it('requests the series once and shows its figures', async () => {
     const { calls } = stubApi({ 'GET /reports/net-worth': { status: 200, body } });
     renderApp(<NetWorthContainer />, { locale: 'en', pathname: '/en/reports/net-worth' });
-    expect(await screen.findByRole('slider')).toBeDefined();
+    // One month with a total: its figure heads the report and no one-dot chart is drawn.
+    expect(await screen.findByText('1,500,000.00 ARS', { selector: 'p' })).toBeDefined();
+    expect(screen.queryByRole('slider')).toBeNull();
     expect(calls.filter((call) => call.path.startsWith('/reports/net-worth'))).toHaveLength(1);
   });
 
@@ -292,7 +296,7 @@ describe('NetWorthContainer', () => {
       'GET /reports/net-worth?from=2026-01-01&to=2026-09-30': { status: 200, body },
     });
     renderApp(<NetWorthContainer />, { search: 'from=2026-01-01&to=2026-09-30&tag=x&accountId=y' });
-    await screen.findByRole('slider');
+    await screen.findByRole('list', { name: es.reports.netWorth.listName });
     expect(calls.map((call) => call.path)).toContain(
       '/reports/net-worth?from=2026-01-01&to=2026-09-30',
     );

@@ -1,13 +1,9 @@
-import type { RingSegmentView } from './report-view';
-
 export interface ShareView {
   /** Whole percent, 0 to 100. */
   percent: number;
   /** A positive row whose share is below 1%. */
   underOne: boolean;
 }
-
-const RING_LARGEST = 5;
 
 /**
  * Whole-percent share of each row by the largest-remainder method, with integers only: every row
@@ -54,30 +50,4 @@ export function computeShares(rows: readonly { amount: bigint }[], total: bigint
     const percent = percents[index] ?? 0;
     return { percent, underOne: row.amount > 0n && percent === 0 };
   });
-}
-
-/**
- * The ring: the five largest positive rows plus one "rest" segment when more remain. A row of 0 or
- * less is not drawn. `restLabel` is the catalog text of the rest segment.
- */
-export function ringSegments(
-  rows: readonly { key: string; label: string; amount: bigint }[],
-  restLabel = '',
-): RingSegmentView[] {
-  const positive = rows
-    .filter((row) => row.amount > 0n)
-    .sort((a, b) => (a.amount === b.amount ? 0 : a.amount > b.amount ? -1 : 1));
-  const segments: RingSegmentView[] = positive
-    .slice(0, RING_LARGEST)
-    .map((row) => ({ key: row.key, label: row.label, amount: row.amount, isRest: false }));
-  const rest = positive.slice(RING_LARGEST);
-  if (rest.length > 0) {
-    segments.push({
-      key: 'rest',
-      label: restLabel,
-      amount: rest.reduce((sum, row) => sum + row.amount, 0n),
-      isRest: true,
-    });
-  }
-  return segments;
 }

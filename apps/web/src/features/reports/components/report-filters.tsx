@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { useId, useRef, useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +51,7 @@ const PRESET_KEY: Record<RangePreset, 'thisMonth' | 'last3' | 'last12' | 'last24
 };
 
 const CHIP =
-  'inline-flex min-h-11 shrink-0 items-center rounded-pill px-4 text-small font-semibold whitespace-nowrap transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
+  'inline-flex min-h-11 flex-auto items-center justify-center rounded-pill px-2 text-small font-medium whitespace-nowrap text-muted-foreground transition-colors outline-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50';
 
 function activeCount(kind: ReportKind, filters: ReportFilterValues): number {
   const range = filters.from !== undefined || filters.to !== undefined ? 1 : 0;
@@ -75,7 +75,6 @@ export function ReportFilters({
   const compact = useCompactViewport();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
-  const fromRef = useRef<HTMLInputElement>(null);
   const flow = kind !== 'netWorth';
 
   // A draft belongs to the filters it was typed over; once those change it no longer applies.
@@ -128,52 +127,39 @@ export function ReportFilters({
       ? filters.accountId
       : undefined;
 
-  const body = (
-    <div className="grid gap-3">
-      <div role="group" aria-label={t('range.label')} className="flex gap-2 overflow-x-auto">
-        {presetsFor(kind).map((entry) => (
-          <button
-            key={entry}
-            type="button"
-            disabled={today === undefined}
-            aria-pressed={preset === entry}
-            className={cn(
-              CHIP,
-              preset === entry
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-foreground hover:bg-surface',
-            )}
-            onClick={() => {
-              if (today === undefined) return;
-              setDraft(null);
-              onChange({ ...filters, ...rangeOfPreset(entry, today) });
-            }}
-          >
-            {t(`range.presets.${PRESET_KEY[entry]}`)}
-          </button>
-        ))}
+  // The quick periods stay in view, as NorteAR's period switch; the rest waits behind "More filters".
+  const presets = (
+    <div
+      role="group"
+      aria-label={t('range.label')}
+      className="flex flex-wrap gap-0.5 rounded-3xl bg-secondary p-0.5"
+    >
+      {presetsFor(kind).map((entry) => (
         <button
+          key={entry}
           type="button"
-          aria-pressed={preset === 'custom'}
-          className={cn(
-            CHIP,
-            preset === 'custom'
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-card text-foreground hover:bg-surface',
-          )}
+          disabled={today === undefined}
+          aria-pressed={preset === entry}
+          className={cn(CHIP, preset === entry && 'bg-card text-foreground shadow-xs')}
           onClick={() => {
-            fromRef.current?.focus();
+            if (today === undefined) return;
+            setDraft(null);
+            onChange({ ...filters, ...rangeOfPreset(entry, today) });
           }}
         >
-          {t('range.custom')}
+          {t(`range.presets.${PRESET_KEY[entry]}`)}
         </button>
-      </div>
+      ))}
+    </div>
+  );
+
+  const body = (
+    <div className="grid gap-3">
       <div className="grid grid-cols-2 gap-3">
         {(['from', 'to'] as const).map((field) => (
           <div key={field} className="grid gap-2">
             <Label htmlFor={`${id}-${field}`}>{t(`range.${field}`)}</Label>
             <Input
-              ref={field === 'from' ? fromRef : undefined}
               id={`${id}-${field}`}
               type="date"
               value={shown[field] ?? ''}
@@ -243,18 +229,19 @@ export function ReportFilters({
     <form
       role="search"
       aria-label={t('range.label')}
-      className="grid gap-3 rounded-card bg-card p-4 text-card-foreground"
+      className="grid gap-2"
       onSubmit={(event) => {
         event.preventDefault();
       }}
     >
+      {presets}
       {compact ? (
         <>
           <button
             type="button"
             aria-expanded={open}
             aria-controls={`${id}-panel`}
-            className="inline-flex min-h-11 items-center text-small font-semibold outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex min-h-11 items-center justify-self-start text-small font-semibold text-primary outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             onClick={() => {
               setOpen((value) => !value);
             }}
@@ -263,12 +250,16 @@ export function ReportFilters({
           </button>
           {/* The panel holds the message while open; collapsed, it still shows beside the toggle. */}
           {open ? null : messageNode}
-          <div id={`${id}-panel`} hidden={!open}>
+          <div
+            id={`${id}-panel`}
+            hidden={!open}
+            className="rounded-card bg-card p-4 text-card-foreground"
+          >
             {open ? body : null}
           </div>
         </>
       ) : (
-        body
+        <div className="rounded-card bg-card p-4 text-card-foreground">{body}</div>
       )}
     </form>
   );

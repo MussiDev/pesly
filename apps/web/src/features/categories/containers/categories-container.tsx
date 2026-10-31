@@ -4,11 +4,15 @@ import {
   categoryIconSchema,
   categoryColorSchema,
   categoryNameSchema,
+  type CategoryKind,
   type CategoryLanguage,
   type CategoryResponse,
 } from '@pesly/shared';
-import { useLocale } from 'next-intl';
+import { Plus } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { PillTabs } from '@/components/ui/pill-tabs';
 import type { ErrorMessageKey } from '@/features/auth/form-errors';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiFailure, UpdateCategoryInput } from '@/lib/api-client';
@@ -36,6 +40,10 @@ export function CategoriesContainer() {
   const router = useRouter();
   const locale = useLocale();
   const language: CategoryLanguage = locale === 'en' ? 'en' : 'es';
+  const t = useTranslations('categories');
+  const [kind, setKind] = useState<CategoryKind>('expense');
+  // The create form waits behind "New", so the list is what the page opens on.
+  const [creating, setCreating] = useState(false);
   const [state, setState] = useState<ListState>({ kind: 'loading' });
   const [showArchived, setShowArchived] = useState(false);
   // `silent` reloads (after an action) keep the list on screen and report failures as an alert.
@@ -87,6 +95,7 @@ export function CategoriesContainer() {
 
   function toggleArchived() {
     clearTransient();
+    setCreating(false);
     setState({ kind: 'loading' });
     setRequest((current) => ({ id: current.id + 1, silent: false }));
     setShowArchived((value) => !value);
@@ -216,18 +225,57 @@ export function CategoriesContainer() {
   }
 
   return (
-    <div className="grid gap-6">
-      {showArchived ? null : (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PillTabs
+          label={t('tabs.label')}
+          options={[
+            { value: 'expense', label: t('sections.expense') },
+            { value: 'income', label: t('sections.income') },
+          ]}
+          value={kind}
+          onChange={(next) => {
+            clearTransient();
+            setKind(next);
+          }}
+        />
+        {showArchived || creating ? null : (
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => {
+              clearTransient();
+              setCreating(true);
+            }}
+          >
+            <Plus aria-hidden />
+            {t('new.open')}
+          </Button>
+        )}
+      </div>
+      {creating && !showArchived ? (
         <CreateCategoryContainer
           categories={state.categories}
           language={language}
-          onCreated={created}
+          defaultKind={kind}
+          onCancel={() => {
+            setCreating(false);
+          }}
+          onCreated={(category) => {
+            created(category);
+            setKind(category.kind);
+            setCreating(false);
+          }}
         />
-      )}
+      ) : null}
       <CategoryList
         categories={state.categories}
         language={language}
         showArchived={showArchived}
+        kind={kind}
+        onCreateFirst={() => {
+          setCreating(true);
+        }}
         pending={pending}
         editingId={editingId}
         confirmingDeleteId={confirmingDeleteId}

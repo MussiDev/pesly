@@ -103,10 +103,7 @@ export function scanPattern(path: string, text: string, pattern: RegExp): string
  * Bounded bigint-to-number conversions that are not an amount: a permille (0..1000) that sizes a bar
  * and a slot index that picks a text. Each is reviewed by hand; any other `Number(` fails the scan.
  */
-const BOUNDED_NUMBER_CONVERSIONS = [
-  'src/features/reports/categories/category-ring.tsx:',
-  'src/features/reports/income-expenses/month-bars.tsx:',
-];
+const BOUNDED_NUMBER_CONVERSIONS = ['src/features/reports/income-expenses/month-bars.tsx:'];
 
 const STORAGE = /\b(?:localStorage|sessionStorage|indexedDB)\b|\bcaches\.|\bserviceWorker\b/;
 const RAW_HTML_OR_LOG = /\bdangerouslySetInnerHTML\b|\binnerHTML\b|\bconsole\./;

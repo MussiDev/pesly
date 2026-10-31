@@ -931,8 +931,10 @@
     }
   },
   "categories": {
+    "tabs": { "label": "Category type" },
     "title": "Categories",
     "new": {
+      "open": "New",
       "title": "New category",
       "description": "Add a category or a subcategory of your own."
     },
@@ -957,6 +959,8 @@
       "pending": "Creating…"
     },
     "list": {
+      "viewActive": "Back to active categories",
+      "viewArchived": "See archived categories",
       "activeTitle": "Active categories",
       "archivedTitle": "Archived categories",
       "empty": "You have no categories yet.",
@@ -968,6 +972,7 @@
       "subcategories": "Subcategories of {name}"
     },
     "actions": {
+      "more": "Actions for {name}",
       "edit": "Edit",
       "editField": "New name of {name}",
       "save": "Save",
@@ -2464,10 +2469,16 @@
   },
   "reports": {
     "title": "Reports",
+    "meta": {
+      "period": "{from} – {to}",
+      "currency": "in {currency}",
+      "currencyNote": "Amounts are in your profile currency.",
+      "changeCurrency": "Change currency"
+    },
     "tabs": {
       "label": "Report sections",
-      "categories": "Expenses by category",
-      "incomeExpenses": "Income vs expenses",
+      "categories": "Categories",
+      "incomeExpenses": "Income & expenses",
       "netWorth": "Net worth"
     },
     "range": {
@@ -2478,9 +2489,9 @@
       "custom": "Custom range",
       "presets": {
         "thisMonth": "This month",
-        "last3": "Last 3 months",
-        "last12": "Last 12 months",
-        "last24": "Last 24 months"
+        "last3": "3 months",
+        "last12": "12 months",
+        "last24": "24 months"
       },
       "resolved": "Showing {from} to {to}",
       "limit": "{months, plural, one {The range can cover up to # month.} other {The range can cover up to # months.}}",
@@ -2491,7 +2502,7 @@
       }
     },
     "filters": {
-      "toggle": "{count, plural, =0 {Filters} one {Filters (# active)} other {Filters (# active)}}",
+      "toggle": "{count, plural, =0 {More filters} other {More filters (#)}}",
       "account": "Account",
       "allAccounts": "All accounts",
       "archivedAccount": "{name} (archived)",
@@ -2525,6 +2536,7 @@
       "badRangeMessage": "The date range is not valid. Check the dates and try again."
     },
     "categories": {
+      "centre": "Spent",
       "title": "Expenses by category",
       "total": "Total expenses",
       "other": "Other categories",
@@ -2537,15 +2549,23 @@
       "listName": "Expenses by category"
     },
     "incomeExpenses": {
+      "quietMonths": "{count, plural, one {# month without movements is not shown.} other {# months without movements are not shown.}}",
+      "chartTitle": "Income and expenses by month",
+      "savingsNone": "No income",
+      "savingsPercent": "{percent}%",
+      "savings": "Saved",
       "title": "Income and expenses",
       "income": "Income",
       "expenses": "Expenses",
-      "net": "Net result",
+      "net": "Result",
       "chartName": "Income against expenses by month chart",
       "chartSummary": "From {from} to {to}, {months, plural, one {# month} other {# months}}.",
-      "listName": "Income and expenses by month"
+      "listName": "Month by month"
     },
     "netWorth": {
+      "noRateOnce": "Months without a stored exchange rate show pesos and dollars apart, with no total.",
+      "history": "Month by month",
+      "latest": "Net worth on {date}",
       "title": "Net worth",
       "date": "Date",
       "ars": "In pesos",
@@ -2564,7 +2584,6 @@
   },
   "categorySpending": {
     "title": "Category spending",
-    "back": "Home",
     "loading": "Loading the category's spending…",
     "failed": "We couldn't load this category's spending.",
     "retry": "Try again",

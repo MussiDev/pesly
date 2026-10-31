@@ -3,6 +3,7 @@ import type {
   IncomeExpensesResponse,
   NetWorthResponse,
 } from '@pesly/shared';
+import { DEFAULT_CATEGORIES } from '@pesly/shared';
 import type { Locale } from '@/i18n/routing';
 import { categoryRowLabel, type CategoryNameLabels } from './category-names';
 import type {
@@ -30,6 +31,7 @@ export function toCategoriesView(
       key: row.categoryId ?? row.defaultKey ?? `row-${index}`,
       label: categoryRowLabel(row, locale, labels),
       amount: toAmount(row.amount),
+      color: DEFAULT_CATEGORIES.find((entry) => entry.key === row.defaultKey)?.color,
     }))
     .sort((a, b) =>
       a.amount === b.amount ? a.label.localeCompare(b.label, locale) : a.amount > b.amount ? -1 : 1,

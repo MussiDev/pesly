@@ -181,7 +181,7 @@ describe('IncomeExpensesContainer', () => {
   it('shows the currency note with the answer currency', async () => {
     show({ [REPORT]: answer(months('2025-11', 3), { currency: 'USD' }) });
     await screen.findByRole('list', { name: en.reports.incomeExpenses.listName });
-    expect(screen.getByText(/Amounts are in USD/)).toBeDefined();
+    expect(screen.getByText(/· in USD$/)).toBeDefined();
   });
 
   it('carries the same figures in the list and in the chart summary (AC-45, AC-46)', async () => {
@@ -213,7 +213,7 @@ describe('IncomeExpensesContainer', () => {
     expect(bars('expenses')).toHaveLength(24);
   });
 
-  it('keeps the order received', async () => {
+  it('lists the newest month first', async () => {
     show({
       [REPORT]: answer([
         { month: '2026-03', income: '100', expenses: '0' },
@@ -222,8 +222,8 @@ describe('IncomeExpensesContainer', () => {
     });
     const list = await screen.findByRole('list', { name: en.reports.incomeExpenses.listName });
     const items = within(list).getAllByRole('listitem');
-    expect(items[0]?.textContent).toMatch(/March/);
-    expect(items[1]?.textContent).toMatch(/January/);
+    expect(items[0]?.textContent).toMatch(/January/);
+    expect(items[1]?.textContent).toMatch(/March/);
   });
 
   it('renders the language in Spanish: labels, notice and amount format (AC-49)', async () => {
@@ -295,11 +295,9 @@ describe('IncomeExpensesContainer', () => {
     const expenses = document.querySelector('svg [data-bar="expenses"]');
     expect(income?.getAttribute('fill')).toBeNull();
     expect(expenses?.getAttribute('fill')).toMatch(/^url\(#/);
-    const svgText = Array.from(document.querySelectorAll('svg text')).map(
-      (node) => node.textContent,
-    );
-    expect(svgText).toContain(en.reports.incomeExpenses.income);
-    expect(svgText).toContain(en.reports.incomeExpenses.expenses);
+    const legend = screen.getByText(en.reports.incomeExpenses.expenses, { selector: 'span' });
+    expect(legend.querySelector('svg > rect')?.getAttribute('fill')).toMatch(/^url\(#/);
+    expect(screen.getByText(en.reports.incomeExpenses.income, { selector: 'span' })).toBeDefined();
   });
 
   it('scales bars by integer permille: the largest value fills the plot, the smaller one a share', async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import type {
   CategoryDetailItem,
@@ -242,13 +242,6 @@ export function CategorySpendingScreen({
 
   return (
     <div className="grid gap-4">
-      <Link
-        href="/"
-        className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), '-ml-2 justify-self-start')}
-      >
-        <ArrowLeft aria-hidden />
-        {t('back')}
-      </Link>
       <header className="grid gap-2">
         {monthLabel === undefined ? null : (
           <div className="flex items-center justify-between gap-2">
