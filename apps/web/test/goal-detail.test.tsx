@@ -339,6 +339,7 @@ describe('GoalDetailContainer', () => {
       within(row).getByText(formatDateTime('2026-10-10T12:00:00.000Z', 'UTC', 'es')),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: es.goals.detail.edit })).toBeTruthy();
-    expect(screen.getByRole('link', { name: es.goals.detail.back })).toBeTruthy();
+    // The shell's "‹ Goals" link goes back; the header carries no second one.
+    expect(screen.queryByRole('link', { name: es.goals.detail.back })).toBeNull();
   });
 });
