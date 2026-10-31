@@ -43,8 +43,8 @@ export function NetWorthCard({
   // Amounts in another currency would be labeled with the wrong one, so that series is not shown.
   const showSeries = series.kind === 'ready' && series.currency === currency;
   const drawnCount = series.kind === 'ready' && showSeries ? drawnPoints(series.points).length : 0;
-  // With no rate neither figure converts: one notice for the card instead of one per figure, and
-  // no chart saying the same a third time (signal-to-noise).
+  // With no rate neither figure converts. Each figure keeps its own notice (AC-05, AC-21); the
+  // chart, which could only say the same a third time, is left out (signal-to-noise).
   const noneConverted = netWorth.total === null && available.total === null;
   const chartShown = showSeries && !(noneConverted && drawnCount === 0);
   const reportLink = (
@@ -71,7 +71,6 @@ export function NetWorthCard({
           ars={netWorth.ars}
           usd={netWorth.usd}
           figureClass="text-display font-bold"
-          showUnavailable={!noneConverted}
         />
         <FigureBlock
           locale={locale}
@@ -86,13 +85,7 @@ export function NetWorthCard({
           ars={available.ars}
           usd={available.usd}
           figureClass="text-title font-bold"
-          showUnavailable={!noneConverted}
         />
-        {noneConverted ? (
-          <p className="basis-full text-small text-hero-muted">
-            {t('netWorth.conversionUnavailable')}
-          </p>
-        ) : null}
       </div>
       {chartShown || series.kind === 'failed' || netWorth.holdingsWithoutPrice > 0 ? (
         <Card className="min-w-0">
@@ -134,7 +127,6 @@ function FigureBlock({
   usd,
   figureClass,
   groupLabelId,
-  showUnavailable = true,
 }: {
   locale: Locale;
   currency: Currency;
@@ -144,8 +136,6 @@ function FigureBlock({
   usd: bigint;
   figureClass: string;
   groupLabelId?: string;
-  /** False when the card says it once for both figures. */
-  showUnavailable?: boolean;
 }) {
   const t = useTranslations('dashboard');
   return (
@@ -157,9 +147,7 @@ function FigureBlock({
       <div className="grid min-w-0 gap-1">
         {title}
         {total === null ? (
-          showUnavailable ? (
-            <p className="text-small text-hero-muted">{t('netWorth.conversionUnavailable')}</p>
-          ) : null
+          <p className="text-small text-hero-muted">{t('netWorth.conversionUnavailable')}</p>
         ) : (
           <p className={`min-w-0 break-words ${figureClass}`}>
             <MoneyText text={formatMoney(total, currency, locale)} />

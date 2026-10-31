@@ -100,14 +100,14 @@ describe('NetWorthCard figures', () => {
     expect(screen.getAllByText('In dollars')).toHaveLength(2);
   });
 
-  it('says once that nothing converts when neither figure has a rate, and drops the empty chart', () => {
+  it('keeps one notice per figure when neither converts, and drops the empty chart (AC-05, AC-21)', () => {
     renderCard({
       netWorth: netWorth({ total: null, reason: 'no_rate' }),
       available: available({ total: null, reason: 'no_rate' }),
       series: ready(series(3, () => null)),
     });
     expect(screen.getAllByText(CATALOGS.en.dashboard.netWorth.conversionUnavailable)).toHaveLength(
-      1,
+      2,
     );
     expect(screen.queryByText(CATALOGS.en.dashboard.chart.noConvertedPoint)).toBeNull();
     expect(
