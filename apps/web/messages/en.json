@@ -1545,6 +1545,7 @@
       }
     },
     "settlements": {
+      "listLabel": "Recorded payments",
       "title": "Settlements",
       "back": "Back to group",
       "parties": "{payer} paid {payee}",

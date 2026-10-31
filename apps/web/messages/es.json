@@ -1545,6 +1545,7 @@
       }
     },
     "settlements": {
+      "listLabel": "Pagos registrados",
       "title": "Pagos entre miembros",
       "back": "Volver al grupo",
       "parties": "{payer} le pagó a {payee}",

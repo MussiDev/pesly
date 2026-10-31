@@ -270,7 +270,10 @@ test('the history pages with load more and repeats nothing (AC-19)', async ({ br
       });
     }
     await pair.pageA.goto(`/es/groups/${pair.groupId}/settlements`);
-    const rows = pair.pageA.locator('main ul > li');
+    // The history list itself: the totals card above it is a list too.
+    const rows = pair.pageA
+      .getByRole('list', { name: t.settlements.listLabel })
+      .locator(':scope > li');
     await expect(rows).toHaveCount(50);
     await pair.pageA.getByRole('button', { name: t.settlements.loadMore }).click();
     await expect(rows).toHaveCount(51);
@@ -317,7 +320,9 @@ test('the balances, the form, the consolidation and the history fit 360 px, and 
 
     await pageA.goto(`/es/groups/${groupId}/settlements`);
     await expect(pageA.getByText(t.settlements.consolidated)).toHaveCount(0);
-    await expect(pageA.locator('main ul > li')).toHaveCount(1);
+    await expect(
+      pageA.getByRole('list', { name: t.settlements.listLabel }).locator(':scope > li'),
+    ).toHaveCount(1);
     expect(await scrollsHorizontally(pageA)).toBe(false);
 
     // NFR-03, AC-22: the same screens in English.
