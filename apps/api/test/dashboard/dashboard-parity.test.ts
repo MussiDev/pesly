@@ -51,7 +51,12 @@ describe('the dashboard against the 09a reports and the budgets endpoint', () =>
 
     expect(dashboard.today).toBe('2026-10-10');
     expect(expenses.total).not.toBe('0');
-    expect(dashboard.month.expenses).toBe(expenses.total);
+    // The report counts unpaid card statements in their due month; the dashboard month shows them
+    // apart as pending on cards (FEAT-015), so the two add up to the report.
+    expect(dashboard.month.pendingCard.amount).not.toBe('0');
+    expect(
+      (BigInt(dashboard.month.expenses) + BigInt(dashboard.month.pendingCard.amount)).toString(),
+    ).toBe(expenses.total);
     const last = netWorth.points.at(-1);
     expect(last?.date).toBe('2026-10-10');
     // The 09a chart values the investments from snapshots (none here); the dashboard values them live.

@@ -288,6 +288,13 @@
       "when": 1792780077683,
       "tag": "0041_group_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1793539459811,
+      "tag": "0042_card_category_rules",
+      "breakpoints": true
     }
   ]
 }

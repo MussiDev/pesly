@@ -92,6 +92,12 @@ export const dashboardMonthSchema = z.object({
   }),
   unconvertedShareCount: z.number().int().min(0),
   unconvertedInstallmentCount: z.number().int().min(0),
+  /** Card amounts of this month's statements that still owe money, left out of the expenses. */
+  pendingCard: z.object({
+    amount: exactIntegerStringSchema,
+    nextDueDate: localDateSchema.nullable(),
+    unconvertedCount: z.number().int().min(0),
+  }),
 });
 export type DashboardMonth = z.infer<typeof dashboardMonthSchema>;
 

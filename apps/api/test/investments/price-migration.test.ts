@@ -33,6 +33,7 @@ const NEWER_TAGS = [
   '0039_push_notifications',
   '0040_balance_adjustments',
   '0041_group_notices',
+  '0042_card_category_rules',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',

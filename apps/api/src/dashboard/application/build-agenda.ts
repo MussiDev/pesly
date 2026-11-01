@@ -1,9 +1,13 @@
 import type { UpcomingEntry } from '../../recurring';
 import type { AccessScope } from '../../shared/access';
-import { routeAgenda, type Agenda, type AgendaRecurringEntry } from '../domain/agenda';
+import {
+  routeAgenda,
+  type Agenda,
+  type AgendaRecurringEntry,
+  type DueStatement,
+} from '../domain/agenda';
 import type { DashboardContext } from './dashboard-context';
 import type { AccountCurrencyReader } from './ports/account-currency-reader';
-import type { CardStatementSource } from './ports/card-statement-source';
 
 /** The recurring source: a `ListUpcoming` built for the request, over its `ContextTimeZones`. */
 export interface UpcomingSource {
@@ -13,18 +17,21 @@ export interface UpcomingSource {
 export interface AgendaDependencies {
   upcoming: (context: DashboardContext) => UpcomingSource;
   currencies: AccountCurrencyReader;
-  statements: CardStatementSource;
 }
 
-/** The upcoming and actions sections (FR-09, FR-10); both lists fail together with any source. */
+/**
+ * The upcoming and actions sections (FR-09, FR-10); both lists fail together with any source. The
+ * owed statements are read once by the caller and shared with the month (FEAT-015 NFR-01).
+ */
 export async function buildAgenda(
   deps: AgendaDependencies,
   scope: AccessScope,
   context: DashboardContext,
+  owedStatements: Promise<readonly DueStatement[]>,
 ): Promise<Agenda> {
   const [recurring, statements] = await Promise.all([
     deps.upcoming(context).execute(scope),
-    deps.statements.dueStatements(scope, context.today, context.preferences.timeZone),
+    owedStatements,
   ]);
   const accountIds = [...new Set(recurring.map((entry) => entry.accountId))];
   const currencies = await deps.currencies.currenciesOf(scope, accountIds);

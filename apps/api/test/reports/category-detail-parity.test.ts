@@ -107,7 +107,14 @@ describe('GET /reports/category-detail', () => {
     expect(response.status).toBe(200);
     const detail = categoryDetailResponseSchema.parse(response.body);
 
-    expect(detail.total).toBe(food?.amount);
+    // The dashboard month leaves the purchase and the installment of the unpaid statement due
+    // 2026-10-09 out as pending on cards (FEAT-015); the detail lists every part of the due month.
+    const pendingOnCards = detail.items
+      .filter((item) => item.source === 'cardPurchase' || item.source === 'installment')
+      .reduce((sum, item) => sum + BigInt(item.amount ?? '0'), 0n);
+    expect(pendingOnCards).toBe(800000n);
+    expect(dashboard.month.pendingCard.amount).toBe('800000');
+    expect((BigInt(food?.amount ?? '0') + pendingOnCards).toString()).toBe(detail.total);
     expect(detail.currency).toBe('ARS');
     const sources = detail.items.map((item) => item.source).sort();
     expect(sources).toEqual([

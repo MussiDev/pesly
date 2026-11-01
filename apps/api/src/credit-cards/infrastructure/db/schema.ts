@@ -302,3 +302,36 @@ export const cardAutomaticDebits = pgTable(
     index('card_automatic_debits_owner_idx').on(table.ownerId),
   ],
 );
+
+/**
+ * What the user taught the statement import (FEAT-016): the category of each merchant, keyed by the
+ * merchant key of the line description (`merchantKey` in `packages/shared`). One row per merchant,
+ * replaced by the latest import. The composite key refuses an income category; deleting the
+ * category or the user deletes the rule.
+ */
+export const cardCategoryRules = pgTable(
+  'card_category_rules',
+  {
+    ownerId: uuid('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    merchantKey: text('merchant_key').notNull(),
+    categoryId: uuid('category_id').notNull(),
+    categoryKind: text('category_kind').notNull().default('expense'),
+    updatedAt: timestamptz('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ name: 'card_category_rules_pk', columns: [table.ownerId, table.merchantKey] }),
+    check(
+      'card_category_rules_merchant_key_check',
+      sql`char_length(${table.merchantKey}) between 1 and 80`,
+    ),
+    check('card_category_rules_category_kind_check', sql`${table.categoryKind} = 'expense'`),
+    foreignKey({
+      name: 'card_category_rules_category_owner_kind_fk',
+      columns: [table.categoryId, table.ownerId, table.categoryKind],
+      foreignColumns: [categories.id, categories.ownerId, categories.kind],
+    }).onDelete('cascade'),
+    index('card_category_rules_category_idx').on(table.categoryId),
+  ],
+);

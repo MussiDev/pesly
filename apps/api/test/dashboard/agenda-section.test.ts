@@ -66,10 +66,15 @@ class FakeStatements implements CardStatementSource {
     private readonly failure?: Error,
   ) {}
 
-  dueStatements(_scope: AccessScope, today: string, timeZone: string) {
+  owedStatements(_scope: AccessScope, today: string, timeZone: string) {
     this.calls.push({ today, timeZone });
     return this.failure ? Promise.reject(this.failure) : Promise.resolve(this.rows);
   }
+}
+
+/** What `GetDashboard` hands the agenda: the source read once for today and the stored zone. */
+function owedOf(deps: { statements: CardStatementSource }, scope: AccessScope) {
+  return deps.statements.owedStatements(scope, context.today, context.preferences.timeZone);
 }
 
 function build(
@@ -99,6 +104,7 @@ describe('buildAgenda', () => {
       cardId: uuid(101),
       cardName: 'Visa',
       statementId: uuid(201),
+      period: '2026-09',
       dueDate: '2026-10-08',
       closed: true,
       owed: { ARS: 7n, USD: 0n },
@@ -112,7 +118,7 @@ describe('buildAgenda', () => {
       new FakeStatements([statement]),
     );
 
-    const result = await buildAgenda(deps, scope, context);
+    const result = await buildAgenda(deps, scope, context, owedOf(deps, scope));
 
     expect(result.upcoming).toEqual([
       expect.objectContaining({ paymentId: uuid(3), currency: 'ARS', date: '2026-10-09' }),
@@ -127,17 +133,6 @@ describe('buildAgenda', () => {
     expect(upcomingCalls).toEqual([context]);
   });
 
-  it('asks the statement source for today and the stored zone', async () => {
-    const scope = await readScope(USER);
-    const statements = new FakeStatements();
-
-    await buildAgenda(build([], statements).deps, scope, context);
-
-    expect(statements.calls).toEqual([
-      { today: '2026-10-06', timeZone: 'America/Argentina/Buenos_Aires' },
-    ]);
-  });
-
   it('throws for an entry whose account is unknown and guesses no currency (FR-16)', async () => {
     const scope = await readScope(USER);
     const { deps } = build(
@@ -146,13 +141,15 @@ describe('buildAgenda', () => {
       new FakeCurrencies(new Map()),
     );
 
-    await expect(buildAgenda(deps, scope, context)).rejects.toThrow(/account/i);
+    await expect(buildAgenda(deps, scope, context, owedOf(deps, scope))).rejects.toThrow(
+      /account/i,
+    );
   });
 
   it('rejects the whole section when the statement source fails (FR-16)', async () => {
     const scope = await readScope(USER);
     const { deps } = build([entry(1)], new FakeStatements([], new Error('boom')));
 
-    await expect(buildAgenda(deps, scope, context)).rejects.toThrow('boom');
+    await expect(buildAgenda(deps, scope, context, owedOf(deps, scope))).rejects.toThrow('boom');
   });
 });

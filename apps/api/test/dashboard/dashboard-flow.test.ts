@@ -150,20 +150,23 @@ describe('GET /dashboard over the real routes and PostgreSQL', () => {
     expect(body.month).toMatchObject({
       from: '2026-10-01',
       to: '2026-10-06',
-      expenses: '6700000',
+      // The 5,000.00 installment of the statement due 2026-10-09 is not paid yet, so it is pending
+      // on cards and not an expense of the month (FEAT-015).
+      expenses: '6200000',
       income: '8000000',
-      net: '1300000',
-      change: { expenses: 570, income: 33, net: -74 },
+      net: '1800000',
+      change: { expenses: 520, income: 33, net: -64 },
+      pendingCard: { amount: '500000', nextDueDate: '2026-10-09', unconvertedCount: 0 },
     });
     expect(body.categories.map((row) => [row.categoryId, row.amount, row.sharePercent])).toEqual([
-      [world.food, '5300000', 79],
-      [null, '1000000', 14],
-      [world.fun, '400000', 5],
+      [world.food, '4800000', 77],
+      [null, '1000000', 16],
+      [world.fun, '400000', 6],
     ]);
 
     expect(body.budgets.map((row) => [row.budgetId, row.percentUsed, row.status])).toEqual([
-      // 5,300,000 of 3,000,000: the same food total as the categories above, now that the
-      // 5,000.00 installment of the statement due 2026-10-09 counts in October.
+      // 5,300,000 of 3,000,000: budgets still count the 5,000.00 installment of the statement due
+      // 2026-10-09 in October, paid or not; only the dashboard month leaves it pending (FEAT-015).
       [world.foodBudgetId, 176, 'over'],
       [world.funBudgetId, 80, 'close'],
     ]);

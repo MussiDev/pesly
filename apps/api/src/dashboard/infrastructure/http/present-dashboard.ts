@@ -40,6 +40,11 @@ export function presentDashboard(sections: DashboardSections): DashboardResponse
       change: month.month.change,
       unconvertedShareCount: month.month.unconvertedShareCount,
       unconvertedInstallmentCount: month.month.unconvertedInstallmentCount,
+      pendingCard: {
+        amount: month.month.pendingCard.amount.toString(),
+        nextDueDate: month.month.pendingCard.nextDueDate,
+        unconvertedCount: month.month.pendingCard.unconvertedCount,
+      },
     },
     categories: month.categories.map((row) => ({ ...row, amount: row.amount.toString() })),
     budgets: budgets.map((budget) => ({

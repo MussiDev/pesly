@@ -1,6 +1,6 @@
 'use client';
 
-import type { StatementImportResponse } from '@pesly/shared';
+import type { CategorySuggestion, StatementImportResponse } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -41,6 +41,11 @@ export interface StatementImportViewProps {
   includeFees: boolean;
   categoryId: string;
   categoryError: boolean;
+  /** The category chosen for each line, by its index in the statement; absent means "general". */
+  lineCategories: ReadonlyMap<number, string>;
+  /** What Pesly suggested for each line, by index, to say where a pre-filled category came from. */
+  suggestions: ReadonlyMap<number, CategorySuggestion>;
+  onLineCategory: (index: number, categoryId: string) => void;
   pending: boolean;
   tooMany: boolean;
   alert: StatementImportAlert | undefined;
@@ -246,6 +251,9 @@ function Preview({
                 <th scope="col" className="p-2">
                   {t('preview.status')}
                 </th>
+                <th scope="col" className="p-2">
+                  {t('category.column')}
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -268,6 +276,20 @@ function Preview({
                     <Badge variant={chosen.has(line) ? 'success' : 'outline'}>
                       {t(`status.${statusKey(line, chosen.has(line))}`)}
                     </Badge>
+                  </td>
+                  <td className="min-w-48 p-2">
+                    {chosen.has(line) ? (
+                      <LineCategory
+                        description={line.description}
+                        value={props.lineCategories.get(index) ?? ''}
+                        suggestion={props.suggestions.get(index)}
+                        categories={props.categories}
+                        disabled={props.pending}
+                        onChange={(id) => {
+                          props.onLineCategory(index, id);
+                        }}
+                      />
+                    ) : null}
                   </td>
                 </tr>
               ))}
@@ -307,6 +329,8 @@ function Preview({
           ) : null}
         </div>
 
+        <p className="text-small text-muted-foreground">{t('category.hint')}</p>
+
         <MovementField
           label={t('category.label')}
           error={props.categoryError ? 'creditCards.import.category.required' : undefined}
@@ -344,5 +368,47 @@ function Preview({
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+/** The category of one line: pre-filled with the suggestion, which it names while it is kept. */
+function LineCategory({
+  description,
+  value,
+  suggestion,
+  categories,
+  disabled,
+  onChange,
+}: {
+  description: string;
+  value: string;
+  suggestion: CategorySuggestion | undefined;
+  categories: readonly StatementImportCategoryOption[];
+  disabled: boolean;
+  onChange: (categoryId: string) => void;
+}) {
+  const t = useTranslations('creditCards.import.category');
+  const kept = suggestion !== undefined && suggestion.categoryId === value;
+  return (
+    <div className="grid gap-1">
+      <Select
+        aria-label={t('lineLabel', { description })}
+        value={value}
+        disabled={disabled}
+        onChange={(event) => {
+          onChange(event.currentTarget.value);
+        }}
+      >
+        <option value="">{t('useDefault')}</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.label}
+          </option>
+        ))}
+      </Select>
+      {kept ? (
+        <span className="text-caption text-muted-foreground">{t(suggestion.source)}</span>
+      ) : null}
+    </div>
   );
 }

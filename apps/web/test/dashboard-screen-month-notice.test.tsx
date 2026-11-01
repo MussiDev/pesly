@@ -16,6 +16,7 @@ function view(leftOutCount: number): DashboardView {
       income: { value: 200n, change: null },
       net: { value: 100n, change: null },
       leftOutCount,
+      pendingCard: { value: 0n, nextDueDate: null, leftOutCount: 0 },
     },
     categories: [],
     budgets: [],
@@ -55,15 +56,15 @@ describe('DashboardScreen month notice (FR-16, AC-32)', () => {
 
   it('says it in Spanish with the Spanish interface', () => {
     const { container } = renderScreen(0, 'es');
-    expect(container.textContent).toContain(es.cardPurchasesNote.text);
+    expect(container.textContent).toContain(es.cardPurchasesNote.paidText);
   });
 
   it('says in which month a card purchase counts, with or without anything left out', () => {
     const left = renderScreen(3);
-    expect(left.container.textContent).toContain(en.cardPurchasesNote.text);
+    expect(left.container.textContent).toContain(en.cardPurchasesNote.paidText);
     left.unmount();
     const none = renderScreen(0);
-    expect(none.container.textContent).toContain(en.cardPurchasesNote.text);
+    expect(none.container.textContent).toContain(en.cardPurchasesNote.paidText);
     expect(none.container.querySelector('[data-slot="card-purchases-note"]')).not.toBeNull();
   });
 });

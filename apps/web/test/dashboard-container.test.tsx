@@ -65,6 +65,7 @@ function dashboardBody(patch: Record<string, unknown> = {}) {
       change: { expenses: 20, income: null, net: -5 },
       unconvertedShareCount: 0,
       unconvertedInstallmentCount: 0,
+      pendingCard: { amount: '0', nextDueDate: null, unconvertedCount: 0 },
     },
     categories: [
       { categoryId: null, defaultKey: 'food', name: null, amount: '8000000', sharePercent: 33 },
@@ -250,6 +251,32 @@ describe('DashboardContainer ready screen', () => {
     expect(screen.getByText(es.dashboard.groups.title)).toBeDefined();
     expect(screen.getByText(es.dashboard.attention.title)).toBeDefined();
     expect(screen.getByRole('list', { name: es.home.quickActions.label })).toBeDefined();
+  });
+
+  it('shows the pending card amount and its due date beside the month (FEAT-015 AC-02, AC-03)', async () => {
+    const base = dashboardBody();
+    const body = {
+      ...base,
+      month: {
+        ...base.month,
+        pendingCard: { amount: '15000000', nextDueDate: '2026-10-20', unconvertedCount: 0 },
+      },
+    };
+    stubApi({ ...OK, [DASHBOARD]: { status: 200, body } });
+    renderApp(<DashboardContainer />);
+
+    const note = await screen.findByText(es.dashboard.month.pendingCard.label, { exact: false });
+    expect(note.textContent).toContain(money(15000000n, 'ARS', 'es'));
+    expect(screen.getByText(es.dashboard.month.pendingCard.reason)).toBeDefined();
+    expect(screen.getByText(es.cardPurchasesNote.paidText)).toBeDefined();
+  });
+
+  it('shows no pending card line when nothing is pending (FEAT-015 AC-08)', async () => {
+    stubApi(OK);
+    renderApp(<DashboardContainer />);
+
+    await screen.findByText(es.dashboard.month.expenses);
+    expect(screen.queryByText(es.dashboard.month.pendingCard.reason)).toBeNull();
   });
 
   it('renders in English with English amounts (AC-47)', async () => {

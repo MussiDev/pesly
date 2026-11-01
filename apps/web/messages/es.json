@@ -539,9 +539,15 @@
         "differs": "Las líneas elegidas no suman el total del resumen. Igual podés importarlas; revisá el archivo antes si esperabas que coincidan."
       },
       "category": {
-        "label": "Categoría para todas las líneas",
+        "label": "Categoría para las líneas sin categoría",
         "placeholder": "Elegí una categoría",
-        "required": "Elegí una categoría."
+        "required": "Elegí una categoría para las líneas que no tienen una.",
+        "column": "Categoría",
+        "lineLabel": "Categoría de {description}",
+        "useDefault": "Usar la categoría general",
+        "learned": "Según tus importaciones anteriores",
+        "keyword": "Sugerida por el comercio",
+        "hint": "Pesly sugiere una categoría por línea y recuerda lo que elijas para la próxima vez."
       },
       "tooMany": "Una importación acepta como máximo 300 líneas.",
       "submit": "Importar {count, plural, one {# línea} other {# líneas}}",
@@ -2409,7 +2415,13 @@
       "net": "Resultado neto",
       "comparison": "Comparado con el mismo período del mes anterior",
       "leftOut": "{count, plural, one {# parte o cuota queda afuera.} other {# partes o cuotas quedan afuera.}}",
-      "leftOutReason": "Están en otra moneda y no tienen cotización congelada."
+      "leftOutReason": "Están en otra moneda y no tienen cotización congelada.",
+      "pendingCard": {
+        "label": "Pendiente de tarjetas:",
+        "due": "Próximo vencimiento: {date}",
+        "leftOut": "{count, plural, one {# cuota sin cotización no está sumada.} other {# cuotas sin cotización no están sumadas.}}",
+        "reason": "No cuenta en Gastos hasta que se pague o se debite el resumen."
+      }
     },
     "delta": {
       "favorable": "Favorable",
@@ -2489,7 +2501,8 @@
     }
   },
   "cardPurchasesNote": {
-    "text": "Las compras con tarjeta cuentan en el mes de vencimiento de su resumen."
+    "text": "Las compras con tarjeta cuentan en el mes de vencimiento de su resumen.",
+    "paidText": "Las compras con tarjeta cuentan en el mes de vencimiento de su resumen, una vez que el resumen está pago."
   },
   "reports": {
     "title": "Reportes",

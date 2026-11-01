@@ -24,6 +24,7 @@ const ALL_TABLES = [
   'budget_versions',
   'budgets',
   'card_automatic_debits',
+  'card_category_rules',
   'card_statement_import_lines',
   'categories',
   'category_defaults_seeded',

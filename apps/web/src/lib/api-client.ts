@@ -142,6 +142,7 @@ import {
   type SetAccountBalanceResponse,
   cardExpenseResponseSchema,
   statementImportResponseSchema,
+  cardCategoryRulesResponseSchema,
   creditCardResponseSchema,
   listCreditCardsResponseSchema,
   installmentPurchaseResponseSchema,
@@ -177,6 +178,7 @@ import {
   type CreateCardExpenseRequest,
   type CreateStatementImportRequest,
   type StatementImportResponse,
+  type CardCategoryRulesResponse,
   type CreateInstallmentPurchaseRequest,
   type CreateStatementPaymentRequest,
   type StatementPaymentResponse,
@@ -730,6 +732,8 @@ export interface ApiClient {
     cardId: string,
     body: CreateStatementImportRequest,
   ): Promise<ApiResult<StatementImportResponse>>;
+  /** The merchant categories learned from earlier statement imports (FEAT-016). */
+  listCardCategoryRules(): Promise<ApiResult<CardCategoryRulesResponse>>;
   /** Pays a statement: a transfer to the card's linked account of the currency; needs a connection. */
   recordStatementPayment(
     cardId: string,
@@ -1564,6 +1568,13 @@ export function createApiClient({
           refreshOnUnauthenticated: true,
         }),
       ),
+    listCardCategoryRules: () =>
+      request({
+        method: 'GET',
+        path: '/credit-cards/category-rules',
+        response: cardCategoryRulesResponseSchema,
+        refreshOnUnauthenticated: true,
+      }),
     createStatementImport: (cardId, body) =>
       onCreditCard(cardId, (path) =>
         request({

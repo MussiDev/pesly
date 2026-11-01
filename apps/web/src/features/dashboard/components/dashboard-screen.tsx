@@ -14,6 +14,7 @@ import { KpiCards } from './kpi-cards';
 import { CardPurchasesNote } from '@/components/card-purchases-note';
 import { MonthNotice } from './month-notice';
 import { NetWorthCard, type SeriesState } from './net-worth-card';
+import { PendingCardNote } from './pending-card-note';
 import { UpcomingCard } from './upcoming-card';
 
 export type SlotName =
@@ -112,7 +113,12 @@ export function DashboardScreen({ locale, view, series, attention }: DashboardSc
           <div className="grid min-w-0 content-start gap-3">
             <KpiCards locale={locale} currency={view.currency} month={view.month} />
             <MonthNotice count={view.month.leftOutCount} />
-            <CardPurchasesNote />
+            <PendingCardNote
+              locale={locale}
+              currency={view.currency}
+              pending={view.month.pendingCard}
+            />
+            <CardPurchasesNote rule="paid" />
           </div>
         ),
         quickActions: <QuickActions />,

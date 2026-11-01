@@ -3,6 +3,7 @@ import type { Statement, StatementView } from '../domain/credit-card';
 import type { StatementInstallmentView } from '../domain/installment';
 import type { StatementTotals } from '../domain/statement-assignment';
 import type { AccountActivity } from './ports/account-activity';
+import type { CardCategoryRules } from './ports/card-category-rules';
 import type { CardPayments } from './ports/card-payments';
 import type { CardPurchases } from './ports/card-purchases';
 import type { Clock } from './ports/clock';
@@ -29,6 +30,7 @@ export interface CreditCardDependencies {
   cardPayments: CardPayments;
   paymentRecorder: StatementPaymentRecorder;
   statementImports: StatementImportRepository;
+  categoryRules: CardCategoryRules;
   debitAccounts: DebitAccounts;
 }
 

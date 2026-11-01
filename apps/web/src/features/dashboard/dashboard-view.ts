@@ -31,6 +31,16 @@ export interface MonthView {
   net: ChangedAmount;
   /** Shares and installments left out of the figures for lack of a frozen rate. */
   leftOutCount: number;
+  /** Card amounts of this month's statements not paid yet, left out of the figures (FEAT-015). */
+  pendingCard: PendingCardView;
+}
+
+export interface PendingCardView {
+  value: bigint;
+  /** `YYYY-MM-DD` of the earliest pending statement; null when nothing is pending. */
+  nextDueDate: string | null;
+  /** Pending installments with no rate to the display currency. */
+  leftOutCount: number;
 }
 
 export interface CategoryView {

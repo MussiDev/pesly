@@ -33,6 +33,7 @@ const dashboard = {
     change: { expenses: 20, income: null, net: -5 },
     unconvertedShareCount: 1,
     unconvertedInstallmentCount: 2,
+    pendingCard: { amount: '150000', nextDueDate: '2026-10-20', unconvertedCount: 1 },
   },
   categories: [
     { categoryId: null, defaultKey: 'food', name: null, amount: '12000000', sharePercent: 60 },
