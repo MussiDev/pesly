@@ -107,13 +107,17 @@ test('a card purchase counts as spending in the month its statement is due (FEAT
   await expect(page.getByText(note)).toBeVisible();
   await expect(page.getByText(es.reports.states.emptyTitle)).toBeVisible();
   await page.goto('/es');
-  await expect(page.getByText(note)).toBeVisible();
+  // The dashboard month counts a card purchase only once its statement is paid (FEAT-015).
+  await expect(page.getByText(es.cardPurchasesNote.paidText)).toBeVisible();
 
   // Once the statement is due this month, the same purchase counts as this month's spending.
   await moveFirstStatementDueToThisMonth(email, 'Visa');
   await page.goto('/es/reports/categories');
   await expect(page.getByText(es.reports.states.emptyTitle)).toHaveCount(0);
   await expect(page.getByText(/30.000,00/).first()).toBeVisible();
+  // The dashboard shows it as pending on cards while the statement is unpaid (FEAT-015 AC-02).
+  await page.goto('/es');
+  await expect(page.getByText(es.dashboard.month.pendingCard.reason)).toBeVisible();
 });
 
 test('a budget counts a card purchase in the month its statement is due, not in the month of the purchase (FEAT-011 AC-01, AC-07)', async ({
