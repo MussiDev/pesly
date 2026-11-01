@@ -96,6 +96,7 @@ describe('0038_exchange_rate_history migration', () => {
 
   it('(AC-41) seeds one history row per stored rate, dated by fetched_at in Argentina', async () => {
     // 0039 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
@@ -140,6 +141,7 @@ describe('0038_exchange_rate_history migration', () => {
     const countBefore = await appliedMigrations();
     const tablesBefore = await publicTableCount();
 
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

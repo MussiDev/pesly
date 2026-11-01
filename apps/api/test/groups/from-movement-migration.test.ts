@@ -266,6 +266,7 @@ describe('0037_group_expense_from_movement migration', () => {
 
   it('aborts the migration with the pre-check when two expenses share a movement, changing nothing', async () => {
     // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
@@ -302,6 +303,7 @@ describe('0037_group_expense_from_movement migration', () => {
     const whensBefore = await appliedWhens();
 
     // 0038 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

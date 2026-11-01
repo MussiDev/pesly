@@ -102,6 +102,11 @@ export function toDashboardView(raw: DashboardResponse, options: AdapterOptions)
       income: { value: BigInt(month.income), change: month.change.income },
       net: { value: BigInt(month.net), change: month.change.net },
       leftOutCount: month.unconvertedShareCount + month.unconvertedInstallmentCount,
+      pendingCard: {
+        value: BigInt(month.pendingCard.amount),
+        nextDueDate: month.pendingCard.nextDueDate,
+        leftOutCount: month.pendingCard.unconvertedCount,
+      },
     },
     categories: toCategoryViews(raw, options),
     budgets: raw.budgets.map((budget) => ({

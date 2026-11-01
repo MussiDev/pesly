@@ -9,6 +9,7 @@ import type {
 } from '../../src/reports/application/ports/flow-reader';
 import { GetExpensesByCategory } from '../../src/reports/application/get-expenses-by-category';
 import { buildMonthFlows } from '../../src/dashboard/application/build-month-flows';
+import type { DueStatement } from '../../src/dashboard/domain/agenda';
 import { prepareDashboard } from '../../src/dashboard/application/dashboard-context';
 import { FakePreferences, FixedClock } from './fakes';
 import { FakeFilterReader } from '../reports/fakes';
@@ -21,6 +22,7 @@ const TRANSPORT = 'f0000000-0000-4000-8000-000000000002';
 const SALARY = 'f0000000-0000-4000-8000-000000000009';
 const NOW = new Date('2026-10-15T16:00:00.000Z');
 const RATE = 14_000_000n;
+const CARD_ID = 'c0000000-0000-4000-8000-000000000001';
 
 const CATEGORIES: TopCategory[] = [
   {
@@ -69,6 +71,7 @@ function installment(
   extra: Partial<InstallmentFlowRow> = {},
 ): InstallmentFlowRow {
   return {
+    cardId: CARD_ID,
     period: dueDate.slice(0, 7),
     dueDate,
     closingDay: 25,
@@ -152,13 +155,13 @@ class FakeFlows implements FlowReader {
   }
 }
 
-async function run(fixture: Fixture, now = NOW) {
+async function run(fixture: Fixture, now = NOW, owed: readonly DueStatement[] = []) {
   const flows = new FakeFlows(fixture);
   const context = await prepareDashboard(
     { clock: new FixedClock(now), preferences: new FakePreferences() },
     SCOPE,
   );
-  const result = await buildMonthFlows({ flows }, SCOPE, context);
+  const result = await buildMonthFlows({ flows }, SCOPE, context, Promise.resolve(owed));
   return { result, flows, context };
 }
 
@@ -443,7 +446,9 @@ describe('buildMonthFlows', () => {
       SCOPE,
     );
 
-    await expect(buildMonthFlows({ flows: failing }, SCOPE, context)).rejects.toThrow('db down');
+    await expect(
+      buildMonthFlows({ flows: failing }, SCOPE, context, Promise.resolve([])),
+    ).rejects.toThrow('db down');
   });
 
   it('equals the 09a expenses report over the same dates when every installment is due (AC-47)', async () => {
@@ -470,6 +475,7 @@ describe('buildMonthFlows', () => {
 
 describe('buildMonthFlows card purchases', () => {
   const cardPurchase = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+    cardId: CARD_ID,
     period: '2026-09',
     dueDate: '2026-10-05',
     closingDay: 24,
@@ -495,5 +501,145 @@ describe('buildMonthFlows card purchases', () => {
         cardPurchases: [cardPurchase({ topCategoryId: 'f0000000-0000-4000-8000-0000000000ff' })],
       }),
     ).rejects.toThrow(RangeError);
+  });
+});
+
+describe('buildMonthFlows pending card statements (FEAT-015)', () => {
+  const OTHER_CARD = 'c0000000-0000-4000-8000-000000000002';
+  const cardRow = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+    cardId: CARD_ID,
+    period: '2026-10',
+    dueDate: '2026-10-20',
+    closingDay: 5,
+    dueDay: 20,
+    topCategoryId: FOOD,
+    currency: 'ARS',
+    rate: RATE,
+    sum: 15_000_000n,
+    count: 1,
+    ...fields,
+  });
+  const owes = (fields: Partial<DueStatement>): DueStatement => ({
+    cardId: CARD_ID,
+    cardName: 'Visa',
+    statementId: 'd0000000-0000-4000-8000-000000000001',
+    period: '2026-10',
+    dueDate: '2026-10-20',
+    closed: true,
+    owed: { ARS: 15_000_000n, USD: 0n },
+    ...fields,
+  });
+
+  it('leaves an unpaid statement out of expenses and categories and shows it pending (AC-01, AC-02)', async () => {
+    const { result } = await run(
+      {
+        personal: [personal('2026-10', 'expense', TRANSPORT, 1_000_000n)],
+        cardPurchases: [cardRow({})],
+      },
+      NOW,
+      [owes({})],
+    );
+
+    expect(result.month.expenses).toBe(1_000_000n);
+    expect(result.month.net).toBe(-1_000_000n);
+    expect(result.categories.map((row) => row.categoryId)).toEqual([TRANSPORT]);
+    expect(result.month.pendingCard).toEqual({
+      amount: 15_000_000n,
+      nextDueDate: '2026-10-20',
+      unconvertedCount: 0,
+    });
+  });
+
+  it('counts a paid statement as an expense and shows nothing pending (AC-04, AC-08)', async () => {
+    const { result } = await run({ cardPurchases: [cardRow({})] }, NOW, []);
+
+    expect(result.month.expenses).toBe(15_000_000n);
+    expect(result.month.pendingCard).toEqual({
+      amount: 0n,
+      nextDueDate: null,
+      unconvertedCount: 0,
+    });
+  });
+
+  it('keeps a partly paid statement pending in full (AC-05)', async () => {
+    const { result } = await run({ cardPurchases: [cardRow({})] }, NOW, [
+      owes({ owed: { ARS: 1n, USD: 0n } }),
+    ]);
+
+    expect(result.month.expenses).toBe(0n);
+    expect(result.month.pendingCard.amount).toBe(15_000_000n);
+  });
+
+  it('counts the paid currency and keeps the owed one pending (AC-06)', async () => {
+    const { result } = await run(
+      {
+        cardPurchases: [
+          cardRow({}),
+          cardRow({ currency: 'USD', sum: 1_000n, rate: RATE, topCategoryId: TRANSPORT }),
+        ],
+      },
+      NOW,
+      [owes({ owed: { ARS: 0n, USD: 1_000n } })],
+    );
+
+    expect(result.month.expenses).toBe(15_000_000n);
+    expect(result.month.pendingCard.amount).toBe(1_400_000n);
+  });
+
+  it('takes the earliest due date among the pending statements (AC-03)', async () => {
+    const { result } = await run(
+      {
+        cardPurchases: [
+          cardRow({}),
+          cardRow({ cardId: OTHER_CARD, dueDate: '2026-10-12', sum: 5_000n }),
+        ],
+      },
+      NOW,
+      [owes({}), owes({ cardId: OTHER_CARD, dueDate: '2026-10-12' })],
+    );
+
+    expect(result.month.pendingCard).toEqual({
+      amount: 15_005_000n,
+      nextDueDate: '2026-10-12',
+      unconvertedCount: 0,
+    });
+  });
+
+  it('matches by card: an owed statement of another card leaves this one an expense', async () => {
+    const { result } = await run({ cardPurchases: [cardRow({})] }, NOW, [
+      owes({ cardId: OTHER_CARD }),
+    ]);
+
+    expect(result.month.expenses).toBe(15_000_000n);
+    expect(result.month.pendingCard.amount).toBe(0n);
+  });
+
+  it('counts a pending installment it cannot convert and adds no guessed amount (AC-07)', async () => {
+    const { result } = await run(
+      {
+        installments: [
+          installment('2026-10-20', FOOD, 2_000n, { currency: 'USD', period: '2026-10' }),
+        ],
+      },
+      NOW,
+      [owes({ owed: { ARS: 0n, USD: 2_000n } })],
+    );
+
+    expect(result.month.pendingCard).toEqual({
+      amount: 0n,
+      nextDueDate: '2026-10-20',
+      unconvertedCount: 1,
+    });
+    expect(result.month.unconvertedInstallmentCount).toBe(0);
+  });
+
+  it('leaves the earlier months alone when an old statement is still unpaid (AC-09)', async () => {
+    const september = cardRow({ period: '2026-09', dueDate: '2026-09-20' });
+    const owed = [owes({ period: '2026-09', dueDate: '2026-09-20' })];
+
+    const withOwed = await run({ cardPurchases: [september] }, NOW, owed);
+    const without = await run({ cardPurchases: [september] }, NOW, []);
+
+    expect(withOwed.result).toEqual(without.result);
   });
 });

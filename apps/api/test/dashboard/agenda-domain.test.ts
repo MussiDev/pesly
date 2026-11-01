@@ -29,6 +29,7 @@ function statement(n: number, overrides: Partial<DueStatement> = {}): DueStateme
     cardId: uuid(100 + n),
     cardName: `Card ${n}`,
     statementId: uuid(200 + n),
+    period: '2026-09',
     dueDate: '2026-10-12',
     closed: true,
     owed: { ARS: 5000n, USD: 0n },

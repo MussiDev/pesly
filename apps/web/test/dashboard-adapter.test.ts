@@ -44,6 +44,7 @@ function body(patch: Record<string, unknown> = {}) {
       change: { expenses: 20, income: null, net: -5 },
       unconvertedShareCount: 1,
       unconvertedInstallmentCount: 2,
+      pendingCard: { amount: '150000', nextDueDate: '2026-10-20', unconvertedCount: 1 },
     },
     categories: [],
     budgets: [],
@@ -73,6 +74,11 @@ describe('toDashboardView', () => {
     expect(result.netWorth.holdingsWithoutPrice).toBe(2);
     expect(result.month.net.value).toBe(-5600n);
     expect(result.month.leftOutCount).toBe(3);
+    expect(result.month.pendingCard).toEqual({
+      value: 150000n,
+      nextDueDate: '2026-10-20',
+      leftOutCount: 1,
+    });
     expect(view({ currency: 'USD' }).currency).toBe('USD');
   });
 

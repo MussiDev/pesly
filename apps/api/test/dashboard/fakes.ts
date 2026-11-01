@@ -53,6 +53,7 @@ export const EMPTY_DASHBOARD_RESPONSE: DashboardResponse = {
     change: { expenses: null, income: null, net: null },
     unconvertedShareCount: 0,
     unconvertedInstallmentCount: 0,
+    pendingCard: { amount: '0', nextDueDate: null, unconvertedCount: 0 },
   },
   categories: [],
   budgets: [],

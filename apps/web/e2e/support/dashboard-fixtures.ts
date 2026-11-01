@@ -48,6 +48,7 @@ function base(): DashboardResponse {
       change: { expenses: 20, income: -5, net: 0 },
       unconvertedShareCount: 0,
       unconvertedInstallmentCount: 0,
+      pendingCard: { amount: '0', nextDueDate: null, unconvertedCount: 0 },
     },
     categories: [
       { categoryId: null, defaultKey: 'food', name: null, amount: '12000000', sharePercent: 50 },
@@ -130,6 +131,7 @@ export const FIRST_STEPS_DASHBOARD: Partial<DashboardResponse> = {
     change: { expenses: null, income: null, net: null },
     unconvertedShareCount: 0,
     unconvertedInstallmentCount: 0,
+    pendingCard: { amount: '0', nextDueDate: null, unconvertedCount: 0 },
   },
   categories: [],
   budgets: [],

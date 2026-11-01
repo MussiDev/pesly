@@ -20,6 +20,7 @@ import {
 } from './build-month-flows';
 import { buildNetWorth, type BuildNetWorthDependencies } from './build-net-worth';
 import { prepareDashboard, type DashboardContext } from './dashboard-context';
+import type { CardStatementSource } from './ports/card-statement-source';
 import type { DashboardUseCase } from './ports/dashboard-use-case';
 
 /** Everything the presenter needs, still in `bigint`. */
@@ -42,6 +43,8 @@ export interface GetDashboardDependencies {
   flows: MonthFlowsDependencies;
   budgets: BuildBudgetsDependencies;
   agenda: AgendaDependencies;
+  /** Read once per request and shared by the agenda and the month (FEAT-015 NFR-01). */
+  statements: CardStatementSource;
   groups: GroupsDependencies;
   firstSteps: FirstStepsDependencies;
   present: (sections: DashboardSections) => DashboardResponse;
@@ -59,6 +62,13 @@ export class GetDashboard implements DashboardUseCase {
     const context = await prepareDashboard(deps, scope);
     // The group balances feed the net worth and the groups section: one read for both.
     const groups = loadGroups(deps.groups, scope);
+    const owedStatements = deps.statements.owedStatements(
+      scope,
+      context.today,
+      context.preferences.timeZone,
+    );
+    // Both consumers await it; a rejection is reported once, through `Promise.all` below.
+    owedStatements.catch(() => undefined);
     const netWorthPromise = groups.then((section) =>
       buildNetWorth(deps.netWorth, scope, context, section.net),
     );
@@ -72,9 +82,9 @@ export class GetDashboard implements DashboardUseCase {
           context,
           netWorthPromise.then((parts) => parts.rate),
         ),
-        buildMonthFlows(deps.flows, scope, context),
+        buildMonthFlows(deps.flows, scope, context, owedStatements),
         buildBudgets(deps.budgets, scope, context),
-        buildAgenda(deps.agenda, scope, context),
+        buildAgenda(deps.agenda, scope, context, owedStatements),
         groups,
         buildFirstSteps(deps.firstSteps, scope),
       ]);

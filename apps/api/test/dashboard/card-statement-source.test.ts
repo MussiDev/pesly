@@ -81,13 +81,14 @@ describe('DrizzleCardStatementSource', () => {
       amount: 100n,
     });
 
-    const result = await source.dueStatements(await readScope(ownerId), '2026-10-06', ZONE);
+    const result = await source.owedStatements(await readScope(ownerId), '2026-10-06', ZONE);
 
     expect(result).toEqual([
       {
         cardId: card.id,
         cardName: 'Visa',
         statementId: statement.id,
+        period: '2026-09',
         dueDate: '2026-10-08',
         closed: true,
         owed: { ARS: 900n, USD: 40n },
@@ -107,13 +108,14 @@ describe('DrizzleCardStatementSource', () => {
       amount: 300n,
     });
 
-    const result = await source.dueStatements(await readScope(ownerId), '2026-10-06', ZONE);
+    const result = await source.owedStatements(await readScope(ownerId), '2026-10-06', ZONE);
 
     expect(result).toEqual([
       {
         cardId: card.id,
         cardName: 'Visa',
         statementId: statement.id,
+        period: '2026-09',
         dueDate: '2026-10-08',
         closed: true,
         owed: { ARS: 600n, USD: 0n },
@@ -121,7 +123,7 @@ describe('DrizzleCardStatementSource', () => {
     ]);
   });
 
-  it("leaves out a statement due after today plus 7 and never shows another user's cards", async () => {
+  it("returns an open statement due after today plus 7 and never shows another user's cards (FEAT-015)", async () => {
     const ownerId = await newUserId(connection.db);
     const other = await newUserId(connection.db);
     const far = await newCard(ownerId, 'Far', {
@@ -133,7 +135,17 @@ describe('DrizzleCardStatementSource', () => {
     const theirs = await newCard(other, 'Other', SEPTEMBER);
     await purchase(other, theirs.card.arsAccountId, 10n, '2026-09-20T15:00:00Z');
 
-    expect(await source.dueStatements(await readScope(ownerId), '2026-10-06', ZONE)).toEqual([]);
+    expect(await source.owedStatements(await readScope(ownerId), '2026-10-06', ZONE)).toEqual([
+      {
+        cardId: far.card.id,
+        cardName: 'Far',
+        statementId: far.statement.id,
+        period: '2026-10',
+        dueDate: '2026-11-05',
+        closed: false,
+        owed: { ARS: 10n, USD: 0n },
+      },
+    ]);
   });
 
   it('reads the installment rows once for 3 cards and creates no statement (NFR-05)', async () => {
@@ -145,7 +157,7 @@ describe('DrizzleCardStatementSource', () => {
     const spy = vi.spyOn(connection.pool, 'query');
     const scope = await readScope(ownerId);
 
-    await source.dueStatements(scope, '2026-10-06', ZONE);
+    await source.owedStatements(scope, '2026-10-06', ZONE);
 
     const texts = spy.mock.calls.map(([query]) =>
       typeof query === 'string' ? query : ((query as { text?: string }).text ?? ''),

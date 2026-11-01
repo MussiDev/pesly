@@ -1,4 +1,5 @@
 import {
+  cardCategoryRulesResponseSchema,
   creditCardResponseSchema,
   listInstallmentPurchasesResponseSchema,
   statementImportResponseSchema,
@@ -391,5 +392,111 @@ describe('POST /credit-cards/:id/statement-imports', () => {
     await connection.pool.query('delete from credit_cards where id = $1', [card.id]);
 
     expect(await count('card_statement_import_lines', s.anaId)).toBe(0);
+  });
+});
+
+describe('per-line categories and learned merchant rules (FEAT-016)', () => {
+  const rulesOf = (s: Setup, cookies = s.ana) =>
+    call(s.app, 'get', '/credit-cards/category-rules', cookies);
+
+  it('books each line in its own category and serves the learned rules to the owner only', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const car = await newCategory(connection.pool, s.anaId, 'expense');
+
+    const response = await importOf(
+      s,
+      card.id,
+      body(categoryId, [
+        line({ description: 'CHEVROLET SA PLAN 12/84', categoryId: car }),
+        line({ description: 'Tienda', amount: '500' }),
+      ]),
+    );
+
+    expect(response.status).toBe(201);
+    const booked = await connection.pool.query<{ category_id: string; note: string }>(
+      'select category_id, note from movements where owner_id = $1 order by note',
+      [s.anaId],
+    );
+    expect(booked.rows).toEqual([
+      { category_id: car, note: 'CHEVROLET SA PLAN 12/84' },
+      { category_id: categoryId, note: 'Tienda' },
+    ]);
+    const rules = cardCategoryRulesResponseSchema.parse((await rulesOf(s)).body);
+    expect(rules).toEqual({ rules: [{ merchantKey: 'chevrolet sa plan', categoryId: car }] });
+    expect((await rulesOf(s, s.bob)).body).toEqual({ rules: [] });
+  });
+
+  it('replaces the rule of a merchant with the latest category', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const car = await newCategory(connection.pool, s.anaId, 'expense');
+
+    await importOf(s, card.id, body(categoryId, [line({ description: 'YPF 1', categoryId })]));
+    await importOf(
+      s,
+      card.id,
+      body(categoryId, [line({ description: 'YPF 2', categoryId: car, amount: '1' })]),
+    );
+
+    expect((await rulesOf(s)).body).toEqual({ rules: [{ merchantKey: 'ypf', categoryId: car }] });
+    expect(await count('card_category_rules', s.anaId)).toBe(1);
+  });
+
+  it('accepts no import category when every line has one, and refuses a line left without', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+
+    const all = await importOf(s, card.id, {
+      closingDate: '2026-09-24',
+      lines: [line({ categoryId })],
+    });
+    const missing = await importOf(s, card.id, {
+      closingDate: '2026-09-24',
+      lines: [line({ categoryId }), line({ description: 'Otra' })],
+    });
+
+    expect(all.status).toBe(201);
+    expect(missing.status).toBe(400);
+  });
+
+  it('answers 404 for a line category of another user and stores nothing', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const bobId = (
+      await connection.pool.query<{ id: string }>(
+        "select id from users where email like 'bob-%' order by created_at desc limit 1",
+      )
+    ).rows[0]?.id;
+    const theirs = await newCategory(connection.pool, bobId ?? '', 'expense');
+
+    const response = await importOf(s, card.id, body(categoryId, [line({ categoryId: theirs })]));
+
+    expect(response.status).toBe(404);
+    expect(await count('movements', s.anaId)).toBe(0);
+    expect(await count('card_category_rules', s.anaId)).toBe(0);
+  });
+
+  it('drops the rule when its category is deleted', async () => {
+    const s = await setup();
+    const { card, categoryId } = await cardWithCategory(s);
+    const unused = await newCategory(connection.pool, s.anaId, 'expense');
+    await importOf(s, card.id, body(categoryId, [line({ description: 'Chevrolet', categoryId })]));
+    await connection.pool.query(
+      'insert into card_category_rules (owner_id, merchant_key, category_id) values ($1, $2, $3)',
+      [s.anaId, 'fravega', unused],
+    );
+
+    await connection.pool.query('delete from categories where id = $1', [unused]);
+
+    expect((await rulesOf(s)).body).toEqual({
+      rules: [{ merchantKey: 'chevrolet', categoryId }],
+    });
+  });
+
+  it('requires a session to read the rules', async () => {
+    const s = await setup();
+
+    expect((await rulesOf(s, {})).status).toBe(401);
   });
 });

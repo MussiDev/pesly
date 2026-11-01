@@ -90,6 +90,7 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
 
   it('is reverted by its idempotent rollback, which removes only the index and its journal row, and re-applies', async () => {
     // 0038, 0037 and 0036 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
@@ -124,6 +125,7 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
   });
 
   it('applies on top of the previous schema when it already holds group data', async () => {
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

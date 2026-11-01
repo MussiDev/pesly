@@ -101,6 +101,7 @@ const share = (fields: Partial<ShareFlowRow>): ShareFlowRow => ({
 });
 
 const installment = (fields: Partial<InstallmentFlowRow>): InstallmentFlowRow => ({
+  cardId: '00000000-0000-4000-8000-0000000000c1',
   period: '2026-10',
   dueDate: '2026-11-10',
   closingDay: 25,
@@ -310,6 +311,7 @@ describe('GetExpensesByCategory', () => {
 });
 
 const cardPurchase = (fields: Partial<CardPurchaseFlowRow>): CardPurchaseFlowRow => ({
+  cardId: '00000000-0000-4000-8000-0000000000c1',
   period: '2026-09',
   dueDate: '2026-10-05',
   closingDay: 24,

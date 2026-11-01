@@ -539,9 +539,15 @@
         "differs": "The selected lines do not add up to the statement total. You can still import them; check the file first if you expected them to match."
       },
       "category": {
-        "label": "Category for all the lines",
+        "label": "Category for the lines without one",
         "placeholder": "Choose a category",
-        "required": "Choose a category."
+        "required": "Choose a category for the lines that have none.",
+        "column": "Category",
+        "lineLabel": "Category of {description}",
+        "useDefault": "Use the general category",
+        "learned": "From your earlier imports",
+        "keyword": "Suggested by the merchant",
+        "hint": "Pesly suggests a category for each line and remembers what you choose for next time."
       },
       "tooMany": "A statement import accepts at most 300 lines.",
       "submit": "Import {count, plural, one {# line} other {# lines}}",
@@ -2403,7 +2409,13 @@
       "net": "Net result",
       "comparison": "Compared with the same period of the previous month",
       "leftOut": "{count, plural, one {# share or installment is left out.} other {# shares or installments are left out.}}",
-      "leftOutReason": "They are in another currency and have no frozen exchange rate."
+      "leftOutReason": "They are in another currency and have no frozen exchange rate.",
+      "pendingCard": {
+        "label": "Pending on cards:",
+        "due": "Next due date: {date}",
+        "leftOut": "{count, plural, one {# installment with no exchange rate is not added.} other {# installments with no exchange rate are not added.}}",
+        "reason": "It does not count in Expenses until the statement is paid or debited."
+      }
     },
     "delta": {
       "favorable": "Favorable",
@@ -2483,7 +2495,8 @@
     }
   },
   "cardPurchasesNote": {
-    "text": "Card purchases count in the month their statement is due."
+    "text": "Card purchases count in the month their statement is due.",
+    "paidText": "Card purchases count in the month their statement is due, once the statement is paid."
   },
   "reports": {
     "title": "Reports",

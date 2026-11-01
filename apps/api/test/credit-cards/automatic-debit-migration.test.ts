@@ -149,6 +149,7 @@ const insertClaim = (
 describe('0029_card_automatic_debit migration', () => {
   it('leaves existing cards with no automatic debit when applied after a rollback (AC-01)', async () => {
     // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
@@ -325,6 +326,7 @@ describe('0029_card_automatic_debit migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031 and 0030 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

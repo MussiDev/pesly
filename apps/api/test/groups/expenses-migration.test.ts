@@ -149,6 +149,7 @@ describe('0027_group_expenses migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031, 0030, 0029 and 0028 have the greater journal `when`s and hang from the same members: they go first.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

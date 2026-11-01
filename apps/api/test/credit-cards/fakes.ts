@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { dateInTimeZone } from '@pesly/shared';
+import { dateInTimeZone, type CardCategoryRule } from '@pesly/shared';
 import type { AccountActivity } from '../../src/credit-cards/application/ports/account-activity';
 import type { CardPayments } from '../../src/credit-cards/application/ports/card-payments';
 import type { CardPurchases } from '../../src/credit-cards/application/ports/card-purchases';
@@ -68,6 +68,7 @@ import type {
   RecordedPaymentMovement,
   StatementPaymentRecorder,
 } from '../../src/credit-cards/application/ports/statement-payment-recorder';
+import type { CardCategoryRules } from '../../src/credit-cards/application/ports/card-category-rules';
 import type { StatementImportRepository } from '../../src/credit-cards/application/ports/statement-import-repository';
 import type { UserTimeZone } from '../../src/credit-cards/application/ports/user-time-zone';
 import {
@@ -522,6 +523,27 @@ export class InMemoryStatementImports implements StatementImportRepository {
   }
 }
 
+/** In-memory merchant rules, keyed by owner and merchant like the SQL table. */
+export class InMemoryCardCategoryRules implements CardCategoryRules {
+  readonly rules = new Map<string, CardCategoryRule & { ownerId: string }>();
+
+  list(scope: AccessScope): Promise<CardCategoryRule[]> {
+    return Promise.resolve(
+      [...this.rules.values()]
+        .filter((rule) => rule.ownerId === scope.userId)
+        .map(({ merchantKey, categoryId }) => ({ merchantKey, categoryId }))
+        .sort((a, b) => a.merchantKey.localeCompare(b.merchantKey)),
+    );
+  }
+
+  learn(scope: AccessScope<'write'>, rules: readonly CardCategoryRule[]): Promise<void> {
+    for (const rule of rules) {
+      this.rules.set(`${scope.userId}|${rule.merchantKey}`, { ownerId: scope.userId, ...rule });
+    }
+    return Promise.resolve();
+  }
+}
+
 /** In-memory accounts for debit link validation; rows are visible only to their owner. */
 export class FakeDebitAccounts implements DebitAccounts {
   readonly accounts = new Map<string, { ownerId: string } & DebitAccountInfo>();
@@ -706,6 +728,7 @@ export function installmentFakes() {
     categories: new FakeCategoryGuard(),
     writeLimit: new FakeWriteLimit(),
     statementImports: new InMemoryStatementImports(),
+    categoryRules: new InMemoryCardCategoryRules(),
     debitAccounts: new FakeDebitAccounts(),
   };
 }

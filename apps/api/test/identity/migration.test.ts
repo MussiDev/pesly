@@ -6,9 +6,9 @@ import { DEFAULT_SET_0009 } from '../categories/fixtures/default-set-0009';
 import { migrationsFolder, runMigrations } from '../../src/shared/db/migrate';
 import { ensureTestDatabase, testDatabaseUrl } from '../helpers/test-database';
 
-const ALL_MIGRATIONS = 41;
+const ALL_MIGRATIONS = 42;
 // The newest migration is named once: heads of the rollback chain and the registry checks use it.
-const NEWEST_MIGRATION = '0041_group_notices';
+const NEWEST_MIGRATION = '0042_card_category_rules';
 const TABLES_BEFORE_0004 = [
   'auth_attempts',
   'email_outbox',
@@ -34,6 +34,7 @@ const ALL_TABLES = [
   'budget_versions',
   'budgets',
   'card_automatic_debits',
+  'card_category_rules',
   'card_statement_import_lines',
   'categories',
   'category_defaults_seeded',
@@ -230,9 +231,10 @@ function rollback(tag: string): Promise<string> {
   return readFile(`${migrationsFolder}/rollback/${tag}.down.sql`, 'utf8');
 }
 
-/** Rolls back the newest migration, then 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 and 0023, the head of every older rollback chain. */
+/** Rolls back the newest migration, then 0041, 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 and 0023, the head of every older rollback chain. */
 async function rollbackFromNewest(): Promise<void> {
   await client.query(await rollback(NEWEST_MIGRATION));
+  await client.query(await rollback('0041_group_notices'));
   await client.query(await rollback('0040_balance_adjustments'));
   await client.query(await rollback('0039_push_notifications'));
   await client.query(await rollback('0038_exchange_rate_history'));
@@ -3504,10 +3506,10 @@ describe('migration registry head', () => {
 
     expect(() => {
       assertNewestMigration(tags, '0025_notices');
-    }).toThrow(/newest migration is 0041_group_notices/);
+    }).toThrow(/newest migration is 0042_card_category_rules/);
   });
 
-  it('rolls back 0041, 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 then 0023 and finds the schema as before 0023', async () => {
+  it('rolls back 0042, 0041, 0040, 0039, 0038, 0037, 0036, 0035, 0034, 0033, 0032, 0031, 0030, 0029, 0028, 0027, 0026, 0025, 0024 then 0023 and finds the schema as before 0023', async () => {
     await rollbackFromNewest();
 
     expect(await appliedMigrations()).toBe(ALL_MIGRATIONS - 19);

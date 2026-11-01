@@ -27,6 +27,8 @@ export interface DueStatement {
   cardId: string;
   cardName: string;
   statementId: string;
+  /** The statement's month, `YYYY-MM`. */
+  period: string;
   dueDate: string;
   closed: boolean;
   owed: { ARS: bigint; USD: bigint };

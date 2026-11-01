@@ -41,6 +41,7 @@ interface CardPurchaseItemSqlRow extends Record<string, unknown> {
   category_id: string;
   category_name: string | null;
   category_default_key: string | null;
+  card_id: string;
   period: string;
   due_date: string | null;
   closing_day: number;
@@ -130,6 +131,7 @@ export class DrizzleCategoryItemReader implements CategoryItemReader {
           ${categories.id} as category_id,
           ${categories.name} as category_name,
           ${categories.defaultKey} as category_default_key,
+          ${creditCards.id} as card_id,
           ${source.period} as period,
           ${source.dueDate} as due_date,
           ${creditCards.closingDay} as closing_day,
@@ -155,6 +157,7 @@ export class DrizzleCategoryItemReader implements CategoryItemReader {
         categoryId: row.category_id,
         categoryName: row.category_name,
         categoryDefaultKey: row.category_default_key,
+        cardId: row.card_id,
         period: row.period,
         dueDate: row.due_date,
         closingDay: row.closing_day,

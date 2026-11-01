@@ -151,6 +151,7 @@ describe('0030_group_activity_log_changes migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0031 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

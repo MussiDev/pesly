@@ -190,6 +190,7 @@ describe('0039_push_notifications migration', () => {
 
   it('marks the notices that exist before the migration as handled and leaves new ones unhandled', async () => {
     // 0041 and 0040 have the greater journal `when`, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
@@ -215,6 +216,7 @@ describe('0039_push_notifications migration', () => {
     const script = await fileOf(`rollback/${TAG}.down.sql`);
 
     // 0041 and 0040 have the greater journal `when`, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(script);

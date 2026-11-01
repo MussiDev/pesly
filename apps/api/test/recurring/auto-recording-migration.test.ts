@@ -42,6 +42,7 @@ const fileOf = (relative: string) => readFile(`${migrationsFolder}/${relative}`,
 
 /** 0031, 0030, 0029, 0028, 0027, 0026 and 0025 have the greatest journal `when`s, so they are rolled back before 0024. */
 async function rollBackTo0023(): Promise<void> {
+  await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
   await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
   await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
   await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));

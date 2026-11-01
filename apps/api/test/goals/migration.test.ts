@@ -199,6 +199,7 @@ describe('0033_savings_goals migration', () => {
     const countBefore = await appliedMigrations();
 
     // 0035 and 0034 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf('rollback/0040_balance_adjustments.down.sql'));
     await client.query(await fileOf('rollback/0039_push_notifications.down.sql'));
