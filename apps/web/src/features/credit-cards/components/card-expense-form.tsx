@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { FormActions } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
-import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { readField } from '@/features/auth/read-field';
 import {
   CategoryChips,
@@ -91,18 +91,12 @@ export function CardExpenseForm({
               </AlertDescription>
             </Alert>
           ) : null}
-          <MovementField label={t('fields.currency')} error={errors.fields?.currency}>
-            {(control) => (
-              <Select name="currency" defaultValue="" required {...control}>
-                <option value="">{t('fields.currencyPlaceholder')}</option>
-                {CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <SegmentedField
+            label={t('fields.currency')}
+            name="currency"
+            options={CURRENCIES.map((currency) => ({ value: currency, label: currency }))}
+            error={errors.fields?.currency ? tAll(errors.fields.currency) : undefined}
+          />
           <MovementField label={t('fields.amount')} error={errors.fields?.amount}>
             {(control) => <MoneyInput name="amount" required {...control} />}
           </MovementField>

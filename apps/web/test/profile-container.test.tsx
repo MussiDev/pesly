@@ -5,11 +5,12 @@ import {
   RATE_TYPES,
   type ProfileResponse,
 } from '@pesly/shared';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { ProfileContainer } from '../src/features/profile/containers/profile-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { chooseField, fieldOptions, fieldValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -76,10 +77,10 @@ describe('ProfileContainer', () => {
     expect(nameField().value).toBe('Ana');
     expect(screen.getByText('ana@example.com')).toBeDefined();
     expect(screen.getByText(es.profile.account.twoFactorOff)).toBeDefined();
-    expect(select(es.profile.preferences.defaultRateType).value).toBe('blue');
-    expect(select(es.profile.preferences.displayCurrency).value).toBe('ARS');
-    expect(select(es.profile.preferences.timeZone).value).toBe('America/Argentina/Buenos_Aires');
-    expect(select(es.profile.preferences.language).value).toBe('es');
+    expect(fieldValue(es.profile.preferences.defaultRateType)).toBe('blue');
+    expect(fieldValue(es.profile.preferences.displayCurrency)).toBe('ARS');
+    expect(fieldValue(es.profile.preferences.timeZone)).toBe('America/Argentina/Buenos_Aires');
+    expect(fieldValue(es.profile.preferences.language)).toBe('es');
     expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(['GET /profile']);
   });
 
@@ -222,7 +223,7 @@ describe('ProfileContainer', () => {
     await user.type(nameField(), 'Bea');
     await user.click(screen.getByRole('button', { name: es.profile.account.submit }));
     await screen.findByText(es.profile.saved);
-    await user.selectOptions(select(es.profile.preferences.displayCurrency), 'USD');
+    await chooseField(es.profile.preferences.displayCurrency, 'USD');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
     await waitFor(() => {
       expect(patches(calls)).toHaveLength(2);
@@ -235,10 +236,7 @@ describe('ProfileContainer', () => {
     renderApp(<ProfileContainer />);
     await loaded();
 
-    const values = (label: string) =>
-      within(select(label))
-        .getAllByRole('option')
-        .map((option) => option.getAttribute('value'));
+    const values = fieldOptions;
     expect(values(es.profile.preferences.defaultRateType)).toEqual([...RATE_TYPES]);
     expect(values(es.profile.preferences.displayCurrency)).toEqual([...DISPLAY_CURRENCY_VALUES]);
     expect(values(es.profile.preferences.language)).toEqual([...LANGUAGE_VALUES]);
@@ -250,7 +248,7 @@ describe('ProfileContainer', () => {
     renderApp(<ProfileContainer />);
     await loaded();
 
-    expect(select(es.profile.preferences.timeZone).value).toBe('+01:00');
+    expect(fieldValue(es.profile.preferences.timeZone)).toBe('+01:00');
   });
 
   it.each([
@@ -273,12 +271,12 @@ describe('ProfileContainer', () => {
       await loaded();
       const user = userEvent.setup();
 
-      await user.selectOptions(select(label), option);
+      await chooseField(label, option);
       await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
       expect(await screen.findByText(es.profile.saved)).toBeDefined();
       expect(patches(calls).map((call) => call.body)).toEqual([body]);
-      expect(select(label).value).toBe(option);
+      expect(fieldValue(label)).toBe(option);
     },
   );
 
@@ -303,12 +301,12 @@ describe('ProfileContainer', () => {
     await loaded();
     const user = userEvent.setup();
 
-    await user.selectOptions(select(es.profile.preferences.timeZone), 'Europe/Madrid');
+    await chooseField(es.profile.preferences.timeZone, 'Europe/Madrid');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
     const alert = await screen.findByText(es.errors.validationFailed);
     expect(select(es.profile.preferences.timeZone).closest('form')?.contains(alert)).toBe(true);
-    expect(select(es.profile.preferences.timeZone).value).toBe('America/Argentina/Buenos_Aires');
+    expect(fieldValue(es.profile.preferences.timeZone)).toBe('America/Argentina/Buenos_Aires');
   });
 
   it('moves to the saved language route after switching the language (AC-09)', async () => {
@@ -320,7 +318,7 @@ describe('ProfileContainer', () => {
     await loaded();
     const user = userEvent.setup();
 
-    await user.selectOptions(select(es.profile.preferences.language), 'en');
+    await chooseField(es.profile.preferences.language, 'en');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
     await waitFor(() => {
@@ -338,7 +336,7 @@ describe('ProfileContainer', () => {
     await loaded();
     const user = userEvent.setup();
 
-    await user.selectOptions(select(es.profile.preferences.displayCurrency), 'USD');
+    await chooseField(es.profile.preferences.displayCurrency, 'USD');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
     await screen.findByText(es.profile.saved);
@@ -362,7 +360,7 @@ describe('ProfileContainer', () => {
     expect(screen.getByRole('button', { name: en.profile.account.submit })).toBeDefined();
     expect(screen.getByRole('button', { name: en.profile.preferences.submit })).toBeDefined();
     expect(screen.getByRole('option', { name: en.profile.rateTypes.oficial })).toBeDefined();
-    expect(screen.getByRole('option', { name: en.profile.currencies.USD })).toBeDefined();
+    expect(screen.getByRole('radio', { name: 'USD' })).toBeDefined();
     expect(screen.queryByText(es.profile.account.title)).toBeNull();
   });
 
@@ -384,7 +382,7 @@ describe('ProfileContainer', () => {
     await loaded();
     const user = userEvent.setup();
 
-    await user.selectOptions(select(es.profile.preferences.displayCurrency), 'USD');
+    await chooseField(es.profile.preferences.displayCurrency, 'USD');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
     await waitFor(() => {
@@ -461,7 +459,7 @@ describe('ProfileContainer', () => {
     await user.clear(nameField());
     await user.type(nameField(), 'Beto');
     await user.click(screen.getByRole('button', { name: es.profile.account.submit }));
-    await user.selectOptions(select(es.profile.preferences.displayCurrency), 'USD');
+    await chooseField(es.profile.preferences.displayCurrency, 'USD');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
     await waitFor(() => {
       expect(settle).toHaveLength(2);
@@ -470,20 +468,20 @@ describe('ProfileContainer', () => {
     // The preferences save lands first, then the (older) name save.
     settle[1]?.(answer({}, { displayCurrency: 'USD' }));
     await waitFor(() => {
-      expect(select(es.profile.preferences.displayCurrency).value).toBe('USD');
+      expect(fieldValue(es.profile.preferences.displayCurrency)).toBe('USD');
     });
     settle[0]?.(answer({ displayName: 'Beto' }, {}));
 
     await waitFor(() => {
       expect(nameField().value).toBe('Beto');
     });
-    expect(select(es.profile.preferences.displayCurrency).value).toBe('USD');
+    expect(fieldValue(es.profile.preferences.displayCurrency)).toBe('USD');
 
     // The saved state must hold both: re-submitting the saved currency is not a change, so no
     // third request goes out (a stale snapshot would read ARS and send it again).
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
     await waitFor(() => {
-      expect(select(es.profile.preferences.displayCurrency).value).toBe('USD');
+      expect(fieldValue(es.profile.preferences.displayCurrency)).toBe('USD');
     });
     expect(settle).toHaveLength(2);
   });

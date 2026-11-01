@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -165,16 +165,19 @@ describe('SendToGroupContainer', () => {
     const user = userEvent.setup();
     open();
     await user.click(await radio('Casa'));
-    const select = await screen.findByLabelText<HTMLSelectElement>(t.category);
-    expect(select.value).toBe('automatic');
-    expect(select.selectedOptions[0]?.textContent).toBe(t.automaticCategory);
+    const picker = within(await screen.findByRole('group', { name: t.category }));
+    expect(
+      picker.getByRole<HTMLInputElement>('radio', { name: t.automaticCategoryShort }).checked,
+    ).toBe(true);
+    // The short tile label is explained in full under the grid while it is the choice.
+    expect(screen.getByText(t.automaticCategory)).toBeTruthy();
     expect(t.automaticCategory).toBe(
       `Automatic (the movement's own category, or "Other expenses")`,
     );
     expect(tEs.automaticCategory).toBe(
       'Automática (la misma categoría del movimiento u "Otros gastos")',
     );
-    expect(select.options).toHaveLength(1);
+    expect(picker.getAllByRole('radio')).toHaveLength(1);
     expect(screen.getByLabelText<HTMLInputElement>(t.description).value).toBe('x'.repeat(200));
   });
 
@@ -193,11 +196,10 @@ describe('SendToGroupContainer', () => {
     const user = userEvent.setup();
     open();
     await user.click(await radio('Casa'));
-    const select = await screen.findByLabelText<HTMLSelectElement>(t.category);
-    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
-      t.automaticCategory,
-      'Rent',
-    ]);
+    const picker = within(await screen.findByRole('group', { name: t.category }));
+    expect(
+      picker.getAllByRole('radio').map((option) => option.closest('label')?.textContent),
+    ).toEqual([t.automaticCategoryShort, 'Rent']);
   });
 
   it.each([
@@ -239,7 +241,7 @@ describe('SendToGroupContainer', () => {
     open();
     const only = await radio('Casa');
     expect(only.getAttribute('aria-checked')).toBe('true');
-    expect(await screen.findByLabelText(t.category)).toBeTruthy();
+    expect(await screen.findByRole('group', { name: t.category })).toBeTruthy();
     expect(calls.map((c) => `${c.method} ${c.path}`).sort()).toEqual(
       [MOVEMENT_PATH, GROUPS, ACCOUNT_PATH, OPTIONS1].sort(),
     );
@@ -280,7 +282,7 @@ describe('SendToGroupContainer', () => {
     const user = userEvent.setup();
     open();
     await user.click(await radio('Casa'));
-    await user.selectOptions(await screen.findByLabelText(t.category), CAT);
+    await user.click(await radio('Rent'));
     await user.click(await confirm());
     await waitFor(() => {
       expect(calls.some((c) => c.method === 'POST')).toBe(true);
@@ -382,7 +384,7 @@ describe('SendToGroupContainer', () => {
     await radio('Casa');
     expect(calls).toHaveLength(3);
     await user.click(await radio('Casa'));
-    await screen.findByLabelText(t.category);
+    await screen.findByRole('group', { name: t.category });
     expect(calls).toHaveLength(4);
     await user.click(await confirm());
     await waitFor(() => {

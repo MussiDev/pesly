@@ -1,13 +1,18 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useId } from 'react';
 import { Select } from '@/components/ui/select';
+import {
+  CategoryChips,
+  type CategoryChipOption,
+} from '@/features/movements/components/category-chips';
 import { MovementField } from '@/features/movements/components/movement-field';
 
 interface PayerAccountFieldsProps {
   /** The caller's accounts in the expense currency. */
   accounts: readonly { id: string; name: string }[];
-  categories: readonly { id: string; label: string }[];
+  categories: readonly CategoryChipOption[];
   accountId: string;
   categoryId: string;
   accountError: string | undefined;
@@ -28,6 +33,8 @@ export function PayerAccountFields({
   onCategoryChange,
 }: PayerAccountFieldsProps) {
   const t = useTranslations('groups.expenses.form');
+  const tAll = useTranslations();
+  const categoryErrorId = useId();
   const noAccounts = accounts.length === 0;
 
   return (
@@ -58,24 +65,24 @@ export function PayerAccountFields({
           </Select>
         )}
       </MovementField>
-      <MovementField label={t('fields.personalCategory')} error={categoryError}>
-        {(control) => (
-          <Select
-            value={categoryId}
-            onChange={(event) => {
-              onCategoryChange(event.currentTarget.value);
-            }}
-            {...control}
-          >
-            <option value="">{t('placeholders.personalCategory')}</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.label}
-              </option>
-            ))}
-          </Select>
-        )}
-      </MovementField>
+      <div className="grid min-w-0 gap-2">
+        {/* Your own expense category: the same icon grid as a personal expense. */}
+        <CategoryChips
+          label={t('fields.personalCategory')}
+          name="personalCategoryId"
+          categories={categories}
+          defaultValue=""
+          value={categoryId}
+          onChange={onCategoryChange}
+          invalid={Boolean(categoryError)}
+          describedBy={categoryError ? `${categoryErrorId}-message` : undefined}
+        />
+        {categoryError ? (
+          <p id={`${categoryErrorId}-message`} className="text-small text-destructive">
+            {tAll(categoryError)}
+          </p>
+        ) : null}
+      </div>
     </fieldset>
   );
 }

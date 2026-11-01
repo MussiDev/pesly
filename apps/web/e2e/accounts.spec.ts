@@ -4,6 +4,7 @@ import { catalogs } from './support/catalogs';
 import { resetAttemptLimits } from './support/database';
 import { emailLink } from './support/mailpit';
 import { openRowsUntil } from './support/rows';
+import { chooseSegmentValue } from './support/segmented';
 
 const API_URL = 'http://localhost:4000';
 const PASSWORD = 'correct horse battery staple';
@@ -54,7 +55,7 @@ async function fillAccountForm(page: Page, account: NewAccount): Promise<void> {
   await page.goto('/es/accounts/new');
   await page.getByLabel(t.fields.name).fill(account.name);
   await page.getByLabel(t.fields.type).selectOption({ label: t.types[account.type] });
-  await page.getByLabel(t.fields.currency).selectOption({ label: t.currencies[account.currency] });
+  await chooseSegmentValue(page, t.fields.currency, account.currency);
   if (account.openingBalance !== undefined) {
     await page.getByLabel(t.fields.openingBalance).fill(account.openingBalance);
   }

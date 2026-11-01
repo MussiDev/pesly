@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { DefaultSplitContainer } from '../src/features/groups/default-split/default-split-container';
 import { buildDefaultSplitRequest } from '../src/features/groups/default-split/default-split-request';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { findSegment, pickSegment, segmentValue } from './support/segmented';
 
 const { en } = CATALOGS;
 const GROUP_ID = '55555555-5555-4555-8555-555555555555';
@@ -105,10 +106,8 @@ describe('DefaultSplitContainer', () => {
     open();
     const user = userEvent.setup();
 
-    await user.selectOptions(
-      await screen.findByLabelText(en.groups.defaultSplit.modeLabel),
-      'percentage',
-    );
+    await findSegment(en.groups.defaultSplit.modeLabel);
+    await pickSegment(en.groups.defaultSplit.modeLabel, 'percentage');
     await user.type(percentField('Ana'), '60');
     await user.type(percentField('Ben'), '40');
     await user.click(screen.getByRole('button', { name: en.groups.defaultSplit.save }));
@@ -127,8 +126,8 @@ describe('DefaultSplitContainer', () => {
     });
     open();
 
-    const mode = await screen.findByLabelText<HTMLSelectElement>(en.groups.defaultSplit.modeLabel);
-    expect(mode.value).toBe('percentage');
+    await findSegment(en.groups.defaultSplit.modeLabel);
+    expect(segmentValue(en.groups.defaultSplit.modeLabel)).toBe('percentage');
     expect((percentField('Ana') as HTMLInputElement).value).toBe('60');
     expect((percentField('Ben') as HTMLInputElement).value).toBe('40');
   });
@@ -142,10 +141,8 @@ describe('DefaultSplitContainer', () => {
     open();
     const user = userEvent.setup();
 
-    await user.selectOptions(
-      await screen.findByLabelText(en.groups.defaultSplit.modeLabel),
-      'equal',
-    );
+    await findSegment(en.groups.defaultSplit.modeLabel);
+    await pickSegment(en.groups.defaultSplit.modeLabel, 'equal');
     await user.click(screen.getByRole('button', { name: en.groups.defaultSplit.save }));
 
     await waitFor(() => {
@@ -177,10 +174,8 @@ describe('DefaultSplitContainer', () => {
     open();
     const user = userEvent.setup();
 
-    await user.selectOptions(
-      await screen.findByLabelText(en.groups.defaultSplit.modeLabel),
-      'percentage',
-    );
+    await findSegment(en.groups.defaultSplit.modeLabel);
+    await pickSegment(en.groups.defaultSplit.modeLabel, 'percentage');
     await user.type(percentField('Ana'), '60');
     await user.type(percentField('Ben'), '30');
     await user.click(screen.getByRole('button', { name: en.groups.defaultSplit.save }));
@@ -204,9 +199,7 @@ describe('DefaultSplitContainer', () => {
 
     expect(await screen.findByRole('alert')).toBeTruthy();
     expect(screen.queryByText(en.groups.defaultSplit.saved)).toBeNull();
-    expect(screen.getByLabelText<HTMLSelectElement>(en.groups.defaultSplit.modeLabel).value).toBe(
-      'equal',
-    );
+    expect(segmentValue(en.groups.defaultSplit.modeLabel)).toBe('equal');
   });
 
   it('keeps the typed values after a 400 refusal', async () => {
@@ -221,10 +214,8 @@ describe('DefaultSplitContainer', () => {
     open();
     const user = userEvent.setup();
 
-    await user.selectOptions(
-      await screen.findByLabelText(en.groups.defaultSplit.modeLabel),
-      'percentage',
-    );
+    await findSegment(en.groups.defaultSplit.modeLabel);
+    await pickSegment(en.groups.defaultSplit.modeLabel, 'percentage');
     await user.type(percentField('Ana'), '70');
     await user.type(percentField('Ben'), '30');
     await user.click(screen.getByRole('button', { name: en.groups.defaultSplit.save }));

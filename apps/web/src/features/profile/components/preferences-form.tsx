@@ -11,6 +11,7 @@ import type { SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FormItem, FormLabel, FormMessage, FormSelect } from '@/components/ui/form';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import type { ProfileFormErrors } from '../profile-errors';
@@ -93,16 +94,13 @@ export function PreferencesForm({
               ))}
             </FormSelect>
           </FormItem>
-          <FormItem>
-            <FormLabel>{t('preferences.displayCurrency')}</FormLabel>
-            <FormSelect name="displayCurrency" defaultValue={preferences.displayCurrency}>
-              {DISPLAY_CURRENCY_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {t(`currencies.${value}`)}
-                </option>
-              ))}
-            </FormSelect>
-          </FormItem>
+          <SegmentedField
+            label={t('preferences.displayCurrency')}
+            name="displayCurrency"
+            // The ISO code, as in every other currency choice: the full names wrap on a phone.
+            options={DISPLAY_CURRENCY_VALUES.map((value) => ({ value, label: value }))}
+            defaultValue={preferences.displayCurrency}
+          />
           <FormItem invalid={Boolean(timeZoneError)}>
             <FormLabel>{t('preferences.timeZone')}</FormLabel>
             <FormSelect name="timeZone" defaultValue={preferences.timeZone}>
@@ -135,16 +133,12 @@ export function PreferencesForm({
             </FormSelect>
             <FormMessage>{timeZoneError ? tErrors(timeZoneError) : null}</FormMessage>
           </FormItem>
-          <FormItem>
-            <FormLabel>{t('preferences.language')}</FormLabel>
-            <FormSelect name="language" defaultValue={preferences.language}>
-              {LANGUAGE_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {t(`languages.${value}`)}
-                </option>
-              ))}
-            </FormSelect>
-          </FormItem>
+          <SegmentedField
+            label={t('preferences.language')}
+            name="language"
+            options={LANGUAGE_VALUES.map((value) => ({ value, label: t(`languages.${value}`) }))}
+            defaultValue={preferences.language}
+          />
           <Button type="submit" disabled={pending}>
             {pending ? t('preferences.pending') : t('preferences.submit')}
           </Button>

@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import { useFocusInvalid } from '@/features/profile/use-focus-invalid';
@@ -55,6 +56,7 @@ export function CategoryForm({
   onCancel,
 }: CategoryFormProps) {
   const t = useTranslations('categories');
+  const tAll = useTranslations();
   const formRef = useFocusInvalid(errors);
   const [kind, setKind] = useState<CategoryKind>(defaultKind);
 
@@ -88,24 +90,17 @@ export function CategoryForm({
       <CardContent className="grid gap-4">
         <form ref={formRef} className="grid gap-4" noValidate onSubmit={handleSubmit}>
           <FormAlert error={errors.form} />
-          <CategoryField label={t('fields.kind')} error={errors.fields?.kind}>
-            {(control) => (
-              <Select
-                name="kind"
-                value={kind}
-                onChange={(event) => {
-                  setKind(event.target.value === 'income' ? 'income' : 'expense');
-                }}
-                {...control}
-              >
-                {CATEGORY_KINDS.map((option) => (
-                  <option key={option} value={option}>
-                    {t(`kinds.${option}`)}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </CategoryField>
+          <SegmentedField
+            label={t('fields.kind')}
+            name="kind"
+            options={CATEGORY_KINDS.map((option) => ({
+              value: option,
+              label: t(`kinds.${option}`),
+            }))}
+            value={kind}
+            onChange={setKind}
+            error={errors.fields?.kind ? tAll(errors.fields.kind) : undefined}
+          />
           <CategoryField label={t('fields.parent')} error={errors.fields?.parentId}>
             {(control) => (
               // Remounted per kind: a parent of the other kind must not stay selected.

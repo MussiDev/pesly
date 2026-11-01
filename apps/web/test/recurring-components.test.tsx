@@ -71,23 +71,29 @@ describe('RecurringPaymentForm', () => {
   it('offers exactly weekly, monthly and yearly, and the day fields follow the choice (AC-03)', async () => {
     renderApp(<RecurringPaymentForm {...formProps} />, { locale: 'en' });
     const user = userEvent.setup();
-    const frequency = screen.getByLabelText<HTMLSelectElement>(en.recurring.frequency.label);
-    expect(Array.from(frequency.options).map((option) => option.value)).toEqual([
-      'weekly',
-      'monthly',
-      'yearly',
-    ]);
+    // A short fixed choice: one segmented row of radios, every option visible.
+    const frequency = screen.getByRole('radiogroup', { name: en.recurring.frequency.label });
+    expect(
+      within(frequency)
+        .getAllByRole<HTMLInputElement>('radio')
+        .map((option) => option.value),
+    ).toEqual(['weekly', 'monthly', 'yearly']);
+    expect(
+      within(frequency).getByRole<HTMLInputElement>('radio', {
+        name: en.recurring.frequency.monthly,
+      }).checked,
+    ).toBe(true);
 
     // Monthly (default): only the day of the month.
     expect(screen.getByLabelText(en.recurring.fields.dayOfMonth)).toBeDefined();
     expect(screen.queryByLabelText(en.recurring.weekday.label)).toBeNull();
     expect(screen.queryByLabelText(en.recurring.month.label)).toBeNull();
 
-    await user.selectOptions(frequency, 'weekly');
+    await user.click(within(frequency).getByRole('radio', { name: en.recurring.frequency.weekly }));
     expect(screen.getByLabelText(en.recurring.weekday.label)).toBeDefined();
     expect(screen.queryByLabelText(en.recurring.fields.dayOfMonth)).toBeNull();
 
-    await user.selectOptions(frequency, 'yearly');
+    await user.click(within(frequency).getByRole('radio', { name: en.recurring.frequency.yearly }));
     expect(screen.getByLabelText(en.recurring.month.label)).toBeDefined();
     expect(screen.getByLabelText(en.recurring.fields.dayOfMonth)).toBeDefined();
     expect(screen.queryByLabelText(en.recurring.weekday.label)).toBeNull();
@@ -100,9 +106,9 @@ describe('RecurringPaymentForm', () => {
     await user.type(screen.getByLabelText(en.recurring.fields.name), 'Rent');
     await user.type(screen.getByLabelText(en.recurring.fields.amount), '350000.00');
     await user.selectOptions(screen.getByLabelText(en.recurring.fields.account), ACCOUNT_ID);
-    await user.selectOptions(screen.getByLabelText(en.recurring.fields.category), CATEGORY_ID);
+    await user.click(screen.getByRole('radio', { name: 'Housing' }));
     await user.type(screen.getByLabelText(en.recurring.fields.dayOfMonth), '5');
-    await user.selectOptions(screen.getByLabelText(en.recurring.mode.label), 'confirmation');
+    await user.click(screen.getByRole('radio', { name: en.recurring.mode.confirmation }));
     await user.click(screen.getByRole('button', { name: en.recurring.actions.create }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);

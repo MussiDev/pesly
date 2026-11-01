@@ -118,13 +118,20 @@ function send(
   return body === undefined ? req : req.send(body);
 }
 
-function expenseBody(world: World, accountId: string, categoryId: string, amount: bigint) {
+/** An expense an hour ago, or `ago` milliseconds ago. */
+function expenseBody(
+  world: World,
+  accountId: string,
+  categoryId: string,
+  amount: bigint,
+  ago = HOUR,
+) {
   return {
     type: 'expense',
     accountId,
     categoryId,
     amount: amount.toString(),
-    occurredAt: new Date(world.clock.now().getTime() - HOUR).toISOString(),
+    occurredAt: new Date(world.clock.now().getTime() - ago).toISOString(),
     rate: RATE,
   };
 }
@@ -610,7 +617,9 @@ describe('budget alerts flow over PostgreSQL', () => {
         'post',
         '/movements',
         owner,
-        expenseBody(world, account, category, 12000000n),
+        // Dated now, not an hour ago: this test runs on the real clock, and between 00:00 and 01:00
+        // on the 1st an hour ago is last month, which raises no alert by design.
+        expenseBody(world, account, category, 12000000n, 0),
       );
       expect(response.status).toBe(201);
     }

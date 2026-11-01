@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import {
   MovementField,
   type MovementFieldControlProps,
@@ -59,6 +60,7 @@ export function SettlementForm({
   onRetryAccounts,
 }: SettlementFormProps) {
   const t = useTranslations('groups.settlement');
+  const tAll = useTranslations();
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -112,24 +114,16 @@ export function SettlementForm({
           <MovementField label={t('fields.to')} error={errors.toMember}>
             {memberSelect('toMemberId')}
           </MovementField>
-          <MovementField label={t('fields.currency')} error={errors.currency}>
-            {(control) => (
-              <Select
-                name="currency"
-                value={values.currency}
-                onChange={(event) => {
-                  onChange('currency', event.currentTarget.value);
-                }}
-                {...control}
-              >
-                {ACCOUNT_CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {currency}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <SegmentedField
+            label={t('fields.currency')}
+            name="currency"
+            options={ACCOUNT_CURRENCIES.map((currency) => ({ value: currency, label: currency }))}
+            value={values.currency}
+            onChange={(currency) => {
+              onChange('currency', currency);
+            }}
+            error={errors.currency ? tAll(errors.currency) : undefined}
+          />
           <MovementField label={t('fields.amount')} error={errors.amount}>
             {(control) => (
               <Input

@@ -21,12 +21,18 @@ interface CategoryChipsProps {
   defaultValue: string;
   invalid: boolean;
   describedBy: string | undefined;
+  /** The radios' form name; two pickers in one form need two names. */
+  name?: string;
+  /** Controlled value; with it the picker follows `value` and reports picks through `onChange`. */
+  value?: string;
+  onChange?: (id: string) => void;
 }
 
 /**
  * The categories of the chosen type: the top-level ones as a grid of icon tiles, and the
  * subcategories of the tile in use as chips below it. Every option is a real radio button named
- * `categoryId`, so the form reads it like any other field and the keyboard works.
+ * `name` (`categoryId` by default), so the form reads it like any other field and the keyboard
+ * works.
  */
 export function CategoryChips({
   label,
@@ -34,9 +40,17 @@ export function CategoryChips({
   defaultValue,
   invalid,
   describedBy,
+  name = 'categoryId',
+  value,
+  onChange,
 }: CategoryChipsProps) {
   const t = useTranslations('movements.fields');
-  const [selected, setSelected] = useState(defaultValue);
+  const [own, setOwn] = useState(defaultValue);
+  const selected = value ?? own;
+  const setSelected = (id: string) => {
+    setOwn(id);
+    onChange?.(id);
+  };
   const ids = new Set(categories.map((category) => category.id));
   const isTop = (category: CategoryChipOption) =>
     category.parentId === null || category.parentId === undefined || !ids.has(category.parentId);
@@ -50,7 +64,7 @@ export function CategoryChips({
   const radio = (category: CategoryChipOption) => (
     <input
       type="radio"
-      name="categoryId"
+      name={name}
       value={category.id}
       checked={selected === category.id}
       onChange={() => {

@@ -725,6 +725,7 @@
       "chooseGroup": "Choose a group",
       "category": "Group category",
       "automaticCategory": "Automatic (the movement's own category, or \"Other expenses\")",
+      "automaticCategoryShort": "Automatic",
       "defaultDescription": "Expense",
       "description": "Description",
       "splitSummary": "Equal among {count} members: {each} each",

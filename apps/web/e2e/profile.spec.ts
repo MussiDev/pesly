@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { resetAttemptLimits } from './support/database';
+import { chooseSegmentValue } from './support/segmented';
 
 const es = catalogs.es;
 const en = catalogs.en;
@@ -41,7 +42,7 @@ test('a verified user edits the name and preferences, signs out and in, and sees
   await expect(page.getByText(es.profile.saved)).toHaveCount(1);
 
   await page.getByLabel(es.profile.preferences.defaultRateType).selectOption('mep');
-  await page.getByLabel(es.profile.preferences.displayCurrency).selectOption('USD');
+  await chooseSegmentValue(page, es.profile.preferences.displayCurrency, 'USD');
   await page.getByLabel(es.profile.preferences.timeZone).selectOption('Europe/Madrid');
   await page.getByRole('button', { name: es.profile.preferences.submit }).click();
   await expect(page.getByText(es.profile.saved)).toHaveCount(2);
@@ -54,7 +55,11 @@ test('a verified user edits the name and preferences, signs out and in, and sees
 
   await expect(name).toHaveValue('Ana María');
   await expect(page.getByLabel(es.profile.preferences.defaultRateType)).toHaveValue('mep');
-  await expect(page.getByLabel(es.profile.preferences.displayCurrency)).toHaveValue('USD');
+  await expect(
+    page
+      .getByRole('radiogroup', { name: es.profile.preferences.displayCurrency, exact: true })
+      .locator('input[value="USD"]'),
+  ).toBeChecked();
   await expect(page.getByLabel(es.profile.preferences.timeZone)).toHaveValue('Europe/Madrid');
 });
 
@@ -98,7 +103,7 @@ test('switching the language to English shows the profile in English and back sh
   await page.goto('/es/settings/profile');
   await expect(page.getByRole('heading', { level: 1, name: es.profile.title })).toBeVisible();
 
-  await page.getByLabel(es.profile.preferences.language).selectOption('en');
+  await chooseSegmentValue(page, es.profile.preferences.language, 'en');
   await page.getByRole('button', { name: es.profile.preferences.submit }).click();
 
   await expect(page).toHaveURL(/\/en\/settings\/profile$/);
@@ -107,7 +112,7 @@ test('switching the language to English shows the profile in English and back sh
   await expect(page.getByRole('link', { name: en.app.nav.settings })).toBeVisible();
   await expect(page.getByText(es.profile.account.title)).toHaveCount(0);
 
-  await page.getByLabel(en.profile.preferences.language).selectOption('es');
+  await chooseSegmentValue(page, en.profile.preferences.language, 'es');
   await page.getByRole('button', { name: en.profile.preferences.submit }).click();
 
   await expect(page).toHaveURL(/\/es\/settings\/profile$/);

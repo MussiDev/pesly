@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CardExpenseContainer } from '../src/features/credit-cards/containers/card-expense-container';
 import { category, page, uuid } from './support/category-fixtures';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
+import { pickSegment, segmentValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -90,7 +91,7 @@ const submit = () => screen.getByRole('button', { name: es.creditCards.expense.s
 
 async function fill(amount: string) {
   const user = userEvent.setup();
-  await user.selectOptions(field(es.creditCards.expense.fields.currency), 'USD');
+  await pickSegment(es.creditCards.expense.fields.currency, 'USD');
   await user.click(screen.getByRole('radio', { name: 'Comida' }));
   if (amount !== '') await user.type(field(es.creditCards.expense.fields.amount), amount);
   return user;
@@ -171,7 +172,7 @@ describe('CardExpenseContainer', () => {
 
     expect((await screen.findByRole('alert')).textContent).toBe(es.errors.rateRequired);
     expect(field(es.creditCards.expense.fields.amount).value).toBe('15,99');
-    expect(field(es.creditCards.expense.fields.currency).value).toBe('USD');
+    expect(segmentValue(es.creditCards.expense.fields.currency)).toBe('USD');
     expect(screen.getByRole<HTMLInputElement>('radio', { name: 'Comida' }).checked).toBe(true);
   });
 
@@ -199,7 +200,7 @@ describe('CardExpenseContainer', () => {
       es.creditCards.expense.connectionNeeded,
     );
     expect(field(es.creditCards.expense.fields.amount).value).toBe('15,99');
-    expect(field(es.creditCards.expense.fields.currency).value).toBe('USD');
+    expect(segmentValue(es.creditCards.expense.fields.currency)).toBe('USD');
   });
 
   it('redirects to sign in when the save answers 401 (sad path)', async () => {

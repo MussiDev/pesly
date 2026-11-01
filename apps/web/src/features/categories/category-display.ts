@@ -31,3 +31,19 @@ export function compareCategories(a: CategoryResponse, b: CategoryResponse): num
   if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? -1 : 1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
+
+/**
+ * A group's categories in the same order as the personal ones: defaults by their catalog position,
+ * then the group's own ones as the API sent them (the sort is stable).
+ */
+export function compareGroupCategories(
+  a: { defaultKey: string | null },
+  b: { defaultKey: string | null },
+): number {
+  const positionA = a.defaultKey === null ? undefined : DEFAULT_POSITION.get(a.defaultKey);
+  const positionB = b.defaultKey === null ? undefined : DEFAULT_POSITION.get(b.defaultKey);
+  if (positionA !== undefined && positionB !== undefined) return positionA - positionB;
+  if (positionA !== undefined) return -1;
+  if (positionB !== undefined) return 1;
+  return 0;
+}

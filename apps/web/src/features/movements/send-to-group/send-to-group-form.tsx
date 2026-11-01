@@ -2,11 +2,10 @@
 
 import type { GroupSplitMode } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { FormActions } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 import { GroupIssue } from '@/features/groups/components/group-issue';
 import { EqualSplitFields } from '@/features/groups/expenses/form/equal-split-fields';
 import { ExactSplitFields } from '@/features/groups/expenses/form/exact-split-fields';
@@ -23,6 +22,7 @@ import { switchSplitMode, type SplitState } from '@/features/groups/split/split-
 import type { ApiFailure } from '@/lib/api-client';
 import { formatMoney } from '@/lib/format-amount';
 import { cn } from '@/lib/utils';
+import { CategoryChips, type CategoryChipOption } from '../components/category-chips';
 import { MovementField } from '../components/movement-field';
 import { AUTOMATIC_CATEGORY } from './send-defaults';
 import type { SendFieldErrors, SendFormValues } from './send-request';
@@ -38,7 +38,7 @@ export interface SendToGroupFormProps {
   options: {
     members: readonly { id: string; name: string }[];
     /** The group's categories that can still be used. */
-    categories: readonly { id: string; label: string }[];
+    categories: readonly CategoryChipOption[];
   } | null;
   initialValues: SendFormValues;
   fieldErrors: SendFieldErrors;
@@ -64,6 +64,7 @@ export function SendToGroupForm({
 }: SendToGroupFormProps) {
   const t = useTranslations('movements.sendToGroup');
   const tAll = useTranslations();
+  const categoryErrorId = useId();
   const locale = useLocale();
   const language = locale === 'en' ? 'en' : 'es';
   const [values, setValues] = useState(initialValues);
@@ -159,24 +160,32 @@ export function SendToGroupForm({
 
       {options === null ? null : (
         <>
-          <MovementField label={t('category')} error={fieldErrors.category}>
-            {(control) => (
-              <Select
-                value={values.category}
-                onChange={(event) => {
-                  update({ category: event.currentTarget.value });
-                }}
-                {...control}
-              >
-                <option value={AUTOMATIC_CATEGORY}>{t('automaticCategory')}</option>
-                {options.categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <div className="grid min-w-0 gap-2">
+            {/* The group's categories as icon tiles; the first tile keeps the automatic choice. */}
+            <CategoryChips
+              label={t('category')}
+              name="groupCategoryId"
+              categories={[
+                { id: AUTOMATIC_CATEGORY, label: t('automaticCategoryShort'), icon: 'sparkles' },
+                ...options.categories,
+              ]}
+              defaultValue=""
+              value={values.category}
+              onChange={(id) => {
+                update({ category: id });
+              }}
+              invalid={Boolean(fieldErrors.category)}
+              describedBy={fieldErrors.category ? `${categoryErrorId}-message` : undefined}
+            />
+            {values.category === AUTOMATIC_CATEGORY ? (
+              <p className="text-small text-muted-foreground">{t('automaticCategory')}</p>
+            ) : null}
+            {fieldErrors.category ? (
+              <p id={`${categoryErrorId}-message`} className="text-small text-destructive">
+                {tAll(fieldErrors.category)}
+              </p>
+            ) : null}
+          </div>
           <MovementField label={t('description')} error={fieldErrors.description}>
             {(control) => (
               <Input

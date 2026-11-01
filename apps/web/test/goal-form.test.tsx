@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { CreateGoalContainer } from '../src/features/goals/form/create-goal-container';
 import { EditGoalContainer } from '../src/features/goals/form/edit-goal-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { pickSegment } from './support/segmented';
 
 const { en, es } = CATALOGS;
 const GOAL_ID = '77777777-7777-4777-8777-777777777777';
@@ -120,7 +121,7 @@ describe('CreateGoalContainer', () => {
     const options = Array.from(select.options).map((o) => o.text);
     expect(options).toEqual([f.accountNone, 'Galicia']);
 
-    await userEvent.selectOptions(screen.getByLabelText(f.currency), 'USD');
+    await pickSegment(f.currency, 'USD');
     const usd = screen.getByRole<HTMLSelectElement>('combobox', { name: f.account });
     expect(Array.from(usd.options).map((o) => o.text)).toEqual([f.accountNone, 'Dollar box']);
     expect(calls).toHaveLength(1);
@@ -134,8 +135,8 @@ describe('CreateGoalContainer', () => {
     await userEvent.selectOptions(select, ACCOUNT_ID);
     expect(select.value).toBe(ACCOUNT_ID);
 
-    await userEvent.selectOptions(screen.getByLabelText(f.currency), 'USD');
-    await userEvent.selectOptions(screen.getByLabelText(f.currency), 'ARS');
+    await pickSegment(f.currency, 'USD');
+    await pickSegment(f.currency, 'ARS');
     expect(screen.getByRole<HTMLSelectElement>('combobox', { name: f.account }).value).toBe('');
   });
 
@@ -231,9 +232,15 @@ describe('CreateGoalContainer', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: f.account }));
     await screen.findByRole<HTMLSelectElement>('combobox', { name: f.account });
     for (const label of [f.name, f.targetAmount, f.currency, f.targetDate]) {
-      expect(screen.getByLabelText(label)).toBeTruthy();
+      expect(
+        label === f.currency
+          ? screen.getByRole('radiogroup', { name: label })
+          : screen.getByLabelText(label),
+      ).toBeTruthy();
     }
-    for (const el of document.querySelectorAll('input:not([type=checkbox]), select')) {
+    for (const el of document.querySelectorAll(
+      'input:not([type=checkbox]):not([type=radio]), select',
+    )) {
       expect(el.getAttribute('id')).toBeTruthy();
       expect(el.className).toMatch(/min-h-11/);
     }

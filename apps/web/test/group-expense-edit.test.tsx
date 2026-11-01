@@ -152,7 +152,12 @@ describe('ExpenseEditContainer (DISC-001-05h Block 5)', () => {
     expect(field(form.fields.amount).value).toBe('15,000.50');
     expect(field(form.fields.date).value).toBe('2026-10-05T12:30');
     expect(field(form.fields.description).value).toBe('Groceries');
-    expect(field(form.fields.category).value).toBe(CATEGORY);
+    expect(
+      within(screen.getByRole('group', { name: form.fields.category })).getByRole<HTMLInputElement>(
+        'radio',
+        { name: 'Rent' },
+      ).checked,
+    ).toBe(true);
     const boxes = screen.getAllByRole<HTMLInputElement>('checkbox');
     expect(boxes).toHaveLength(3);
     expect(boxes.every((box) => box.checked)).toBe(true);
@@ -437,7 +442,11 @@ describe('ExpenseEditContainer (DISC-001-05h Block 5)', () => {
         within(shown?.parentElement as HTMLElement).getByText(en.groups.categoryViews.detail.label),
       ).toBeTruthy();
       expect(screen.queryByText(en.groups.categoryViews.chip.archived)).toBeNull();
-      expect(field(form.fields.category).value).toBe(CATEGORY);
+      expect(
+        within(
+          screen.getByRole('group', { name: form.fields.category }),
+        ).getByRole<HTMLInputElement>('radio', { name: 'Rent' }).checked,
+      ).toBe(true);
       expect(calls).toHaveLength(3);
     });
 

@@ -4,7 +4,8 @@ import { useTranslations } from 'next-intl';
 import type { SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { FormControl, FormItem, FormLabel, FormMessage, FormSelect } from '@/components/ui/form';
+import { FormControl, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import type { DefaultSplitFieldError, DefaultSplitMode } from './default-split-request';
 
 export interface DefaultSplitFormMember {
@@ -65,20 +66,17 @@ export function DefaultSplitForm({
       </CardHeader>
       <CardContent>
         <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
-          <FormItem>
-            <FormLabel>{t('modeLabel')}</FormLabel>
-            <FormSelect
-              name="mode"
-              value={mode}
-              disabled={pending}
-              onChange={(event) => {
-                onModeChange(event.target.value === 'percentage' ? 'percentage' : 'equal');
-              }}
-            >
-              <option value="equal">{t('modes.equal')}</option>
-              <option value="percentage">{t('modes.percentage')}</option>
-            </FormSelect>
-          </FormItem>
+          <SegmentedField
+            label={t('modeLabel')}
+            name="mode"
+            options={(['equal', 'percentage'] as const).map((value) => ({
+              value,
+              label: t(`modes.${value}`),
+            }))}
+            value={mode}
+            disabled={pending}
+            onChange={onModeChange}
+          />
           {mode === 'percentage' ? (
             <div className="grid gap-3">
               {members.map((member) => {

@@ -287,9 +287,9 @@ describe('PaymentFormContainer', () => {
     await user.type(screen.getByLabelText(en.recurring.fields.name), 'Rent');
     await user.type(screen.getByLabelText(en.recurring.fields.amount), '350000.00');
     await user.selectOptions(screen.getByLabelText(en.recurring.fields.account), ACCOUNT_ID);
-    await user.selectOptions(screen.getByLabelText(en.recurring.fields.category), CATEGORY_ID);
+    await user.click(screen.getByRole('radio', { name: 'Housing' }));
     await user.type(screen.getByLabelText(en.recurring.fields.dayOfMonth), '5');
-    await user.selectOptions(screen.getByLabelText(en.recurring.mode.label), 'confirmation');
+    await user.click(screen.getByRole('radio', { name: en.recurring.mode.confirmation }));
     await user.click(screen.getByRole('button', { name: en.recurring.actions.create }));
 
     await waitFor(() => {
@@ -389,7 +389,7 @@ describe('PaymentFormContainer', () => {
     await user.type(screen.getByLabelText(en.recurring.fields.name), 'Rent');
     await user.type(screen.getByLabelText(en.recurring.fields.amount), '350000.00');
     await user.selectOptions(screen.getByLabelText(en.recurring.fields.account), ACCOUNT_ID);
-    await user.selectOptions(screen.getByLabelText(en.recurring.fields.category), CATEGORY_ID);
+    await user.click(screen.getByRole('radio', { name: 'Housing' }));
     await user.type(screen.getByLabelText(en.recurring.fields.dayOfMonth), '5');
   }
 });

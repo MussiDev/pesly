@@ -134,13 +134,18 @@ async function ready() {
 }
 
 const field = (label: string) => screen.getByLabelText<HTMLInputElement>(label);
+/** Categories are icon tiles (radios) and the currency a segmented row, not selects. */
+const choice = (group: string, option: string) =>
+  within(
+    screen.getByRole(group === form.fields.currency ? 'radiogroup' : 'group', { name: group }),
+  ).getByRole<HTMLInputElement>('radio', { name: option });
 const submit = () => screen.getByRole<HTMLButtonElement>('button', { name: form.submit });
 const named = (template: string, name: string) => template.replace('{name}', name);
 
 async function fillBasics(payer: string | null = 'Bruno') {
   await userEvent.type(field(form.fields.amount), '100');
   await userEvent.type(field(form.fields.description), 'Groceries');
-  await userEvent.selectOptions(field(form.fields.category), 'Rent');
+  await userEvent.click(choice(form.fields.category, 'Rent'));
   if (payer !== null) await userEvent.selectOptions(field(form.fields.payer), payer);
 }
 
@@ -185,7 +190,7 @@ describe('ExpenseFormContainer', () => {
       open();
       await ready();
       await userEvent.type(field(form.fields.description), 'Groceries');
-      await userEvent.selectOptions(field(form.fields.category), 'Rent');
+      await userEvent.click(choice(form.fields.category, 'Rent'));
       await userEvent.selectOptions(field(form.fields.payer), 'Bruno');
       if (amount !== '') await userEvent.type(field(form.fields.amount), amount);
 
@@ -210,7 +215,7 @@ describe('ExpenseFormContainer', () => {
       open();
       await ready();
       await userEvent.type(field(form.fields.amount), '100');
-      await userEvent.selectOptions(field(form.fields.category), 'Rent');
+      await userEvent.click(choice(form.fields.category, 'Rent'));
       await userEvent.selectOptions(field(form.fields.payer), 'Bruno');
       if (description !== '') {
         await userEvent.click(field(form.fields.description));
@@ -392,7 +397,7 @@ describe('ExpenseFormContainer', () => {
     expect(field(form.fields.amount).value).toBe('100');
     expect(field(form.fields.description).value).toBe('Groceries');
     expect(field(form.fields.payer).value).toBe(BRUNO);
-    expect(field(form.fields.category).value).toBe(GROUP_CATEGORY);
+    expect(choice(form.fields.category, 'Rent').checked).toBe(true);
   });
 
   it.each([
@@ -416,7 +421,7 @@ describe('ExpenseFormContainer', () => {
     await ready();
     await userEvent.type(field(form.fields.amount), '100');
     await userEvent.type(field(form.fields.description), 'Groceries');
-    await userEvent.selectOptions(field(form.fields.category), 'Rent');
+    await userEvent.click(choice(form.fields.category, 'Rent'));
     expect(field(form.fields.payer).value).toBe(ANA);
 
     await userEvent.click(submit());
@@ -426,7 +431,7 @@ describe('ExpenseFormContainer', () => {
     expect(posts(calls)).toHaveLength(0);
 
     await userEvent.selectOptions(field(form.fields.account), 'Wallet ARS');
-    await userEvent.selectOptions(field(form.fields.personalCategory), 'Food');
+    await userEvent.click(choice(form.fields.personalCategory, 'Food'));
     await userEvent.click(submit());
 
     await waitFor(() => {
@@ -444,8 +449,8 @@ describe('ExpenseFormContainer', () => {
     await ready();
     await userEvent.type(field(form.fields.amount), '100');
     await userEvent.type(field(form.fields.description), 'Groceries');
-    await userEvent.selectOptions(field(form.fields.category), 'Rent');
-    await userEvent.selectOptions(field(form.fields.currency), 'USD');
+    await userEvent.click(choice(form.fields.category, 'Rent'));
+    await userEvent.click(choice(form.fields.currency, 'USD'));
 
     expect(screen.getByText(form.errors.noAccountInCurrency)).toBeTruthy();
     await userEvent.click(submit());
@@ -462,7 +467,7 @@ describe('ExpenseFormContainer', () => {
     await fillBasics('Bruno');
 
     expect(screen.queryByLabelText(form.fields.account)).toBeNull();
-    expect(screen.queryByLabelText(form.fields.personalCategory)).toBeNull();
+    expect(screen.queryByRole('group', { name: form.fields.personalCategory })).toBeNull();
     await userEvent.click(submit());
 
     await waitFor(() => {
@@ -514,7 +519,7 @@ describe('ExpenseFormContainer', () => {
     stubApi(routes());
     open();
     await ready();
-    expect(screen.getByLabelText(form.fields.currency).tagName).toBe('SELECT');
+    expect(screen.getByRole('radiogroup', { name: form.fields.currency })).toBeTruthy();
     expect(screen.getByLabelText(form.fields.payer).tagName).toBe('SELECT');
     expect(screen.getByLabelText(form.fields.account)).toBeTruthy();
   });

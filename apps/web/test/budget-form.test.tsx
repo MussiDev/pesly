@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { CreateBudgetContainer } from '../src/features/budgets/form/create-budget-container';
 import { EditBudgetContainer } from '../src/features/budgets/form/edit-budget-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { pickSegment } from './support/segmented';
 
 const { en, es } = CATALOGS;
 const BUDGET_ID = '77777777-7777-4777-8777-777777777777';
@@ -121,7 +122,7 @@ describe('CreateBudgetContainer', () => {
     });
     renderApp(<CreateBudgetContainer />, { locale: 'en' });
     await fillCreate('Trips', '50');
-    await userEvent.selectOptions(screen.getByLabelText(f.currency), 'USD');
+    await pickSegment(f.currency, 'USD');
     await pick('Transport');
     await userEvent.click(screen.getByRole('checkbox', { name: f.rollover }));
     await userEvent.click(removeButton(80) as HTMLElement);
@@ -321,9 +322,15 @@ describe('CreateBudgetContainer', () => {
     renderApp(<CreateBudgetContainer />, { locale: 'en' });
     await screen.findByRole('checkbox', { name: 'Food' });
     for (const label of [f.name, f.amount, f.currency, f.thresholds.input]) {
-      expect(screen.getByLabelText(label)).toBeTruthy();
+      expect(
+        label === f.currency
+          ? screen.getByRole('radiogroup', { name: label })
+          : screen.getByLabelText(label),
+      ).toBeTruthy();
     }
-    for (const el of document.querySelectorAll('input:not([type=checkbox]), select')) {
+    for (const el of document.querySelectorAll(
+      'input:not([type=checkbox]):not([type=radio]), select',
+    )) {
       expect(el.getAttribute('id')).toBeTruthy();
       expect(el.className).toMatch(/min-h-11/);
     }

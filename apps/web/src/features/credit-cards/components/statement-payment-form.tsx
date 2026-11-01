@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { readField } from '@/features/auth/read-field';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { impliedRatePreview } from '@/features/movements/implied-rate-preview';
@@ -123,27 +124,18 @@ export function StatementPaymentForm({
               </AlertDescription>
             </Alert>
           ) : null}
-          <MovementField label={t('fields.currency')} error={errors.fields?.currency}>
-            {(control) => (
-              <Select
-                name="currency"
-                value={currency}
-                required
-                onChange={(event) => {
-                  setCurrency(event.target.value);
-                  setSourceId('');
-                  setPesosAmount('');
-                }}
-                {...control}
-              >
-                {CURRENCIES.map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <SegmentedField
+            label={t('fields.currency')}
+            name="currency"
+            options={CURRENCIES.map((value) => ({ value, label: value }))}
+            value={currency}
+            onChange={(value) => {
+              setCurrency(value);
+              setSourceId('');
+              setPesosAmount('');
+            }}
+            error={errors.fields?.currency ? tAll(errors.fields.currency) : undefined}
+          />
           <MovementField label={t('fields.sourceAccount')} error={errors.fields?.sourceAccount}>
             {(control) => (
               // Keyed by currency so a pick of the other currency never survives the change.

@@ -2,12 +2,17 @@
 
 import { parseAmountInput, type GroupSplitMode } from '@pesly/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { FormActions } from '@/components/ui/form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { Select } from '@/components/ui/select';
+import {
+  CategoryChips,
+  type CategoryChipOption,
+} from '@/features/movements/components/category-chips';
 import { MovementField } from '@/features/movements/components/movement-field';
 import type { ApiFailure } from '@/lib/api-client';
 import { GroupIssue } from '../../components/group-issue';
@@ -36,10 +41,10 @@ const CURRENCIES = ['ARS', 'USD'] as const;
 export interface ExpenseFormProps {
   members: readonly { id: string; name: string }[];
   /** The group's categories that can still be used. */
-  categories: readonly { id: string; label: string }[];
+  categories: readonly CategoryChipOption[];
   /** The caller's accounts. */
   accounts: readonly { id: string; name: string; currency: string; archived: boolean }[];
-  personalCategories: readonly { id: string; label: string }[];
+  personalCategories: readonly CategoryChipOption[];
   currentMemberId: string | undefined;
   initialValues: ExpenseFormValues;
   /** Messages of the last refused submit, per field. */
@@ -87,6 +92,7 @@ export function ExpenseForm({
   const tEdit = useTranslations('groups.edit.expense');
   const tSplit = useTranslations('groups.split');
   const tAll = useTranslations();
+  const categoryErrorId = useId();
   const locale = useLocale();
   const language = locale === 'en' ? 'en' : 'es';
   const [values, setValues] = useState(initialValues);
@@ -186,23 +192,14 @@ export function ExpenseForm({
         {locked ? (
           <LockedValue label={t('fields.currency')} value={values.currency} />
         ) : (
-          <MovementField label={t('fields.currency')} error={fieldErrors.currency}>
-            {(control) => (
-              <Select
-                value={values.currency}
-                onChange={(event) => {
-                  changeCurrency(event.currentTarget.value);
-                }}
-                {...control}
-              >
-                {CURRENCIES.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <SegmentedField
+            label={t('fields.currency')}
+            name="currency"
+            options={CURRENCIES.map((option) => ({ value: option, label: option }))}
+            value={values.currency}
+            onChange={changeCurrency}
+            error={fieldErrors.currency ? tAll(fieldErrors.currency) : undefined}
+          />
         )}
       </fieldset>
 
@@ -262,24 +259,26 @@ export function ExpenseForm({
 
       <fieldset className="grid gap-4">
         <legend className="mb-2 text-small font-semibold">{t('steps.details')}</legend>
-        <MovementField label={t('fields.category')} error={fieldErrors.category}>
-          {(control) => (
-            <Select
-              value={values.categoryId}
-              onChange={(event) => {
-                update({ categoryId: event.currentTarget.value });
-              }}
-              {...control}
-            >
-              <option value="">{t('placeholders.category')}</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.label}
-                </option>
-              ))}
-            </Select>
-          )}
-        </MovementField>
+        <div className="grid min-w-0 gap-2">
+          {/* The group's categories as icon tiles, like every other category picker. */}
+          <CategoryChips
+            label={t('fields.category')}
+            name="groupCategoryId"
+            categories={categories}
+            defaultValue=""
+            value={values.categoryId}
+            onChange={(id) => {
+              update({ categoryId: id });
+            }}
+            invalid={Boolean(fieldErrors.category)}
+            describedBy={fieldErrors.category ? `${categoryErrorId}-message` : undefined}
+          />
+          {fieldErrors.category ? (
+            <p id={`${categoryErrorId}-message`} className="text-small text-destructive">
+              {tAll(fieldErrors.category)}
+            </p>
+          ) : null}
+        </div>
         <MovementField label={t('fields.description')} error={fieldErrors.description}>
           {(control) => (
             <Input

@@ -8,15 +8,20 @@ import {
 } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState, type SubmitEvent } from 'react';
+import { useEffect, useId, useRef, useState, type SubmitEvent } from 'react';
 import { FormActions } from '@/components/ui/form';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { Select } from '@/components/ui/select';
 import { readField } from '@/features/auth/read-field';
+import {
+  CategoryChips,
+  type CategoryChipOption,
+} from '@/features/movements/components/category-chips';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
 import type { RecurringFieldErrors, RecurringPaymentFormValues } from '../recurring-request';
@@ -38,7 +43,7 @@ interface RecurringPaymentFormProps {
   initial?: RecurringPaymentFormValues;
   accounts: readonly RecurringFormOption[];
   /** The open expense categories, already labelled for the language. */
-  categories: readonly RecurringFormOption[];
+  categories: readonly CategoryChipOption[];
   defaultStartDate: string;
   pending: boolean;
   errors: RecurringFormErrors;
@@ -63,6 +68,8 @@ export function RecurringPaymentForm({
   onCancel,
 }: RecurringPaymentFormProps) {
   const t = useTranslations('recurring');
+  const tAll = useTranslations();
+  const categoryErrorId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [frequency, setFrequency] = useState(initial?.frequency ?? 'monthly');
 
@@ -139,36 +146,32 @@ export function RecurringPaymentForm({
               </Select>
             )}
           </MovementField>
-          <MovementField label={t('fields.category')} error={fields?.categoryId}>
-            {(control) => (
-              <Select name="categoryId" defaultValue={initial?.categoryId ?? ''} {...control}>
-                <option value="">{t('form.placeholder')}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.label}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
-          <MovementField label={t('frequency.label')} error={fields?.frequency}>
-            {(control) => (
-              <Select
-                name="frequency"
-                value={frequency}
-                onChange={(event) => {
-                  setFrequency(event.target.value);
-                }}
-                {...control}
-              >
-                {RECURRING_FREQUENCIES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`frequency.${value}`)}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <div className="grid min-w-0 gap-2">
+            {/* The same icon grid as a personal expense: one way to pick a category everywhere. */}
+            <CategoryChips
+              label={t('fields.category')}
+              categories={categories}
+              defaultValue={initial?.categoryId ?? ''}
+              invalid={Boolean(fields?.categoryId)}
+              describedBy={fields?.categoryId ? `${categoryErrorId}-message` : undefined}
+            />
+            {fields?.categoryId ? (
+              <p id={`${categoryErrorId}-message`} className="text-small text-destructive">
+                {tAll(fields.categoryId)}
+              </p>
+            ) : null}
+          </div>
+          <SegmentedField
+            label={t('frequency.label')}
+            name="frequency"
+            options={RECURRING_FREQUENCIES.map((value) => ({
+              value,
+              label: t(`frequency.${value}`),
+            }))}
+            value={frequency}
+            onChange={setFrequency}
+            error={fields?.frequency ? tAll(fields.frequency) : undefined}
+          />
           {frequency === 'weekly' ? (
             <MovementField label={t('weekday.label')} error={fields?.weekday}>
               {(control) => (
@@ -231,17 +234,14 @@ export function RecurringPaymentForm({
               />
             )}
           </MovementField>
-          <MovementField label={t('mode.label')} hint={t('mode.hint')} error={fields?.mode}>
-            {(control) => (
-              <Select name="mode" defaultValue={initial?.mode ?? 'confirmation'} {...control}>
-                {RECURRING_MODES.map((value) => (
-                  <option key={value} value={value}>
-                    {t(`mode.${value}`)}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </MovementField>
+          <SegmentedField
+            label={t('mode.label')}
+            name="mode"
+            options={RECURRING_MODES.map((value) => ({ value, label: t(`mode.${value}`) }))}
+            defaultValue={initial?.mode ?? 'confirmation'}
+            hint={t('mode.hint')}
+            error={fields?.mode ? tAll(fields.mode) : undefined}
+          />
           <MovementField
             label={t('fields.reminderDays')}
             hint={t('reminderDaysHint')}

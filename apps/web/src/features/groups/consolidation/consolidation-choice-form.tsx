@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { FormItem, FormLabel, FormMessage, FormSelect } from '@/components/ui/form';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import type { ConsolidationFieldMessage } from '../settlements/consolidation-request';
 
 export interface ConsolidationMember {
@@ -59,19 +60,18 @@ export function ConsolidationChoiceForm({
     <div className="grid gap-4">
       {memberSelect('memberA')}
       {memberSelect('memberB', memberBError)}
-      <FormItem>
-        <FormLabel>{t('fields.currency')}</FormLabel>
-        <FormSelect
-          name="currency"
-          value={values.currency}
-          onChange={(event) => {
-            onChange({ ...values, currency: event.target.value === 'USD' ? 'USD' : 'ARS' });
-          }}
-        >
-          <option value="ARS">{tCurrencies('ARS')}</option>
-          <option value="USD">{tCurrencies('USD')}</option>
-        </FormSelect>
-      </FormItem>
+      <SegmentedField
+        label={t('fields.currency')}
+        name="currency"
+        options={(['ARS', 'USD'] as const).map((currency) => ({
+          value: currency,
+          label: tCurrencies(currency),
+        }))}
+        value={values.currency}
+        onChange={(currency) => {
+          onChange({ ...values, currency });
+        }}
+      />
     </div>
   );
 }

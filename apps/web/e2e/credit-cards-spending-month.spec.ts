@@ -6,6 +6,7 @@ import { chooseCategory } from './support/movement-type';
 import { moveFirstStatementDueToThisMonth, resetAttemptLimits } from './support/database';
 import { ars } from './support/group-expenses';
 import { emailLink } from './support/mailpit';
+import { chooseSegmentValue } from './support/segmented';
 
 const PASSWORD = 'correct horse battery staple';
 const es = catalogs.es;
@@ -57,9 +58,7 @@ async function createBank(page: Page): Promise<void> {
   await page
     .getByLabel(accountsT.fields.type)
     .selectOption({ label: accountsT.types.bank_account });
-  await page
-    .getByLabel(accountsT.fields.currency)
-    .selectOption({ label: accountsT.currencies.ARS });
+  await chooseSegmentValue(page, accountsT.fields.currency, 'ARS');
   await page.getByRole('button', { name: accountsT.form.submit }).click();
   await expect(page.getByRole('listitem', { name: 'Banco', exact: true })).toBeVisible();
 }
@@ -83,7 +82,7 @@ async function createVisa(page: Page): Promise<string> {
 
 async function spend(page: Page, cardId: string, amount: string): Promise<void> {
   await page.goto(`/es/cards/${cardId}/expense`);
-  await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption('ARS');
+  await chooseSegmentValue(page, t.expense.fields.currency, 'ARS');
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill(amount);
   await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();

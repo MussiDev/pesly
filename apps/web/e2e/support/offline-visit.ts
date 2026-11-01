@@ -4,6 +4,7 @@ import { registerAndVerify, signIn, uniqueEmail } from './accounts';
 import { catalogs } from './catalogs';
 import { seedMovements } from './database';
 import { chooseCategory, chooseMovementType } from './movement-type';
+import { chooseSegmentValue } from './segmented';
 
 export const WEB_URL = 'http://localhost:3000';
 export const es = catalogs.es;
@@ -38,9 +39,7 @@ export async function createAccount(
   await page.getByLabel(accountsCatalog.fields.type).selectOption({
     label: accountsCatalog.types.cash,
   });
-  await page.getByLabel(accountsCatalog.fields.currency).selectOption({
-    label: accountsCatalog.currencies[currency],
-  });
+  await chooseSegmentValue(page, accountsCatalog.fields.currency, currency);
   await page.getByLabel(accountsCatalog.fields.openingBalance).fill('1000,00');
   await page.getByRole('button', { name: accountsCatalog.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);
