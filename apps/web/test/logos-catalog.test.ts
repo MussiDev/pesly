@@ -36,9 +36,9 @@ function logoPath(url: string): string {
 }
 
 describe('merchant catalog (AC-17)', () => {
-  it('has at most 40 entries, each with a name, a keyword and an existing logo file', () => {
+  it('has at most 80 entries, each with a name, a keyword and an existing logo file (FEAT-017)', () => {
     expect(MERCHANT_CATALOG.length).toBeGreaterThan(0);
-    expect(MERCHANT_CATALOG.length).toBeLessThanOrEqual(40);
+    expect(MERCHANT_CATALOG.length).toBeLessThanOrEqual(80);
     for (const entry of MERCHANT_CATALOG) {
       expect(entry.name.trim(), entry.id).not.toBe('');
       expect(entry.keywords.length, entry.id).toBeGreaterThan(0);

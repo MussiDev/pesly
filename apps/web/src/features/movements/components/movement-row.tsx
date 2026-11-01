@@ -212,6 +212,7 @@ export function MovementRow({
         <MovementAvatar
           type={movement.type}
           note={movement.note}
+          categoryName={categoryName}
           categoryIcon={categoryIcon}
           categoryColor={categoryColor}
         />

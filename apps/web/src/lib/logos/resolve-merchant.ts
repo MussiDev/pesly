@@ -54,3 +54,25 @@ export function createMerchantResolver(catalog: readonly MerchantEntry[]) {
 
 /** The entry a movement note names, or `undefined` when it names none. */
 export const resolveMerchant = createMerchantResolver(MERCHANT_CATALOG);
+
+/**
+ * Builds a resolver for names that ARE a merchant (FEAT-017): the whole name must be one of the
+ * keywords, so a category called "Netflix" gets the logo and one called "Ropa de Zara y otras"
+ * does not.
+ */
+export function createExactMerchantResolver(catalog: readonly MerchantEntry[]) {
+  const byKeyword = new Map<string, MerchantEntry>();
+  for (const entry of catalog) {
+    for (const keyword of entry.keywords) {
+      const key = tokenize(keyword).join(' ');
+      if (key !== '' && !byKeyword.has(key)) byKeyword.set(key, entry);
+    }
+  }
+  return (name: string | null | undefined): MerchantEntry | undefined => {
+    if (name === null || name === undefined) return undefined;
+    return byKeyword.get(tokenize(name).join(' '));
+  };
+}
+
+/** The entry a category name is exactly, or `undefined`. */
+export const resolveMerchantName = createExactMerchantResolver(MERCHANT_CATALOG);

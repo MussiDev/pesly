@@ -1,4 +1,6 @@
 import { CATEGORY_COLORS, emojiOfIcon, type CategoryColor } from '@pesly/shared';
+import { Avatar } from '@/components/ui/avatar';
+import { resolveMerchantName } from '@/lib/logos/resolve-merchant';
 import { cn } from '@/lib/utils';
 import {
   CATEGORY_ICON_COMPONENTS,
@@ -44,18 +46,37 @@ function isCategoryColor(key: string): key is CategoryColor {
   return (CATEGORY_COLORS as readonly string[]).includes(key);
 }
 
-/** A category's icon on its color. Unknown keys render a neutral icon and color, never raw values. */
+/**
+ * A category's icon on its color. Unknown keys render a neutral icon and color, never raw values.
+ * A category named exactly like a merchant with a bundled logo shows that logo instead (FEAT-017),
+ * falling back to the icon when the file does not load.
+ */
 export function CategoryVisual({
   icon,
   color,
+  name,
   className,
 }: {
   icon: string;
   color: string;
+  /** The name shown to the user; only used to find a merchant logo. */
+  name?: string | null;
   className?: string;
 }) {
   const emoji = emojiOfIcon(icon);
   const Icon = isCategoryIcon(icon) ? CATEGORY_ICON_COMPONENTS[icon] : FALLBACK_CATEGORY_ICON;
+  const merchant = resolveMerchantName(name);
+  if (merchant !== undefined) {
+    return (
+      <span aria-hidden="true" data-merchant={merchant.id} className="inline-flex shrink-0">
+        <Avatar
+          src={merchant.logo}
+          fallback={emoji === undefined ? <Icon /> : emoji}
+          className={className}
+        />
+      </span>
+    );
+  }
   return (
     <span
       aria-hidden="true"

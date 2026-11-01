@@ -4,6 +4,7 @@ import type { StatementImportResponse } from '@pesly/shared';
 import { CircleAlert } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
 import type { Locale } from '@/i18n/routing';
 import { formatMoney } from '@/lib/format-amount';
+import { resolveMerchant } from '@/lib/logos/resolve-merchant';
 import { formatCalendarDate } from '../format-dates';
 import { reconcile, selectedLines } from '../statement-import/import-request';
 import type { ParsedStatement, ParsedStatementLine } from '../statement-import/statement-types';
@@ -252,7 +254,9 @@ function Preview({
               {statement.lines.map((line, index) => (
                 <tr key={`${line.date}-${String(index)}`}>
                   <td className="p-2 whitespace-nowrap">{formatCalendarDate(line.date, locale)}</td>
-                  <td className="p-2">{line.description}</td>
+                  <td className="p-2">
+                    <LineDescription description={line.description} />
+                  </td>
                   <td className="p-2 whitespace-nowrap tabular-nums">
                     {line.installmentCount === null
                       ? ''
@@ -344,5 +348,17 @@ function Preview({
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+/** A line's description, after the logo of the merchant it names when one is bundled (FEAT-017). */
+function LineDescription({ description }: { description: string }) {
+  const merchant = resolveMerchant(description);
+  if (merchant === undefined) return <>{description}</>;
+  return (
+    <span className="flex min-w-0 items-center gap-2">
+      <Avatar size="sm" src={merchant.logo} fallback={merchant.name.charAt(0)} />
+      <span className="min-w-0">{description}</span>
+    </span>
   );
 }
