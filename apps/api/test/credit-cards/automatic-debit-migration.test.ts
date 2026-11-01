@@ -346,7 +346,7 @@ describe('0029_card_automatic_debit migration', () => {
       before.filter((name) => !NEW_COLUMNS.includes(name) && name !== 'reminder_days'),
     );
     expect(await claimTableExists()).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 13);
+    expect(await appliedMigrations()).toBe(countBefore - 14);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await cardColumns()).toEqual(before);

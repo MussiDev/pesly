@@ -144,8 +144,8 @@ describe('0026_groups migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await groupTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 17);
-    expect(await appliedMigrations()).toBe(countBefore - 16);
+    expect(await publicTableCount()).toBe(tablesBefore - GROUP_TABLES.length - 18);
+    expect(await appliedMigrations()).toBe(countBefore - 17);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await groupTables()).toEqual(GROUP_TABLES);

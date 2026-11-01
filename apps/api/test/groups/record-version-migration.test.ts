@@ -225,8 +225,8 @@ describe('0031_group_record_version migration', () => {
 
     expect(await versionColumns()).toEqual([]);
     expect(await checkNames()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - 10);
-    expect(await appliedMigrations()).toBe(countBefore - 11);
+    expect(await publicTableCount()).toBe(tablesBefore - 11);
+    expect(await appliedMigrations()).toBe(countBefore - 12);
     const kept = await client.query('select 1 from group_expenses where group_id = $1', [f.group]);
     expect(kept.rowCount).toBe(1);
 

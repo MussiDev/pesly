@@ -149,7 +149,7 @@ describe('0038_exchange_rate_history migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await tableExists('exchange_rate_history')).toBe(false);
-    expect(await appliedMigrations()).toBe(countBefore - 4);
+    expect(await appliedMigrations()).toBe(countBefore - 5);
     const users = await client.query("select 1 from users where email = 'keep@history.test'");
     expect(users.rowCount).toBe(1);
 

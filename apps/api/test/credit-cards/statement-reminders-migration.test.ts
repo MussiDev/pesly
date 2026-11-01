@@ -202,7 +202,7 @@ describe('0032_card_statement_reminders migration', () => {
     expect(await cardColumns()).toEqual(before.filter((name) => name !== 'reminder_days'));
     expect(await noticeKinds(owner)).toEqual(['not_recorded', 'recorded', 'reminder']);
     expect(await insertNotice(owner, KIND, randomUUID(), '2026-10-21')).toBe('23514');
-    expect(await appliedMigrations()).toBe(countBefore - 10);
+    expect(await appliedMigrations()).toBe(countBefore - 11);
 
     await runMigrations(throwawayUrl);
 

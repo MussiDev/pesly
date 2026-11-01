@@ -169,8 +169,8 @@ describe('0027_group_expenses migration', () => {
 
     expect(await addedTables()).toEqual([]);
     expect(await hasDefaultSplitModeColumn()).toBe(false);
-    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 13);
-    expect(await appliedMigrations()).toBe(countBefore - 15);
+    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 14);
+    expect(await appliedMigrations()).toBe(countBefore - 16);
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);
     expect(await addedTables()).toEqual(ADDED_TABLES);

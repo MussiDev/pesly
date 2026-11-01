@@ -187,8 +187,8 @@ describe('0028_group_settlements migration', () => {
     expect(await hasLeftAtColumn()).toBe(false);
     expect(await indexDefinition('group_members_group_user_unique')).not.toMatch(/left_at/);
     expect(await indexDefinition('group_members_group_user_unique')).toMatch(/user_id IS NOT NULL/);
-    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 11);
-    expect(await appliedMigrations()).toBe(countBefore - 14);
+    expect(await publicTableCount()).toBe(tablesBefore - ADDED_TABLES.length - 12);
+    expect(await appliedMigrations()).toBe(countBefore - 15);
     const group = await createGroup();
     const member = await createGhost(group);
     expect(

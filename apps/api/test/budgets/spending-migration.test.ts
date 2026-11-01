@@ -13,6 +13,7 @@ const NEWEST_WHEN = 1791820000000;
 const PUSH_WHEN = 1791830000000;
 const ADJUSTMENT_WHEN = 1791937632948;
 const GROUP_NOTICES_WHEN = 1792780077683;
+const CARD_RULES_WHEN = 1793539459811;
 const UNIQUE_INDEX = 'group_expenses_payer_movement_unique';
 
 /** A throwaway database next to the test database, so the chain can be rolled back freely. */
@@ -111,7 +112,7 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
 
     await runMigrations(throwawayUrl);
 
-    // The replay also re-applies 0036 to 0041, and 0037 supersedes the index with its unique one.
+    // The replay also re-applies 0036 to 0042, and 0037 supersedes the index with its unique one.
     expect(await indexDefinition(UNIQUE_INDEX)).toBeDefined();
     expect(await appliedWhens()).toEqual([
       ...whensBefore,
@@ -121,6 +122,7 @@ describe('0035_group_expense_payer_movement_idx migration', () => {
       PUSH_WHEN,
       ADJUSTMENT_WHEN,
       GROUP_NOTICES_WHEN,
+      CARD_RULES_WHEN,
     ]);
   });
 

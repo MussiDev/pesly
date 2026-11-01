@@ -212,8 +212,8 @@ describe('0033_savings_goals migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await goalTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - GOAL_TABLES.length - 8);
-    expect(await appliedMigrations()).toBe(countBefore - 9);
+    expect(await publicTableCount()).toBe(tablesBefore - GOAL_TABLES.length - 9);
+    expect(await appliedMigrations()).toBe(countBefore - 10);
     expect(await countOf('select count(*) as n from users where id = $1', [owner])).toBe(1);
 
     await runMigrations(throwawayUrl);

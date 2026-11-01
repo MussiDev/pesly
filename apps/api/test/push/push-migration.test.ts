@@ -232,8 +232,8 @@ describe('0039_push_notifications migration', () => {
       "select 1 from pg_indexes where indexname = 'notices_push_unhandled_idx'",
     );
     expect(index.rowCount).toBe(0);
-    expect(await appliedMigrations()).toBe(countBefore - 3);
-    expect(await publicTableCount()).toBe(tablesBefore - 2);
+    expect(await appliedMigrations()).toBe(countBefore - 4);
+    expect(await publicTableCount()).toBe(tablesBefore - 3);
 
     await runMigrations(throwawayUrl);
     expect(await appliedMigrations()).toBe(countBefore);

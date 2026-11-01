@@ -92,8 +92,8 @@ describe('0034_budgets migration', () => {
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
 
     expect(await existingTables()).toEqual([]);
-    expect(await publicTableCount()).toBe(tablesBefore - 8);
-    expect(await appliedMigrations()).toBe(countBefore - 8);
+    expect(await publicTableCount()).toBe(tablesBefore - 9);
+    expect(await appliedMigrations()).toBe(countBefore - 9);
 
     await runMigrations(throwawayUrl);
 

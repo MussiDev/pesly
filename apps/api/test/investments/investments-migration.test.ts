@@ -70,6 +70,7 @@ const RATE_HISTORY_TABLES = ['exchange_rate_history'];
 const PUSH_TABLES = ['push_deliveries', 'push_subscriptions'];
 const CREDIT_CARD_TABLES = [
   'card_automatic_debits',
+  'card_category_rules',
   'card_statement_import_lines',
   'credit_card_statements',
   'credit_cards',
