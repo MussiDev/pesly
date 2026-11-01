@@ -175,7 +175,7 @@ export function CategoryList(props: CategoryListProps) {
     return (
       <li key={item.id} aria-label={label} className={isChild ? 'grid' : 'grid py-1'}>
         <ListRow
-          leading={<CategoryVisual icon={item.icon} color={item.color} />}
+          leading={<CategoryVisual icon={item.icon} color={item.color} name={label} />}
           title={<span className="wrap-anywhere whitespace-normal">{label}</span>}
           trailing={
             idle ? (

@@ -100,6 +100,7 @@ export function CategoryChips({
               <CategoryVisual
                 icon={category.icon ?? ''}
                 color={category.color ?? ''}
+                name={category.label}
                 className="size-8 [&>svg]:size-4"
               />
               <span className="line-clamp-3 w-full text-caption leading-tight font-semibold hyphens-auto">

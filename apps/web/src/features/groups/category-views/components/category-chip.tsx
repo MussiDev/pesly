@@ -23,6 +23,7 @@ export function CategoryChip({
       <CategoryVisual
         icon={display.icon}
         color={display.color}
+        name={display.label}
         className={size === 'sm' ? 'size-6 [&>svg]:size-3.5' : 'size-8 [&>svg]:size-4'}
       />
       <span className="min-w-0 break-words whitespace-normal">{display.label}</span>

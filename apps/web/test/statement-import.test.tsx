@@ -274,6 +274,47 @@ describe('import request helpers', () => {
   });
 });
 
+describe('StatementImportContainer merchant logos (FEAT-017)', () => {
+  it('shows the logo of the merchant a line names and none for an unknown one', async () => {
+    const parsed: ParsedStatement = {
+      closingDate: '2026-09-24',
+      dueDate: '2026-10-05',
+      cardEnding: null,
+      totals: { ARS: '300', USD: null },
+      lines: [
+        {
+          date: '2026-09-10',
+          description: 'CHEVROLET SA PLAN 12/84',
+          voucher: null,
+          installmentNumber: null,
+          installmentCount: null,
+          currency: 'ARS',
+          amount: '100',
+          kind: 'purchase',
+        },
+        {
+          date: '2026-09-11',
+          description: 'KIOSCO JUAN',
+          voucher: null,
+          installmentNumber: null,
+          installmentCount: null,
+          currency: 'ARS',
+          amount: '200',
+          kind: 'purchase',
+        },
+      ],
+    };
+    const { input } = await open(parserOf(parsed));
+    await userEvent.upload(input, FILE);
+
+    const table = await screen.findByRole('table', { name: t.preview.caption });
+    const [chevrolet, kiosco] = within(table).getAllByRole('row').slice(1);
+    expect(chevrolet?.querySelector('img')?.getAttribute('src')).toBe('/logos/chevrolet.svg');
+    expect(kiosco?.querySelector('img')).toBeNull();
+    expect(within(table).getByText('CHEVROLET SA PLAN 12/84')).toBeTruthy();
+  });
+});
+
 describe('StatementImportContainer category suggestions (FEAT-016)', () => {
   const AUTO_ID = uuid(21);
   const NAFTA_ID = uuid(22);

@@ -68,7 +68,7 @@ export function GroupCategoriesList(props: GroupCategoriesListProps) {
         return (
           <li key={item.id} className="grid py-1">
             <ListRow
-              leading={<CategoryVisual icon={item.icon} color={item.color} />}
+              leading={<CategoryVisual icon={item.icon} color={item.color} name={label} />}
               title={<span className="break-words whitespace-normal">{label}</span>}
               description={archived ? t('archivedBadge') : undefined}
               trailing={
