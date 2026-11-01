@@ -121,7 +121,8 @@ afterAll(async () => {
 
 describe('0040_balance_adjustments migration', () => {
   it('keeps every existing account, movement and computed balance when applied on top of data', async () => {
-    // 0041 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0042 and 0041 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     const s = await seed();
@@ -203,7 +204,8 @@ describe('0040_balance_adjustments migration', () => {
     const s = await seed();
     await insertExpense(s, 10);
 
-    // 0041 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    // 0042 and 0041 have the greater journal `when`s, so they go first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(await fileOf('rollback/0041_group_notices.down.sql'));
     await client.query(await fileOf(`rollback/${TAG}.down.sql`));
     // Idempotent: a second run finds nothing to do.

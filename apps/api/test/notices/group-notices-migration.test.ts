@@ -114,6 +114,8 @@ describe('0041_group_notices migration', () => {
     const countBefore = await appliedMigrations();
     const script = await fileOf(`rollback/${TAG}.down.sql`);
 
+    // 0042 has the greater journal `when`, so it goes first: the migrator replays only what is newer.
+    await client.query(await fileOf('rollback/0042_card_category_rules.down.sql'));
     await client.query(script);
     await client.query(script);
 
@@ -128,7 +130,7 @@ describe('0041_group_notices migration', () => {
     expect(column.rowCount).toBe(0);
     expect(await constraintNames()).toContain('notices_kind_payment_due_unique');
     expect(await constraintNames()).not.toContain('notices_owner_kind_payment_due_unique');
-    expect(await appliedMigrations()).toBe(countBefore - 1);
+    expect(await appliedMigrations()).toBe(countBefore - 2);
 
     await runMigrations(throwawayUrl);
 

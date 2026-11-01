@@ -8,6 +8,8 @@ import { createDatabase, type DatabaseConnection } from '../../src/shared/db/cli
 import { testDatabaseUrl } from '../helpers/test-database';
 import { newAccount, newTransfer, newUserId, readScope } from '../movements/db-fixtures';
 import { newCard, newMovementAt, newNamedCategory, newStatement } from '../reports/flow-fixtures';
+import { DrizzleCardStatementSource } from '../../src/dashboard/infrastructure/credit-cards/drizzle-card-statement-source';
+import { createCardPayments, createCardPurchases } from '../../src/movements';
 import { FakePreferences, FixedClock } from './fakes';
 
 const BUENOS_AIRES = 'America/Argentina/Buenos_Aires';
@@ -73,7 +75,7 @@ async function monthOf(w: World, now: Date) {
     { clock: new FixedClock(now), preferences: new FakePreferences() },
     w.scope,
   );
-  return (await buildMonthFlows({ flows: reader }, w.scope, context)).month;
+  return (await buildMonthFlows({ flows: reader }, w.scope, context, Promise.resolve([]))).month;
 }
 
 describe('card purchases on the dashboard month flows', () => {
@@ -155,5 +157,45 @@ describe('card purchases on the dashboard month flows', () => {
 
     expect((await monthOf(mine, OCTOBER_15)).expenses).toBe(0n);
     expect((await monthOf(other, OCTOBER_15)).expenses).toBe(9999n);
+  });
+});
+
+describe('unpaid statements on the dashboard month (FEAT-015)', () => {
+  async function monthWithStatements(w: World, now: Date) {
+    const context = await prepareDashboard(
+      { clock: new FixedClock(now), preferences: new FakePreferences() },
+      w.scope,
+    );
+    const source = new DrizzleCardStatementSource({
+      db: connection.db,
+      purchases: createCardPurchases(connection.db),
+      cardPayments: createCardPayments(connection.db),
+    });
+    const owed = source.owedStatements(w.scope, context.today, context.preferences.timeZone);
+    return (await buildMonthFlows({ flows: reader }, w.scope, context, owed)).month;
+  }
+
+  it('shows the unpaid September statement as pending in October, then as an expense once paid (AC-01, AC-02, AC-04)', async () => {
+    const w = await world();
+    await spend(w, 3000000n, '2026-09-20T15:00:00Z');
+
+    const before = await monthWithStatements(w, OCTOBER_15);
+    expect(before.expenses).toBe(0n);
+    expect(before.pendingCard).toEqual({
+      amount: 3000000n,
+      nextDueDate: '2026-10-05',
+      unconvertedCount: 0,
+    });
+
+    await newTransfer(connection.pool, {
+      ownerId: w.ana,
+      accountId: w.bank,
+      destinationAccountId: w.cardArs,
+      amount: 3000000n,
+    });
+
+    const after = await monthWithStatements(w, OCTOBER_15);
+    expect(after.expenses).toBe(3000000n);
+    expect(after.pendingCard).toEqual({ amount: 0n, nextDueDate: null, unconvertedCount: 0 });
   });
 });

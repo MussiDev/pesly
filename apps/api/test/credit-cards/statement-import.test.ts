@@ -344,3 +344,124 @@ describe('CreateInstallmentPurchase firstPeriod', () => {
     expect(created.installments.map((i) => i.period)).toEqual(['2026-07', '2026-08', '2026-09']);
   });
 });
+
+describe('ImportCardStatement per-line categories (FEAT-016)', () => {
+  const CAR = '7c1d6c6e-7f0e-4d57-9a53-6a1b5d7d1a22';
+  const FUEL = '7c1d6c6e-7f0e-4d57-9a53-6a1b5d7d1a33';
+
+  it('books each line in its own category and the rest in the import one', async () => {
+    const { app, card } = await withCard();
+
+    await app.importer.execute(
+      await writeScopeFor(ANA),
+      card.id,
+      statement([
+        line({ description: 'CHEVROLET SA PLAN 12/84', categoryId: CAR }),
+        line({ description: 'Tienda' }),
+        line({
+          description: 'YPF 1234',
+          categoryId: FUEL,
+          amount: 3000n,
+          installmentNumber: 1,
+          installmentCount: 3,
+        }),
+      ]),
+    );
+
+    expect(app.recorder.expenses.map((expense) => expense.categoryId)).toEqual([CAR, FOOD]);
+    expect([...app.installments.purchases.values()][0]?.purchase.categoryId).toBe(FUEL);
+  });
+
+  it('needs no import category when every line has its own', async () => {
+    const { app, card } = await withCard();
+
+    const result = await app.importer.execute(await writeScopeFor(ANA), card.id, {
+      closingDate: '2026-09-24',
+      dueDate: '2026-10-05',
+      lines: [line({ categoryId: CAR })],
+    });
+
+    expect(result.created).toBe(1);
+    expect(app.recorder.expenses[0]?.categoryId).toBe(CAR);
+  });
+
+  it('refuses a line with no category when the import has none, before storing anything', async () => {
+    const { app, card } = await withCard();
+
+    await expect(
+      app.importer.execute(await writeScopeFor(ANA), card.id, {
+        closingDate: '2026-09-24',
+        lines: [line()],
+      }),
+    ).rejects.toThrow(RangeError);
+    expect(app.writeLimit.taken).toBe(0);
+  });
+
+  it('checks every line category before taking a unit or storing a line', async () => {
+    const { app, card } = await withCard();
+    app.categories.rejected.set(CAR, new Error('CATEGORY_ARCHIVED'));
+
+    await expect(
+      app.importer.execute(
+        await writeScopeFor(ANA),
+        card.id,
+        statement([line(), line({ description: 'Chevrolet', categoryId: CAR })]),
+      ),
+    ).rejects.toThrow('CATEGORY_ARCHIVED');
+    expect(app.writeLimit.taken).toBe(0);
+    expect(app.recorder.expenses).toHaveLength(0);
+    expect(await app.categoryRules.list(await writeScopeFor(ANA))).toEqual([]);
+  });
+
+  it('learns the merchant of each line with its own category, the last line of a merchant winning', async () => {
+    const { app, card } = await withCard();
+    const scope = await writeScopeFor(ANA);
+
+    await app.importer.execute(
+      scope,
+      card.id,
+      statement([
+        line({ description: 'CHEVROLET SA PLAN 12/84', categoryId: FUEL }),
+        line({ description: 'CHEVROLET SA PLAN 13/84', categoryId: CAR, amount: 20000n }),
+        line({ description: 'Tienda' }),
+        line({ description: '1234 5678', categoryId: CAR, amount: 30000n }),
+      ]),
+    );
+
+    expect(await app.categoryRules.list(scope)).toEqual([
+      { merchantKey: 'chevrolet sa plan', categoryId: CAR },
+    ]);
+    expect(await app.categoryRules.list(await writeScopeFor(BOB))).toEqual([]);
+  });
+
+  it('learns nothing when a line fails', async () => {
+    const { app, card } = await withCard();
+    app.recorder.failWith = new Error('db down');
+
+    await expect(
+      app.importer.execute(
+        await writeScopeFor(ANA),
+        card.id,
+        statement([line({ description: 'Chevrolet', categoryId: CAR })]),
+      ),
+    ).rejects.toThrow('db down');
+    expect(await app.categoryRules.list(await writeScopeFor(ANA))).toEqual([]);
+  });
+
+  it('still learns when the file was already imported and every line is skipped', async () => {
+    const { app, card } = await withCard();
+    const scope = await writeScopeFor(ANA);
+    await app.importer.execute(scope, card.id, statement([line({ description: 'Chevrolet' })]));
+
+    const result = await app.importer.execute(
+      scope,
+      card.id,
+      statement([line({ description: 'Chevrolet', categoryId: CAR })]),
+    );
+
+    expect(result.skipped).toBe(1);
+    expect(await app.categoryRules.list(scope)).toEqual([
+      { merchantKey: 'chevrolet', categoryId: CAR },
+    ]);
+  });
+});

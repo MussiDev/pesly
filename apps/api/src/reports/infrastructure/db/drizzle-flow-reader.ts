@@ -30,6 +30,7 @@ import {
 } from './foreign-relations';
 
 interface CardPurchaseSqlRow extends Record<string, unknown> {
+  card_id: string;
   period: string;
   due_date: string | null;
   closing_day: number;
@@ -145,6 +146,7 @@ export class DrizzleFlowReader implements FlowReader {
   ): Promise<InstallmentFlowRow[]> {
     const rows = await this.db
       .select({
+        cardId: creditCards.id,
         period: installments.period,
         dueDate: creditCardStatements.dueDate,
         closingDay: creditCards.closingDay,
@@ -192,6 +194,7 @@ export class DrizzleFlowReader implements FlowReader {
         ),
       )
       .groupBy(
+        creditCards.id,
         installments.period,
         creditCardStatements.dueDate,
         creditCards.closingDay,
@@ -205,9 +208,11 @@ export class DrizzleFlowReader implements FlowReader {
         asc(installmentPurchases.currency),
         asc(creditCards.closingDay),
         asc(creditCards.dueDay),
+        asc(creditCards.id),
       );
 
     return rows.map((row) => ({
+      cardId: row.cardId,
       period: row.period,
       dueDate: row.dueDate,
       closingDay: row.closingDay,
@@ -236,6 +241,7 @@ export class DrizzleFlowReader implements FlowReader {
     const result = await this.db.execute<CardPurchaseSqlRow>(sql`
       select * from (
         select
+          ${creditCards.id} as card_id,
           ${source.period} as period,
           ${source.dueDate} as due_date,
           ${creditCards.closingDay} as closing_day,
@@ -247,16 +253,17 @@ export class DrizzleFlowReader implements FlowReader {
           count(*)::int as count
         from ${source.from}
         where ${conditions}
-        group by 1, 2, 3, 4, 5, 6, 7
+        group by 1, 2, 3, 4, 5, 6, 7, 8
       ) grouped
       where grouped.period between ${periodFrom} and ${periodTo}
-      order by grouped.period, grouped.top_category_id, grouped.currency, grouped.rate
+      order by grouped.period, grouped.top_category_id, grouped.currency, grouped.rate, grouped.card_id
     `);
 
     return result.rows.map((row) => {
       if (row.top_category_id === null) throw new Error('A flow movement has no category');
       if (row.rate === null) throw new Error('A flow movement has no frozen rate');
       return {
+        cardId: row.card_id,
         period: row.period,
         dueDate: row.due_date,
         closingDay: row.closing_day,

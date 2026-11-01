@@ -1,4 +1,5 @@
 import {
+  cardCategoryRulesResponseSchema,
   cardExpenseResponseSchema,
   createCardExpenseRequestSchema,
   createCreditCardRequestSchema,
@@ -45,6 +46,7 @@ import { DeleteInstallmentPurchase } from '../../application/delete-installment-
 import { GetCreditCard } from '../../application/get-credit-card';
 import { GetInstallmentPurchase } from '../../application/get-installment-purchase';
 import { ImportCardStatement } from '../../application/import-card-statement';
+import { ListCardCategoryRules } from '../../application/list-card-category-rules';
 import { ListInstallmentExpenses } from '../../application/list-installment-expenses';
 import { ListInstallmentPurchases } from '../../application/list-installment-purchases';
 import { ListCreditCards } from '../../application/list-credit-cards';
@@ -66,6 +68,7 @@ import { UpdateStatementDates } from '../../application/update-statement-dates';
 import { DrizzleCreditCardRepository } from '../db/drizzle-credit-card-repository';
 import { DrizzleDebitAccounts } from '../db/drizzle-debit-accounts';
 import { DrizzleInstallmentRepository } from '../db/drizzle-installment-repository';
+import { DrizzleCardCategoryRules } from '../db/drizzle-card-category-rules';
 import { DrizzleStatementImportRepository } from '../db/drizzle-statement-import-repository';
 import { DrizzleUserTimeZone } from '../db/drizzle-user-time-zone';
 import { SystemClock } from '../system-clock';
@@ -137,6 +140,7 @@ export function createCreditCardRoutes({
     paymentRecorder,
     installments: new DrizzleInstallmentRepository(db),
     statementImports: new DrizzleStatementImportRepository(db),
+    categoryRules: new DrizzleCardCategoryRules(db),
     timeZones: new DrizzleUserTimeZone(db),
     clock,
   };
@@ -152,6 +156,7 @@ export function createCreditCardRoutes({
   const recordPayment = new RecordStatementPayment(deps);
   const createPurchase = new CreateInstallmentPurchase(deps);
   const importStatement = new ImportCardStatement(deps, createPurchase);
+  const listCategoryRules = new ListCardCategoryRules(deps);
   const listPurchases = new ListInstallmentPurchases(deps);
   const getPurchase = new GetInstallmentPurchase(deps);
   const updatePurchase = new UpdateInstallmentPurchase(deps);
@@ -190,6 +195,15 @@ export function createCreditCardRoutes({
       validate({ response: listCreditCardsResponseSchema }, async (_input, { res, auth }) => {
         const scope = await scopeOf(policy, auth, 'read');
         res.json({ items: (await listCards.execute(scope)).map(presentCreditCard) });
+      }),
+    );
+
+    // Declared before `/credit-cards/:id` so the path is never read as a card id (FEAT-016).
+    router.get(
+      '/credit-cards/category-rules',
+      validate({ response: cardCategoryRulesResponseSchema }, async (_input, { res, auth }) => {
+        const scope = await scopeOf(policy, auth, 'read');
+        res.json({ rules: await listCategoryRules.execute(scope) });
       }),
     );
 
@@ -349,7 +363,7 @@ export function createCreditCardRoutes({
           const outcome = await importStatement.execute(scope, params.id, {
             closingDate: body.closingDate,
             ...(body.dueDate === undefined ? {} : { dueDate: body.dueDate }),
-            categoryId: body.categoryId,
+            ...(body.categoryId === undefined ? {} : { categoryId: body.categoryId }),
             lines: body.lines.map((line) => ({ ...line, amount: BigInt(line.amount) })),
           });
           // Counts and ids only: never a description, an amount or a voucher.

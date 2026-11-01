@@ -45,6 +45,7 @@ export * from './credit-cards/statement-assignment';
 export * from './credit-cards/installment-schedule';
 export * from './credit-cards/statement-payment';
 export * from './credit-cards/statement-import';
+export * from './credit-cards/category-suggestion';
 export * from './recurring';
 export * from './notices';
 export * from './groups/group';

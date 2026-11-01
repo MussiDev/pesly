@@ -14,10 +14,11 @@ const STATEMENT = '33333333-3333-4333-8333-333333333333';
 interface Spies {
   groupReads: number;
   preferenceReads: number;
+  statementReads: { today: string; timeZone: string }[];
 }
 
 function setup(overrides: Partial<GetDashboardDependencies> = {}) {
-  const spies: Spies = { groupReads: 0, preferenceReads: 0 };
+  const spies: Spies = { groupReads: 0, preferenceReads: 0, statementReads: [] };
   const preferences = new FakePreferences();
   const groupBalances: GroupBalanceReader = {
     sourcesOf: () => {
@@ -70,18 +71,21 @@ function setup(overrides: Partial<GetDashboardDependencies> = {}) {
     agenda: {
       upcoming: () => ({ execute: () => Promise.resolve([]) }),
       currencies: { currenciesOf: () => Promise.resolve(new Map()) },
-      statements: {
-        dueStatements: () =>
-          Promise.resolve([
-            {
-              cardId: CARD,
-              cardName: 'Visa',
-              statementId: STATEMENT,
-              dueDate: '2026-10-09',
-              closed: true,
-              owed: { ARS: 7000n, USD: 0n },
-            },
-          ]),
+    },
+    statements: {
+      owedStatements: (_scope, today, timeZone) => {
+        spies.statementReads.push({ today, timeZone });
+        return Promise.resolve([
+          {
+            cardId: CARD,
+            cardName: 'Visa',
+            statementId: STATEMENT,
+            period: '2026-09',
+            dueDate: '2026-10-09',
+            closed: true,
+            owed: { ARS: 7000n, USD: 0n },
+          },
+        ]);
       },
     },
     groups: { groupBalances },
@@ -127,6 +131,21 @@ describe('GetDashboard', () => {
 
     expect(preferences.calls).toBe(1);
     expect(spies.groupReads).toBe(1);
+  });
+
+  it('(FEAT-015 NFR-01) reads the owed statements once, for today and the stored zone', async () => {
+    const { useCase, spies } = setup();
+
+    const response = await useCase.execute(await readScope(ME));
+
+    expect(spies.statementReads).toEqual([
+      { today: '2026-10-06', timeZone: 'America/Argentina/Buenos_Aires' },
+    ]);
+    expect(response.month.pendingCard).toEqual({
+      amount: '0',
+      nextDueDate: null,
+      unconvertedCount: 0,
+    });
   });
 
   it('(FR-02) feeds the net of the groups into the net worth part', async () => {
@@ -188,10 +207,7 @@ describe('GetDashboard', () => {
     [
       'agenda',
       () => ({
-        agenda: {
-          ...setup().deps.agenda,
-          statements: { dueStatements: () => Promise.reject(new Error('boom')) },
-        },
+        statements: { owedStatements: () => Promise.reject(new Error('boom')) },
       }),
     ],
     [

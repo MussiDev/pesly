@@ -1,7 +1,11 @@
 import {
   STATEMENT_IMPORT_MAX_LINES,
+  suggestCategory,
+  type CardCategoryRule,
+  type CategorySuggestion,
   type CreateStatementImportRequest,
   type StatementImportLine,
+  type SuggestableCategory,
 } from '@pesly/shared';
 import type { ParsedStatement, ParsedStatementLine, StatementCurrency } from './statement-types';
 
@@ -42,24 +46,64 @@ export function tooManyLines(statement: ParsedStatement, includeFees: boolean): 
   return selectedLines(statement, includeFees).length > STATEMENT_IMPORT_MAX_LINES;
 }
 
-/** The request for the selected lines, with the one category chosen for the whole import. */
+/** The category chosen for each line, by its index in `statement.lines`; absent means "general". */
+export type LineCategories = ReadonlyMap<number, string>;
+
+/** The suggestion of each line of the statement, by index (FEAT-016); lines with none are absent. */
+export function suggestLineCategories(
+  statement: ParsedStatement,
+  rules: readonly CardCategoryRule[],
+  categories: readonly SuggestableCategory[],
+): Map<number, CategorySuggestion> {
+  const byMerchant = new Map(rules.map((rule) => [rule.merchantKey, rule.categoryId]));
+  const suggestions = new Map<number, CategorySuggestion>();
+  statement.lines.forEach((line, index) => {
+    const suggestion = suggestCategory(line, byMerchant, categories);
+    if (suggestion !== null) suggestions.set(index, suggestion);
+  });
+  return suggestions;
+}
+
+/** Whether a selected line has no category of its own, so the general category is needed. */
+export function needsGeneralCategory(
+  statement: ParsedStatement,
+  includeFees: boolean,
+  lineCategories: LineCategories,
+): boolean {
+  const selected = new Set(selectedLines(statement, includeFees));
+  return statement.lines.some((line, index) => selected.has(line) && !lineCategories.has(index));
+}
+
+/**
+ * The request for the selected lines: each line with its own category when it has one, and the
+ * general category (when chosen) for the rest.
+ */
 export function buildStatementImportRequest(
   statement: ParsedStatement,
-  options: { includeFees: boolean; categoryId: string },
+  options: { includeFees: boolean; categoryId: string; lineCategories?: LineCategories },
 ): CreateStatementImportRequest {
+  const selected = new Set(selectedLines(statement, options.includeFees));
+  const lineCategories = options.lineCategories ?? new Map<number, string>();
   return {
     closingDate: statement.closingDate,
     dueDate: statement.dueDate,
-    categoryId: options.categoryId,
-    lines: selectedLines(statement, options.includeFees).map((line): StatementImportLine => ({
-      date: line.date,
-      description: line.description,
-      voucher: line.voucher,
-      currency: line.currency,
-      amount: line.amount,
-      installmentNumber: line.installmentNumber,
-      installmentCount: line.installmentCount,
-      kind: line.kind === 'fee' ? 'fee' : 'purchase',
-    })),
+    ...(options.categoryId === '' ? {} : { categoryId: options.categoryId }),
+    lines: statement.lines.flatMap((line, index): StatementImportLine[] => {
+      if (!selected.has(line)) return [];
+      const categoryId = lineCategories.get(index);
+      return [
+        {
+          date: line.date,
+          description: line.description,
+          voucher: line.voucher,
+          currency: line.currency,
+          amount: line.amount,
+          installmentNumber: line.installmentNumber,
+          installmentCount: line.installmentCount,
+          kind: line.kind === 'fee' ? 'fee' : 'purchase',
+          ...(categoryId === undefined ? {} : { categoryId }),
+        },
+      ];
+    }),
   };
 }

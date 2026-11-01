@@ -1,4 +1,4 @@
-import { addMonths, localDayBounds } from '@pesly/shared';
+import { addMonths, localDayBounds, sumExact } from '@pesly/shared';
 import {
   convertRows,
   installmentMonthOf,
@@ -7,7 +7,9 @@ import {
   type FlowWindow,
 } from '../../reports';
 import type { AccessScope } from '../../shared/access';
+import type { DueStatement } from '../domain/agenda';
 import { foldMonthFlows, type FlowEntry } from '../domain/month-flows';
+import { pendingKey, pendingKeys } from '../domain/pending-card';
 import { changePercent, toJsonInt } from '../domain/percent';
 import { monthPeriods } from '../domain/period';
 import type { DashboardContext } from './dashboard-context';
@@ -38,6 +40,12 @@ export interface MonthFlowsResult {
     change: { expenses: number | null; income: number | null; net: number | null };
     unconvertedShareCount: number;
     unconvertedInstallmentCount: number;
+    /** Card amounts of this month's statements that still owe money (FEAT-015). */
+    pendingCard: {
+      amount: bigint;
+      nextDueDate: string | null;
+      unconvertedCount: number;
+    };
   };
   categories: MonthFlowsCategory[];
   insight: MonthFlowsInsight | null;
@@ -53,12 +61,14 @@ function jsonChange(current: bigint, previous: bigint): number | null {
 
 /**
  * The month to date, its categories and the insight (FR-05 to FR-07, FR-12). Six reads; the
- * month-to-date and the three complete months come from one wide read bucketed by month.
+ * month-to-date and the three complete months come from one wide read bucketed by month. The card
+ * rows of the current month whose statement still owes money are pending, not expenses (FEAT-015).
  */
 export async function buildMonthFlows(
   deps: MonthFlowsDependencies,
   scope: AccessScope,
   context: DashboardContext,
+  owedStatements: Promise<readonly DueStatement[]>,
 ): Promise<MonthFlowsResult> {
   const { flows } = deps;
   const { timeZone, displayCurrency } = context.preferences;
@@ -70,26 +80,35 @@ export async function buildMonthFlows(
   const mainWindow: FlowWindow = { ...main, timeZone };
   const previousWindow: FlowWindow = { ...previous, timeZone };
 
-  const [personal, shares, previousPersonal, previousShares, installmentRows, cardRows, known] =
-    await Promise.all([
-      flows.personalRows(scope, mainWindow),
-      flows.shareRows(scope, mainWindow),
-      flows.personalRows(scope, previousWindow),
-      flows.shareRows(scope, previousWindow),
-      flows.installmentRows(
-        scope,
-        addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
-        addMonths(periods.month, PERIOD_MARGIN),
-      ),
-      // A card purchase counts in the month its statement is due, like an installment (FEAT-010).
-      flows.cardPurchaseRows(
-        scope,
-        addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
-        addMonths(periods.month, PERIOD_MARGIN),
-        { timeZone },
-      ),
-      flows.topCategories(scope),
-    ]);
+  const [
+    personal,
+    shares,
+    previousPersonal,
+    previousShares,
+    installmentRows,
+    cardRows,
+    known,
+    owed,
+  ] = await Promise.all([
+    flows.personalRows(scope, mainWindow),
+    flows.shareRows(scope, mainWindow),
+    flows.personalRows(scope, previousWindow),
+    flows.shareRows(scope, previousWindow),
+    flows.installmentRows(
+      scope,
+      addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
+      addMonths(periods.month, PERIOD_MARGIN),
+    ),
+    // A card purchase counts in the month its statement is due, like an installment (FEAT-010).
+    flows.cardPurchaseRows(
+      scope,
+      addMonths(historyFrom.slice(0, 7), -PERIOD_MARGIN),
+      addMonths(periods.month, PERIOD_MARGIN),
+      { timeZone },
+    ),
+    flows.topCategories(scope),
+    owedStatements,
+  ]);
   const installments = [...installmentRows, ...cardRows];
   const byId = new Map(known.map((category) => [category.id, category]));
   const requireKnown = (id: string): void => {
@@ -166,14 +185,24 @@ export async function buildMonthFlows(
     }
     return converted.unconvertedCount;
   };
+  const pending = pendingKeys(owed);
+  const dueOfPending = (row: (typeof installments)[number]): string | undefined =>
+    pending.get(pendingKey(row.cardId, row.period, row.currency));
+  const current = placed.filter(({ period }) => period === 'current').map(({ row }) => row);
   const unconvertedInstallmentCount = installmentEntries(
-    placed.filter(({ period }) => period === 'current').map(({ row }) => row),
+    current.filter((row) => dueOfPending(row) === undefined),
   );
+  const pendingRows = current.filter((row) => dueOfPending(row) !== undefined);
+  const pendingConverted = convertRows(pendingRows, displayCurrency, 'count');
+  const pendingDueDates = pendingRows
+    .map((row) => dueOfPending(row))
+    .filter((due): due is string => due !== undefined)
+    .sort();
   installmentEntries(placed.filter(({ period }) => period !== 'current').map(({ row }) => row));
 
   const fold = foldMonthFlows(entries, periods.history);
-  const { current } = fold;
-  const net = current.income - current.expenses;
+  const month = fold.current;
+  const net = month.income - month.expenses;
   const previousNet = fold.previous.income - fold.previous.expenses;
 
   const describe = (categoryId: string | null) => {
@@ -185,18 +214,23 @@ export async function buildMonthFlows(
     month: {
       from: periods.first,
       to: context.today,
-      expenses: current.expenses,
-      income: current.income,
+      expenses: month.expenses,
+      income: month.income,
       net,
       change: {
-        expenses: jsonChange(current.expenses, fold.previous.expenses),
-        income: jsonChange(current.income, fold.previous.income),
+        expenses: jsonChange(month.expenses, fold.previous.expenses),
+        income: jsonChange(month.income, fold.previous.income),
         net: jsonChange(net, previousNet),
       },
       unconvertedShareCount,
       unconvertedInstallmentCount,
+      pendingCard: {
+        amount: sumExact(pendingConverted.items.map((item) => item.amount)),
+        nextDueDate: pendingDueDates[0] ?? null,
+        unconvertedCount: pendingConverted.unconvertedCount,
+      },
     },
-    categories: current.categories.map((row) => ({
+    categories: month.categories.map((row) => ({
       ...describe(row.categoryId),
       amount: row.amount,
       sharePercent: toJsonInt(row.sharePercent),

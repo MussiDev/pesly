@@ -489,6 +489,19 @@ const REGISTRY: readonly RegisteredTable[] = [
     },
   },
   {
+    table: 'card_category_rules',
+    userColumn: 'owner_id',
+    policy: 'cascade',
+    // Registered after categories: the rule points at an expense category of the user.
+    seed: async (context) => {
+      await query(
+        context,
+        "insert into card_category_rules (owner_id, merchant_key, category_id) select owner_id, 'chevrolet', id from categories where owner_id = $1 and kind = 'expense' limit 1",
+        [context.userId],
+      );
+    },
+  },
+  {
     table: 'card_automatic_debits',
     userColumn: 'owner_id',
     policy: 'cascade',

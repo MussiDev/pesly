@@ -382,6 +382,7 @@ describe('DrizzleFlowReader.installmentRows', () => {
 
     expect(rows).toEqual([
       {
+        cardId,
         period: '2026-10',
         dueDate: '2026-11-10',
         closingDay: 25,

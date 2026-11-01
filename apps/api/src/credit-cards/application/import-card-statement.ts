@@ -1,8 +1,10 @@
 import {
+  merchantKey,
   nextPeriod,
   statementDatesFor,
   zonedLocalToInstant,
   type AccountCurrency,
+  type CardCategoryRule,
 } from '@pesly/shared';
 import { notFoundUnlessAllowed, type AccessScope } from '../../shared/access';
 import type { CreditCard, StatementDraft } from '../domain/credit-card';
@@ -23,13 +25,16 @@ export interface StatementImportLineInput {
   amount: bigint;
   installmentNumber: number | null;
   installmentCount: number | null;
+  /** This line's own category (FEAT-016); the import's category when absent. */
+  categoryId?: string;
 }
 
 export interface StatementImportInput {
   /** Closing date of the imported statement. */
   closingDate: string;
   dueDate?: string;
-  categoryId: string;
+  /** The category of the lines that carry none; the schema requires it when such a line exists. */
+  categoryId?: string;
   lines: readonly StatementImportLineInput[];
 }
 
@@ -44,10 +49,12 @@ export interface StatementImportResult {
 const MAX_BACKFILLED_STATEMENTS = 36;
 
 /**
- * Imports the lines of a parsed card statement (one category for all of them).
+ * Imports the lines of a parsed card statement, each with its own category or the import's one.
  *
- * - A missing or foreign card is `ResourceNotFound` and the category is checked, both before
- *   anything is stored.
+ * - A missing or foreign card is `ResourceNotFound` and every category used is checked, both
+ *   before anything is stored.
+ * - Each line that carries its own category teaches the merchant rule of its description
+ *   (FEAT-016), once every line was created or skipped.
  * - The whole request spends ONE unit of the creation limit, not one per line (up to 300 lines).
  *   The unit is refunded when nothing was created.
  * - Lines are idempotent through their fingerprints: a line whose fingerprint exists is skipped,
@@ -70,6 +77,7 @@ export class ImportCardStatement {
       | 'categories'
       | 'writeLimit'
       | 'statementImports'
+      | 'categoryRules'
     >,
     private readonly createPurchase: CreateInstallmentPurchase,
   ) {
@@ -92,7 +100,15 @@ export class ImportCardStatement {
     input: StatementImportInput,
   ): Promise<StatementImportResult> {
     const card = notFoundUnlessAllowed(await this.deps.cards.findById(scope, cardId));
-    await this.deps.categories.assertOpenExpenseCategory(scope, input.categoryId);
+    const categoryOf = (line: StatementImportLineInput): string => {
+      const categoryId = line.categoryId ?? input.categoryId;
+      // The request schema refuses a line with no category and no import category.
+      if (categoryId === undefined) throw new RangeError('A statement line has no category');
+      return categoryId;
+    };
+    for (const categoryId of new Set(input.lines.map(categoryOf))) {
+      await this.deps.categories.assertOpenExpenseCategory(scope, categoryId);
+    }
 
     const unit = await this.deps.writeLimit.take(scope);
     const result: StatementImportResult = {
@@ -118,7 +134,7 @@ export class ImportCardStatement {
           const note = noteFromDescription(line.description);
           if (line.installmentCount !== null && line.installmentNumber !== null) {
             await this.createPurchase.createUnmetered(scope, card.id, {
-              categoryId: input.categoryId,
+              categoryId: categoryOf(line),
               currency: line.currency,
               amount: line.amount * BigInt(line.installmentCount),
               installments: line.installmentCount,
@@ -130,7 +146,7 @@ export class ImportCardStatement {
           } else {
             await this.recordExpense.execute(scope, card.id, {
               currency: line.currency,
-              categoryId: input.categoryId,
+              categoryId: categoryOf(line),
               amount: line.amount,
               occurredAt: occurredAtOf(line.date, today, timeZone, this.deps.clock.now()),
               rate: { source: 'automatic' },
@@ -144,6 +160,7 @@ export class ImportCardStatement {
           throw error;
         }
       }
+      await this.deps.categoryRules.learn(scope, rulesOf(input.lines));
       return result;
     } catch (error) {
       // Lines already created keep their unit: only an import that created nothing is refunded.
@@ -180,6 +197,16 @@ export class ImportCardStatement {
     }
     await this.deps.cards.insertStatements(scope, card.id, drafts);
   }
+}
+
+/** One rule per merchant of the lines with their own category; the last line of a merchant wins. */
+function rulesOf(lines: readonly StatementImportLineInput[]): CardCategoryRule[] {
+  const rules = new Map<string, string>();
+  for (const line of lines) {
+    const key = merchantKey(line.description);
+    if (key !== null && line.categoryId !== undefined) rules.set(key, line.categoryId);
+  }
+  return [...rules].map(([key, categoryId]) => ({ merchantKey: key, categoryId }));
 }
 
 /** Midday of the line's day in the user's zone, or now for today so it is never in the future. */

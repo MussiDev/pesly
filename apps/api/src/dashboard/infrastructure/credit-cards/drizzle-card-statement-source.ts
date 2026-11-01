@@ -1,4 +1,3 @@
-import { addDays } from '@pesly/shared';
 import {
   DrizzleCreditCardRepository,
   DrizzleInstallmentRepository,
@@ -12,7 +11,7 @@ import {
 import type { AccessScope } from '../../../shared/access';
 import type { Database } from '../../../shared/db/client';
 import type { CardStatementSource } from '../../application/ports/card-statement-source';
-import { AGENDA_UPCOMING_DAYS, type DueStatement } from '../../domain/agenda';
+import type { DueStatement } from '../../domain/agenda';
 
 export interface CardStatementSourceDependencies {
   db: Database;
@@ -56,7 +55,8 @@ class PreloadedInstallments implements InstallmentRepository {
 
 /**
  * Stored statements of every card, read without creating any (spec D9): the cards, one read of all
- * the installment rows, then per card its statements, daily purchases and received payments.
+ * the installment rows, then per card its statements, daily purchases and received payments. The
+ * agenda applies its own horizon and the month keeps only its own statements (FEAT-015).
  */
 export class DrizzleCardStatementSource implements CardStatementSource {
   private readonly cards: DrizzleCreditCardRepository;
@@ -67,7 +67,7 @@ export class DrizzleCardStatementSource implements CardStatementSource {
     this.installments = new DrizzleInstallmentRepository(deps.db);
   }
 
-  async dueStatements(
+  async owedStatements(
     scope: AccessScope,
     today: string,
     timeZone: string,
@@ -79,7 +79,6 @@ export class DrizzleCardStatementSource implements CardStatementSource {
       cardPayments: this.deps.cardPayments,
       installments: new PreloadedInstallments(await this.installments.listRows(scope)),
     };
-    const horizon = addDays(today, AGENDA_UPCOMING_DAYS);
     const perCard = await Promise.all(
       cards.map(async (card) => {
         const statements = await this.cards.listStatements(scope, card.id);
@@ -89,12 +88,13 @@ export class DrizzleCardStatementSource implements CardStatementSource {
             ARS: unpaidRemainder(view.totals.ARS, view.payments?.ARS.paid ?? 0n),
             USD: unpaidRemainder(view.totals.USD, view.payments?.USD.paid ?? 0n),
           };
-          if (view.dueDate > horizon || (owed.ARS <= 0n && owed.USD <= 0n)) return [];
+          if (owed.ARS <= 0n && owed.USD <= 0n) return [];
           return [
             {
               cardId: card.id,
               cardName: card.name,
               statementId: view.id,
+              period: view.period,
               dueDate: view.dueDate,
               closed: view.status === 'closed',
               owed,

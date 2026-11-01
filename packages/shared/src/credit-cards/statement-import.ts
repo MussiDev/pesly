@@ -22,6 +22,8 @@ export const statementImportLineSchema = z
     installmentNumber: installmentNumberSchema.nullable(),
     installmentCount: installmentCountSchema.nullable(),
     kind: z.enum(STATEMENT_IMPORT_LINE_KINDS),
+    /** This line's own category (FEAT-016); the import's category when absent. */
+    categoryId: z.uuid().optional(),
   })
   .refine((line) => (line.installmentNumber === null) === (line.installmentCount === null), {
     path: ['installmentCount'],
@@ -40,16 +42,25 @@ export const statementImportLineSchema = z
 
 export type StatementImportLine = z.infer<typeof statementImportLineSchema>;
 
-/** `POST /credit-cards/:id/statement-imports`: the lines of one statement, one category for all. */
+/**
+ * `POST /credit-cards/:id/statement-imports`: the lines of one statement. Each line takes its own
+ * category or, without one, the import's category (FEAT-016).
+ */
 export const createStatementImportRequestSchema = z
   .strictObject({
     /** The closing date of the imported statement: it picks the statement the lines land on. */
     closingDate: calendarDateSchema,
     /** Its due date; when the card has no such statement yet, it is created with both dates. */
     dueDate: calendarDateSchema.optional(),
-    categoryId: z.uuid(),
+    /** The category of the lines that carry none; required only when such a line exists. */
+    categoryId: z.uuid().optional(),
     lines: z.array(statementImportLineSchema).min(1).max(STATEMENT_IMPORT_MAX_LINES),
   })
+  .refine(
+    (body) =>
+      body.categoryId !== undefined || body.lines.every((line) => line.categoryId !== undefined),
+    { path: ['categoryId'], message: 'A line without a category needs the import category' },
+  )
   .refine((body) => body.dueDate === undefined || body.dueDate > body.closingDate, {
     path: ['dueDate'],
     message: 'The due date must be after the closing date',

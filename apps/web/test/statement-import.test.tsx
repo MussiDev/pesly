@@ -314,3 +314,126 @@ describe('StatementImportContainer merchant logos (FEAT-017)', () => {
     expect(within(table).getByText('CHEVROLET SA PLAN 12/84')).toBeTruthy();
   });
 });
+
+describe('StatementImportContainer category suggestions (FEAT-016)', () => {
+  const AUTO_ID = uuid(21);
+  const NAFTA_ID = uuid(22);
+  const RULES = 'GET /credit-cards/category-rules';
+  const line = (description: string, amount: string) => ({
+    date: '2026-09-10',
+    description,
+    voucher: null,
+    installmentNumber: null,
+    installmentCount: null,
+    currency: 'ARS' as const,
+    amount,
+    kind: 'purchase' as const,
+  });
+  const parsed = (): ParsedStatement => ({
+    closingDate: '2026-09-24',
+    dueDate: '2026-10-05',
+    cardEnding: null,
+    totals: { ARS: '600', USD: null },
+    lines: [
+      line('CHEVROLET SA PLAN 12/84', '100'),
+      line('YPF 1234', '200'),
+      line('KIOSCO JUAN 77', '300'),
+    ],
+  });
+  const answers = (rules: Parameters<typeof stubApi>[0][string]) =>
+    routes({
+      'GET /categories?kind=expense&archived=false&limit=100': page([
+        category({ id: COMIDA_ID, kind: 'expense', name: 'Comida' }),
+        category({ id: AUTO_ID, kind: 'expense', name: 'Auto' }),
+        category({ id: NAFTA_ID, kind: 'expense', name: null, key: 'transport.fuel' }),
+      ]),
+      [RULES]: rules,
+    });
+  const learned = {
+    status: 200,
+    body: { rules: [{ merchantKey: 'kiosco juan', categoryId: COMIDA_ID }] },
+  };
+  const selectOf = (description: string) =>
+    screen.getByLabelText<HTMLSelectElement>(
+      t.category.lineLabel.replace('{description}', description),
+    );
+
+  it('pre-fills each line from the merchant and the learned rules, and says where it came from', async () => {
+    const { input } = await open(parserOf(parsed()), answers(learned));
+    await userEvent.upload(input, FILE);
+    await screen.findByRole('table');
+
+    expect(selectOf('CHEVROLET SA PLAN 12/84').value).toBe(AUTO_ID);
+    expect(selectOf('YPF 1234').value).toBe(NAFTA_ID);
+    expect(selectOf('KIOSCO JUAN 77').value).toBe(COMIDA_ID);
+    expect(screen.getAllByText(t.category.keyword)).toHaveLength(2);
+    expect(screen.getAllByText(t.category.learned)).toHaveLength(1);
+    expect(screen.getByText(t.category.hint)).toBeTruthy();
+  });
+
+  it('imports with each line category and no general one when every line has a category', async () => {
+    const { input, calls } = await open(parserOf(parsed()), answers(learned));
+    const user = userEvent.setup();
+    await user.upload(input, FILE);
+    await user.click(await screen.findByRole('button', { name: /Importar 3 líneas/ }));
+
+    await screen.findByText(t.result.title);
+    const body = posts(calls)[0]?.body as { categoryId?: string; lines: { categoryId?: string }[] };
+    expect(body.categoryId).toBeUndefined();
+    expect(body.lines.map((item) => item.categoryId)).toEqual([AUTO_ID, NAFTA_ID, COMIDA_ID]);
+  });
+
+  it('asks for the general category once a line is set back to it, then sends it for that line', async () => {
+    const { input, calls } = await open(parserOf(parsed()), answers(learned));
+    const user = userEvent.setup();
+    await user.upload(input, FILE);
+    await screen.findByRole('table');
+    await user.selectOptions(selectOf('YPF 1234'), '');
+    expect(screen.getAllByText(t.category.keyword)).toHaveLength(1);
+    await user.click(screen.getByRole('button', { name: /Importar 3 líneas/ }));
+
+    expect(screen.getByText(t.category.required)).toBeTruthy();
+    expect(posts(calls)).toHaveLength(0);
+
+    await user.selectOptions(screen.getByLabelText(t.category.label), COMIDA_ID);
+    await user.selectOptions(selectOf('CHEVROLET SA PLAN 12/84'), NAFTA_ID);
+    await user.click(screen.getByRole('button', { name: /Importar 3 líneas/ }));
+
+    await screen.findByText(t.result.title);
+    const body = posts(calls)[0]?.body as { categoryId?: string; lines: { categoryId?: string }[] };
+    expect(body.categoryId).toBe(COMIDA_ID);
+    expect(body.lines.map((item) => item.categoryId)).toEqual([NAFTA_ID, undefined, COMIDA_ID]);
+  });
+
+  it('still suggests from the merchant when the learned rules cannot be read', async () => {
+    const { input } = await open(parserOf(parsed()), answers({ status: 500, body: {} }));
+    await userEvent.upload(input, FILE);
+    await screen.findByRole('table');
+
+    expect(selectOf('CHEVROLET SA PLAN 12/84').value).toBe(AUTO_ID);
+    expect(selectOf('KIOSCO JUAN 77').value).toBe('');
+  });
+
+  it('labels the line categories in English', async () => {
+    const { input } = await open(parserOf(parsed()), answers(learned), 'en');
+    await userEvent.upload(input, FILE);
+    await screen.findByRole('table');
+
+    expect(screen.getAllByText(en.creditCards.import.category.learned)).toHaveLength(1);
+    expect(screen.getByText(en.creditCards.import.category.column)).toBeTruthy();
+  });
+});
+
+describe('buildStatementImportRequest with line categories', () => {
+  it('omits the general category when it is empty and adds each line category', () => {
+    const request = buildStatementImportRequest(statement(), {
+      includeFees: false,
+      categoryId: '',
+      lineCategories: new Map([[1, COMIDA_ID]]),
+    });
+    expect(request).not.toHaveProperty('categoryId');
+    expect(request.lines.filter((item) => item.categoryId === COMIDA_ID)).toHaveLength(
+      statement().lines[1]?.kind === 'purchase' ? 1 : 0,
+    );
+  });
+});

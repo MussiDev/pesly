@@ -18,6 +18,7 @@ function month(overrides: Partial<MonthView> = {}): MonthView {
     income: { value: 80000000n, change: 20 },
     net: { value: 56000000n, change: -5 },
     leftOutCount: 0,
+    pendingCard: { value: 0n, nextDueDate: null, leftOutCount: 0 },
     ...overrides,
   };
 }

@@ -56,6 +56,7 @@ const LATER_MIGRATIONS = [
   '0039_push_notifications',
   '0040_balance_adjustments',
   '0041_group_notices',
+  '0042_card_category_rules',
 ];
 const PRICE_TABLES = [
   'crypto_market_prices',
@@ -69,6 +70,7 @@ const RATE_HISTORY_TABLES = ['exchange_rate_history'];
 const PUSH_TABLES = ['push_deliveries', 'push_subscriptions'];
 const CREDIT_CARD_TABLES = [
   'card_automatic_debits',
+  'card_category_rules',
   'card_statement_import_lines',
   'credit_card_statements',
   'credit_cards',

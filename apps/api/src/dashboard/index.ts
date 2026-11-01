@@ -97,12 +97,12 @@ function composeUseCase({ db, clock }: Pick<DashboardRouterOptions, 'db' | 'cloc
           clock: recurringClock,
         }),
       currencies: new DrizzleAccountCurrencyReader(db),
-      statements: new DrizzleCardStatementSource({
-        db,
-        purchases: createCardPurchases(db),
-        cardPayments: createCardPayments(db),
-      }),
     },
+    statements: new DrizzleCardStatementSource({
+      db,
+      purchases: createCardPurchases(db),
+      cardPayments: createCardPayments(db),
+    }),
     groups: { groupBalances: new DrizzleGroupBalanceReader(db) },
     firstSteps: { firstSteps: new DrizzleFirstStepsReader(db) },
     present: presentDashboard,

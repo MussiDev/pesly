@@ -40,6 +40,11 @@ function base() {
       },
       unconvertedShareCount: 0,
       unconvertedInstallmentCount: 1,
+      pendingCard: {
+        amount: '150000',
+        nextDueDate: '2026-10-20' as string | null,
+        unconvertedCount: 0,
+      },
     },
     categories: [
       { categoryId: ID, name: 'Food', defaultKey: null, amount: '12000000', sharePercent: 60 },
@@ -216,6 +221,30 @@ describe('dashboard contracts', () => {
     const without: Partial<Dashboard> = base();
     delete without.available;
     expect(valid(without)).toBe(false);
+  });
+
+  it('requires the pending card total and rejects a bad due date or count (FEAT-015)', () => {
+    const body = base();
+    const without = { ...body, month: { ...body.month, pendingCard: undefined } };
+    expect(valid(without)).toBe(false);
+    const badDate = {
+      ...body,
+      month: { ...body.month, pendingCard: { ...body.month.pendingCard, nextDueDate: '20/10' } },
+    };
+    expect(valid(badDate)).toBe(false);
+    const negative = {
+      ...body,
+      month: { ...body.month, pendingCard: { ...body.month.pendingCard, unconvertedCount: -1 } },
+    };
+    expect(valid(negative)).toBe(false);
+    const none = {
+      ...body,
+      month: {
+        ...body.month,
+        pendingCard: { amount: '0', nextDueDate: null, unconvertedCount: 0 },
+      },
+    };
+    expect(valid(none)).toBe(true);
   });
 
   it('caps budgets at 3, upcoming at 20 and actions at 20', () => {

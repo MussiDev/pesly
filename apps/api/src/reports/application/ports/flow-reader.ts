@@ -37,8 +37,10 @@ export interface ShareFlowRow {
   count: number;
 }
 
-/** Sum of the installments of one (period, statement, top category, currency) group. */
+/** Sum of the installments of one (card, period, statement, top category, currency) group. */
 export interface InstallmentFlowRow {
+  /** The card of the statement, so a row can be matched to its payments (FEAT-015). */
+  cardId: string;
   /** The statement's month, `YYYY-MM`. */
   period: string;
   /** The stored statement's due date, or null when the statement is not stored. */

@@ -51,11 +51,10 @@ describe('agenda materialization (FR-09)', () => {
           clock,
         }),
       currencies,
-      statements: { dueStatements: () => Promise.resolve([]) },
     };
 
-    const first = await buildAgenda(deps, scope, context);
-    const second = await buildAgenda(deps, scope, context);
+    const first = await buildAgenda(deps, scope, context, Promise.resolve([]));
+    const second = await buildAgenda(deps, scope, context, Promise.resolve([]));
 
     const rows = await connection.pool.query<{ n: number }>(
       'select count(*)::int as n from recurring_occurrences where owner_id = $1',
