@@ -1,4 +1,4 @@
-import { upcomingResponseSchema } from '@pesly/shared';
+import { addDays, todayInTimeZone, upcomingResponseSchema } from '@pesly/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createRecurringExpenseRecorder } from '../../src/movements';
@@ -17,6 +17,12 @@ import { rentOf } from '../recurring/fixtures';
 const PAYMENTS = 100;
 const REQUESTS = 50;
 const MAX_P95_MS = 300;
+/**
+ * How far back the weekly payments start. Relative to today, so every run measures the same
+ * workload (100 payments and about 800 unconfirmed occurrences): with a fixed start date, each
+ * calendar week added 100 overdue occurrences and the latency grew with the date, not the code.
+ */
+const START_WEEKS_AGO = 8;
 
 let connection: DatabaseConnection;
 
@@ -56,6 +62,7 @@ describe('upcoming latency (NFR-02)', () => {
     const repository = new DrizzleRecurringPaymentRepository(connection.db);
     const scope = await writeScope(ownerId);
     const owner = { ownerId, accountId, categoryId };
+    const start = addDays(todayInTimeZone(new Date(), 'UTC'), -7 * START_WEEKS_AGO);
     for (let i = 0; i < PAYMENTS; i += 1) {
       await repository.create(
         scope,
@@ -64,9 +71,9 @@ describe('upcoming latency (NFR-02)', () => {
           frequency: 'weekly',
           weekday: i % 7,
           dayOfMonth: null,
-          startDate: '2026-01-05',
-          scheduleFrom: '2026-01-05',
-          autoRecordingFrom: '2026-01-05',
+          startDate: start,
+          scheduleFrom: start,
+          autoRecordingFrom: start,
         }),
       );
     }
