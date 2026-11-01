@@ -17,6 +17,7 @@ import {
   resetAttemptLimits,
   type AutomaticDebitRow,
 } from './support/database';
+import { chooseSegmentValue } from './support/segmented';
 
 const es = catalogs.es;
 const t = es.creditCards;
@@ -65,9 +66,7 @@ async function createAccount(
   await page
     .getByLabel(accountsT.fields.type)
     .selectOption({ label: accountsT.types.bank_account });
-  await page
-    .getByLabel(accountsT.fields.currency)
-    .selectOption({ label: accountsT.currencies[currency] });
+  await chooseSegmentValue(page, accountsT.fields.currency, currency);
   await page.getByLabel(accountsT.fields.openingBalance).fill(openingBalance);
   await page.getByRole('button', { name: accountsT.form.submit }).click();
   await expect(page.getByRole('listitem', { name, exact: true })).toBeVisible();
@@ -97,7 +96,7 @@ async function spend(
   amount: string,
 ): Promise<void> {
   await page.goto(`/es/cards/${cardId}/expense`);
-  await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption(currency);
+  await chooseSegmentValue(page, t.expense.fields.currency, currency);
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill(amount);
   await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();

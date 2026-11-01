@@ -30,6 +30,7 @@ import {
 import { category, defaultRow, seededDefaults, uuid } from './support/category-fixtures';
 import { openRows } from './support/open-rows';
 import { CATALOGS, renderApp } from './support/render-app';
+import { pickSegment, segmentValue } from './support/segmented';
 
 /** Renders the list with every row's actions open, as after a tap on each row. */
 function renderList(...args: Parameters<typeof renderApp>) {
@@ -412,9 +413,7 @@ describe('CategoryForm', () => {
   it('has a kind select, a parent select, a name, and the icons, emojis and 12 colors as radios', () => {
     renderApp(<CategoryForm {...formProps()} />);
 
-    expect(screen.getByLabelText<HTMLSelectElement>(es.categories.fields.kind).value).toBe(
-      'expense',
-    );
+    expect(segmentValue(es.categories.fields.kind)).toBe('expense');
     expect(screen.getByLabelText(es.categories.fields.parent)).toBeDefined();
     expect(screen.getByLabelText(es.categories.fields.name)).toBeDefined();
     const icons = screen.getByRole('radiogroup', { name: es.categories.fields.icon });
@@ -436,7 +435,6 @@ describe('CategoryForm', () => {
     const archived = defaultRow('health', { archived: true, archivedAt: ARCHIVED_AT });
     const categories = seededDefaults().map((row) => (row.key === 'health' ? archived : row));
     renderApp(<CategoryForm {...formProps({ categories })} />);
-    const user = userEvent.setup();
 
     const labels = () =>
       [...screen.getByLabelText<HTMLSelectElement>(es.categories.fields.parent).options].map(
@@ -448,7 +446,7 @@ describe('CategoryForm', () => {
     expect(labels()).not.toContain('Salud');
     expect(labels()).not.toContain('Sueldo');
 
-    await user.selectOptions(screen.getByLabelText(es.categories.fields.kind), 'income');
+    await pickSegment(es.categories.fields.kind, 'income');
     expect(labels()).toContain('Sueldo');
     expect(labels()).not.toContain('Comida');
   });

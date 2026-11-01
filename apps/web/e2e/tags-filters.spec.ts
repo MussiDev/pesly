@@ -4,6 +4,7 @@ import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { movementIdsOf, movementsOf, resetAttemptLimits, tagsOf } from './support/database';
 import { chooseCategory, chooseMovementType } from './support/movement-type';
+import { chooseSegmentValue } from './support/segmented';
 
 const API_URL = 'http://localhost:4000';
 
@@ -80,9 +81,7 @@ async function createArsAccount(page: Page): Promise<void> {
   await page.getByLabel(accountsCatalog.fields.type).selectOption({
     label: accountsCatalog.types.cash,
   });
-  await page.getByLabel(accountsCatalog.fields.currency).selectOption({
-    label: accountsCatalog.currencies.ARS,
-  });
+  await chooseSegmentValue(page, accountsCatalog.fields.currency, 'ARS');
   await page.getByLabel(accountsCatalog.fields.openingBalance).fill('0');
   await page.getByRole('button', { name: accountsCatalog.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);

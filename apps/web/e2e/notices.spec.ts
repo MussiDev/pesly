@@ -3,6 +3,8 @@ import { expect, test } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { resetAttemptLimits, withE2eDatabase } from './support/database';
+import { chooseCategory } from './support/movement-type';
+import { chooseSegment, chooseSegmentValue } from './support/segmented';
 
 const en = catalogs.en;
 const t = en.recurring;
@@ -37,9 +39,7 @@ test('saves the reminder days of a recurring payment, shows the unread badge for
   await page
     .getByLabel(en.accounts.fields.type)
     .selectOption({ label: en.accounts.types.bank_account });
-  await page
-    .getByLabel(en.accounts.fields.currency)
-    .selectOption({ label: en.accounts.currencies.ARS });
+  await chooseSegmentValue(page, en.accounts.fields.currency, 'ARS');
   await page.getByRole('button', { name: en.accounts.form.submit }).click();
   await expect(page).toHaveURL(/\/en\/accounts$/);
 
@@ -53,11 +53,11 @@ test('saves the reminder days of a recurring payment, shows the unread badge for
   await page.getByLabel(t.fields.name).fill('Rent');
   await page.getByLabel(t.fields.amount, { exact: true }).fill('350000.00');
   await page.getByLabel(t.fields.account).selectOption({ label: 'Galicia (ARS)' });
-  await page.getByLabel(t.fields.category).selectOption({ label: EXPENSE_CATEGORY });
-  await page.getByLabel(t.frequency.label).selectOption('monthly');
+  await chooseCategory(page, t.fields.category, EXPENSE_CATEGORY);
+  await chooseSegment(page, t.frequency.label, t.frequency.monthly);
   await page.getByLabel(t.fields.dayOfMonth).fill(dayOfMonth);
   await page.getByLabel(t.fields.startDate).fill(today);
-  await page.getByLabel(t.mode.label).selectOption({ label: t.mode.confirmation });
+  await chooseSegment(page, t.mode.label, t.mode.confirmation);
   await reminderDays.fill('5');
   await page.getByRole('button', { name: t.actions.create }).click();
   await expect(page).toHaveURL(/\/en\/recurring$/);

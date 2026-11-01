@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { categoryLabel } from '@/features/categories/category-display';
+import { categoryLabel, compareCategories } from '@/features/categories/category-display';
 import { loadAll } from '@/features/movements/use-movement-form-data';
 import { Link, useRouter } from '@/i18n/navigation';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
@@ -244,9 +244,12 @@ function LinkExpenseScreen({
       accounts={accounts
         .filter((account) => !account.archived && account.currency === expense.currency)
         .map((account) => ({ id: account.id, name: account.name }))}
-      categories={personalCategories.map((category) => ({
+      categories={[...personalCategories].sort(compareCategories).map((category) => ({
         id: category.id,
         label: categoryLabel(category, language),
+        parentId: category.parentId,
+        icon: category.icon,
+        color: category.color,
       }))}
       accountId={accountId}
       categoryId={categoryId}

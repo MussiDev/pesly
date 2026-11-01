@@ -1,6 +1,8 @@
 import { formatMoney } from '@pesly/shared';
 import { expect, type Page } from '@playwright/test';
 import { catalogs } from './catalogs';
+import { chooseFirstCategory } from './movement-type';
+import { chooseSegmentValue } from './segmented';
 
 const es = catalogs.es;
 const t = es.groups;
@@ -18,9 +20,7 @@ export async function createArsAccount(page: Page, name: string): Promise<void> 
   await page
     .getByLabel(tAccounts.fields.type)
     .selectOption({ label: tAccounts.types.bank_account });
-  await page
-    .getByLabel(tAccounts.fields.currency)
-    .selectOption({ label: tAccounts.currencies.ARS });
+  await chooseSegmentValue(page, tAccounts.fields.currency, 'ARS');
   await page.getByRole('button', { name: tAccounts.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);
 }
@@ -48,8 +48,8 @@ export async function recordGroupExpense(page: Page, expense: NewGroupExpense): 
   await page
     .getByLabel(form.fields.account, { exact: true })
     .selectOption({ label: expense.account });
-  await page.getByLabel(form.fields.personalCategory, { exact: true }).selectOption({ index: 1 });
-  await page.getByLabel(form.fields.category, { exact: true }).selectOption({ index: 1 });
+  await chooseFirstCategory(page, form.fields.personalCategory);
+  await chooseFirstCategory(page, form.fields.category);
   await page.getByLabel(form.fields.description, { exact: true }).fill(expense.description);
   if (expense.split.mode !== 'equal') {
     await page

@@ -9,6 +9,7 @@ import {
   resetAttemptLimits,
   type CardStatementNotice,
 } from './support/database';
+import { chooseSegmentValue } from './support/segmented';
 
 const es = catalogs.es;
 const t = es.creditCards;
@@ -53,9 +54,7 @@ async function createBank(page: Page): Promise<void> {
   await page
     .getByLabel(accountsT.fields.type)
     .selectOption({ label: accountsT.types.bank_account });
-  await page
-    .getByLabel(accountsT.fields.currency)
-    .selectOption({ label: accountsT.currencies.ARS });
+  await chooseSegmentValue(page, accountsT.fields.currency, 'ARS');
   await page.getByLabel(accountsT.fields.openingBalance).fill('100.000,00');
   await page.getByRole('button', { name: accountsT.form.submit }).click();
   await expect(page.getByRole('listitem', { name: 'Banco', exact: true })).toBeVisible();
@@ -84,7 +83,7 @@ async function createCard(page: Page, name: string, reminderDays: string): Promi
 
 async function spend(page: Page, cardId: string, amount: string): Promise<void> {
   await page.goto(`/es/cards/${cardId}/expense`);
-  await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption('ARS');
+  await chooseSegmentValue(page, t.expense.fields.currency, 'ARS');
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill(amount);
   await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();

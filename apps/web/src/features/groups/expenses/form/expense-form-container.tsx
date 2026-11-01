@@ -9,7 +9,11 @@ import {
 import { useTranslations, useLocale } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/ui/page-header';
-import { categoryLabel } from '@/features/categories/category-display';
+import {
+  categoryLabel,
+  compareCategories,
+  compareGroupCategories,
+} from '@/features/categories/category-display';
 import { loadAll } from '@/features/movements/use-movement-form-data';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiFailure, ApiResult } from '@/lib/api-client';
@@ -188,11 +192,20 @@ function ExpenseFormScreen({ groupId, timeZone: timeZoneProp, now }: ExpenseForm
         members={members}
         categories={options.categories
           .filter((category) => category.archivedAt === null)
-          .map((category) => ({ id: category.id, label: groupCategoryLabel(category, language) }))}
+          .sort(compareGroupCategories)
+          .map((category) => ({
+            id: category.id,
+            label: groupCategoryLabel(category, language),
+            icon: category.icon,
+            color: category.color,
+          }))}
         accounts={accounts}
-        personalCategories={personalCategories.map((category) => ({
+        personalCategories={[...personalCategories].sort(compareCategories).map((category) => ({
           id: category.id,
           label: categoryLabel(category, language),
+          parentId: category.parentId,
+          icon: category.icon,
+          color: category.color,
         }))}
         currentMemberId={options.selfMemberId}
         initialValues={initialValues}

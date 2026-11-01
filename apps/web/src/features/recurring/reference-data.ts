@@ -1,5 +1,6 @@
 import { type AccountResponse, type CategoryLanguage, type CategoryResponse } from '@pesly/shared';
-import { categoryLabel } from '@/features/categories/category-display';
+import { categoryLabel, compareCategories } from '@/features/categories/category-display';
+import type { CategoryChipOption } from '@/features/movements/components/category-chips';
 import { loadAll } from '@/features/movements/use-movement-form-data';
 import type { ApiClient, ApiResult } from '@/lib/api-client';
 import type { RecurringFormOption } from './components/recurring-payment-form';
@@ -62,9 +63,13 @@ export function accountOptions(data: RecurringReferenceData): RecurringFormOptio
 export function categoryOptions(
   data: RecurringReferenceData,
   language: CategoryLanguage,
-): RecurringFormOption[] {
-  return data.categories.map((category) => ({
+): CategoryChipOption[] {
+  // The icon grid of a personal expense: parents as tiles, subcategories under the chosen one.
+  return [...data.categories].sort(compareCategories).map((category) => ({
     id: category.id,
     label: categoryLabel(category, language),
+    parentId: category.parentId,
+    icon: category.icon,
+    color: category.color,
   }));
 }

@@ -6,6 +6,7 @@ import { PreferencesForm } from '../src/features/profile/components/preferences-
 import { ProfileLoadStateView } from '../src/features/profile/components/profile-load-state';
 import { ProfileForm } from '../src/features/profile/components/profile-form';
 import { CATALOGS, renderApp } from './support/render-app';
+import { fieldValue, pickSegment } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -163,7 +164,7 @@ describe('PreferencesForm', () => {
   it('shows the saved preferences as the selected options (AC-05, AC-06, AC-07)', () => {
     renderPreferencesForm();
 
-    const value = (label: string) => screen.getByLabelText<HTMLSelectElement>(label).value;
+    const value = fieldValue;
     expect(value(es.profile.preferences.defaultRateType)).toBe('blue');
     expect(value(es.profile.preferences.displayCurrency)).toBe('ARS');
     expect(value(es.profile.preferences.timeZone)).toBe('America/Argentina/Buenos_Aires');
@@ -187,7 +188,7 @@ describe('PreferencesForm', () => {
       screen.getByLabelText(es.profile.preferences.timeZone),
       'Europe/Madrid',
     );
-    await user.selectOptions(screen.getByLabelText(es.profile.preferences.language), 'en');
+    await pickSegment(es.profile.preferences.language, 'en');
     await user.click(screen.getByRole('button', { name: es.profile.preferences.submit }));
 
     expect(onSubmit).toHaveBeenCalledWith({

@@ -12,7 +12,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
-import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { readField } from '@/features/auth/read-field';
 import { MovementField } from '@/features/movements/components/movement-field';
 import { Link } from '@/i18n/navigation';
@@ -120,25 +120,16 @@ export function GoalForm({
             )}
           </MovementField>
           {mode === 'create' ? (
-            <MovementField label={t('currency')} error={undefined}>
-              {(control) => (
-                <Select
-                  name="currency"
-                  value={currency}
-                  onChange={(event) => {
-                    setCurrency(event.currentTarget.value as GoalFormState['currency']);
-                    setAccountId('');
-                  }}
-                  {...control}
-                >
-                  {ACCOUNT_CURRENCIES.map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </Select>
-              )}
-            </MovementField>
+            <SegmentedField
+              label={t('currency')}
+              name="currency"
+              options={ACCOUNT_CURRENCIES.map((value) => ({ value, label: value }))}
+              value={currency}
+              onChange={(value) => {
+                setCurrency(value);
+                setAccountId('');
+              }}
+            />
           ) : null}
           <MovementField label={t('targetDate')} error={errors.fields?.targetDate}>
             {(control) => (

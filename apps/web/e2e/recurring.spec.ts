@@ -9,6 +9,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
 import { catalogs } from './support/catalogs';
 import { resetAttemptLimits } from './support/database';
+import { chooseCategory } from './support/movement-type';
+import { chooseSegment, chooseSegmentValue } from './support/segmented';
 
 const es = catalogs.es;
 const t = es.recurring;
@@ -40,9 +42,7 @@ async function createArsAccount(page: Page, name: string): Promise<void> {
   await page
     .getByLabel(es.accounts.fields.type)
     .selectOption({ label: es.accounts.types.bank_account });
-  await page
-    .getByLabel(es.accounts.fields.currency)
-    .selectOption({ label: es.accounts.currencies.ARS });
+  await chooseSegmentValue(page, es.accounts.fields.currency, 'ARS');
   await page.getByRole('button', { name: es.accounts.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);
 }
@@ -63,11 +63,11 @@ test('creates a monthly payment dated in the past, sees it overdue, confirms it 
   await page.getByLabel(t.fields.name).fill('Alquiler');
   await page.getByLabel(t.fields.amount, { exact: true }).fill('350000,00');
   await page.getByLabel(t.fields.account).selectOption({ label: 'Galicia (ARS)' });
-  await page.getByLabel(t.fields.category).selectOption({ label: EXPENSE_CATEGORY });
-  await page.getByLabel(t.frequency.label).selectOption('monthly');
+  await chooseCategory(page, t.fields.category, EXPENSE_CATEGORY);
+  await chooseSegment(page, t.frequency.label, t.frequency.monthly);
   await page.getByLabel(t.fields.dayOfMonth).fill(dayOfMonth);
   await page.getByLabel(t.fields.startDate).fill(start);
-  await page.getByLabel(t.mode.label).selectOption({ label: t.mode.confirmation });
+  await chooseSegment(page, t.mode.label, t.mode.confirmation);
   await page.getByRole('button', { name: t.actions.create }).click();
   await expect(page).toHaveURL(/\/es\/recurring$/);
 

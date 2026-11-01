@@ -11,6 +11,7 @@ import { catalogs } from './support/catalogs';
 import { chooseCategory } from './support/movement-type';
 import { resetAttemptLimits } from './support/database';
 import { emailLink } from './support/mailpit';
+import { chooseSegmentValue } from './support/segmented';
 
 const PASSWORD = 'correct horse battery staple';
 const es = catalogs.es;
@@ -92,7 +93,7 @@ test('records a USD card expense and sees it in the open statement, the movement
   const cardId = await createVisa(page);
 
   await page.goto(`/es/cards/${cardId}/expense`);
-  await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption('USD');
+  await chooseSegmentValue(page, t.expense.fields.currency, 'USD');
   await page.getByLabel(t.expense.fields.amount, { exact: true }).fill('15,99');
   await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();
@@ -117,7 +118,7 @@ test('the card expense form refuses a missing amount and the statement total sta
   const cardId = await createVisa(page);
 
   await page.goto(`/es/cards/${cardId}/expense`);
-  await page.getByLabel(t.expense.fields.currency, { exact: true }).selectOption('USD');
+  await chooseSegmentValue(page, t.expense.fields.currency, 'USD');
   await chooseCategory(page, t.expense.fields.category, EXPENSE_CATEGORY);
   await page.getByRole('button', { name: t.expense.submit }).click();
   await expect(page.getByText(es.movements.errors.amountInvalid)).toBeVisible();

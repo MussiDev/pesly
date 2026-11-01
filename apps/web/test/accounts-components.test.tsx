@@ -26,6 +26,7 @@ import {
   nameErrorMessage,
   type AccountFormErrors,
 } from '../src/features/accounts/account-form-errors';
+import { pickSegment, segmentValue, segmentValues } from './support/segmented';
 
 afterEach(cleanup);
 
@@ -144,18 +145,14 @@ describe('AccountForm', () => {
       es.accounts.types.savings,
     ]);
 
-    const currency = screen.getByLabelText(es.accounts.fields.currency);
-    const currencyOptions = within(currency).getAllByRole<HTMLOptionElement>('option');
-    expect(currencyOptions.filter((o) => o.value !== '').map((o) => o.value)).toEqual([
-      ...ACCOUNT_CURRENCIES,
-    ]);
+    expect(segmentValues(es.accounts.fields.currency)).toEqual([...ACCOUNT_CURRENCIES]);
   });
 
   it('starts with no type or currency chosen and the opening balance pre-filled with 0 (AC-16)', () => {
     renderIntl(<AccountForm pending={false} errors={{}} onSubmit={noop} />);
 
     expect(screen.getByLabelText<HTMLSelectElement>(es.accounts.fields.type).value).toBe('');
-    expect(screen.getByLabelText<HTMLSelectElement>(es.accounts.fields.currency).value).toBe('');
+    expect(segmentValue(es.accounts.fields.currency)).toBe('');
     expect(screen.getByLabelText<HTMLInputElement>(es.accounts.fields.openingBalance).value).toBe(
       '0',
     );
@@ -168,7 +165,7 @@ describe('AccountForm', () => {
 
     await user.type(screen.getByLabelText(es.accounts.fields.name), 'Caja chica');
     await user.selectOptions(screen.getByLabelText(es.accounts.fields.type), 'savings');
-    await user.selectOptions(screen.getByLabelText(es.accounts.fields.currency), 'USD');
+    await pickSegment(es.accounts.fields.currency, 'USD');
     await user.clear(screen.getByLabelText(es.accounts.fields.openingBalance));
     await user.type(screen.getByLabelText(es.accounts.fields.openingBalance), '-1.500,00');
     await user.click(screen.getByRole('button', { name: es.accounts.form.submit }));

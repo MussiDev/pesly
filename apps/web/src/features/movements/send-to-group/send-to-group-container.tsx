@@ -30,6 +30,7 @@ import {
   type SendFormValues,
 } from './send-request';
 import { SendToGroupForm } from './send-to-group-form';
+import { compareGroupCategories } from '@/features/categories/category-display';
 
 const FALLBACK_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 const movementIdSchema = z.uuid();
@@ -292,9 +293,12 @@ export function SendToGroupContainer({
                 members,
                 categories: loaded.categories
                   .filter((category) => category.archivedAt === null)
+                  .sort(compareGroupCategories)
                   .map((category) => ({
                     id: category.id,
                     label: groupCategoryLabel(category, language),
+                    icon: category.icon,
+                    color: category.color,
                   })),
               }
         }

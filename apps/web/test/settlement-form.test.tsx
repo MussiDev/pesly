@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { SettlementFormContainer } from '../src/features/groups/settlement-form/settlement-form-container';
 import { CATALOGS, renderApp, stubApi } from './support/render-app';
+import { pickSegment } from './support/segmented';
 
 const { en, es } = CATALOGS;
 const GROUP_ID = '55555555-5555-4555-8555-555555555555';
@@ -251,7 +252,7 @@ describe('single settlement form', () => {
     await screen.findByRole('option', { name: 'Wallet' });
     await userEvent.selectOptions(field(f.account), ACC_ARS);
 
-    await userEvent.selectOptions(field(f.currency), 'USD');
+    await pickSegment(f.currency, 'USD');
 
     await screen.findByRole('option', { name: 'Dollars' });
     expect(screen.queryByRole('option', { name: 'Wallet' })).toBeNull();
@@ -274,7 +275,7 @@ describe('single settlement form', () => {
     await userEvent.clear(field(f.amount));
     await userEvent.type(field(f.amount), '20');
     await userEvent.selectOptions(field(f.from), CARLA);
-    await userEvent.selectOptions(field(f.currency), 'USD');
+    await pickSegment(f.currency, 'USD');
 
     expect(document.body.textContent).toContain(`Carla pays Ana 20.00${NBSP}USD`);
   });

@@ -41,3 +41,31 @@ export async function chooseCategory(
   await option.click();
   await expect(group.getByRole('radio', { name: categoryLabel, exact: true })).toBeChecked();
 }
+
+/**
+ * Picks a category of an icon grid by its id, as a select's `{ value }` used to. The radio may be
+ * a subcategory that is only shown once its parent is open, so it is clicked through the DOM.
+ */
+export async function chooseCategoryById(
+  scope: Page,
+  groupName: string,
+  categoryId: string,
+): Promise<void> {
+  const radio = scope
+    .getByRole('group', { name: groupName, exact: true })
+    .locator(`input[type="radio"][value="${categoryId}"]`);
+  await radio.evaluate((element) => {
+    (element as HTMLInputElement).click();
+  });
+  await expect(radio).toBeChecked();
+}
+
+/** Picks the first tile of a category grid, as a select's `{ index: 1 }` used to. */
+export async function chooseFirstCategory(scope: Page, groupName: string): Promise<void> {
+  const group = scope.getByRole('group', { name: groupName, exact: true });
+  const first = group.getByRole('radio').first();
+  await first.evaluate((element) => {
+    (element as HTMLInputElement).click();
+  });
+  await expect(first).toBeChecked();
+}

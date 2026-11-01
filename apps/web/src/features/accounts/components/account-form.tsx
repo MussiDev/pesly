@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Label } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { FormAlert } from '@/features/auth/components/form-alert';
 import { readField } from '@/features/auth/read-field';
 import { Link } from '@/i18n/navigation';
@@ -45,6 +46,7 @@ function toAccountType(value: string): AccountType | undefined {
 
 export function AccountForm({ pending, errors, onSubmit }: AccountFormProps) {
   const t = useTranslations('accounts');
+  const tAll = useTranslations();
   const formRef = useFocusFirstInvalid(errors);
   const settingId = useId();
   const [type, setType] = useState<AccountType | undefined>();
@@ -97,18 +99,12 @@ export function AccountForm({ pending, errors, onSubmit }: AccountFormProps) {
               </Select>
             )}
           </AccountField>
-          <AccountField label={t('fields.currency')} error={errors.fields?.currency}>
-            {(control) => (
-              <Select name="currency" defaultValue="" required {...control}>
-                <option value="">{t('fields.currencyPlaceholder')}</option>
-                {ACCOUNT_CURRENCIES.map((currency) => (
-                  <option key={currency} value={currency}>
-                    {t(`currencies.${currency}`)}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </AccountField>
+          <SegmentedField
+            label={t('fields.currency')}
+            name="currency"
+            options={ACCOUNT_CURRENCIES.map((currency) => ({ value: currency, label: currency }))}
+            error={errors.fields?.currency ? tAll(errors.fields.currency) : undefined}
+          />
           <AccountField
             label={t('fields.openingBalance')}
             hint={t('fields.openingBalanceHint')}

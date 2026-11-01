@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test';
 import { catalogs } from './support/catalogs';
 import { makeCryptoPriceRefreshDue, resetAttemptLimits } from './support/database';
 import { registerAndVerify, signIn, uniqueEmail } from './support/accounts';
+import { chooseSegmentValue } from './support/segmented';
 
 const API_URL = 'http://localhost:4000';
 const PORTFOLIO = 'Balanz';
@@ -62,7 +63,7 @@ async function addHolding(page: Page, portfolio: string, holding: NewHolding): P
     .getByLabel(form.instrumentType, { exact: true })
     .selectOption({ label: t.instrumentTypes[holding.instrumentType ?? 'cedear'] });
   await page.getByLabel(form.quantity, { exact: true }).fill(holding.quantity);
-  await page.getByLabel(form.currency, { exact: true }).selectOption(holding.currency ?? 'ARS');
+  await chooseSegmentValue(page, form.currency, holding.currency ?? 'ARS');
   if (holding.totalCost !== undefined) {
     await page.getByLabel(form.totalCost, { exact: true }).fill(holding.totalCost);
   }

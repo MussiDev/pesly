@@ -164,7 +164,7 @@ describe('LinkExpenseContainer, the create way', () => {
     expect(options).toContain('Wallet ARS');
     expect(options).not.toContain('Wallet USD');
     expect(options).not.toContain('Old ARS');
-    expect(screen.getByRole('option', { name: 'Food' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Food' })).toBeTruthy();
   });
 
   it('sends the chosen account and category and goes back to the expenses list (AC-02, AC-23)', async () => {
@@ -176,10 +176,7 @@ describe('LinkExpenseContainer, the create way', () => {
       await screen.findByLabelText(en.groups.expenses.form.fields.account),
       ACCOUNT,
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText(en.groups.expenses.form.fields.personalCategory),
-      PERSONAL_CATEGORY,
-    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Food' }));
 
     await userEvent.click(screen.getByRole('button', { name: link.submit }));
 
@@ -291,10 +288,7 @@ describe('LinkExpenseContainer, failures and states', () => {
     const { router } = open();
     const account = await screen.findByLabelText(en.groups.expenses.form.fields.account);
     await userEvent.selectOptions(account, ACCOUNT);
-    await userEvent.selectOptions(
-      screen.getByLabelText(en.groups.expenses.form.fields.personalCategory),
-      PERSONAL_CATEGORY,
-    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Food' }));
 
     await userEvent.click(screen.getByRole('button', { name: link.submit }));
 
@@ -310,10 +304,7 @@ describe('LinkExpenseContainer, failures and states', () => {
       await screen.findByLabelText(en.groups.expenses.form.fields.account),
       ACCOUNT,
     );
-    await userEvent.selectOptions(
-      screen.getByLabelText(en.groups.expenses.form.fields.personalCategory),
-      PERSONAL_CATEGORY,
-    );
+    await userEvent.click(screen.getByRole('radio', { name: 'Food' }));
 
     await userEvent.click(screen.getByRole('button', { name: link.submit }));
 

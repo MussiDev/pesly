@@ -21,6 +21,7 @@ import { useGroupChanges } from '../../edit/use-group-changes';
 import { isGroupId } from '../../group-id';
 import type { ExpenseFieldErrors, ExpenseFormValues } from '../form/expense-request';
 import { ExpenseEditFormView, ExpenseEditNoticeView } from './expense-edit-view';
+import { compareGroupCategories } from '@/features/categories/category-display';
 
 const FALLBACK_TIME_ZONE = 'America/Argentina/Buenos_Aires';
 
@@ -215,7 +216,13 @@ function ExpenseEditScreen({
         members,
         categories: categories
           .filter((category) => category.archivedAt === null)
-          .map((category) => ({ id: category.id, label: groupCategoryLabel(category, language) })),
+          .sort(compareGroupCategories)
+          .map((category) => ({
+            id: category.id,
+            label: groupCategoryLabel(category, language),
+            icon: category.icon,
+            color: category.color,
+          })),
         accounts: [],
         personalCategories: [],
         currentMemberId: options.selfMemberId,

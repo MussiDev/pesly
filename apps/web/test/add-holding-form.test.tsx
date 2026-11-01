@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AddHoldingForm } from '../src/features/investments/components/add-holding-form';
 import { toHoldingFailure } from '../src/features/investments/holding-form-errors';
 import { CATALOGS, renderApp, type TestLocale } from './support/render-app';
+import { pickSegment, segmentOption, segmentValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -31,7 +32,7 @@ describe('AddHoldingForm', () => {
     await user.type(screen.getByLabelText(t.instrumentName), 'Apple Inc.');
     await user.selectOptions(screen.getByLabelText(t.instrumentType), 'cedear');
     await user.type(screen.getByLabelText(t.quantity), '10');
-    await user.selectOptions(screen.getByLabelText(t.currency), 'ARS');
+    await pickSegment(t.currency, 'ARS');
     await user.type(screen.getByLabelText(t.totalCost), '150,000.00');
     await user.click(screen.getByRole('button', { name: t.submit }));
 
@@ -149,13 +150,10 @@ describe('AddHoldingForm', () => {
   it('forces USD and makes ARS unavailable when crypto is chosen (AC-18)', async () => {
     const { onSubmit, user } = renderForm('es');
     const t = labels('es');
-    const currency = screen.getByLabelText<HTMLSelectElement>(t.currency);
-
     await user.selectOptions(screen.getByLabelText(t.instrumentType), 'crypto');
 
-    expect(currency.value).toBe('USD');
-    const ars = within(currency).getByRole<HTMLOptionElement>('option', { name: 'ARS' });
-    expect(ars.disabled).toBe(true);
+    expect(segmentValue(t.currency)).toBe('USD');
+    expect(segmentOption(t.currency, 'ARS').disabled).toBe(true);
 
     await user.type(screen.getByLabelText(t.ticker), 'BTC');
     await user.type(screen.getByLabelText(t.instrumentName), 'Bitcoin');
@@ -174,10 +172,7 @@ describe('AddHoldingForm', () => {
     await user.selectOptions(screen.getByLabelText(t.instrumentType), 'crypto');
     await user.selectOptions(screen.getByLabelText(t.instrumentType), 'stock');
 
-    const currency = screen.getByLabelText(t.currency);
-    expect(within(currency).getByRole<HTMLOptionElement>('option', { name: 'ARS' }).disabled).toBe(
-      false,
-    );
+    expect(segmentOption(t.currency, 'ARS').disabled).toBe(false);
   });
 
   it('shows the currency mismatch message for an API 400 on valuationCurrency (AC-24)', () => {

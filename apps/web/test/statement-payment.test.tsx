@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreditCardDetailContainer } from '../src/features/credit-cards/containers/credit-card-detail-container';
 import { StatementPaymentContainer } from '../src/features/credit-cards/containers/statement-payment-container';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
+import { pickSegment } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -156,13 +157,12 @@ describe('StatementPaymentContainer', () => {
 
   it('offers only ARS accounts for an ARS payment and every open account for a USD one, never the card own (AC-02)', async () => {
     await open();
-    const user = userEvent.setup();
 
     expect(screen.getByRole('option', { name: 'Banco' })).toBeDefined();
     expect(screen.queryByRole('option', { name: 'Banco dólares' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Visa ARS' })).toBeNull();
     expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
-    await user.selectOptions(field(t.fields.currency), 'USD');
+    await pickSegment(t.fields.currency, 'USD');
     expect(screen.getByRole('option', { name: 'Banco dólares' })).toBeDefined();
     expect(screen.getByRole('option', { name: 'Banco' })).toBeDefined();
     expect(screen.queryByRole('option', { name: 'Vieja' })).toBeNull();
@@ -171,7 +171,7 @@ describe('StatementPaymentContainer', () => {
   it('pays USD from a USD account as today, without the pesos field', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(t.fields.currency), 'USD');
+    await pickSegment(t.fields.currency, 'USD');
     await user.selectOptions(field(t.fields.sourceAccount), USD_BANK_ID);
     expect(screen.queryByLabelText(t.fields.pesosAmount)).toBeNull();
     await user.type(field(t.fields.amount), '59,59');
@@ -191,7 +191,7 @@ describe('StatementPaymentContainer', () => {
   it('shows the pesos field and the derived rate for a USD payment from an ARS account and sends the pesos', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(t.fields.currency), 'USD');
+    await pickSegment(t.fields.currency, 'USD');
     await user.selectOptions(field(t.fields.sourceAccount), BANK_ID);
     await user.type(field(t.fields.amount), '59,59');
     await user.type(field(t.fields.pesosAmount), '91.470,65');
@@ -216,7 +216,7 @@ describe('StatementPaymentContainer', () => {
   it('asks for the pesos when an ARS account pays USD and sends nothing without them (invalid input)', async () => {
     const { calls } = await open();
     const user = userEvent.setup();
-    await user.selectOptions(field(t.fields.currency), 'USD');
+    await pickSegment(t.fields.currency, 'USD');
     await user.selectOptions(field(t.fields.sourceAccount), BANK_ID);
     await user.type(field(t.fields.amount), '59,59');
     await user.click(submit());

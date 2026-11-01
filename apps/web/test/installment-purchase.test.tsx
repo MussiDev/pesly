@@ -14,6 +14,7 @@ import { formatCalendarDate, formatPeriod } from '../src/features/credit-cards/f
 import { formatMoney } from '../src/lib/format-amount';
 import { category, page, uuid } from './support/category-fixtures';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
+import { pickSegment, segmentOption, segmentValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 const NBSP = String.fromCharCode(0xa0);
@@ -207,7 +208,7 @@ describe('InstallmentPurchaseContainer', () => {
   it('posts a USD installment purchase when USD is chosen (USD installments)', async () => {
     const { calls } = await open();
     const user = await fill('1200', '12');
-    await user.selectOptions(field(t.fields.currency), 'USD');
+    await pickSegment(t.fields.currency, 'USD');
     await user.click(submit());
 
     await waitFor(() => {
@@ -236,8 +237,8 @@ describe('InstallmentPurchaseContainer', () => {
   it('offers ARS (default) and USD, and only open expense categories (AC-03)', async () => {
     await open();
 
-    expect(field(t.fields.currency).value).toBe('ARS');
-    expect(screen.getByRole('option', { name: 'USD' })).toBeDefined();
+    expect(segmentValue(t.fields.currency)).toBe('ARS');
+    expect(segmentOption(t.fields.currency, 'USD')).toBeDefined();
     expect(screen.getByRole('radio', { name: 'Comida' })).toBeDefined();
     expect(screen.queryByRole('radio', { name: 'Vieja' })).toBeNull();
   });

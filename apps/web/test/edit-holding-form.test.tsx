@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { EditHoldingForm } from '../src/features/investments/components/edit-holding-form';
 import { CATALOGS, renderApp, type TestLocale } from './support/render-app';
 import { HOLDING } from './support/holding-fixture';
+import { pickSegment, segmentOption, segmentValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -37,7 +38,7 @@ describe('EditHoldingForm', () => {
 
     expect(screen.getByLabelText<HTMLInputElement>(t.quantity).value).toBe('10');
     expect(screen.getByLabelText<HTMLInputElement>(t.totalCost).value).toBe('150000');
-    expect(screen.getByLabelText<HTMLSelectElement>(t.currency).value).toBe('ARS');
+    expect(segmentValue(t.currency)).toBe('ARS');
   });
 
   it('sends only the quantity when only the quantity changes to 15 (AC-05)', async () => {
@@ -56,7 +57,7 @@ describe('EditHoldingForm', () => {
     const t = labels('en');
 
     expect(screen.queryByText(t.currencyChangeNotice)).toBeNull();
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
     expect(screen.getByText(t.currencyChangeNotice)).toBeDefined();
 
     await user.clear(screen.getByLabelText(t.totalCost));
@@ -73,7 +74,7 @@ describe('EditHoldingForm', () => {
     const { onSubmit, user } = renderForm('es');
     const t = labels('es');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
     await user.clear(screen.getByLabelText(t.totalCost));
     await user.click(screen.getByRole('button', { name: t.submit }));
 
@@ -81,11 +82,11 @@ describe('EditHoldingForm', () => {
   });
 
   it('empties the cost input when the currency changes, so the old amount is not resent (AC-22)', async () => {
-    const { user } = renderForm('es');
+    renderForm('es');
     const t = labels('es');
 
     expect(screen.getByLabelText<HTMLInputElement>(t.totalCost).value).toBe('150000');
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
 
     expect(screen.getByLabelText<HTMLInputElement>(t.totalCost).value).toBe('');
   });
@@ -94,7 +95,7 @@ describe('EditHoldingForm', () => {
     const { onSubmit, user } = renderForm('es');
     const t = labels('es');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
     await user.click(screen.getByRole('button', { name: t.submit }));
 
     expect(onSubmit).toHaveBeenCalledExactlyOnceWith({ valuationCurrency: 'USD', totalCost: null });
@@ -104,7 +105,7 @@ describe('EditHoldingForm', () => {
     const { onSubmit, user } = renderForm('es');
     const t = labels('es');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
     await user.type(screen.getByLabelText(t.totalCost), '1200,5');
     await user.click(screen.getByRole('button', { name: t.submit }));
 
@@ -118,8 +119,8 @@ describe('EditHoldingForm', () => {
     const { onSubmit, onCancel, user } = renderForm('es');
     const t = labels('es');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
-    await user.selectOptions(screen.getByLabelText(t.currency), 'ARS');
+    await pickSegment(t.currency, 'USD');
+    await pickSegment(t.currency, 'ARS');
 
     expect(screen.getByLabelText<HTMLInputElement>(t.totalCost).value).toBe('150000');
     await user.click(screen.getByRole('button', { name: t.submit }));
@@ -131,8 +132,8 @@ describe('EditHoldingForm', () => {
     const { onSubmit, user } = renderForm('en');
     const t = labels('en');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
-    await user.selectOptions(screen.getByLabelText(t.currency), 'ARS');
+    await pickSegment(t.currency, 'USD');
+    await pickSegment(t.currency, 'ARS');
     await user.clear(screen.getByLabelText(t.quantity));
     await user.type(screen.getByLabelText(t.quantity), '15');
     await user.click(screen.getByRole('button', { name: t.submit }));
@@ -144,10 +145,10 @@ describe('EditHoldingForm', () => {
     ['en', /enter the total cost again/i],
     ['es', /de nuevo el costo/i],
   ] as const)('tells the user to enter the cost again in %s (AC-22)', async (locale, pattern) => {
-    const { user } = renderForm(locale);
+    renderForm(locale);
     const t = labels(locale);
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
 
     expect(screen.getByText(t.currencyChangeNotice).textContent).toMatch(pattern);
   });
@@ -182,10 +183,7 @@ describe('EditHoldingForm', () => {
       holding: { ...HOLDING, instrumentType: 'crypto', valuationCurrency: 'USD' },
     });
 
-    const currency = screen.getByLabelText(labels('es').currency);
-    expect(within(currency).getByRole<HTMLOptionElement>('option', { name: 'ARS' }).disabled).toBe(
-      true,
-    );
+    expect(segmentOption(labels('es').currency, 'ARS').disabled).toBe(true);
   });
 
   it('cancels instead of sending when nothing changed', async () => {
@@ -216,18 +214,18 @@ describe('EditHoldingForm', () => {
   });
 
   it('keeps the status container mounted so the currency notice is announced', async () => {
-    const { user } = renderForm('en');
+    renderForm('en');
     const t = labels('en');
 
     const status = screen.getByRole('status');
     expect(status.textContent).toBe('');
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'USD');
+    await pickSegment(t.currency, 'USD');
 
     expect(screen.getByRole('status')).toBe(status);
     expect(status.textContent).toContain(t.currencyChangeNotice);
 
-    await user.selectOptions(screen.getByLabelText(t.currency), 'ARS');
+    await pickSegment(t.currency, 'ARS');
     expect(screen.getByRole('status')).toBe(status);
     expect(status.textContent).toBe('');
   });

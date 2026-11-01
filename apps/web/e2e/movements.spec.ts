@@ -11,6 +11,7 @@ import {
 } from './support/database';
 import { chooseCategory, chooseMovementType } from './support/movement-type';
 import { openRowsUntil } from './support/rows';
+import { chooseSegmentValue } from './support/segmented';
 
 const API_URL = 'http://localhost:4000';
 const WEB_URL = 'http://localhost:3000';
@@ -93,9 +94,7 @@ async function createArsAccount(page: Page, openingBalance: string): Promise<voi
   await page.getByLabel(accountsCatalog.fields.type).selectOption({
     label: accountsCatalog.types.cash,
   });
-  await page.getByLabel(accountsCatalog.fields.currency).selectOption({
-    label: accountsCatalog.currencies.ARS,
-  });
+  await chooseSegmentValue(page, accountsCatalog.fields.currency, 'ARS');
   await page.getByLabel(accountsCatalog.fields.openingBalance).fill(openingBalance);
   await page.getByRole('button', { name: accountsCatalog.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);
@@ -343,9 +342,7 @@ async function createNamedAccount(
   await page.getByLabel(accountsCatalog.fields.type).selectOption({
     label: accountsCatalog.types.cash,
   });
-  await page.getByLabel(accountsCatalog.fields.currency).selectOption({
-    label: accountsCatalog.currencies[currency],
-  });
+  await chooseSegmentValue(page, accountsCatalog.fields.currency, currency);
   await page.getByLabel(accountsCatalog.fields.openingBalance).fill(openingBalance);
   await page.getByRole('button', { name: accountsCatalog.form.submit }).click();
   await expect(page).toHaveURL(/\/es\/accounts$/);

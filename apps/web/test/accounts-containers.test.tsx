@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { AccountsContainer } from '../src/features/accounts/containers/accounts-container';
 import { CreateAccountContainer } from '../src/features/accounts/containers/create-account-container';
 import { CATALOGS, renderApp, stubApi, type ApiCall } from './support/render-app';
+import { pickSegment, segmentValue } from './support/segmented';
 
 const { es, en } = CATALOGS;
 
@@ -820,7 +821,7 @@ async function fillName(user: ReturnType<typeof userEvent.setup>, name: string) 
 
 async function choose(user: ReturnType<typeof userEvent.setup>, type = 'cash', currency = 'ARS') {
   await user.selectOptions(screen.getByLabelText(es.accounts.fields.type), type);
-  await user.selectOptions(screen.getByLabelText(es.accounts.fields.currency), currency);
+  await pickSegment(es.accounts.fields.currency, currency);
 }
 
 async function submit(user: ReturnType<typeof userEvent.setup>) {
@@ -916,7 +917,7 @@ describe('CreateAccountContainer', () => {
 
     await user.type(screen.getByLabelText(en.accounts.fields.name), 'Card');
     await user.selectOptions(screen.getByLabelText(en.accounts.fields.type), 'cash');
-    await user.selectOptions(screen.getByLabelText(en.accounts.fields.currency), 'USD');
+    await pickSegment(en.accounts.fields.currency, 'USD');
     const amount = screen.getByLabelText(en.accounts.fields.openingBalance);
     await user.clear(amount);
     await user.type(amount, '-1,500.25');
@@ -1055,7 +1056,7 @@ describe('CreateAccountContainer', () => {
 
     await user.type(screen.getByLabelText(en.accounts.fields.name), 'Card');
     await user.selectOptions(screen.getByLabelText(en.accounts.fields.type), 'cash');
-    await user.selectOptions(screen.getByLabelText(en.accounts.fields.currency), 'USD');
+    await pickSegment(en.accounts.fields.currency, 'USD');
     const amount = screen.getByLabelText(en.accounts.fields.openingBalance);
     await user.clear(amount);
     await user.type(amount, '-10,000,000,000,000.01');
@@ -1127,7 +1128,7 @@ describe('CreateAccountContainer', () => {
     expect(await screen.findByText(es.errors.network)).toBeDefined();
     expect(screen.getByLabelText<HTMLInputElement>(es.accounts.fields.name).value).toBe('Caja');
     expect(screen.getByLabelText<HTMLSelectElement>(es.accounts.fields.type).value).toBe('savings');
-    expect(screen.getByLabelText<HTMLSelectElement>(es.accounts.fields.currency).value).toBe('USD');
+    expect(segmentValue(es.accounts.fields.currency)).toBe('USD');
     expect((amount as HTMLInputElement).value).toBe('25,50');
     expect(
       screen.getByRole('button', { name: es.accounts.form.submit }).hasAttribute('disabled'),

@@ -12,6 +12,7 @@ import {
   senderSetup,
 } from './support/movement-to-group';
 import { openRows, openRowsUntil } from './support/rows';
+import { chooseCategoryById } from './support/movement-type';
 
 const t = catalogs.es.groups;
 const link = t.expenses.link;
@@ -84,9 +85,11 @@ test('the payer links an expense that another member recorded, creating the move
     await ana
       .getByLabel(t.expenses.form.fields.account)
       .selectOption({ value: anaFacts.payer.arsAccountId });
-    await ana
-      .getByLabel(t.expenses.form.fields.personalCategory)
-      .selectOption({ value: anaFacts.payer.personalCategoryId });
+    await chooseCategoryById(
+      ana,
+      t.expenses.form.fields.personalCategory,
+      anaFacts.payer.personalCategoryId,
+    );
     await ana.getByRole('button', { name: link.submit, exact: true }).click();
     await expect(ana).toHaveURL(new RegExp(`/es/groups/${groupId}/expenses$`));
     await expect(rowOf(ana, 'Cena creada').getByText(t.expenses.linkedMarker)).toBeVisible();

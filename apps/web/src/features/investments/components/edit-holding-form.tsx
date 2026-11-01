@@ -14,7 +14,8 @@ import { useTranslations } from 'next-intl';
 import { useState, type SubmitEvent } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { FormControl, FormItem, FormLabel, FormMessage, FormSelect } from '@/components/ui/form';
+import { FormControl, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { readField } from '@/features/auth/read-field';
 import type { Locale } from '@/i18n/routing';
 import { parseAmountInput, parseQuantityInput } from '../decimal-input';
@@ -61,11 +62,6 @@ const SCHEMA_FIELD_ERRORS: Partial<Record<string, [HoldingField, InvestmentError
 function typedDecimal(scaled: bigint, scale: bigint, language: Locale): string {
   const text = formatScaledDecimal(scaled, scale);
   return language === 'es' ? text.replace('.', ',') : text;
-}
-
-/** A select only offers listed values; anything else falls back to the given default. */
-function pick<T extends string>(value: string, allowed: readonly T[], fallback: T): T {
-  return allowed.find((candidate) => candidate === value) ?? fallback;
 }
 
 /** Quantity, total cost and currency of an existing holding. */
@@ -166,23 +162,20 @@ export function EditHoldingForm({
         />
         <FormMessage>{message('quantity')}</FormMessage>
       </FormItem>
-      <FormItem invalid={Boolean(fields.valuationCurrency)}>
-        <FormLabel>{tForm('currency')}</FormLabel>
-        <FormSelect
-          name="valuationCurrency"
-          value={currency}
-          onChange={(event) => {
-            changeCurrency(pick(event.target.value, VALUATION_CURRENCIES, currency));
-          }}
-        >
-          {VALUATION_CURRENCIES.map((code) => (
-            <option key={code} value={code} disabled={isCrypto && code !== 'USD'}>
-              {code}
-            </option>
-          ))}
-        </FormSelect>
-        <FormMessage>{message('valuationCurrency')}</FormMessage>
-      </FormItem>
+      <SegmentedField
+        label={tForm('currency')}
+        name="valuationCurrency"
+        options={VALUATION_CURRENCIES.map((code) => ({
+          value: code,
+          label: code,
+          disabled: isCrypto && code !== 'USD',
+        }))}
+        value={currency}
+        onChange={(code) => {
+          changeCurrency(code);
+        }}
+        error={message('valuationCurrency') ?? undefined}
+      />
       {/* Always mounted: a live region only announces what is added after it exists. */}
       <div role="status" className="empty:sr-only">
         {currencyChanged && (

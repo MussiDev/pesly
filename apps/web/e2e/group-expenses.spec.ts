@@ -8,6 +8,8 @@ import {
   scrollsHorizontally,
 } from './support/group-expenses';
 import { createGroup, createInvitationLink, signedInUser } from './support/groups';
+import { chooseFirstCategory } from './support/movement-type';
+import { chooseSegmentValue } from './support/segmented';
 
 const t = catalogs.es.groups;
 
@@ -83,7 +85,7 @@ test('two users: record an expense with each split mode, read the list and the s
     // The admin sets the default; the member sees it read only.
     await pageA.goto(`/es/groups/${groupId}`);
     await pageA.getByRole('link', { name: t.detail.defaultSplitLink }).click();
-    await pageA.getByLabel(t.defaultSplit.modeLabel, { exact: true }).selectOption('percentage');
+    await chooseSegmentValue(pageA, t.defaultSplit.modeLabel, 'percentage');
     await pageA.getByLabel(t.defaultSplit.percentLabel.replace('{name}', 'Ana Pérez')).fill('70');
     await pageA.getByLabel(t.defaultSplit.percentLabel.replace('{name}', 'Bruno Gómez')).fill('30');
     await pageA.getByRole('button', { name: t.defaultSplit.save }).click();
@@ -119,8 +121,8 @@ test('a split the server refuses shows its message in the browser', async ({ pag
   const form = t.expenses.form;
   await page.getByLabel(form.fields.amount, { exact: true }).fill('50,00');
   await page.getByLabel(form.fields.account, { exact: true }).selectOption({ index: 1 });
-  await page.getByLabel(form.fields.personalCategory, { exact: true }).selectOption({ index: 1 });
-  await page.getByLabel(form.fields.category, { exact: true }).selectOption({ index: 1 });
+  await chooseFirstCategory(page, form.fields.personalCategory);
+  await chooseFirstCategory(page, form.fields.category);
   await page.getByLabel(form.fields.description, { exact: true }).fill('Rechazado');
   await page.getByRole('button', { name: form.submit }).click();
 

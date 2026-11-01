@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/ui/page-header';
+import type { CategoryChipOption } from '@/features/movements/components/category-chips';
 import type { ApiFailure } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 import { GroupIssue } from '../../components/group-issue';
@@ -24,7 +25,7 @@ export interface LinkExpenseViewProps {
   way: LinkWay;
   onWayChange: (way: LinkWay) => void;
   accounts: readonly { id: string; name: string }[];
-  categories: readonly { id: string; label: string }[];
+  categories: readonly CategoryChipOption[];
   accountId: string;
   categoryId: string;
   onAccountChange: (id: string) => void;

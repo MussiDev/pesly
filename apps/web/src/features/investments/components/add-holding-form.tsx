@@ -12,6 +12,7 @@ import { useTranslations } from 'next-intl';
 import { useState, type ChangeEvent, type SubmitEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { FormControl, FormItem, FormLabel, FormMessage, FormSelect } from '@/components/ui/form';
+import { SegmentedField } from '@/components/ui/segmented-field';
 import { readField } from '@/features/auth/read-field';
 import type { Locale } from '@/i18n/routing';
 import { parseAmountInput, parseQuantityInput } from '../decimal-input';
@@ -164,23 +165,20 @@ export function AddHoldingForm({
         <FormControl name="quantity" inputMode="decimal" autoComplete="off" />
         <FormMessage>{message('quantity')}</FormMessage>
       </FormItem>
-      <FormItem invalid={Boolean(fields.valuationCurrency)}>
-        <FormLabel>{tForm('currency')}</FormLabel>
-        <FormSelect
-          name="valuationCurrency"
-          value={currency}
-          onChange={(event) => {
-            setCurrency(pick(event.target.value, VALUATION_CURRENCIES, currency));
-          }}
-        >
-          {VALUATION_CURRENCIES.map((code) => (
-            <option key={code} value={code} disabled={isCrypto && code !== 'USD'}>
-              {code}
-            </option>
-          ))}
-        </FormSelect>
-        <FormMessage>{message('valuationCurrency')}</FormMessage>
-      </FormItem>
+      <SegmentedField
+        label={tForm('currency')}
+        name="valuationCurrency"
+        options={VALUATION_CURRENCIES.map((code) => ({
+          value: code,
+          label: code,
+          disabled: isCrypto && code !== 'USD',
+        }))}
+        value={currency}
+        onChange={(code) => {
+          setCurrency(code);
+        }}
+        error={message('valuationCurrency') ?? undefined}
+      />
       <FormItem invalid={Boolean(fields.totalCost)}>
         <FormLabel>{tForm('totalCost')}</FormLabel>
         <FormControl name="totalCost" inputMode="decimal" autoComplete="off" />
