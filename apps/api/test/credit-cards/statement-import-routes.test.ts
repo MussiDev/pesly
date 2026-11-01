@@ -497,6 +497,6 @@ describe('per-line categories and learned merchant rules (FEAT-016)', () => {
   it('requires a session to read the rules', async () => {
     const s = await setup();
 
-    expect((await rulesOf(s, {})).status).toBe(401);
+    expect((await call(s.app, 'get', '/credit-cards/category-rules')).status).toBe(401);
   });
 });

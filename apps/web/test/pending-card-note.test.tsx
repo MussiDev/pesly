@@ -21,7 +21,7 @@ describe('PendingCardNote (FEAT-015)', () => {
     );
 
     const note = screen.getByRole('note');
-    expect(text(note.textContent ?? '')).toContain(text(formatMoney(15000000n, 'ARS', 'es')));
+    expect(text(note.textContent)).toContain(text(formatMoney(15000000n, 'ARS', 'es')));
     expect(note.textContent).toContain(
       es.dashboard.month.pendingCard.due.replace('{date}', formatShortDate('2026-11-05', 'es')),
     );

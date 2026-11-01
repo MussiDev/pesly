@@ -36,7 +36,7 @@ describe('merchantKey', () => {
   });
 
   it('caps the key at 80 characters and never ends it with a space', () => {
-    expect(merchantKey(`${'a'.repeat(100)}`)?.length).toBe(80);
+    expect(merchantKey('a'.repeat(100))?.length).toBe(80);
     expect(merchantKey(`${'a'.repeat(80)} bbb`)).toBe('a'.repeat(80));
     expect(merchantKey(`${'a'.repeat(79)} bbb`)).toBe('a'.repeat(79));
   });
