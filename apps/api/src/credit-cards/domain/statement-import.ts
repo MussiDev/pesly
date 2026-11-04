@@ -1,4 +1,5 @@
 import { MOVEMENT_NOTE_MAX_LENGTH, previousPeriod } from '@pesly/shared';
+import type { InstallmentPurchase } from './installment';
 
 /** The fields of an imported line that tell one purchase from another. */
 export interface ImportedLineIdentity {
@@ -66,4 +67,34 @@ export function firstPeriodOfInstallment(period: string, number: number): string
   let first = period;
   for (let step = 1; step < number; step += 1) first = previousPeriod(first);
   return first;
+}
+
+/**
+ * Whether a stored purchase is the one an installment line of a later statement belongs to: the
+ * statement of month N repeats every purchase still being paid as "cuota N de M", and that line
+ * must not become a second purchase. Same day, currency, count and description, and installment
+ * N on the imported period; the amount may differ by one minor unit because the bank puts the
+ * rounding leftover on one installment.
+ */
+export function isSamePurchase(
+  purchase: Pick<
+    InstallmentPurchase,
+    'purchasedOn' | 'currency' | 'installmentCount' | 'note' | 'installments'
+  >,
+  line: ImportedLineIdentity,
+  period: string,
+): boolean {
+  if (line.installmentNumber === null || line.installmentCount === null) return false;
+  if (purchase.purchasedOn !== line.date) return false;
+  if (purchase.currency !== line.currency) return false;
+  if (purchase.installmentCount !== line.installmentCount) return false;
+  const note = noteFromDescription(line.description);
+  if (purchase.note === null || note === undefined) return false;
+  if (normalizeText(purchase.note) !== normalizeText(note)) return false;
+  const installment = purchase.installments.find(
+    (candidate) => candidate.number === line.installmentNumber,
+  );
+  if (installment === undefined || installment.period !== period) return false;
+  const difference = installment.amount - line.amount;
+  return difference >= -1n && difference <= 1n;
 }
