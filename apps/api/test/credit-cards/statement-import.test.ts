@@ -165,6 +165,107 @@ describe('ImportCardStatement', () => {
     expect(app.installments.purchases.size).toBe(1);
   });
 
+  it('does not duplicate a purchase when the next statement repeats it as the next installment', async () => {
+    const { app, card } = await withCard('2026-11-04T15:00:00.000Z');
+    const scope = await writeScopeFor(ANA);
+    const purchase = { description: 'Dlo*estilo criollo', date: '2026-08-30', installmentCount: 3 };
+    await app.importer.execute(
+      scope,
+      card.id,
+      statement([line({ ...purchase, amount: 1986514n, installmentNumber: 1 })]),
+    );
+
+    const next = await app.importer.execute(scope, card.id, {
+      closingDate: '2026-10-24',
+      dueDate: '2026-11-05',
+      categoryId: FOOD,
+      lines: [
+        line({ ...purchase, amount: 1986513n, installmentNumber: 2 }),
+        line({
+          description: 'Nueva',
+          date: '2026-10-10',
+          amount: 500n,
+          installmentNumber: 1,
+          installmentCount: 3,
+        }),
+      ],
+    });
+
+    expect(next).toMatchObject({ created: 1, skipped: 1, createdInstallmentPurchases: 1 });
+    expect(app.installments.purchases.size).toBe(2);
+  });
+
+  it('lets each stored purchase absorb only one repeated line of identical purchases', async () => {
+    const { app, card } = await withCard('2026-11-04T15:00:00.000Z');
+    const scope = await writeScopeFor(ANA);
+    const purchase = {
+      description: 'Hidromat',
+      date: '2026-08-30',
+      amount: 1462700n,
+      installmentCount: 6,
+    };
+    await app.importer.execute(
+      scope,
+      card.id,
+      statement([line({ ...purchase, installmentNumber: 1 })]),
+    );
+
+    const next = await app.importer.execute(scope, card.id, {
+      closingDate: '2026-10-24',
+      categoryId: FOOD,
+      lines: [
+        line({ ...purchase, installmentNumber: 2 }),
+        line({ ...purchase, installmentNumber: 2 }),
+      ],
+    });
+
+    expect(next).toMatchObject({ created: 1, skipped: 1 });
+    expect(app.installments.purchases.size).toBe(2);
+  });
+
+  it('creates two purchases for two identical installment lines of one new file', async () => {
+    const { app, card } = await withCard();
+    const purchase = { description: 'Hidromat', installmentNumber: 1, installmentCount: 6 };
+
+    const result = await app.importer.execute(
+      await writeScopeFor(ANA),
+      card.id,
+      statement([line(purchase), line(purchase)]),
+    );
+
+    expect(result).toMatchObject({ created: 2, skipped: 0 });
+    expect(app.installments.purchases.size).toBe(2);
+  });
+
+  it('keeps a later installment line whose amount, day or description differs as a new purchase', async () => {
+    const { app, card } = await withCard('2026-11-04T15:00:00.000Z');
+    const scope = await writeScopeFor(ANA);
+    const purchase = {
+      description: 'Tienda',
+      date: '2026-08-30',
+      amount: 10000n,
+      installmentCount: 3,
+    };
+    await app.importer.execute(
+      scope,
+      card.id,
+      statement([line({ ...purchase, installmentNumber: 1 })]),
+    );
+
+    const next = await app.importer.execute(scope, card.id, {
+      closingDate: '2026-10-24',
+      categoryId: FOOD,
+      lines: [
+        line({ ...purchase, installmentNumber: 2, amount: 10002n }),
+        line({ ...purchase, installmentNumber: 2, date: '2026-08-31' }),
+        line({ ...purchase, installmentNumber: 2, description: 'Otra tienda' }),
+        line({ ...purchase, installmentNumber: 3 }),
+      ],
+    });
+
+    expect(next).toMatchObject({ created: 4, skipped: 0 });
+  });
+
   it('keeps identical repeated purchases of one file as separate expenses', async () => {
     const { app, card } = await withCard();
     const scope = await writeScopeFor(ANA);

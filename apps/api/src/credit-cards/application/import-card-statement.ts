@@ -8,7 +8,12 @@ import {
 } from '@pesly/shared';
 import { notFoundUnlessAllowed, type AccessScope } from '../../shared/access';
 import type { CreditCard, StatementDraft } from '../domain/credit-card';
-import { firstPeriodOfInstallment, noteFromDescription } from '../domain/statement-import';
+import {
+  firstPeriodOfInstallment,
+  isSamePurchase,
+  noteFromDescription,
+} from '../domain/statement-import';
+import type { InstallmentPurchase } from '../domain/installment';
 import type { CreateInstallmentPurchase } from './create-installment-purchase';
 import { zoneAndToday, type CreditCardDependencies } from './dependencies';
 import { ensureStatements } from './ensure-statements';
@@ -59,6 +64,8 @@ const MAX_BACKFILLED_STATEMENTS = 36;
  *   The unit is refunded when nothing was created.
  * - Lines are idempotent through their fingerprints: a line whose fingerprint exists is skipped,
  *   so importing the same file twice creates nothing the second time.
+ * - An installment line of a purchase already on the card (the next month's statement repeats it
+ *   as "cuota N+1 de M") is skipped too: each stored purchase absorbs at most one such line.
  * - Atomicity: each line is created on its own (an expense is a movement, an installment purchase
  *   has its own transaction), so a failure half way leaves the earlier lines created. The
  *   fingerprint is claimed before the line is created and given back when creating it fails, so
@@ -78,6 +85,7 @@ export class ImportCardStatement {
       | 'writeLimit'
       | 'statementImports'
       | 'categoryRules'
+      | 'installments'
     >,
     private readonly createPurchase: CreateInstallmentPurchase,
   ) {
@@ -123,10 +131,21 @@ export class ImportCardStatement {
 
       const fingerprints = fingerprintLines(input.lines);
       const period = input.closingDate.slice(0, 7);
+      // Read before the loop, so purchases this file creates never absorb its own later lines.
+      const known: InstallmentPurchase[] = await this.deps.installments.listPurchases(
+        scope,
+        card.id,
+      );
       for (const [index, line] of input.lines.entries()) {
         const fingerprint = fingerprints[index];
         if (fingerprint === undefined) continue;
         if (!(await this.deps.statementImports.claim(scope, card.id, fingerprint))) {
+          result.skipped += 1;
+          continue;
+        }
+        const existing = known.findIndex((purchase) => isSamePurchase(purchase, line, period));
+        if (existing !== -1) {
+          known.splice(existing, 1);
           result.skipped += 1;
           continue;
         }
